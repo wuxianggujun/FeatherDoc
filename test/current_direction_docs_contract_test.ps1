@@ -65,7 +65,12 @@ $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.r
 $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $scriptTaskIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\script_task_index_zh.rst"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($marker in @(
         "Choose a language entry point",

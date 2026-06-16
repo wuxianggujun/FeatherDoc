@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build-page-number-fields-regression-nmake",
     [string]$OutputDir = "output/page-number-fields-regression",
     [int]$Dpi = 144,
+    [string[]]$CaseId = @(),
     [switch]$SkipBuild,
     [switch]$SkipVisual,
     [switch]$KeepWordOpen,
@@ -15,6 +16,9 @@ $parameters = @{
     Dpi = $Dpi
 }
 
+if ($CaseId.Count -gt 0) {
+    $parameters.CaseId = $CaseId
+}
 if ($SkipBuild) {
     $parameters.SkipBuild = $true
 }

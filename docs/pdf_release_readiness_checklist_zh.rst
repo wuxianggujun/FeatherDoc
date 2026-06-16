@@ -294,7 +294,10 @@ OCR 或任意视觉精确还原。
      ``pdf_bounded_ctest_summary_count``、``pdf_bounded_ctest_pass_count``、
      ``pdf_bounded_ctest_skipped_test_count``、
      ``pdf_bounded_ctest_selected_test_count``、``pdf_bounded_ctest_subsets`` 和
-     ``pdf_bounded_ctest_summary_json_display``；不能替代 full visual gate
+     ``pdf_bounded_ctest_summary_json_display``，并保留
+     ``pdf_bounded_ctest_import_diagnostics_contract_tests``、
+     ``pdf_bounded_ctest_import_diagnostics_contract_fields`` 和
+     ``pdf_bounded_ctest_import_negative_boundary_contract_cases``；不能替代 full visual gate
      verdict。固定标记：``pdf_bounded_ctest_governance_trace``、
      ``pdf_bounded_ctest_source_report_block_trace``。
      ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须在同一个
@@ -493,7 +496,43 @@ OCR 或任意视觉精确还原。
    ``pdf_cli_export``、``pdf_cli_import``、``pdf_import_structure``、
    ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``。summary 必须写出
    ``status = pass``、``verdict = pass``、``subset = smoke-import``、
-   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 120``。
+   该子集同时作为 PDF import diagnostics 的轻量视觉门禁前置证据：
+   ``pdf_cli_import`` 固定用户可见 ``table_continuation_diagnostics`` 与
+   ``failure_kind = no_text_paragraphs`` JSON，``pdf_import_failure`` 固定
+   image-only / no-text 负样本不会生成目标 DOCX；``pdf_cli_import`` 还固定
+   short-label prose 与 invoice summary form 在开启
+   ``--import-table-candidates-as-tables --json`` 后仍保持 ``tables_imported = 0``、
+   ``table_continuation_diagnostics = []`` 和
+   ``import_table_candidates_as_tables = true``。``smoke-import`` summary
+   还必须保留 ``import_visual_gate_scope = bounded_smoke_import_preflight``、
+   ``import_visual_gate_boundary =
+   bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict``、
+   ``import_visual_artifact_policy =
+   does_not_generate_or_commit_output_visual_artifacts``、
+   ``import_diagnostics_contract_tests`` 中的 ``pdf_cli_import``、
+   ``pdf_import_failure`` 和 ``pdf_import_table_heuristic``，以及
+   ``import_diagnostics_contract_fields`` 中的
+   ``table_continuation_diagnostics``、``table_continuation_diagnostics=[]``、
+   ``tables_imported=0``、``import_table_candidates_as_tables=true`` 和
+   ``failure_kind=no_text_paragraphs``；该字段清单还必须保留完整 blocker diagnostic
+   object 的用户可见关键值：``source_row_offset=0``、
+   ``skipped_repeating_header=false``、``source_rows_consistent=false``、
+   ``disposition=created_new_table``、``blocker=inconsistent_source_rows``、
+   ``blocker=repeated_header_mismatch``、``blocker=column_count_mismatch``、
+   ``blocker=column_anchors_mismatch``、
+   ``blocker=continuation_confidence_below_threshold``、
+   ``continuation_confidence=70``、``continuation_confidence=55``、
+   ``continuation_confidence=85``、``continuation_confidence=25``、
+   ``continuation_confidence=30``、
+   ``minimum_continuation_confidence=90``、``column_count_matches=false`` 和
+   ``column_anchors_match=false``；summary 还必须保留
+   ``import_negative_boundary_contract_cases`` 中的
+   ``short_label_prose_remains_paragraphs`` 和
+   ``invoice_summary_form_remains_paragraphs``。
+   这些字段只证明资源受限窗口里的 import diagnostics preflight，不替代 full
+   visual gate verdict，也不要求生成或提交 ``output/`` 视觉产物。固定标记：
+   ``pdf_import_smoke_diagnostics_release_trace``。
 
    资源受限时还可以补跑静态契约子集：
 
@@ -514,6 +553,8 @@ OCR 或任意视觉精确还原。
    ``pdf_cjk_anchor_font_matrix_boundary_contract``。summary 必须写出
    ``status = pass``、``verdict = pass``、``subset = contract-static``、
    ``selected_test_count = 10`` 和 ``ctest_timeout_seconds = 60``。
+   ``smoke-import`` 单独使用 120 秒是因为它包含完整 ``pdf_cli_import`` 聚合入口；
+   其它 bounded static / regression 子集仍保持 60 秒调度窗口。
    固定标记：``pdf_ctest_bounded_subset_release_trace``、
    ``pdf_ctest_bounded_contract_static_release_trace``。
 
@@ -687,3 +728,18 @@ OCR 或任意视觉精确还原。
 图片 / 页眉页脚 / RTL 探针和 visual baseline 证据。导入侧当前发布边界是
 text-first、表格 opt-in 和保守失败；不支持 OCR、扫描件、任意 PDF 视觉精确
 还原或通用 PDF 转 Word。
+
+CJK 字体分发策略：当前发行包不重新分发 CJK TTF / OTF / TTC 字体文件。
+PDF writer 和 visual gate 只接受调用方通过 ``--cjk-font-file`` /
+``--font-map``、``FEATHERDOC_PDF_CJK_FONT``、``FEATHERDOC_TEST_CJK_FONT``
+或系统字体候选提供的字体。若后续需要随包分发，候选限定为 Noto Sans CJK /
+Source Han Sans / Source Han Serif 等 SIL Open Font License 1.1 字体；打包前
+必须把 upstream source URL、精确版本、字体文件名、LICENSE / NOTICE、
+Reserved Font Name 义务和 release assets manifest 审计字段一并补齐。缺任一项时，
+发布清单必须把 CJK bundled font 标为未完成，不能把本机字体复制进发行包。
+``scripts/package_release_assets.ps1`` 会在创建 ZIP 前通过
+``Assert-NoBundledReleaseFontFiles`` 拒绝 staging 中的 ``.ttf`` / ``.otf`` /
+``.ttc`` 字体文件。
+
+核心头入口调整只影响 C++ include 路径与安装布局，不扩大 PDF 导出 / 导入
+发布边界。

@@ -24,12 +24,21 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $cliExportTestPath = Join-Path $resolvedRepoRoot "test\pdf_cli_export_tests.cpp"
 $cliTestsPath = Join-Path $resolvedRepoRoot "test\cli_tests.cpp"
+$cliPdfDisabledTestsPath = Join-Path $resolvedRepoRoot "test\cli_pdf_disabled_tests.cpp"
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
+$cmakeModuleDir = Join-Path $resolvedRepoRoot "test\cmake"
+$cmakeTextParts = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath)
+if (Test-Path -LiteralPath $cmakeModuleDir) {
+    $cmakeTextParts += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+}
 $visualGatePath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 
 $cliExportTestText = Get-Content -Raw -LiteralPath $cliExportTestPath
 $cliTestsText = Get-Content -Raw -LiteralPath $cliTestsPath
-$cmakeText = Get-Content -Raw -LiteralPath $cmakePath
+$cliPdfDisabledTestsText = Get-Content -Raw -LiteralPath $cliPdfDisabledTestsPath
+$cmakeText = $cmakeTextParts -join "`n"
 $visualGateText = Get-Content -Raw -LiteralPath $visualGatePath
 
 Assert-ContainsText -Text $cliExportTestText -ExpectedText "auto find_cjk_font() -> fs::path" `
@@ -51,9 +60,9 @@ Assert-ContainsText -Text $cliExportTestText -ExpectedText "assert_pdfium_can_re
 Assert-ContainsText -Text $cliExportTestText -ExpectedText "assert_pdfium_can_read(output" `
     -Message "CLI PDF export tests should keep PDFium readback for explicit CJK output."
 
-Assert-ContainsText -Text $cliTestsText -ExpectedText "cli export-pdf reports disabled pdf support" `
+Assert-ContainsText -Text $cliPdfDisabledTestsText -ExpectedText "cli export-pdf reports disabled pdf support" `
     -Message "CLI tests should keep the disabled PDF support diagnostic."
-Assert-ContainsText -Text $cliTestsText -ExpectedText "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON" `
+Assert-ContainsText -Text $cliPdfDisabledTestsText -ExpectedText "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON" `
     -Message "CLI tests should keep the PDF build flag diagnostic."
 
 Assert-ContainsText -Text $cmakeText -ExpectedText "pdf_cli_export_tests" `
@@ -62,7 +71,7 @@ Assert-ContainsText -Text $cmakeText -ExpectedText "add_dependencies(pdf_cli_exp
     -Message "CMake should keep pdf_cli_export_tests dependent on featherdoc_cli."
 Assert-ContainsText -Text $cmakeText -ExpectedText "featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)" `
     -Message "CMake should keep cli/smoke/pdf labels for the PDF export CLI test."
-Assert-ContainsText -Text $cmakeText -ExpectedText "FEATHERDOC_CLI_ENABLE_PDF=1" `
+Assert-ContainsText -Text $cmakeText -ExpectedText "FEATHERDOC_BUILD_PDF_IMPORT=1" `
     -Message "CMake should keep PDF-enabled CLI compile coverage."
 Assert-ContainsText -Text $cmakeText -ExpectedText 'CMAKE_BUILD_TYPE STREQUAL "Debug"' `
     -Message "CMake should keep Debug PDF test runtime DLL resolution."

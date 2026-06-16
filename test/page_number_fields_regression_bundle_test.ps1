@@ -1,7 +1,8 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [string[]]$CaseId = @()
 )
 
 Set-StrictMode -Version Latest
@@ -94,11 +95,17 @@ $regressionScript = Join-Path $resolvedRepoRoot "scripts\run_page_number_fields_
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
-& $regressionScript `
-    -BuildDir $resolvedBuildDir `
-    -OutputDir $outputDir `
-    -SkipBuild `
-    -SkipVisual
+$regressionParameters = @{
+    BuildDir = $resolvedBuildDir
+    OutputDir = $outputDir
+    SkipBuild = $true
+    SkipVisual = $true
+}
+if ($CaseId.Count -gt 0) {
+    $regressionParameters.CaseId = $CaseId
+}
+
+& $regressionScript @regressionParameters
 
 if ($LASTEXITCODE -ne 0) {
     throw "Page number fields regression bundle generation failed."
@@ -128,7 +135,7 @@ Assert-True -Condition ((-not $summaryHasAggregateEvidence) -or $null -eq $summa
 Assert-True -Condition ((-not $manifestHasAggregateEvidence) -or $null -eq $manifest.aggregate_evidence) `
     -Message "review_manifest.json unexpectedly contained aggregate visual evidence."
 
-$expectedCases = @(
+$allExpectedCases = @(
     [ordered]@{
         id = "api-sample"
         docx = "page_number_fields.docx"
@@ -144,16 +151,21 @@ $expectedCases = @(
         total_pages_count = 2
     }
 )
+$expectedCases = @(if ($CaseId.Count -eq 0) {
+        $allExpectedCases
+    } else {
+        $allExpectedCases | Where-Object { $CaseId -contains $_.id }
+    })
 
-Assert-True -Condition ($summary.cases.Count -eq $expectedCases.Count) `
+Assert-True -Condition (@($summary.cases).Count -eq $expectedCases.Count) `
     -Message "summary.json case count mismatch."
-Assert-True -Condition ($manifest.cases.Count -eq $expectedCases.Count) `
+Assert-True -Condition (@($manifest.cases).Count -eq $expectedCases.Count) `
     -Message "review_manifest.json case count mismatch."
 
 for ($index = 0; $index -lt $expectedCases.Count; $index++) {
     $expectedCase = $expectedCases[$index]
-    $summaryCase = $summary.cases[$index]
-    $manifestCase = $manifest.cases[$index]
+    $summaryCase = @($summary.cases)[$index]
+    $manifestCase = @($manifest.cases)[$index]
     $caseDir = Join-Path $outputDir $expectedCase.id
     $expectedDocxPath = [System.IO.Path]::GetFullPath((Join-Path $caseDir $expectedCase.docx))
     $expectedFieldSummaryPath = [System.IO.Path]::GetFullPath((Join-Path $caseDir $expectedCase.field_summary))
@@ -190,44 +202,47 @@ for ($index = 0; $index -lt $expectedCases.Count; $index++) {
         -Message "Unexpected NUMPAGES field count inside DOCX for case '$($expectedCase.id)'."
 }
 
-$cliBaseDocxPath = Join-Path $outputDir "cli-append\section_page_setup_base.docx"
-Assert-True -Condition (Test-Path -LiteralPath $cliBaseDocxPath) `
-    -Message "Expected CLI base sample DOCX is missing: $cliBaseDocxPath"
+if ($expectedCases.id -contains "cli-append") {
+    $cliBaseDocxPath = Join-Path $outputDir "cli-append\section_page_setup_base.docx"
+    Assert-True -Condition (Test-Path -LiteralPath $cliBaseDocxPath) `
+        -Message "Expected CLI base sample DOCX is missing: $cliBaseDocxPath"
 
-$cliMutationFiles = @(
-    [ordered]@{
-        path = (Join-Path $outputDir "cli-append\append_page_number_section_0.json")
-        command = '"command":"append-page-number-field"'
-        field = '"field":"page_number"'
-    },
-    [ordered]@{
-        path = (Join-Path $outputDir "cli-append\append_total_pages_section_0.json")
-        command = '"command":"append-total-pages-field"'
-        field = '"field":"total_pages"'
-    },
-    [ordered]@{
-        path = (Join-Path $outputDir "cli-append\append_page_number_section_1.json")
-        command = '"command":"append-page-number-field"'
-        field = '"field":"page_number"'
-    },
-    [ordered]@{
-        path = (Join-Path $outputDir "cli-append\append_total_pages_section_1.json")
-        command = '"command":"append-total-pages-field"'
-        field = '"field":"total_pages"'
+    $cliMutationFiles = @(
+        [ordered]@{
+            path = (Join-Path $outputDir "cli-append\append_page_number_section_0.json")
+            command = '"command":"append-page-number-field"'
+            field = '"field":"page_number"'
+        },
+        [ordered]@{
+            path = (Join-Path $outputDir "cli-append\append_total_pages_section_0.json")
+            command = '"command":"append-total-pages-field"'
+            field = '"field":"total_pages"'
+        },
+        [ordered]@{
+            path = (Join-Path $outputDir "cli-append\append_page_number_section_1.json")
+            command = '"command":"append-page-number-field"'
+            field = '"field":"page_number"'
+        },
+        [ordered]@{
+            path = (Join-Path $outputDir "cli-append\append_total_pages_section_1.json")
+            command = '"command":"append-total-pages-field"'
+            field = '"field":"total_pages"'
+        }
+    )
+
+    foreach ($mutationFile in $cliMutationFiles) {
+        Assert-True -Condition (Test-Path -LiteralPath $mutationFile.path) `
+            -Message "Expected CLI mutation JSON is missing: $($mutationFile.path)"
+        Assert-Contains -Path $mutationFile.path -ExpectedText $mutationFile.command -Label ([System.IO.Path]::GetFileName($mutationFile.path))
+        Assert-Contains -Path $mutationFile.path -ExpectedText $mutationFile.field -Label ([System.IO.Path]::GetFileName($mutationFile.path))
     }
-)
-
-foreach ($mutationFile in $cliMutationFiles) {
-    Assert-True -Condition (Test-Path -LiteralPath $mutationFile.path) `
-        -Message "Expected CLI mutation JSON is missing: $($mutationFile.path)"
-    Assert-Contains -Path $mutationFile.path -ExpectedText $mutationFile.command -Label ([System.IO.Path]::GetFileName($mutationFile.path))
-    Assert-Contains -Path $mutationFile.path -ExpectedText $mutationFile.field -Label ([System.IO.Path]::GetFileName($mutationFile.path))
 }
 
 Assert-Contains -Path $checklistPath -ExpectedText "api-sample" -Label "review_checklist.md"
 Assert-Contains -Path $checklistPath -ExpectedText "cli-append" -Label "review_checklist.md"
 Assert-Contains -Path $finalReviewPath -ExpectedText "## Verdict" -Label "final_review.md"
-Assert-Contains -Path $finalReviewPath -ExpectedText "api-sample:" -Label "final_review.md"
-Assert-Contains -Path $finalReviewPath -ExpectedText "cli-append:" -Label "final_review.md"
+foreach ($expectedCase in $expectedCases) {
+    Assert-Contains -Path $finalReviewPath -ExpectedText "$($expectedCase.id):" -Label "final_review.md"
+}
 
 Write-Host "Page number fields regression bundle structure passed."

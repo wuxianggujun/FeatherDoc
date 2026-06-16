@@ -23,6 +23,8 @@ site.
 - Simplified Chinese getting started: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html>
 - PDF workflows: <https://wuxianggujun.github.io/FeatherDoc/en/api/pdf_workflow.html>
 - Source docs: [`docs/index.rst`](docs/index.rst)
+- Documentation maintenance: [`docs/documentation_maintenance_zh.rst`](docs/documentation_maintenance_zh.rst)
+- Script task index: [`docs/script_task_index_zh.rst`](docs/script_task_index_zh.rst)
 
 ## What You Can Build
 
@@ -75,6 +77,9 @@ int main() {
 
 - `dev` is the active development branch.
 - `master` is kept as the stable/release branch.
+- Codex/local automation work should continue directly on the current `dev`
+  branch by default. Do not create `codex/*` or other task branches unless the
+  maintainer explicitly requests a new branch.
 - Release tags should be created only after version, changelog, CI, and release
   checks are aligned.
 

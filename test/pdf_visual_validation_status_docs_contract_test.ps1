@@ -4,92 +4,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-
-function Assert-ContainsText {
-    param(
-        [string]$Text,
-        [string]$ExpectedText,
-        [string]$Message
-    )
-
-    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
-        throw "$Message Missing='$ExpectedText'."
-    }
-}
-
-function Assert-TextBlockContainsAll {
-    param(
-        [string]$Text,
-        [string]$Anchor,
-        [string[]]$ExpectedFragments,
-        [string]$Message
-    )
-
-    $anchorIndex = $Text.IndexOf($Anchor, [StringComparison]::Ordinal)
-    if ($anchorIndex -lt 0) {
-        throw "$Message Missing anchor '$Anchor'."
-    }
-
-    $blockStart = $Text.LastIndexOf("`n   * ", $anchorIndex, [StringComparison]::Ordinal)
-    if ($blockStart -lt 0) {
-        $blockStart = 0
-    } else {
-        $blockStart += 1
-    }
-
-    $blockEnd = $Text.IndexOf("`n   * ", $anchorIndex + $Anchor.Length, [StringComparison]::Ordinal)
-    if ($blockEnd -lt 0) {
-        $blockEnd = $Text.Length
-    }
-
-    $block = $Text.Substring($blockStart, $blockEnd - $blockStart)
-    foreach ($fragment in $ExpectedFragments) {
-        if ($block.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) {
-            throw "$Message Missing '$fragment' in block anchored by '$Anchor'."
-        }
-    }
-}
-
-function Assert-TextParagraphContainsAll {
-    param(
-        [string]$Text,
-        [string]$Anchor,
-        [string[]]$ExpectedFragments,
-        [string]$Message
-    )
-
-    $normalizedText = $Text -replace "`r`n", "`n"
-    $anchorIndex = $normalizedText.IndexOf($Anchor, [StringComparison]::Ordinal)
-    if ($anchorIndex -lt 0) {
-        throw "$Message Missing anchor '$Anchor'."
-    }
-
-    $paragraphEnd = $normalizedText.IndexOf("`n`n", $anchorIndex, [StringComparison]::Ordinal)
-    if ($paragraphEnd -lt 0) {
-        $paragraphEnd = $normalizedText.Length
-    }
-
-    $paragraph = $normalizedText.Substring($anchorIndex, $paragraphEnd - $anchorIndex)
-    foreach ($fragment in $ExpectedFragments) {
-        if ($paragraph.IndexOf($fragment, [StringComparison]::Ordinal) -lt 0) {
-            throw "$Message Missing '$fragment' in paragraph anchored by '$Anchor'."
-        }
-    }
-}
-
-function Get-RepoFileText {
-    param(
-        [string]$Root,
-        [string]$RelativePath
-    )
-
-    $path = Join-Path $Root $RelativePath
-    if (-not (Test-Path -LiteralPath $path)) {
-        throw "Expected contract file was not found: $RelativePath"
-    }
-
-    return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
-}
+. (Join-Path $PSScriptRoot "pdf_visual_validation_status_docs_contract_helpers.ps1")
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
@@ -103,23 +19,75 @@ $orphanMarker = ":orphan:"
 Assert-ContainsText -Text $statusDoc -ExpectedText $orphanMarker `
     -Message "PDF visual validation status should be kept as an orphaned reference page."
 
-$buildingPdfDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+$buildingPdfDoc = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "BUILDING_PDF.md"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "building_pdf*_archive.md" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $releaseChecklistDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\pdf_release_readiness_checklist_zh.rst"
 $releaseArtifactTemplateEn = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.md"
 $releaseArtifactTemplateZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "RELEASE_ARTIFACT_TEMPLATE.zh-CN.md"
+$roadmapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "design\02-current-roadmap.md"
 $pdfWorkflowDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\pdf_workflow.rst"
+$pdfWorkflowDocZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\pdf_workflow.rst"
 $dependencyInputsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_dependency_inputs.ps1"
-$preflightScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
-$releaseReadinessScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
+$preflightScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_visual_release_gate_preflight.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "check_pdf_visual_release_gate_preflight_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$releaseReadinessScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\check_pdf_release_readiness.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "check_pdf_release_readiness_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $visualFullGateGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_visual_full_gate_guarded.ps1"
 $fullCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_full_ctest_guarded.ps1"
 $remainingCtestGuardedScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_remaining_guarded.ps1"
-$governanceReportScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
-$materialSafetyScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
-$materialSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
-$packageAssetsScript = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
-$packageAssetsSafetyTest = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$boundedCtestScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\run_pdf_ctest_bounded_subset.ps1"
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\pdf_import_diagnostics_contract_fields.ps1"
+) -join "`n"
+$governanceReportScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\write_pdf_visual_release_gate_preflight_governance_report.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_pdf_visual_release_gate_preflight_governance_report_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$materialSafetyScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\assert_release_material_safety.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "assert_release_material_safety_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$materialSafetyTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\assert_release_material_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "assert_release_material_safety_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$packageAssetsScript = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\package_release_assets.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "package_release_assets_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$packageAssetsSafetyTest = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\package_release_assets_safety_test.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test") -Filter "package_release_assets_safety_*.ps1" |
+        Where-Object { $_.Name -ne "package_release_assets_safety_test.ps1" } |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 $doNotRunFullVisualGateMarker = [string]::Concat(@(
     [char]0x4E0D,
     [char]0x8981,
@@ -131,287 +99,7 @@ $doNotRunFullVisualGateMarker = [string]::Concat(@(
     [char]0x6574,
     " visual gate"
 ))
-
-$statusMarkers = @(
-    "check_pdf_dependency_inputs.ps1",
-    "featherdoc.pdf_dependency_inputs_check.v1",
-    "blocking_checks = []",
-    "blocking_summary.blocking_check_count = 0",
-    "memory_guard_blocked = false",
-    "memory_guard_skipped = false",
-    "workstation_free_memory_available",
-    "git status --short",
-    "free_memory_mb",
-    "min_free_memory_mb",
-    "memory guard blocked=false",
-    "memory guard skipped=false",
-    "free memory MB",
-    "minimum free memory MB",
-    "2026-05-20",
-    "2026-05-24",
-    "2026-05-25",
-    "2026-05-26",
-    "2026-05-27",
-    "2026-05-26T22:50:00",
-    "FinalizeOnly",
-    "release_blocker_count = 0",
-    "action_item_count = 0",
-    "build_dir_source = requested",
-    "build_dir_auto_candidates",
-    "pdf_build_options",
-    "looks_reusable",
-    "preflight_ready = true",
-    "preflight governance report",
-    "raw summary",
-    "full_visual_gate_required = true",
-    "full_visual_gate_status = not_run_by_preflight_governance",
-    "preflight-governance",
-    "full gate summary",
-    "contact sheet",
-    "evidence_kind",
-    "synthetic_fixture",
-    "synthetic_preflight_evidence",
-    "release_ready = true",
-    "not_run_by_preflight_governance",
-    "evidence_kind = real_build",
-    "controlled_visual_smoke_status = pass",
-    "controlled_visual_smoke_passed = true",
-    "status = ready",
-    "status = pass",
-    "verdict = pass",
-    "finalize_only = true",
-    "skip_preflight = true",
-    "output_gap_count = 0",
-    "missing_output_count = 0",
-    "visual_baseline_manifest_count = 42",
-    "baselines_count = 44",
-    "cjk_manifest_count = 43",
-    "cjk_copy_search_count = 43",
-    "generated_at = 2026-05-25T07:13:30",
-    "generated_at = 2026-05-25T07:15:13",
-    "generated_at = 2026-05-26T23:19:01",
-    "generated_at = 2026-05-27T01:38:37",
-    "2026-05-28",
-    "generated_at = 2026-05-28T14:35:38",
-    "generated_at = 2026-05-28T14:38:22",
-    "generated_at = 2026-05-28T14:38:23",
-    "generated_at = 2026-05-28T14:49:37",
-    "generated_at = 2026-05-28T14:38:33",
-    "status = pass",
-    "verdict = pass",
-    "full_visual_gate_status = pass",
-    "outer_guard_status = completed",
-    "outer_guard_timed_out = false",
-    "full_summary_fresh_for_attempt = true",
-    "passed_stage_count = 6",
-    "failed_stage_count = 0",
-    "incomplete_stage_count = 0",
-    "visual_baseline_fresh_rendered_count = 44",
-    "visual_baseline_fresh_missing_sample_count = 0",
-    "aggregate_contact_sheet_status = pass",
-    "summary_detail_payload_included = true",
-    "summary_detail_status = complete",
-    "core_pass_written_before_detail_payload",
-    "visual_full_gate_status = pass",
-    "visual_full_gate_full_visual_gate_status = pass",
-    "visual_full_gate_outer_guard_status = completed",
-    "visual_full_gate_attempt_summary_full_visual_gate_status = pass",
-    "visual_gate_release_evidence_accepted = true",
-    "execution_status = pass",
-    "free_memory_mb = 4061.3",
-    "output/pdf-visual-release-gate-preflight-current/summary.json",
-    "pdf_preflight_default_current_summary_trace",
-    "blocking_check_count = 0",
-    "blocking_checks = []",
-    "free_memory_mb = 2691.4",
-    "-FinalizeOnly -SkipPreflight",
-    "selected_pdfium_provider = prebuilt",
-    "pdf_dependency_inputs_status = ready",
-    "pdf_dependency_missing_input_count = 0",
-    "pdf_build_options_enabled = true",
-    "pdfio_dependency_ready = true",
-    "pdfium_dependency_ready = true",
-    "visual_baseline_sample_count = 42",
-    "missing_visual_baseline_pdf_count = 0",
-    "cjk_text_layer_sample_count = 43",
-    "missing_cjk_text_layer_pdf_count = 0",
-    "ctest_list_contains_pdf_gate_tests = pass",
-    "run_pdf_ctest_bounded_subset.ps1",
-    "pdf_bounded_ctest",
-    "pdf_bounded_ctest_summary_count",
-    "pdf_bounded_ctest_pass_count",
-    "pdf_bounded_ctest_skipped_test_count",
-    "pdf_bounded_ctest_selected_test_count",
-    "pdf_bounded_ctest_subsets",
-    "pdf_bounded_ctest_summary_json_display",
-    "pdf_bounded_ctest_governance_trace",
-    "pdf_bounded_ctest_source_report_block_trace",
-    "pdf_visual_gate_rollup_material_safety_trace",
-    "write_pdf_visual_gate_attempt_summary.ps1",
-    "featherdoc.pdf_visual_gate_attempt_summary.v1",
-    "attempt-summary.json",
-    "pdf_visual_gate_attempt_status",
-    "pdf_visual_gate_attempt_verdict",
-    "pdf_visual_gate_attempt_full_visual_gate_status",
-    "pdf_visual_gate_attempt_evidence_scope",
-    "bounded_attempt_auxiliary_only",
-    "pdf_visual_gate_attempt_outer_guard_status",
-    "pdf_visual_gate_attempt_outer_guard_timed_out",
-    "pdf_visual_gate_attempt_outer_guard_timeout_seconds",
-    "outer_guard_status = timed_out",
-    "outer_guard_timed_out = true",
-    "outer_guard_timeout_seconds = 60",
-    "pdf_visual_gate_attempt_outer_guard_trace",
-    "pdf_visual_gate_attempt_pdf_regression_skipped_test_count",
-    "pdf_visual_gate_attempt_visual_baseline_render_status",
-    "pdf_visual_gate_attempt_summary_trace",
-    "pdf_visual_gate_attempt_governance_trace",
-    "pdf_visual_gate_attempt_material_safety_trace",
-    "pdf_visual_gate_attempt_rollup_material_safety_trace",
-    "pdf_visual_gate_attempt_final_review_material_safety_trace",
-    "run_pdf_visual_full_gate_guarded.ps1",
-    "featherdoc.pdf_visual_full_gate_guarded_summary.v1",
-    "visual_full_gate_attempt_passed_stage_count",
-    "visual_full_gate_attempt_visual_baseline_fresh_rendered_count",
-    "visual_full_gate_attempt_aggregate_contact_sheet_status",
-    "visual_full_gate_pass_summary_before_outer_timeout",
-    "visual_gate_pass_summary_before_outer_timeout",
-    "pass_summary_before_outer_timeout",
-    "timed_out_after_pass_summary",
-    "pdf_visual_gate_core_pass_summary_trace",
-    "summary_detail_payload_included",
-    "summary_detail_status",
-    "core_pass_written_before_detail_payload",
-    "--skip-contact-sheet",
-    "contact_sheet_skipped",
-    "pdf_visual_full_gate_guarded_summary_trace",
-    "featherdoc.pdf_visual_baseline_slice.v1",
-    "VisualBaselineSliceOnly",
-    "VisualBaselineOffset",
-    "VisualBaselineLimit",
-    "visual_baseline_slice_only",
-    "slice_summary_does_not_replace_full_visual_gate_verdict",
-    "pdf_visual_baseline_slice_summary_trace",
-    "featherdoc.pdf_visual_aggregate_contact_sheet_rebuild.v1",
-    "RebuildAggregateContactSheetOnly",
-    "aggregate_contact_sheet_rebuild_only",
-    "aggregate_rebuild_summary_does_not_replace_full_visual_gate_verdict",
-    "aggregate-contact-sheet-rebuild-summary.json",
-    "pdf_visual_aggregate_contact_sheet_rebuild_trace",
-    "pdf_visual_gate_core_pass_summary_trace",
-    "summary_detail_payload_included",
-    "summary_detail_status",
-    "core_pass_written_before_detail_payload",
-    "--skip-contact-sheet",
-    "contact_sheet_skipped",
-    "run_pdf_visual_segmented_resume.ps1",
-    "featherdoc.pdf_visual_segmented_resume_summary.v1",
-    "segmented-resume-summary.json",
-    "visual_segmented_resume_auxiliary_only",
-    "resume_tail_fully_planned",
-    "segmented_resume_does_not_replace_full_visual_gate_verdict",
-    "pdf_visual_segmented_resume_summary_trace",
-    "write_pdf_visual_segmented_gate_summary.ps1",
-    "featherdoc.pdf_visual_segmented_gate_summary.v1",
-    "segmented-summary.json",
-    "status",
-    "verdict",
-    "pdf_visual_segmented_gate_status",
-    "pdf_visual_segmented_gate_verdict",
-    "pdf_visual_segmented_gate_full_visual_gate_status",
-    "pdf_visual_segmented_gate_evidence_scope",
-    "segmented_visual_gate_auxiliary_only",
-    "pdf_visual_segmented_gate_boundary",
-    "segmented_summary_does_not_replace_full_visual_gate_verdict",
-    "pdf_visual_segmented_gate_summary_json_display",
-    "pdf_visual_segmented_gate_slice_summary_count",
-    "pdf_visual_segmented_gate_slice_pass_count",
-    "pdf_visual_segmented_gate_slice_failed_count",
-    "pdf_visual_segmented_gate_covered_baseline_count",
-    "pdf_visual_segmented_gate_expected_visual_render_count",
-    "pdf_visual_segmented_gate_attempt_stage_count",
-    "pdf_visual_segmented_gate_attempt_passed_stage_count",
-    "pdf_visual_segmented_gate_visual_baseline_render_status",
-    "pdf_visual_segmented_gate_aggregate_contact_sheet_status",
-    "pdf_visual_segmented_gate_aggregate_contact_sheet_display",
-    "pdf_visual_segmented_gate_aggregate_contact_sheet_bytes",
-    "pdf_visual_segmented_gate_aggregate_rebuild_status",
-    "pdf_visual_segmented_gate_aggregate_rebuild_selected_baseline_count",
-    "pdf_visual_segmented_gate_summary_trace",
-    "pdf_visual_segmented_gate_governance_trace",
-    "pdf_visual_segmented_gate_material_safety_trace",
-    "pdf_visual_segmented_gate_rollup_material_safety_trace",
-    "pdf_visual_segmented_gate_final_review_material_safety_trace",
-    "pdf_ctest_bounded_subset_release_trace",
-    "pdf_ctest_bounded_contract_static_release_trace",
-    "pdf_ctest_bounded_cjk_flow_static_release_trace",
-    "pdf_ctest_bounded_regression_basic_text_release_trace",
-    "pdf_ctest_bounded_regression_styled_document_release_trace",
-    "pdf_ctest_bounded_regression_business_samples_release_trace",
-    "pdf_ctest_bounded_regression_table_layout_release_trace",
-    "Subset",
-    "subset = smoke-import",
-    "subset = contract-static",
-    "subset = cjk-flow-static",
-    "subset = regression-basic-text",
-    "subset = regression-styled-document",
-    "subset = regression-business-samples",
-    "subset = regression-table-layout",
-    "contract-static",
-    "cjk-flow-static",
-    "regression-basic-text",
-    "regression-styled-document",
-    "regression-business-samples",
-    "regression-table-layout",
-    "selected_test_count = 10",
-    "skipped_test_count = 0",
-    "ctest_timeout_seconds = 60",
-    "pdf_cjk_font_search_density_flow_contract",
-    "pdf_cjk_list_page_flow_contract",
-    "pdf_regression_manifest",
-    "pdf_regression_four-page-text",
-    "pdf_regression_styled-text",
-    "pdf_regression_document-font-matrix-text",
-    "pdf_regression_invoice-grid-text",
-    "pdf_regression_document-cjk-image-wrap-stress-text",
-    "pdf_regression_document-table-merged-header-footer-variants-text",
-    "skipped",
-    "***Skipped",
-    "912x14566",
-    "1822428",
-    "pdfium_ready = true",
-    "pdfium_prebuilt_root_exists = true",
-    "TinaToolBox\dependencies\pdfium-win-x64",
-    "lib\pdfium.dll.lib",
-    "include\fpdfview.h",
-    "bin\pdfium.dll",
-    "missing_input_count = 1",
-    "tmp\pdfio-src\pdfio.h",
-    "output_gap_count = 3",
-    ".bpdf-roundtrip-msvc",
-    "CMakeCache.txt",
-    "CTestTestfile.cmake",
-    "FEATHERDOC_BUILD_PDF=ON",
-    "FEATHERDOC_BUILD_PDF_IMPORT=ON",
-    "pdf_build_options_enabled",
-    "out\build",
-    "-MinFreeMemoryMB",
-    "-SkipMemoryGuard",
-    "missing_output_count = 87",
-    "aggregate-contact-sheet.png",
-    "fake-pdf-build",
-    "fake ctest",
-    "fake python",
-    "fake / synthetic",
-    "test fixture",
-    "reusable release build substitute",
-    "pdf_dependency_inputs",
-    "pdf_dependency_inputs_status",
-    "pdf_dependency_missing_input_count",
-    "pdfio_dependency_ready",
-    "pdfium_dependency_ready",
-    "run_pdf_visual_release_gate.ps1"
-)
+. (Join-Path $PSScriptRoot "pdf_visual_validation_status_docs_contract_status_markers.ps1")
 
 foreach ($marker in $statusMarkers) {
     Assert-ContainsText -Text $statusDoc -ExpectedText $marker `
@@ -500,6 +188,9 @@ $buildingPdfFixtureMarkers = @(
     "pdf_bounded_ctest_selected_test_count",
     "pdf_bounded_ctest_subsets",
     "pdf_bounded_ctest_summary_json_display",
+    "pdf_bounded_ctest_import_diagnostics_contract_tests",
+    "pdf_bounded_ctest_import_diagnostics_contract_fields",
+    "pdf_bounded_ctest_import_negative_boundary_contract_cases",
     "pdf_bounded_ctest_governance_trace",
     "pdf_bounded_ctest_source_report_block_trace",
     "pdf_visual_gate_rollup_material_safety_trace",
@@ -605,6 +296,7 @@ $buildingPdfFixtureMarkers = @(
     "skipped_test_count = 0",
     "***Skipped",
     "selected_test_count = 10",
+    "ctest_timeout_seconds = 120",
     "ctest_timeout_seconds = 60"
 )
 
@@ -650,6 +342,20 @@ foreach ($marker in $pdfExportSupportMatrixMarkers) {
         -Message "BUILDING_PDF.md should preserve PDF export support matrix marker '$marker'."
 }
 
+$buildingPdfImportDeveloperDiagnosticMarkers = @(
+    'PdfDocumentImportResult::table_continuation_diagnostics',
+    'skipped_repeating_header=true',
+    'continuation_confidence',
+    'not a probability',
+    'repeated-header continuation',
+    'score `95`'
+)
+
+foreach ($marker in $buildingPdfImportDeveloperDiagnosticMarkers) {
+    Assert-ContainsText -Text $buildingPdfDoc -ExpectedText $marker `
+        -Message "BUILDING_PDF.md should preserve PDF import developer diagnostic marker '$marker'."
+}
+
 $pdfImportBoundaryMarkers = @(
     "The importer is text-first.",
     "extractable PDF text and character geometry",
@@ -677,6 +383,102 @@ $pdfImportBoundaryMarkers = @(
 foreach ($marker in $pdfImportBoundaryMarkers) {
     Assert-ContainsText -Text $pdfWorkflowDoc -ExpectedText $marker `
         -Message "docs/en/api/pdf_workflow.rst should preserve PDF import boundary marker '$marker'."
+}
+
+$cjkFontDistributionPolicyWorkflowMarkers = @(
+    "Current release artifacts do not redistribute",
+    "CJK TTF / OTF / TTC font binaries",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "LICENSE / NOTICE",
+    "Reserved Font Name",
+    "release manifest"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyWorkflowMarkers) {
+    $message = "PDF workflow doc should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $pdfWorkflowDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyRoadmapMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "--cjk-font-file",
+    "--font-map",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "SIL Open Font License 1.1",
+    "release manifest",
+    "LICENSE / NOTICE",
+    "Reserved Font Name"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyRoadmapMarkers) {
+    $message = "PDF roadmap should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $roadmapDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyZhMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "LICENSE / NOTICE",
+    "Reserved Font Name"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyZhMarkers) {
+    $message = "PDF workflow zh doc should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $pdfWorkflowDocZh -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPolicyChecklistMarkers = @(
+    "CJK TTF / OTF / TTC",
+    "--cjk-font-file",
+    "--font-map",
+    "FEATHERDOC_PDF_CJK_FONT",
+    "FEATHERDOC_TEST_CJK_FONT",
+    "Noto Sans CJK",
+    "Source Han Sans",
+    "Source Han Serif",
+    "SIL Open Font License 1.1",
+    "release assets manifest",
+    "Assert-NoBundledReleaseFontFiles",
+    "CJK bundled font"
+)
+
+foreach ($marker in $cjkFontDistributionPolicyChecklistMarkers) {
+    $message = "PDF release readiness checklist should preserve CJK font distribution policy marker '{0}'." -f $marker
+    Assert-ContainsText -Text $releaseChecklistDoc -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPackageScriptGuardMarkers = @(
+    "Assert-NoBundledReleaseFontFiles",
+    "Get-BundledReleaseFontFiles",
+    "Checking staged bundled font policy",
+    "current CJK font distribution policy forbids bundled TTF/OTF/TTC files"
+)
+
+foreach ($marker in $cjkFontDistributionPackageScriptGuardMarkers) {
+    $message = "package release assets scripts should preserve CJK font distribution package guard marker '{0}'." -f $marker
+    Assert-ContainsText -Text $packageAssetsScript -ExpectedText $marker -Message $message
+}
+
+$cjkFontDistributionPackageGuardTestMarkers = @(
+    "current CJK font distribution policy forbids bundled TTF/OTF/TTC files",
+    "NotoSansSC-Regular.ttf"
+)
+
+foreach ($marker in $cjkFontDistributionPackageGuardTestMarkers) {
+    $message = "package release assets safety tests should preserve CJK font distribution package guard marker '{0}'." -f $marker
+    Assert-ContainsText -Text $packageAssetsSafetyTest -ExpectedText $marker -Message $message
 }
 
 $pdfPackageManifestMarkers = @(
@@ -792,6 +594,9 @@ foreach ($marker in @(
     "pdf_bounded_ctest_selected_test_count",
     "pdf_bounded_ctest_subsets",
     "pdf_bounded_ctest_summary_json_display",
+    "pdf_bounded_ctest_import_diagnostics_contract_tests",
+    "pdf_bounded_ctest_import_diagnostics_contract_fields",
+    "pdf_bounded_ctest_import_negative_boundary_contract_cases",
     "pdf_bounded_ctest_governance_trace",
     "pdf_bounded_ctest_source_report_block_trace",
     "pdf_visual_gate_rollup_material_safety_trace",
@@ -872,6 +677,7 @@ foreach ($marker in @(
     "pdf_ctest_bounded_regression_styled_document_release_trace",
     "pdf_ctest_bounded_regression_business_samples_release_trace",
     "pdf_ctest_bounded_regression_table_layout_release_trace",
+    "pdf_import_smoke_diagnostics_release_trace",
     "subset = smoke-import",
     "subset = contract-static",
     "subset = cjk-flow-static",
@@ -886,6 +692,20 @@ foreach ($marker in @(
     "regression-business-samples",
     "regression-table-layout",
     "pdf_import_docs_contract",
+    "table_continuation_diagnostics",
+    "failure_kind = no_text_paragraphs",
+    "import_visual_gate_scope = bounded_smoke_import_preflight",
+    "import_visual_gate_boundary",
+    "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+    "import_visual_artifact_policy",
+    "does_not_generate_or_commit_output_visual_artifacts",
+    "import_diagnostics_contract_tests",
+    "import_diagnostics_contract_fields"
+) + (Get-PdfImportDiagnosticsContractFields) + @(
+    "import_negative_boundary_contract_cases",
+    "short_label_prose_remains_paragraphs",
+    "invoice_summary_form_remains_paragraphs",
+    "image-only / no-text",
     "pdf_cjk_anchor_font_matrix_boundary_contract",
     "pdf_cjk_font_search_density_flow_contract",
     "pdf_cjk_list_page_flow_contract",
@@ -900,6 +720,7 @@ foreach ($marker in @(
     "skipped_test_count = 0",
     "***Skipped",
     "selected_test_count = 10",
+    "ctest_timeout_seconds = 120",
     "ctest_timeout_seconds = 60",
     "pdf_document_generator_probe",
     "pdf_import_table_heuristic",
@@ -945,6 +766,48 @@ Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
         "skipped"
     ) `
     -Message "PDF release readiness checklist should keep skipped bounded CTest failure semantics in one paragraph."
+
+Assert-TextParagraphContainsAll -Text $releaseChecklistDoc `
+    -Anchor "bounded_smoke_import_preflight" `
+    -ExpectedFragments (@(
+        "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+        "does_not_generate_or_commit_output_visual_artifacts",
+        "pdf_cli_import",
+        "pdf_import_failure",
+        "pdf_import_table_heuristic",
+        "import_diagnostics_contract_fields"
+    ) + (Get-PdfImportDiagnosticsContractFields) + @(
+        "import_negative_boundary_contract_cases",
+        "short_label_prose_remains_paragraphs",
+        "invoice_summary_form_remains_paragraphs",
+        "failure_kind=no_text_paragraphs",
+        "visual gate verdict",
+        "output/"
+    )) `
+    -Message "PDF release readiness checklist should keep bounded import diagnostics preflight scope and boundary in one paragraph."
+
+foreach ($marker in (@(
+    "import_visual_gate_scope",
+    "bounded_smoke_import_preflight",
+    "import_visual_gate_boundary",
+    "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict",
+    "import_visual_artifact_policy",
+    "does_not_generate_or_commit_output_visual_artifacts",
+    "import_diagnostics_contract_tests",
+    "import_diagnostics_contract_fields"
+) + (Get-PdfImportDiagnosticsContractFields) + @(
+    "import_negative_boundary_contract_cases",
+    "short_label_prose_remains_paragraphs",
+    "invoice_summary_form_remains_paragraphs",
+    "table_continuation_diagnostics",
+    "failure_kind=no_text_paragraphs",
+    "pdf_cli_import",
+    "pdf_import_failure",
+    "pdf_import_table_heuristic"
+))) {
+    Assert-ContainsText -Text $boundedCtestScript -ExpectedText $marker `
+        -Message "run_pdf_ctest_bounded_subset.ps1 should preserve bounded import diagnostics summary marker '$marker'."
+}
 
 foreach ($template in @(
     @{ Label = "RELEASE_ARTIFACT_TEMPLATE.md"; Text = $releaseArtifactTemplateEn },
@@ -1172,7 +1035,12 @@ foreach ($marker in @(
         -Message "PDF dependency input script should keep marker '$marker'."
 }
 
-$releaseBlockerHelpers = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
+$releaseBlockerHelpers = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "scripts\release_blocker_metadata_helpers.ps1"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "release_blocker_metadata_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 foreach ($marker in @(
     "memory guard blocked=",
     "memory guard skipped=",
@@ -1206,6 +1074,8 @@ foreach ($marker in @(
     "pdf_full_ctest_guarded_test.ps1",
     "pdf_ctest_remaining_guarded",
     "pdf_ctest_remaining_guarded_test.ps1",
+    "pdf_ctest_bounded_subset_summary",
+    "pdf_ctest_bounded_subset_summary_test.ps1",
     "TIMEOUT 60"
 )) {
     Assert-ContainsText -Text $cmakeLists -ExpectedText $marker `

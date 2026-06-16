@@ -52,6 +52,13 @@ PDF 导出
 * ``--summary-json <path>`` 写出机器可读导出摘要。
 * ``--json`` 输出机器可读命令结果。
 
+CJK 字体来源必须显式可追溯。当前发行包不重新分发 CJK TTF / OTF / TTC 字体文件；
+调用方通过 ``--cjk-font-file``、``--font-map``、``FEATHERDOC_PDF_CJK_FONT``、
+测试专用 ``FEATHERDOC_TEST_CJK_FONT`` 或已安装的系统字体候选提供字体。未来若随包
+分发 CJK 字体，必须选择 Noto Sans CJK、Source Han Sans 或 Source Han Serif 等
+OFL 1.1 字体，并在 release manifest 中记录 source URL、精确版本、字体文件名、
+LICENSE / NOTICE、Reserved Font Name 义务和打包审计证据。
+
 成功 JSON 包含 ``command``、``ok``、``output``、``bytes_written`` 和实际选项：
 
 .. code-block:: json
@@ -118,23 +125,71 @@ PDF 导入 JSON 诊断
 
 本节说明 ``featherdoc_cli import-pdf --json`` 输出的 PDF import JSON diagnostics。
 
-成功 JSON 包含 ``command``、``ok``、``input``、``output`` 和导入计数：
+成功 JSON 包含通用 mutation 字段 ``command``、``ok``、``in_place``、
+``sections``、``headers`` 和 ``footers``，随后是 PDF import 字段
+``input``、``output`` 和导入计数：
 
 .. code-block:: json
 
    {
      "command": "import-pdf",
      "ok": true,
+     "in_place": false,
+     "sections": 1,
+     "headers": 0,
+     "footers": 0,
      "input": "input.pdf",
      "output": "imported.docx",
      "paragraphs_imported": 2,
      "tables_imported": 1,
      "table_continuation_diagnostics_count": 2,
-     "table_continuation_diagnostics": [],
-     "import_table_candidates_as_tables": true,
-     "min_table_continuation_confidence": 90
+     "table_continuation_diagnostics": [
+       {
+         "page_index": 0,
+         "block_index": 1,
+         "source_row_offset": 0,
+         "continuation_confidence": 0,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": false,
+         "is_first_block_on_page": false,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": false,
+         "column_anchors_match": false,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "created_new_table",
+         "blocker": "no_previous_table"
+       },
+       {
+         "page_index": 1,
+         "block_index": 0,
+         "source_row_offset": 0,
+         "continuation_confidence": 85,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": true,
+         "is_first_block_on_page": true,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": true,
+         "column_anchors_match": true,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "merged_with_previous_table",
+         "blocker": "none"
+       }
+     ],
+     "import_table_candidates_as_tables": true
    }
 
+命令行设置 ``--min-table-continuation-confidence`` 时会额外输出
+``min_table_continuation_confidence``。
 ``table_continuation_diagnostics`` 按表格候选发现顺序排列，用于解释候选表格为什么新建表格、
 为什么与上一页表格合并，或者为什么被阻止跨页合并。
 
@@ -150,16 +205,48 @@ PDF 导入 JSON 诊断
   ``merged_with_previous_table``。
 * ``blocker``：拒绝跨页合并的第一个原因，成功合并时为 ``none``。
 
+诊断对象字段按 CLI JSON 输出顺序展示，用户可见示例应与 CLI 实现保持一致：
+``page_index``、``block_index``、``source_row_offset``、
+``continuation_confidence``、``minimum_continuation_confidence``、
+``has_previous_table``、``is_first_block_on_page``、``is_near_page_top``、
+``source_rows_consistent``、``column_count_matches``、
+``column_anchors_match``、``previous_has_repeating_header``、
+``source_has_repeating_header``、``header_matches_previous``、
+``header_match_kind``、``skipped_repeating_header``、``disposition`` 和
+``blocker``。
+
 ``header_match_kind`` 可以是 ``none``、``not_required``、``exact``、
 ``normalized_text``、``plural_variant``、``canonical_text`` 或 ``token_set``。
 ``blocker`` 可以是 ``none``、``no_previous_table``、
 ``not_first_block_on_page``、``not_near_page_top``、
 ``inconsistent_source_rows``、``column_count_mismatch``、
 ``column_anchors_mismatch``、``repeated_header_mismatch`` 或
-``continuation_confidence_below_threshold``。``inconsistent_source_rows`` 是内部一致性保护。
+``continuation_confidence_below_threshold``。
+
+重复表头续页候选合并时，诊断会显式记录规则决策：
+``source_row_offset = 1`` 表示跳过候选表第一行重复表头，
+``skipped_repeating_header = true``，``continuation_confidence = 95``，
+``header_match_kind = exact``，``blocker = none``。该 confidence 是确定性的启发式分数，
+不是概率。
+
+.. code-block:: json
+
+   {
+     "source_row_offset": 1,
+     "continuation_confidence": 95,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": true,
+     "disposition": "merged_with_previous_table",
+     "blocker": "none"
+   }
+
+``inconsistent_source_rows`` 是内部一致性保护；
+当前 parser 会按检测到的列锚点补齐候选表的每一行，因此正常导入不应把它当作稳定的用户可触发
+blocker。
 
 常见 continuation blockers：
 
+* ``column_count_mismatch``：候选表格检测到的列数与上一张表不一致。
 * ``repeated_header_mismatch``：重复表头语义不匹配。
 * ``column_anchors_mismatch``：列锚点漂移超过容忍范围。
 * ``continuation_confidence_below_threshold``：未达到
@@ -169,11 +256,27 @@ PDF 导入 JSON 诊断
 
 代表性诊断片段：
 
+下面的完整 blocker diagnostic object 按 CLI JSON 字段顺序展示常见拆表场景：
+
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 70,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
      "header_matches_previous": false,
      "header_match_kind": "none",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "repeated_header_mismatch"
    }
@@ -181,8 +284,45 @@ PDF 导入 JSON 诊断
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 30,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": false,
+     "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": false,
+     "header_match_kind": "none",
+     "skipped_repeating_header": false,
+     "disposition": "created_new_table",
+     "blocker": "column_count_mismatch"
+   }
+
+.. code-block:: json
+
+   {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 55,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
      "column_count_matches": true,
      "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": true,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "column_anchors_mismatch"
    }
@@ -190,8 +330,22 @@ PDF 导入 JSON 诊断
 .. code-block:: json
 
    {
-     "continuation_confidence": 80,
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 85,
      "minimum_continuation_confidence": 90,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "continuation_confidence_below_threshold"
    }
@@ -199,7 +353,22 @@ PDF 导入 JSON 诊断
 .. code-block:: json
 
    {
+     "page_index": 0,
+     "block_index": 2,
+     "source_row_offset": 0,
+     "continuation_confidence": 35,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": false,
+     "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_first_block_on_page"
    }
@@ -207,8 +376,22 @@ PDF 导入 JSON 诊断
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 45,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": true,
      "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_near_page_top"
    }
@@ -231,7 +414,8 @@ PDF 导入 JSON 诊断
 ``document_population_failed``、``extract_text_disabled``、
 ``extract_geometry_disabled``、``table_candidates_detected`` 或
 ``no_text_paragraphs``。未启用 ``--import-table-candidates-as-tables`` 且检测到表格候选时，
-会报告 ``table_candidates_detected``，并且不会写出目标 DOCX。
+会报告 ``table_candidates_detected``，并且不会写出目标 DOCX。没有可提取文本段落的扫描件
+或 image-only PDF 会报告 ``no_text_paragraphs``，同样不会写出目标 DOCX。
 
 命令行解析错误仍使用 ``stage`` 为 ``parse`` 的通用 JSON 形状。当前消息包括
 ``missing value after --min-table-continuation-confidence``、

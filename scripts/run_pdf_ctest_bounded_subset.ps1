@@ -8,6 +8,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_fields.ps1")
 
 function Resolve-RepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -70,6 +71,20 @@ function Invoke-CapturedCommand {
     }
 }
 
+function Get-SubsetMetadataValue {
+    param(
+        [System.Collections.IDictionary]$Config,
+        [string]$Key,
+        [object]$DefaultValue
+    )
+
+    if ($Config.Contains($Key)) {
+        return $Config[$Key]
+    }
+
+    return $DefaultValue
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedCtestExecutable = Resolve-CtestExecutable -Executable $CtestExecutable
@@ -86,6 +101,20 @@ if (-not (Test-Path -LiteralPath $resolvedBuildDir)) {
 $subsets = [ordered]@{
     "smoke-import" = [ordered]@{
         description = "PDF smoke/import executable subset"
+        ctest_timeout_seconds = 120
+        import_visual_gate_scope = "bounded_smoke_import_preflight"
+        import_visual_gate_boundary = "bounded_smoke_import_preflight_does_not_replace_full_visual_gate_verdict"
+        import_visual_artifact_policy = "does_not_generate_or_commit_output_visual_artifacts"
+        import_diagnostics_contract_tests = @(
+            "pdf_cli_import",
+            "pdf_import_failure",
+            "pdf_import_table_heuristic"
+        )
+        import_diagnostics_contract_fields = @(Get-PdfImportDiagnosticsContractFields)
+        import_negative_boundary_contract_cases = @(
+            "short_label_prose_remains_paragraphs",
+            "invoice_summary_form_remains_paragraphs"
+        )
         tests = @(
             "pdf_document_generator_probe",
             "pdf_font_resolver",
@@ -193,6 +222,10 @@ $subsets = [ordered]@{
 
 $subsetConfig = $subsets[$Subset]
 $selectedTests = @($subsetConfig.tests)
+$ctestTimeoutSeconds = [int](Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "ctest_timeout_seconds" `
+    -DefaultValue 60)
 $regex = "^($(($selectedTests | ForEach-Object { [regex]::Escape($_) }) -join '|'))$"
 
 $listResult = Invoke-CapturedCommand `
@@ -218,7 +251,11 @@ if ($missingTests.Count -gt 0) {
 
 $runResult = Invoke-CapturedCommand `
     -ExecutablePath $resolvedCtestExecutable `
-    -Arguments @("--test-dir", $resolvedBuildDir, "-R", $regex, "--output-on-failure", "--timeout", "60")
+    -Arguments @(
+        "--test-dir", $resolvedBuildDir,
+        "-R", $regex,
+        "--output-on-failure",
+        "--timeout", ([string]$ctestTimeoutSeconds))
 
 foreach ($line in $runResult.lines) {
     Write-Host $line
@@ -232,6 +269,19 @@ $skippedTests = @(
     }
 )
 
+$importDiagnosticsContractTests = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_diagnostics_contract_tests" `
+    -DefaultValue @())
+$importDiagnosticsContractFields = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_diagnostics_contract_fields" `
+    -DefaultValue @())
+$importNegativeBoundaryContractCases = @(Get-SubsetMetadataValue `
+    -Config $subsetConfig `
+    -Key "import_negative_boundary_contract_cases" `
+    -DefaultValue @())
+
 $status = if ($runResult.exit_code -eq 0 -and $skippedTests.Count -eq 0) { "pass" } else { "fail" }
 $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
@@ -239,10 +289,25 @@ $summary = [ordered]@{
     verdict = $status
     subset = $Subset
     subset_description = $subsetConfig.description
+    import_visual_gate_scope = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_gate_scope" `
+        -DefaultValue "")
+    import_visual_gate_boundary = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_gate_boundary" `
+        -DefaultValue "")
+    import_visual_artifact_policy = [string](Get-SubsetMetadataValue `
+        -Config $subsetConfig `
+        -Key "import_visual_artifact_policy" `
+        -DefaultValue "")
+    import_diagnostics_contract_tests = $importDiagnosticsContractTests
+    import_diagnostics_contract_fields = $importDiagnosticsContractFields
+    import_negative_boundary_contract_cases = $importNegativeBoundaryContractCases
     repo_root = $repoRoot
     build_dir = $resolvedBuildDir
     ctest_executable = $resolvedCtestExecutable
-    ctest_timeout_seconds = 60
+    ctest_timeout_seconds = $ctestTimeoutSeconds
     selected_test_count = $selectedTests.Count
     skipped_test_count = $skippedTests.Count
     selected_tests = $selectedTests

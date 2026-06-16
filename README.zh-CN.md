@@ -22,6 +22,8 @@ Microsoft Word 文档。
 - 英文快速开始：<https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html>
 - PDF 工作流：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/pdf_workflow.html>
 - 文档源码：[`docs/index.rst`](docs/index.rst)
+- 文档维护：[`docs/documentation_maintenance_zh.rst`](docs/documentation_maintenance_zh.rst)
+- 脚本任务索引：[`docs/script_task_index_zh.rst`](docs/script_task_index_zh.rst)
 
 ## 可以用来做什么
 
@@ -72,6 +74,8 @@ int main() {
 
 - `dev` 是当前主开发分支。
 - `master` 保留为稳定/发布分支。
+- Codex / 本地自动化默认直接在当前 `dev` 分支推进；除非维护者明确要求，
+  不要主动创建 `codex/*` 或其它任务分支。
 - 只有版本号、CHANGELOG、CI 和 release checks 对齐后，才创建正式 release tag。
 
 ## GPT 推广链接

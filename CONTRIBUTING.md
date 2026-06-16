@@ -35,6 +35,15 @@ ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 6. Do not mix unrelated refactors, formatting sweeps, and behavior changes in
    one pull request.
 
+## Branch Workflow
+
+- `dev` is the default development branch.
+- Codex/local automation should continue on the current `dev` checkout by
+  default. Do not create `codex/*` or other task branches unless the maintainer
+  explicitly asks for a new branch.
+- `master` is reserved for stable/release flow and should receive changes only
+  through the established release process.
+
 ## Versioning And Release Expectations
 
 FeatherDoc uses a pragmatic `MAJOR.MINOR.PATCH` release model.

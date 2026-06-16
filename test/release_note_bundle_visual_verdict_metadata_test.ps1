@@ -190,6 +190,7 @@ function Get-OptionalPropertyObject {
 }
 
 . (Join-Path $resolvedRepoRoot "scripts\release_visual_metadata_helpers.ps1")
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
 
 $missingReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine `
     -VisualGateSummary ([pscustomobject]@{}) `
@@ -245,6 +246,22 @@ $pdfBoundedCtestSummaryJsonDisplay = @(
 )
 $pdfBoundedCtestSubsetsText = $pdfBoundedCtestSubsets -join ', '
 $pdfBoundedCtestSummaryJsonDisplayText = $pdfBoundedCtestSummaryJsonDisplay -join ', '
+$pdfImportDiagnosticsContractTests = @("pdf_cli_import", "pdf_import_table_heuristic")
+$pdfImportDiagnosticsContractFields = @(Get-PdfImportDiagnosticsContractFields)
+$pdfImportDiagnosticsContractFieldsText = $pdfImportDiagnosticsContractFields -join ', '
+$pdfImportNegativeBoundaryContractCases = @(
+    "short_label_prose_remains_paragraphs",
+    "invoice_summary_form_remains_paragraphs"
+)
+$pdfImportNegativeBoundaryContractCasesText = $pdfImportNegativeBoundaryContractCases -join ', '
+$pdfImportDiagnosticsFieldLineFragments = @(
+    "PDF bounded CTest import diagnostics contract fields"
+) + $pdfImportDiagnosticsContractFields
+$pdfImportDiagnosticsShortSummaryFragments = @(
+    "PDF bounded CTest",
+    "import_diagnostics_fields=$pdfImportDiagnosticsContractFieldsText",
+    "negative_boundary_cases=$pdfImportNegativeBoundaryContractCasesText"
+)
 
 foreach ($path in @(
         $reportDir,
@@ -479,6 +496,9 @@ $summary = [ordered]@{
             selected_test_count = 70
             subsets = $pdfBoundedCtestSubsets
             summary_json_display = $pdfBoundedCtestSummaryJsonDisplay
+            import_diagnostics_contract_tests = $pdfImportDiagnosticsContractTests
+            import_diagnostics_contract_fields = $pdfImportDiagnosticsContractFields
+            import_negative_boundary_contract_cases = $pdfImportNegativeBoundaryContractCases
         }
     }
 }
@@ -546,6 +566,13 @@ foreach ($assertion in @(
     Assert-Contains -Path $assertion.Path -ExpectedText "skipped_tests=0" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "regression-business-samples" -Label $assertion.Label
     Assert-Contains -Path $assertion.Path -ExpectedText "pdf-ctest-bounded-regression-business-samples-current\summary.json" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "PDF bounded CTest import diagnostics contract tests" -Label $assertion.Label
+    Assert-Contains -Path $assertion.Path -ExpectedText "pdf_cli_import, pdf_import_table_heuristic" -Label $assertion.Label
+    Assert-LineContainsAll -Path $assertion.Path -Fragments $pdfImportDiagnosticsFieldLineFragments -Label $assertion.Label
+    Assert-LineContainsAll -Path $assertion.Path -Fragments @(
+        "PDF bounded CTest import negative boundary cases",
+        $pdfImportNegativeBoundaryContractCasesText
+    ) -Label $assertion.Label
 }
 
 foreach ($assertion in @(
@@ -564,7 +591,16 @@ foreach ($assertion in @(
         "PDF bounded CTest auxiliary subsets",
         "regression-business-samples",
         "PDF bounded CTest auxiliary summaries",
-        "pdf-ctest-bounded-regression-business-samples-current\summary.json"
+        "pdf-ctest-bounded-regression-business-samples-current\summary.json",
+        "PDF bounded CTest import diagnostics contract tests",
+        "pdf_cli_import, pdf_import_table_heuristic",
+        "PDF bounded CTest import diagnostics contract fields",
+        "source_row_offset=0",
+        "continuation_confidence=70",
+        "minimum_continuation_confidence=90",
+        "column_anchors_match=false",
+        "PDF bounded CTest import negative boundary cases",
+        "short_label_prose_remains_paragraphs"
     ) -Label $assertion.Label
 }
 
@@ -606,6 +642,9 @@ foreach ($fragments in @(
         @("PDF bounded CTest auxiliary evidence", "status=pass", "summaries=7", "pass=7", "selected_tests=70", "skipped_tests=0"),
         @("PDF bounded CTest auxiliary subsets", "regression-business-samples"),
         @("PDF bounded CTest auxiliary summaries", "pdf-ctest-bounded-regression-business-samples-current\summary.json"),
+        @("PDF bounded CTest import diagnostics contract tests", "pdf_cli_import, pdf_import_table_heuristic"),
+        $pdfImportDiagnosticsFieldLineFragments,
+        @("PDF bounded CTest import negative boundary cases", $pdfImportNegativeBoundaryContractCasesText),
         @("PDF bounded CTest boundary", "full visual gate verdict")
     )) {
     Assert-LineContainsAll -Path $bodyPath -Fragments $fragments -Label "release_body.zh-CN.md"
@@ -638,6 +677,14 @@ Assert-LineContainsAll -Path $checklistPath -Fragments @(
 Assert-LineContainsAll -Path $checklistPath -Fragments @(
     'Open the bounded CTest summary list',
     'pdf-ctest-bounded-regression-business-samples-current\summary.json'
+) -Label "REVIEWER_CHECKLIST.md"
+Assert-LineContainsAll -Path $checklistPath -Fragments @(
+    'PDF bounded CTest import diagnostics contract fields',
+    'table_continuation_diagnostics=[]',
+    'source_row_offset=0',
+    'continuation_confidence=70',
+    'minimum_continuation_confidence=90',
+    'column_anchors_match=false'
 ) -Label "REVIEWER_CHECKLIST.md"
 
 foreach ($assertion in @(
@@ -786,6 +833,8 @@ foreach ($fragment in @(
         'pass=7',
         'selected_tests=70',
         'skipped_tests=0',
+        "import_diagnostics_fields=$pdfImportDiagnosticsContractFieldsText",
+        "negative_boundary_cases=$pdfImportNegativeBoundaryContractCasesText",
         'full visual gate verdict'
     )) {
     Assert-Contains -Path $shortPath -ExpectedText $fragment -Label "release_summary.zh-CN.md"
@@ -809,7 +858,11 @@ Assert-LineContainsAll -Path $shortPath -Fragments @(
     'pass=7',
     'selected_tests=70',
     'skipped_tests=0',
+    "import_diagnostics_fields=$pdfImportDiagnosticsContractFieldsText",
+    "negative_boundary_cases=$pdfImportNegativeBoundaryContractCasesText",
     'full visual gate verdict'
 ) -Label "release_summary.zh-CN.md"
+Assert-LineContainsAll -Path $shortPath -Fragments $pdfImportDiagnosticsShortSummaryFragments `
+    -Label "release_summary.zh-CN.md"
 
 Write-Host "Release note bundle visual verdict metadata regression passed."

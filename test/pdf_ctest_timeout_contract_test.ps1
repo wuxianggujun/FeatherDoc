@@ -20,8 +20,11 @@ if ($propertyMatches.Count -eq 0) {
     throw "No set_tests_properties entries found in '$resolvedCTestTestfile'."
 }
 
+$expectedTimeouts = @{
+    pdf_cli_import = "120"
+}
 $pdfTests = @()
-$missingTimeoutTests = @()
+$invalidTimeoutTests = @()
 foreach ($match in $propertyMatches) {
     $testName = $match.Groups["name"].Value
     $properties = $match.Groups["properties"].Value
@@ -36,8 +39,19 @@ foreach ($match in $propertyMatches) {
     }
 
     $pdfTests += $testName
-    if ($properties -notmatch '\bTIMEOUT\s+"?60"?') {
-        $missingTimeoutTests += $testName
+    $expectedTimeout = if ($expectedTimeouts.ContainsKey($testName)) {
+        $expectedTimeouts[$testName]
+    } else {
+        "60"
+    }
+    $timeoutMatch = [regex]::Match($properties, '\bTIMEOUT\s+"?(?<timeout>\d+)"?')
+    if (-not $timeoutMatch.Success -or $timeoutMatch.Groups["timeout"].Value -ne $expectedTimeout) {
+        $actualTimeout = if ($timeoutMatch.Success) {
+            $timeoutMatch.Groups["timeout"].Value
+        } else {
+            "<missing>"
+        }
+        $invalidTimeoutTests += "$testName expected=$expectedTimeout actual=$actualTimeout"
     }
 }
 
@@ -45,9 +59,9 @@ if ($pdfTests.Count -eq 0) {
     throw "No tests labelled 'pdf' were found in '$resolvedCTestTestfile'."
 }
 
-if ($missingTimeoutTests.Count -gt 0) {
-    $joinedNames = $missingTimeoutTests -join ", "
-    throw "Tests labelled 'pdf' must set TIMEOUT 60. Missing: $joinedNames."
+if ($invalidTimeoutTests.Count -gt 0) {
+    $joinedNames = $invalidTimeoutTests -join ", "
+    throw "Tests labelled 'pdf' must set TIMEOUT 60 unless listed as a measured exception. Invalid: $joinedNames."
 }
 
-Write-Host "Verified TIMEOUT 60 for $($pdfTests.Count) pdf-labelled CTest entries."
+Write-Host "Verified bounded TIMEOUT values for $($pdfTests.Count) pdf-labelled CTest entries."

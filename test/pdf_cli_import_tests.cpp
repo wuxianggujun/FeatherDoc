@@ -1,31 +1,120 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 
-#include "cli_test_support.hpp"
-#include "pdf_import_test_support.hpp"
+#include "pdf_cli_import_test_support.hpp"
 
-#include <cstdint>
-#include <filesystem>
 #include <string>
 #include <vector>
 
 namespace {
-namespace fs = std::filesystem;
 
-auto pdf_fixture_path(std::string_view filename) -> fs::path {
-    const auto fixture_filename = std::string(filename);
-    const auto copied_fixture =
-        test_binary_directory() / "pdf-fixtures" / fixture_filename;
-    if (fs::exists(copied_fixture)) {
-        return copied_fixture;
-    }
-
-    return test_binary_directory() / fixture_filename;
+void expect_table_continuation_diagnostic(
+    const std::string &json, const std::string &expected_diagnostic) {
+    CHECK_NE(json.find(expected_diagnostic), std::string::npos);
 }
 
-void open_imported_document(const fs::path &path,
-                            featherdoc::Document &document) {
-    document.set_path(path);
-    REQUIRE_FALSE(document.open());
+void expect_repeated_header_merged_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":1)"
+        R"(,"continuation_confidence":95)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"exact")"
+        R"(,"skipped_repeating_header":true)"
+        R"(,"disposition":"merged_with_previous_table")"
+        R"(,"blocker":"none"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_repeated_header_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":70)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":false)"
+        R"(,"header_match_kind":"none")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"repeated_header_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_column_anchors_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":55)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"exact")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"column_anchors_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_confidence_below_threshold_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":85)"
+        R"(,"minimum_continuation_confidence":90)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"continuation_confidence_below_threshold"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
+}
+
+void expect_column_count_mismatch_diagnostic(const std::string &json) {
+    const std::string expected_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":30)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":false)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":true)"
+        R"(,"source_has_repeating_header":true)"
+        R"(,"header_matches_previous":false)"
+        R"(,"header_match_kind":"none")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"column_count_mismatch"})";
+    expect_table_continuation_diagnostic(json, expected_diagnostic);
 }
 
 } // namespace
@@ -71,6 +160,76 @@ TEST_CASE("cli import-pdf writes a DOCX file and json summary") {
     CHECK_NE(json.find(R"("tables_imported":0)"), std::string::npos);
     CHECK_NE(json.find(R"("table_continuation_diagnostics_count":0)"),
              std::string::npos);
+}
+
+TEST_CASE(
+    "cli import-pdf keeps prose and forms as paragraphs with table promotion") {
+    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
+    std::error_code error;
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const auto assert_paragraph_import =
+        [&](const fs::path &source, const std::string &output_filename,
+            const std::string &json_filename,
+            const std::vector<std::string> &expected_texts) {
+            const fs::path output = work_dir / output_filename;
+            const fs::path json_output = work_dir / json_filename;
+            remove_if_exists(output);
+            remove_if_exists(json_output);
+
+            REQUIRE(fs::exists(source));
+
+            CHECK_EQ(run_cli({"import-pdf",
+                              source.string(),
+                              "--output",
+                              output.string(),
+                              "--import-table-candidates-as-tables",
+                              "--json"},
+                             json_output),
+                     0);
+
+            REQUIRE(fs::exists(output));
+
+            featherdoc::Document document;
+            open_imported_document(output, document);
+            CHECK_FALSE(document.inspect_table(0U).has_value());
+
+            const auto text = collect_non_empty_document_text(document);
+            for (const auto &expected_text : expected_texts) {
+                CHECK_NE(text.find(expected_text), std::string::npos);
+            }
+
+            const auto json = read_text_file(json_output);
+            CHECK_NE(json.find(R"("command":"import-pdf")"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("ok":true)"), std::string::npos);
+            CHECK_NE(json.find(R"("paragraphs_imported":)"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("tables_imported":0)"),
+                     std::string::npos);
+            CHECK_NE(
+                json.find(R"("table_continuation_diagnostics_count":0)"),
+                std::string::npos);
+            CHECK_NE(json.find(R"("table_continuation_diagnostics":[])"),
+                     std::string::npos);
+            CHECK_NE(json.find(R"("import_table_candidates_as_tables":true)"),
+                     std::string::npos);
+        };
+
+    assert_paragraph_import(
+        featherdoc::test_support::write_two_column_short_label_prose_pdf(
+            "featherdoc-cli-import-two-column-short-label-prose.pdf"),
+        "two-column-short-label-prose.docx",
+        "two-column-short-label-prose-import.json",
+        {"Two-column labels sample", "Topic", "Scope", "Closed"});
+
+    assert_paragraph_import(
+        featherdoc::test_support::write_invoice_summary_pdf(
+            "featherdoc-cli-import-invoice-summary-form.pdf"),
+        "invoice-summary-form.docx", "invoice-summary-form-import.json",
+        {"Invoice summary", "Invoice No.", "FeatherDoc QA",
+         "Footer note: layout is intentionally uneven"});
 }
 
 TEST_CASE("cli import-pdf can import table candidates as tables") {
@@ -172,10 +331,52 @@ TEST_CASE("cli import-pdf reports table continuation diagnostics") {
     CHECK_EQ(table->column_count, 3U);
 
     const auto json = read_text_file(json_output);
+    const std::string expected_initial_diagnostic =
+        R"({"page_index":0,"block_index":1,"source_row_offset":0)"
+        R"(,"continuation_confidence":0)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":false)"
+        R"(,"is_first_block_on_page":false)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":false)"
+        R"(,"column_anchors_match":false)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"created_new_table")"
+        R"(,"blocker":"no_previous_table"})";
+    const std::string expected_merged_diagnostic =
+        R"({"page_index":1,"block_index":0,"source_row_offset":0)"
+        R"(,"continuation_confidence":85)"
+        R"(,"minimum_continuation_confidence":0)"
+        R"(,"has_previous_table":true)"
+        R"(,"is_first_block_on_page":true)"
+        R"(,"is_near_page_top":true)"
+        R"(,"source_rows_consistent":true)"
+        R"(,"column_count_matches":true)"
+        R"(,"column_anchors_match":true)"
+        R"(,"previous_has_repeating_header":false)"
+        R"(,"source_has_repeating_header":false)"
+        R"(,"header_matches_previous":true)"
+        R"(,"header_match_kind":"not_required")"
+        R"(,"skipped_repeating_header":false)"
+        R"(,"disposition":"merged_with_previous_table")"
+        R"(,"blocker":"none"})";
+    const auto initial_diagnostic_position =
+        json.find(expected_initial_diagnostic);
+    const auto merged_diagnostic_position =
+        json.find(expected_merged_diagnostic);
+
     CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
              std::string::npos);
     CHECK_NE(json.find(R"("table_continuation_diagnostics":[{)"),
              std::string::npos);
+    CHECK_NE(initial_diagnostic_position, std::string::npos);
+    CHECK_NE(merged_diagnostic_position, std::string::npos);
+    CHECK_LT(initial_diagnostic_position, merged_diagnostic_position);
     CHECK_NE(json.find(R"("disposition":"created_new_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
@@ -187,13 +388,24 @@ TEST_CASE("cli import-pdf reports table continuation diagnostics") {
              std::string::npos);
     CHECK_NE(json.find(R"("minimum_continuation_confidence":0)"),
              std::string::npos);
+    CHECK_NE(json.find(R"("source_row_offset":0)"), std::string::npos);
+    CHECK_NE(json.find(R"("has_previous_table":false)"), std::string::npos);
+    CHECK_NE(json.find(R"("has_previous_table":true)"), std::string::npos);
     CHECK_NE(json.find(R"("is_first_block_on_page":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("is_near_page_top":true)"),
              std::string::npos);
+    CHECK_NE(json.find(R"("source_rows_consistent":true)"),
+             std::string::npos);
     CHECK_NE(json.find(R"("column_count_matches":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("column_anchors_match":true)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("previous_has_repeating_header":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("source_has_repeating_header":false)"),
+             std::string::npos);
+    CHECK_NE(json.find(R"("header_matches_previous":true)"),
              std::string::npos);
     CHECK_NE(json.find(R"("header_match_kind":"not_required")"),
              std::string::npos);
@@ -256,6 +468,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"repeated_header_mismatch")"),
              std::string::npos);
+    expect_repeated_header_mismatch_diagnostic(json);
 }
 
 TEST_CASE(
@@ -316,6 +529,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"column_anchors_mismatch")"),
              std::string::npos);
+    expect_column_anchors_mismatch_diagnostic(json);
 }
 
 TEST_CASE(
@@ -371,6 +585,7 @@ TEST_CASE(
     CHECK_NE(
         json.find(R"("blocker":"continuation_confidence_below_threshold")"),
         std::string::npos);
+    expect_confidence_below_threshold_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports missing cell continuation merge diagnostics") {
@@ -432,6 +647,7 @@ TEST_CASE("cli import-pdf reports missing cell continuation merge diagnostics") 
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
+    expect_repeated_header_merged_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports sparse row continuation merge diagnostics") {
@@ -493,6 +709,7 @@ TEST_CASE("cli import-pdf reports sparse row continuation merge diagnostics") {
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
+    expect_repeated_header_merged_diagnostic(json);
 }
 
 TEST_CASE(
@@ -558,6 +775,7 @@ TEST_CASE(
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"column_count_mismatch")"),
              std::string::npos);
+    expect_column_count_mismatch_diagnostic(json);
 }
 
 TEST_CASE("cli import-pdf reports amount-only continuation merge diagnostics") {
@@ -619,316 +837,5 @@ TEST_CASE("cli import-pdf reports amount-only continuation merge diagnostics") {
     CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
              std::string::npos);
     CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
-}
-
-TEST_CASE(
-    "cli import-pdf reports isolated amount-only continuation merge diagnostics") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path source =
-        featherdoc::test_support::
-            write_invoice_grid_pagebreak_subtotal_isolated_amount_only_body_pdf(
-                "featherdoc-cli-import-pagebreak-isolated-amount-only-body.pdf");
-    const fs::path output =
-        work_dir / "pagebreak-isolated-amount-only-body.docx";
-    const fs::path json_output =
-        work_dir / "pagebreak-isolated-amount-only-body-import.json";
-    remove_if_exists(output);
-    remove_if_exists(json_output);
-
-    REQUIRE(fs::exists(source));
-
-    CHECK_EQ(run_cli({"import-pdf",
-                      source.string(),
-                      "--output",
-                      output.string(),
-                      "--import-table-candidates-as-tables",
-                      "--json"},
-                     json_output),
-             0);
-
-    REQUIRE(fs::exists(output));
-
-    featherdoc::Document document;
-    open_imported_document(output, document);
-    const auto table = document.inspect_table(0U);
-    REQUIRE(table.has_value());
-    CHECK_EQ(table->row_count, 6U);
-    CHECK_EQ(table->column_count, 4U);
-    CHECK_FALSE(document.inspect_table(1U).has_value());
-
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("tables_imported":1)"), std::string::npos);
-    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("previous_has_repeating_header":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("source_has_repeating_header":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("header_matches_previous":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("header_match_kind":"exact")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("column_count_matches":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("column_anchors_match":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("skipped_repeating_header":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("source_row_offset":1)"), std::string::npos);
-    CHECK_NE(json.find(R"("disposition":"merged_with_previous_table")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("blocker":"none")"), std::string::npos);
-}
-
-TEST_CASE(
-    "cli import-pdf reports local anchor drift continuation diagnostics") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path source =
-        featherdoc::test_support::
-            write_invoice_grid_pagebreak_subtotal_local_anchor_drift_pdf(
-                "featherdoc-cli-import-pagebreak-local-anchor-drift.pdf");
-    const fs::path output = work_dir / "pagebreak-local-anchor-drift.docx";
-    const fs::path json_output =
-        work_dir / "pagebreak-local-anchor-drift-import.json";
-    remove_if_exists(output);
-    remove_if_exists(json_output);
-
-    REQUIRE(fs::exists(source));
-
-    CHECK_EQ(run_cli({"import-pdf",
-                      source.string(),
-                      "--output",
-                      output.string(),
-                      "--import-table-candidates-as-tables",
-                      "--json"},
-                     json_output),
-             0);
-
-    REQUIRE(fs::exists(output));
-
-    featherdoc::Document document;
-    open_imported_document(output, document);
-    const auto first_table = document.inspect_table(0U);
-    const auto second_table = document.inspect_table(1U);
-    REQUIRE(first_table.has_value());
-    REQUIRE(second_table.has_value());
-    CHECK_EQ(first_table->column_count, second_table->column_count);
-    CHECK_FALSE(document.inspect_table(2U).has_value());
-
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("tables_imported":2)"), std::string::npos);
-    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("previous_has_repeating_header":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("source_has_repeating_header":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("column_count_matches":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("column_anchors_match":false)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("skipped_repeating_header":false)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("source_row_offset":0)"), std::string::npos);
-    CHECK_NE(json.find(R"("disposition":"created_new_table")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("blocker":"column_anchors_mismatch")"),
-             std::string::npos);
-}
-
-TEST_CASE(
-    "cli import-pdf reports low page table continuation diagnostics") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path source =
-        featherdoc::test_support::
-            write_paragraph_table_pagebreak_low_table_paragraph_pdf(
-                "featherdoc-cli-import-pagebreak-low-table.pdf");
-    const fs::path output = work_dir / "pagebreak-low-table.docx";
-    const fs::path json_output =
-        work_dir / "pagebreak-low-table-import.json";
-    remove_if_exists(output);
-    remove_if_exists(json_output);
-
-    REQUIRE(fs::exists(source));
-
-    CHECK_EQ(run_cli({"import-pdf",
-                      source.string(),
-                      "--output",
-                      output.string(),
-                      "--import-table-candidates-as-tables",
-                      "--json"},
-                     json_output),
-             0);
-
-    REQUIRE(fs::exists(output));
-
-    featherdoc::Document document;
-    open_imported_document(output, document);
-    REQUIRE(document.inspect_table(0U).has_value());
-    REQUIRE(document.inspect_table(1U).has_value());
-    CHECK_FALSE(document.inspect_table(2U).has_value());
-
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("tables_imported":2)"), std::string::npos);
-    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("is_first_block_on_page":true)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("is_near_page_top":false)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("disposition":"created_new_table")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("blocker":"not_near_page_top")"),
-             std::string::npos);
-}
-
-TEST_CASE(
-    "cli import-pdf reports non-first block continuation diagnostics") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path source =
-        featherdoc::test_support::write_paragraph_table_table_paragraph_pdf(
-            "featherdoc-cli-import-paragraph-table-table.pdf");
-    const fs::path output = work_dir / "paragraph-table-table.docx";
-    const fs::path json_output =
-        work_dir / "paragraph-table-table-import.json";
-    remove_if_exists(output);
-    remove_if_exists(json_output);
-
-    REQUIRE(fs::exists(source));
-
-    CHECK_EQ(run_cli({"import-pdf",
-                      source.string(),
-                      "--output",
-                      output.string(),
-                      "--import-table-candidates-as-tables",
-                      "--json"},
-                     json_output),
-             0);
-
-    REQUIRE(fs::exists(output));
-
-    featherdoc::Document document;
-    open_imported_document(output, document);
-    REQUIRE(document.inspect_table(0U).has_value());
-    REQUIRE(document.inspect_table(1U).has_value());
-    CHECK_FALSE(document.inspect_table(2U).has_value());
-
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("tables_imported":2)"), std::string::npos);
-    CHECK_NE(json.find(R"("table_continuation_diagnostics_count":2)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("is_first_block_on_page":false)"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("disposition":"created_new_table")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("blocker":"not_first_block_on_page")"),
-             std::string::npos);
-}
-
-TEST_CASE("cli import-pdf rejects table candidates by default") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path source =
-        featherdoc::test_support::write_table_like_grid_pdf(
-            "featherdoc-cli-import-table-rejected.pdf");
-    const fs::path output = work_dir / "table-grid-rejected.docx";
-    const fs::path json_output =
-        work_dir / "table-grid-rejected-import.json";
-    remove_if_exists(output);
-    remove_if_exists(json_output);
-
-    REQUIRE(fs::exists(source));
-
-    CHECK_EQ(run_cli({"import-pdf",
-                      source.string(),
-                      "--output",
-                      output.string(),
-                      "--json"},
-                     json_output),
-             1);
-
-    REQUIRE_FALSE(fs::exists(output));
-
-    const auto json = read_text_file(json_output);
-    CHECK_NE(json.find(R"("command":"import-pdf")"), std::string::npos);
-    CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
-    CHECK_NE(json.find(R"("stage":"import")"), std::string::npos);
-    CHECK_NE(json.find(R"("failure_kind":"table_candidates_detected")"),
-             std::string::npos);
-    CHECK_NE(json.find(R"("input":)"), std::string::npos);
-    CHECK_NE(json.find(R"("output":)"), std::string::npos);
-}
-
-TEST_CASE("cli import-pdf reports confidence threshold parse errors as json") {
-    const fs::path work_dir = test_binary_directory() / "pdf_cli_import";
-    std::error_code error;
-    fs::create_directories(work_dir, error);
-    REQUIRE_FALSE(error);
-
-    const fs::path output = work_dir / "parse-error-output.docx";
-    const auto assert_parse_error =
-        [&](std::vector<std::string> arguments, const char *filename,
-            const char *expected_message) {
-            const fs::path json_output = work_dir / filename;
-            remove_if_exists(output);
-            remove_if_exists(json_output);
-
-            CHECK_EQ(run_cli(arguments, json_output), 2);
-            CHECK_FALSE(fs::exists(output));
-
-            const auto json = read_text_file(json_output);
-            CHECK_NE(json.find(R"("command":"import-pdf")"),
-                     std::string::npos);
-            CHECK_NE(json.find(R"("ok":false)"), std::string::npos);
-            CHECK_NE(json.find(R"("stage":"parse")"), std::string::npos);
-            CHECK_NE(json.find(expected_message), std::string::npos);
-        };
-
-    assert_parse_error({"import-pdf",
-                        "input.pdf",
-                        "--json",
-                        "--output",
-                        output.string(),
-                        "--min-table-continuation-confidence"},
-                       "missing-confidence-threshold.json",
-                       "missing value after --min-table-continuation-confidence");
-    assert_parse_error({"import-pdf",
-                        "input.pdf",
-                        "--output",
-                        output.string(),
-                        "--min-table-continuation-confidence",
-                        "not-a-score",
-                        "--json"},
-                       "invalid-confidence-threshold.json",
-                       "invalid value after --min-table-continuation-confidence");
-    assert_parse_error({"import-pdf",
-                        "input.pdf",
-                        "--output",
-                        output.string(),
-                        "--min-table-continuation-confidence",
-                        "80",
-                        "--min-table-continuation-confidence",
-                        "90",
-                        "--json"},
-                       "duplicate-confidence-threshold.json",
-                       "duplicate --min-table-continuation-confidence option");
+    expect_repeated_header_merged_diagnostic(json);
 }

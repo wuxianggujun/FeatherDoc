@@ -26,6 +26,26 @@ API 页面按公开 C++ 对象拆分，而不是继续维护一篇很长的 READ
 * 返回值语义，包括成功、失败和 ``std::optional`` 为空的含义。
 * 能直接看出调用方式的短示例。
 
+公开 include 入口
+-----------------
+
+新的 C++ 调用方应优先包含覆盖所需类型的最小领域头文件。``<featherdoc.hpp>``
+继续作为兼容聚合入口，适合需要一次性引入完整公开 API 的旧代码或示例。
+
+* ``<featherdoc/document.hpp>`` 暴露 ``Document`` 根对象。
+* ``<featherdoc/document_core.hpp>`` 暴露共享文档模型、错误、检查 summary、
+  分节、页面设置、图片、内容控件和语义差异数据。
+* ``<featherdoc/tables.hpp>`` 暴露 ``Table``、``TableRow``、``TableCell`` 和
+  表格检查 summary。
+* ``<featherdoc/templates.hpp>`` 暴露模板 schema、校验、onboarding 和相关辅助 API。
+* ``<featherdoc/template_part.hpp>`` 暴露 ``TemplatePart``。
+* ``<featherdoc/styles_numbering.hpp>`` 暴露样式、编号和表格样式质量模型。
+* ``<featherdoc/reviews_fields.hpp>`` 暴露字段、超链接、脚注尾注、批注、修订和
+  OMML 辅助能力。
+* ``<featherdoc/text.hpp>`` 暴露 ``Paragraph`` 和 ``Run``。
+* ``<featherdoc/fwd.hpp>`` 暴露轻量前置声明。
+* ``<featherdoc/core.hpp>`` 继续作为旧分组入口的兼容聚合头文件。
+
 对象地图
 --------
 

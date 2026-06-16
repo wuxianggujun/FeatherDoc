@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.12.1
+    VERSION 1.12.2
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -39,6 +39,29 @@ set(HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/constants.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc_iterator.hpp"
 )
+set(FEATHERDOC_MODULE_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/core.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_body_content_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_core.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_image_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_image_private_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_reviews_fields_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_sections_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_sections_private_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_styles_numbering_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/document_templates_members.inc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/fwd.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/numbering.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/reviews_fields.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/styles.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/styles_numbering.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/table_styles.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/tables.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/template_part.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/templates.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/text.hpp"
+)
 set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
@@ -60,13 +83,26 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/constants.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_numbering.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_section_inspection_methods.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_section_xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_semantic_diff_values.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_styles.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_table_style_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_table_style_read_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template_content_control_replacement.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell_xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_column_edit_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_grid_row_xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_conversion_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_helpers.cpp"
 )
 
@@ -92,278 +128,8 @@ set(THIRD_PARTY_SRC
 
 add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
 add_library(FeatherDoc::FeatherDoc ALIAS FeatherDoc)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocRuntimeDlls.cmake")
 
-file(TO_CMAKE_PATH
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCopyRuntimeDlls.cmake"
-    FEATHERDOC_COPY_RUNTIME_DLLS_SCRIPT)
-
-function(featherdoc_copy_runtime_dlls target_name)
-    if(WIN32)
-        # Copy transitive runtime DLLs next to executables so CTest can run
-        # without depending on an ad hoc PATH setup.
-        set(copy_runtime_dlls_extra)
-        foreach(runtime_target IN ITEMS
-            PNG::PNG
-            Freetype::Freetype
-            harfbuzz::harfbuzz
-            harfbuzz::harfbuzz-subset
-        )
-            featherdoc_get_imported_runtime_file(runtime_dll "${runtime_target}")
-            if(NOT runtime_dll STREQUAL "")
-                file(TO_CMAKE_PATH "${runtime_dll}" runtime_dll)
-                list(APPEND copy_runtime_dlls_extra "${runtime_dll}")
-            endif()
-        endforeach()
-        set(copy_runtime_companion_names
-            zlib1.dll
-            bz2.dll
-            brotlicommon.dll
-            brotlidec.dll
-            brotlienc.dll
-        )
-        foreach(runtime_dll IN LISTS copy_runtime_dlls_extra)
-            get_filename_component(runtime_dir "${runtime_dll}" DIRECTORY)
-            foreach(companion_name IN LISTS copy_runtime_companion_names)
-                set(companion_dll "${runtime_dir}/${companion_name}")
-                if(EXISTS "${companion_dll}")
-                    list(APPEND copy_runtime_dlls_extra "${companion_dll}")
-                endif()
-            endforeach()
-        endforeach()
-        if(copy_runtime_dlls_extra)
-            list(REMOVE_DUPLICATES copy_runtime_dlls_extra)
-        endif()
-
-        set(copy_runtime_dlls_extra_lines "")
-        foreach(runtime_dll IN LISTS copy_runtime_dlls_extra)
-            string(APPEND copy_runtime_dlls_extra_lines
-                "list(APPEND FEATHERDOC_COPY_RUNTIME_DLLS_DLLS \"${runtime_dll}\")\n")
-        endforeach()
-
-        set(copy_runtime_dlls_script
-            "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_copy_runtime_dlls.cmake")
-        set(copy_runtime_dlls_content [=[
-set(FEATHERDOC_COPY_RUNTIME_DLLS_DEST "$<TARGET_FILE_DIR:@TARGET_NAME@>")
-set(FEATHERDOC_COPY_RUNTIME_DLLS_DLLS "$<TARGET_RUNTIME_DLLS:@TARGET_NAME@>")
-@EXTRA_RUNTIME_DLLS@
-include("@COMMON_SCRIPT@")
-]=])
-        string(REPLACE "@TARGET_NAME@" "${target_name}"
-            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
-        string(REPLACE "@EXTRA_RUNTIME_DLLS@" "${copy_runtime_dlls_extra_lines}"
-            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
-        string(REPLACE "@COMMON_SCRIPT@" "${FEATHERDOC_COPY_RUNTIME_DLLS_SCRIPT}"
-            copy_runtime_dlls_content "${copy_runtime_dlls_content}")
-        file(GENERATE
-            OUTPUT "${copy_runtime_dlls_script}"
-            CONTENT "${copy_runtime_dlls_content}"
-        )
-        add_custom_command(
-            TARGET ${target_name}
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -P "${copy_runtime_dlls_script}"
-        )
-    endif()
-endfunction()
-
-function(featherdoc_get_imported_runtime_file out_var target_name)
-    if(NOT TARGET ${target_name})
-        set(${out_var} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    set(runtime_property_names
-        IMPORTED_LOCATION_RELEASE
-        IMPORTED_LOCATION_RELWITHDEBINFO
-        IMPORTED_LOCATION_MINSIZEREL
-        IMPORTED_LOCATION_DEBUG
-        IMPORTED_LOCATION_NOCONFIG
-        IMPORTED_LOCATION
-        IMPORTED_IMPLIB_RELEASE
-        IMPORTED_IMPLIB_RELWITHDEBINFO
-        IMPORTED_IMPLIB_MINSIZEREL
-        IMPORTED_IMPLIB_DEBUG
-        IMPORTED_IMPLIB_NOCONFIG
-        IMPORTED_IMPLIB)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(runtime_property_names
-            IMPORTED_LOCATION_DEBUG
-            IMPORTED_IMPLIB_DEBUG
-            IMPORTED_LOCATION_RELEASE
-            IMPORTED_LOCATION_RELWITHDEBINFO
-            IMPORTED_LOCATION_MINSIZEREL
-            IMPORTED_LOCATION_NOCONFIG
-            IMPORTED_LOCATION
-            IMPORTED_IMPLIB_RELEASE
-            IMPORTED_IMPLIB_RELWITHDEBINFO
-            IMPORTED_IMPLIB_MINSIZEREL
-            IMPORTED_IMPLIB_NOCONFIG
-            IMPORTED_IMPLIB)
-    endif()
-
-    set(runtime_location "")
-    foreach(property_name IN LISTS runtime_property_names)
-        if(runtime_location STREQUAL "")
-            get_target_property(runtime_location ${target_name} ${property_name})
-            if(runtime_location STREQUAL "runtime_location-NOTFOUND")
-                set(runtime_location "")
-            endif()
-        endif()
-    endforeach()
-
-    if(runtime_location STREQUAL "")
-        if(target_name STREQUAL "PNG::PNG")
-            set(runtime_variable_names PNG_LIBRARY_RELEASE PNG_LIBRARY_DEBUG PNG_LIBRARY)
-            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                set(runtime_variable_names PNG_LIBRARY_DEBUG PNG_LIBRARY_RELEASE PNG_LIBRARY)
-            endif()
-            foreach(variable_name IN LISTS runtime_variable_names)
-                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
-                    set(runtime_location "${${variable_name}}")
-                    if(runtime_location MATCHES "-NOTFOUND$")
-                        set(runtime_location "")
-                    endif()
-                endif()
-            endforeach()
-        elseif(target_name STREQUAL "Freetype::Freetype")
-            set(runtime_variable_names
-                FREETYPE_LIBRARY_RELEASE
-                FREETYPE_LIBRARY_DEBUG
-                FEATHERDOC_FREETYPE_LIBRARY_RELEASE
-                FEATHERDOC_FREETYPE_LIBRARY_DEBUG
-                FREETYPE_LIBRARY)
-            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                set(runtime_variable_names
-                    FREETYPE_LIBRARY_DEBUG
-                    FEATHERDOC_FREETYPE_LIBRARY_DEBUG
-                    FREETYPE_LIBRARY_RELEASE
-                    FEATHERDOC_FREETYPE_LIBRARY_RELEASE
-                    FREETYPE_LIBRARY)
-            endif()
-            foreach(variable_name IN LISTS runtime_variable_names)
-                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
-                    set(runtime_location "${${variable_name}}")
-                    if(runtime_location MATCHES "-NOTFOUND$")
-                        set(runtime_location "")
-                    endif()
-                endif()
-            endforeach()
-        elseif(target_name STREQUAL "harfbuzz::harfbuzz-subset")
-            set(runtime_variable_names
-                HARFBUZZ_SUBSET_LIBRARY_RELEASE
-                HARFBUZZ_SUBSET_LIBRARY_DEBUG
-                HARFBUZZ_SUBSET_LIBRARY)
-            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                set(runtime_variable_names
-                    HARFBUZZ_SUBSET_LIBRARY_DEBUG
-                    HARFBUZZ_SUBSET_LIBRARY_RELEASE
-                    HARFBUZZ_SUBSET_LIBRARY)
-            endif()
-            foreach(variable_name IN LISTS runtime_variable_names)
-                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
-                    set(runtime_location "${${variable_name}}")
-                    if(runtime_location MATCHES "-NOTFOUND$")
-                        set(runtime_location "")
-                    endif()
-                endif()
-            endforeach()
-        elseif(target_name STREQUAL "harfbuzz::harfbuzz")
-            set(runtime_variable_names
-                HARFBUZZ_LIBRARY_RELEASE
-                HARFBUZZ_LIBRARY_DEBUG
-                HARFBUZZ_LIBRARY)
-            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                set(runtime_variable_names
-                    HARFBUZZ_LIBRARY_DEBUG
-                    HARFBUZZ_LIBRARY_RELEASE
-                    HARFBUZZ_LIBRARY)
-            endif()
-            foreach(variable_name IN LISTS runtime_variable_names)
-                if(runtime_location STREQUAL "" AND DEFINED ${variable_name})
-                    set(runtime_location "${${variable_name}}")
-                    if(runtime_location MATCHES "-NOTFOUND$")
-                        set(runtime_location "")
-                    endif()
-                endif()
-            endforeach()
-        endif()
-    endif()
-
-    if(runtime_location STREQUAL "")
-        set(${out_var} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    get_filename_component(runtime_ext "${runtime_location}" EXT)
-    if(runtime_ext STREQUAL ".lib")
-        string(REPLACE "/lib/" "/bin/" runtime_location "${runtime_location}")
-        string(REPLACE "\\lib\\" "\\bin\\" runtime_location "${runtime_location}")
-        string(REGEX REPLACE "\\.lib$" ".dll" runtime_location
-            "${runtime_location}")
-    endif()
-
-    if(NOT EXISTS "${runtime_location}")
-        set(${out_var} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    get_filename_component(runtime_ext "${runtime_location}" EXT)
-    if(NOT runtime_ext STREQUAL ".dll")
-        set(${out_var} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    set(${out_var} "${runtime_location}" PARENT_SCOPE)
-endfunction()
-
-function(featherdoc_get_imported_runtime_dir out_var target_name)
-    featherdoc_get_imported_runtime_file(runtime_location ${target_name})
-    if(runtime_location STREQUAL "")
-        set(${out_var} "" PARENT_SCOPE)
-        return()
-    endif()
-
-    get_filename_component(runtime_dir "${runtime_location}" DIRECTORY)
-    set(${out_var} "${runtime_dir}" PARENT_SCOPE)
-endfunction()
-
-function(featherdoc_collect_pdf_runtime_environment out_var include_pdfium_dir)
-    set(runtime_dirs)
-
-    featherdoc_get_imported_runtime_dir(png_runtime_dir PNG::PNG)
-    if(NOT png_runtime_dir STREQUAL "")
-        list(APPEND runtime_dirs "${png_runtime_dir}")
-    endif()
-
-    featherdoc_get_imported_runtime_dir(freetype_runtime_dir Freetype::Freetype)
-    if(NOT freetype_runtime_dir STREQUAL "")
-        list(APPEND runtime_dirs "${freetype_runtime_dir}")
-    endif()
-
-    featherdoc_get_imported_runtime_dir(harfbuzz_runtime_dir harfbuzz::harfbuzz)
-    if(NOT harfbuzz_runtime_dir STREQUAL "")
-        list(APPEND runtime_dirs "${harfbuzz_runtime_dir}")
-    endif()
-
-    featherdoc_get_imported_runtime_dir(harfbuzz_subset_runtime_dir
-        harfbuzz::harfbuzz-subset)
-    if(NOT harfbuzz_subset_runtime_dir STREQUAL "")
-        list(APPEND runtime_dirs "${harfbuzz_subset_runtime_dir}")
-    endif()
-
-    if(include_pdfium_dir AND DEFINED FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR AND
-       NOT "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}" STREQUAL "")
-        list(APPEND runtime_dirs "${FEATHERDOC_RESOLVED_PDFIUM_OUT_DIR}")
-    endif()
-
-    list(REMOVE_DUPLICATES runtime_dirs)
-    if(runtime_dirs)
-        string(JOIN ";" runtime_path ${runtime_dirs})
-        set(${out_var} "PATH=${runtime_path};$ENV{PATH}" PARENT_SCOPE)
-    else()
-        set(${out_var} "" PARENT_SCOPE)
-    endif()
-endfunction()
 
 target_compile_features(FeatherDoc PUBLIC cxx_std_20)
 set_target_properties(FeatherDoc PROPERTIES
@@ -562,698 +328,9 @@ if(FEATHERDOC_BUILD_PDF_IMPORT)
     endif()
 endif()
 
-if(BUILD_SAMPLES)
-    add_executable(featherdoc_sample1 samples/sample1.cpp)
-    target_link_libraries(featherdoc_sample1 PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample1)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocSamples.cmake")
 
-    add_executable(featherdoc_sample2 samples/sample2.cpp)
-    target_link_libraries(featherdoc_sample2 PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample2)
-
-    add_executable(featherdoc_sample_chinese samples/sample_chinese.cpp)
-    target_link_libraries(featherdoc_sample_chinese PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_chinese)
-
-    add_executable(featherdoc_sample_chinese_template samples/sample_chinese_template.cpp)
-    target_link_libraries(featherdoc_sample_chinese_template PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_chinese_template)
-
-    add_executable(featherdoc_visual_smoke_tables samples/visual_smoke_tables.cpp)
-    target_link_libraries(featherdoc_visual_smoke_tables PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_visual_smoke_tables)
-
-    add_executable(featherdoc_section_inspection_visual
-        samples/section_inspection_visual.cpp)
-    target_link_libraries(featherdoc_section_inspection_visual PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_section_inspection_visual)
-
-    add_executable(featherdoc_sample_edit_existing samples/sample_edit_existing.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing)
-
-    add_executable(featherdoc_sample_insert_paragraph_before
-        samples/sample_insert_paragraph_before.cpp)
-    target_link_libraries(featherdoc_sample_insert_paragraph_before
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_paragraph_before)
-
-    add_executable(featherdoc_sample_insert_paragraph_like_existing
-        samples/sample_insert_paragraph_like_existing.cpp)
-    target_link_libraries(featherdoc_sample_insert_paragraph_like_existing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_paragraph_like_existing)
-
-    add_executable(featherdoc_sample_insert_run_around_existing
-        samples/sample_insert_run_around_existing.cpp)
-    target_link_libraries(featherdoc_sample_insert_run_around_existing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_run_around_existing)
-
-    add_executable(featherdoc_sample_insert_run_like_existing
-        samples/sample_insert_run_like_existing.cpp)
-    target_link_libraries(featherdoc_sample_insert_run_like_existing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_run_like_existing)
-
-    add_executable(featherdoc_sample_edit_existing_part_tables
-        samples/sample_edit_existing_part_tables.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_part_tables
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_tables)
-
-    add_executable(featherdoc_sample_template_table_cli_visual
-        samples/sample_template_table_cli_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_bookmark_visual
-        samples/sample_template_table_cli_bookmark_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_bookmark_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_bookmark_visual)
-
-    add_executable(featherdoc_sample_template_bookmark_multiline_visual
-        samples/sample_template_bookmark_multiline_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_bookmark_multiline_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_bookmark_multiline_visual)
-
-    add_executable(featherdoc_sample_bookmark_block_visibility_visual
-        samples/sample_bookmark_block_visibility_visual.cpp)
-    target_link_libraries(featherdoc_sample_bookmark_block_visibility_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_block_visibility_visual)
-
-    add_executable(featherdoc_sample_bookmark_table_replacement_visual
-        samples/sample_bookmark_table_replacement_visual.cpp)
-    target_link_libraries(featherdoc_sample_bookmark_table_replacement_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_table_replacement_visual)
-
-    add_executable(featherdoc_sample_content_control_rich_replacement_visual
-        samples/sample_content_control_rich_replacement_visual.cpp)
-    target_link_libraries(featherdoc_sample_content_control_rich_replacement_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_content_control_rich_replacement_visual)
-
-    add_executable(featherdoc_sample_content_control_image_replacement_visual
-        samples/sample_content_control_image_replacement_visual.cpp)
-    target_link_libraries(featherdoc_sample_content_control_image_replacement_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_content_control_image_replacement_visual)
-
-    add_executable(featherdoc_sample_semantic_diff_visual
-        samples/sample_semantic_diff_visual.cpp)
-    target_link_libraries(featherdoc_sample_semantic_diff_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_semantic_diff_visual)
-
-    add_executable(featherdoc_sample_bookmark_image_visual
-        samples/sample_bookmark_image_visual.cpp)
-    target_link_libraries(featherdoc_sample_bookmark_image_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_image_visual)
-
-    add_executable(featherdoc_sample_bookmark_floating_image_visual
-        samples/sample_bookmark_floating_image_visual.cpp)
-    target_link_libraries(featherdoc_sample_bookmark_floating_image_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_bookmark_floating_image_visual)
-
-    add_executable(featherdoc_sample_fill_bookmarks_visual
-        samples/sample_fill_bookmarks_visual.cpp)
-    target_link_libraries(featherdoc_sample_fill_bookmarks_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_fill_bookmarks_visual)
-
-    add_executable(featherdoc_sample_append_image_visual
-        samples/sample_append_image_visual.cpp)
-    target_link_libraries(featherdoc_sample_append_image_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_append_image_visual)
-
-    add_executable(featherdoc_sample_table_row_visual
-        samples/sample_table_row_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_row_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_visual)
-
-    add_executable(featherdoc_sample_paragraph_run_style_visual
-        samples/sample_paragraph_run_style_visual.cpp)
-    target_link_libraries(featherdoc_sample_paragraph_run_style_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_run_style_visual)
-
-    add_executable(featherdoc_sample_run_font_language_visual
-        samples/sample_run_font_language_visual.cpp)
-    target_link_libraries(featherdoc_sample_run_font_language_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_run_font_language_visual)
-
-    add_executable(featherdoc_sample_paragraph_list_visual
-        samples/sample_paragraph_list_visual.cpp)
-    target_link_libraries(featherdoc_sample_paragraph_list_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_list_visual)
-
-    add_executable(featherdoc_sample_paragraph_numbering_visual
-        samples/sample_paragraph_numbering_visual.cpp)
-    target_link_libraries(featherdoc_sample_paragraph_numbering_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_numbering_visual)
-
-    add_executable(featherdoc_sample_paragraph_style_numbering_visual
-        samples/sample_paragraph_style_numbering_visual.cpp)
-    target_link_libraries(featherdoc_sample_paragraph_style_numbering_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_paragraph_style_numbering_visual)
-
-    add_executable(featherdoc_sample_ensure_style_visual
-        samples/sample_ensure_style_visual.cpp)
-    target_link_libraries(featherdoc_sample_ensure_style_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_ensure_style_visual)
-
-    add_executable(featherdoc_sample_table_cell_merge_visual
-        samples/sample_table_cell_merge_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_merge_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_merge_visual)
-
-    add_executable(featherdoc_sample_table_cell_fill_visual
-        samples/sample_table_cell_fill_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_fill_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_fill_visual)
-
-    add_executable(featherdoc_sample_table_cell_border_visual
-        samples/sample_table_cell_border_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_border_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_border_visual)
-
-    add_executable(featherdoc_sample_table_cell_text_direction_visual
-        samples/sample_table_cell_text_direction_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_text_direction_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_text_direction_visual)
-
-    add_executable(featherdoc_sample_table_cell_vertical_alignment_visual
-        samples/sample_table_cell_vertical_alignment_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_vertical_alignment_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_vertical_alignment_visual)
-
-    add_executable(featherdoc_sample_table_cell_width_visual
-        samples/sample_table_cell_width_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_width_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_width_visual)
-
-    add_executable(featherdoc_sample_table_cell_margin_visual
-        samples/sample_table_cell_margin_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_cell_margin_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_cell_margin_visual)
-
-    add_executable(featherdoc_sample_table_row_height_visual
-        samples/sample_table_row_height_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_row_height_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_height_visual)
-
-    add_executable(featherdoc_sample_table_row_repeat_header_visual
-        samples/sample_table_row_repeat_header_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_row_repeat_header_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_repeat_header_visual)
-
-    add_executable(featherdoc_sample_table_row_cant_split_visual
-        samples/sample_table_row_cant_split_visual.cpp)
-    target_link_libraries(featherdoc_sample_table_row_cant_split_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_table_row_cant_split_visual)
-
-    add_executable(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
-        samples/sample_template_bookmark_paragraphs_pagination_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_bookmark_paragraphs_pagination_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_bookmark_paragraphs_pagination_visual)
-
-    add_executable(featherdoc_sample_section_text_multiline_visual
-        samples/sample_section_text_multiline_visual.cpp)
-    target_link_libraries(featherdoc_sample_section_text_multiline_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_section_text_multiline_visual)
-
-    add_executable(featherdoc_sample_section_part_refs_visual
-        samples/sample_section_part_refs_visual.cpp)
-    target_link_libraries(featherdoc_sample_section_part_refs_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_section_part_refs_visual)
-
-    add_executable(featherdoc_sample_section_order_visual
-        samples/sample_section_order_visual.cpp)
-    target_link_libraries(featherdoc_sample_section_order_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_section_order_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_section_kind_visual
-        samples/sample_template_table_cli_section_kind_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_section_kind_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_section_kind_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_section_kind_row_visual
-        samples/sample_template_table_cli_section_kind_row_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_section_kind_row_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_section_kind_row_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_section_kind_column_visual
-        samples/sample_template_table_cli_section_kind_column_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_section_kind_column_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_section_kind_column_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_section_kind_merge_unmerge_visual
-        samples/sample_template_table_cli_section_kind_merge_unmerge_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_section_kind_merge_unmerge_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_section_kind_merge_unmerge_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_merge_unmerge_visual
-        samples/sample_template_table_cli_merge_unmerge_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_merge_unmerge_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_merge_unmerge_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_column_visual
-        samples/sample_template_table_cli_column_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_column_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_column_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_direct_column_visual
-        samples/sample_template_table_cli_direct_column_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_direct_column_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_direct_column_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_direct_visual
-        samples/sample_template_table_cli_direct_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_direct_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_direct_visual)
-
-    add_executable(featherdoc_sample_template_table_cli_direct_merge_unmerge_visual
-        samples/sample_template_table_cli_direct_merge_unmerge_visual.cpp)
-    target_link_libraries(featherdoc_sample_template_table_cli_direct_merge_unmerge_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_table_cli_direct_merge_unmerge_visual)
-
-    add_executable(featherdoc_sample_edit_existing_part_paragraphs
-        samples/sample_edit_existing_part_paragraphs.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_part_paragraphs
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_paragraphs)
-
-    add_executable(featherdoc_sample_edit_existing_part_images
-        samples/sample_edit_existing_part_images.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_part_images
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_images)
-
-    add_executable(featherdoc_sample_edit_existing_part_append_images
-        samples/sample_edit_existing_part_append_images.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_part_append_images
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_part_append_images)
-
-    add_executable(featherdoc_sample_floating_images
-        samples/sample_floating_images.cpp)
-    target_link_libraries(featherdoc_sample_floating_images
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_floating_images)
-
-    add_executable(featherdoc_sample_floating_image_z_order_visual
-        samples/sample_floating_image_z_order_visual.cpp)
-    target_link_libraries(featherdoc_sample_floating_image_z_order_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_floating_image_z_order_visual)
-
-    add_executable(featherdoc_sample_remove_images
-        samples/sample_remove_images.cpp)
-    target_link_libraries(featherdoc_sample_remove_images
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_images)
-
-    add_executable(featherdoc_sample_remove_bookmark_block
-        samples/sample_remove_bookmark_block.cpp)
-    target_link_libraries(featherdoc_sample_remove_bookmark_block
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_bookmark_block)
-
-    add_executable(featherdoc_sample_remove_table
-        samples/sample_remove_table.cpp)
-    target_link_libraries(featherdoc_sample_remove_table
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_table)
-
-    add_executable(featherdoc_sample_remove_table_column
-        samples/sample_remove_table_column.cpp)
-    target_link_libraries(featherdoc_sample_remove_table_column
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_remove_table_column)
-
-    add_executable(featherdoc_sample_insert_table_column
-        samples/sample_insert_table_column.cpp)
-    target_link_libraries(featherdoc_sample_insert_table_column
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_column)
-
-    add_executable(featherdoc_sample_unmerge_table_cells
-        samples/sample_unmerge_table_cells.cpp)
-    target_link_libraries(featherdoc_sample_unmerge_table_cells
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_table_cells)
-
-    add_executable(featherdoc_sample_merge_right_fixed_grid
-        samples/sample_merge_right_fixed_grid.cpp)
-    target_link_libraries(featherdoc_sample_merge_right_fixed_grid
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_merge_right_fixed_grid)
-
-    add_executable(featherdoc_sample_merge_down_fixed_grid
-        samples/sample_merge_down_fixed_grid.cpp)
-    target_link_libraries(featherdoc_sample_merge_down_fixed_grid
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_merge_down_fixed_grid)
-
-    add_executable(featherdoc_sample_unmerge_right_fixed_grid
-        samples/sample_unmerge_right_fixed_grid.cpp)
-    target_link_libraries(featherdoc_sample_unmerge_right_fixed_grid
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_right_fixed_grid)
-
-    add_executable(featherdoc_sample_unmerge_down_fixed_grid
-        samples/sample_unmerge_down_fixed_grid.cpp)
-    target_link_libraries(featherdoc_sample_unmerge_down_fixed_grid
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_unmerge_down_fixed_grid)
-
-    add_executable(featherdoc_sample_insert_table_around_existing
-        samples/sample_insert_table_around_existing.cpp)
-    target_link_libraries(featherdoc_sample_insert_table_around_existing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_around_existing)
-
-    add_executable(featherdoc_sample_insert_table_like_existing
-        samples/sample_insert_table_like_existing.cpp)
-    target_link_libraries(featherdoc_sample_insert_table_like_existing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_like_existing)
-
-    add_executable(featherdoc_sample_edit_existing_table_spacing
-        samples/sample_edit_existing_table_spacing.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_table_spacing
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_spacing)
-
-    add_executable(featherdoc_sample_edit_existing_table_column_widths
-        samples/sample_edit_existing_table_column_widths.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_table_column_widths
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_column_widths)
-
-    add_executable(featherdoc_sample_edit_existing_table_style_look
-        samples/sample_edit_existing_table_style_look.cpp)
-    target_link_libraries(featherdoc_sample_edit_existing_table_style_look
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_edit_existing_table_style_look)
-
-    add_executable(featherdoc_sample_restart_paragraph_list
-        samples/sample_restart_paragraph_list.cpp)
-    target_link_libraries(featherdoc_sample_restart_paragraph_list
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_restart_paragraph_list)
-
-    add_executable(featherdoc_sample_style_linked_numbering
-        samples/sample_style_linked_numbering.cpp)
-    target_link_libraries(featherdoc_sample_style_linked_numbering
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_style_linked_numbering)
-
-    add_executable(featherdoc_sample_section_page_setup
-        samples/sample_section_page_setup.cpp)
-    target_link_libraries(featherdoc_sample_section_page_setup
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_section_page_setup)
-
-    add_executable(featherdoc_sample_page_number_fields
-        samples/sample_page_number_fields.cpp)
-    target_link_libraries(featherdoc_sample_page_number_fields
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_page_number_fields)
-
-    add_executable(featherdoc_sample_generic_fields_visual
-        samples/sample_generic_fields_visual.cpp)
-    target_link_libraries(featherdoc_sample_generic_fields_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_generic_fields_visual)
-
-    add_executable(featherdoc_sample_hyperlinks_visual
-        samples/sample_hyperlinks_visual.cpp)
-    target_link_libraries(featherdoc_sample_hyperlinks_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_hyperlinks_visual)
-
-    add_executable(featherdoc_sample_omml_visual
-        samples/sample_omml_visual.cpp)
-    target_link_libraries(featherdoc_sample_omml_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_omml_visual)
-
-    add_executable(featherdoc_sample_extended_image_formats_visual
-        samples/sample_extended_image_formats_visual.cpp)
-    target_link_libraries(featherdoc_sample_extended_image_formats_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_extended_image_formats_visual)
-
-    add_executable(featherdoc_sample_review_inspection_visual
-        samples/sample_review_inspection_visual.cpp)
-    target_link_libraries(featherdoc_sample_review_inspection_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_review_inspection_visual)
-
-    add_executable(featherdoc_sample_review_mutation_visual
-        samples/sample_review_mutation_visual.cpp)
-    target_link_libraries(featherdoc_sample_review_mutation_visual
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_review_mutation_visual)
-
-    add_executable(featherdoc_sample_template_validation
-        samples/sample_template_validation.cpp)
-    target_link_libraries(featherdoc_sample_template_validation
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_validation)
-
-    add_executable(featherdoc_sample_part_template_validation
-        samples/sample_part_template_validation.cpp)
-    target_link_libraries(featherdoc_sample_part_template_validation
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_part_template_validation)
-
-    add_executable(featherdoc_sample_template_schema_validation
-        samples/sample_template_schema_validation.cpp)
-    target_link_libraries(featherdoc_sample_template_schema_validation
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_schema_validation)
-
-    add_executable(featherdoc_sample_template_schema_manifest_fixture
-        samples/sample_template_schema_manifest_fixture.cpp)
-    target_link_libraries(featherdoc_sample_template_schema_manifest_fixture
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_template_schema_manifest_fixture)
-
-    add_executable(featherdoc_sample_insert_table_row
-        samples/sample_insert_table_row.cpp)
-    target_link_libraries(featherdoc_sample_insert_table_row
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_row)
-
-    add_executable(featherdoc_sample_insert_table_row_before
-        samples/sample_insert_table_row_before.cpp)
-    target_link_libraries(featherdoc_sample_insert_table_row_before
-        PRIVATE FeatherDoc::FeatherDoc)
-    featherdoc_copy_runtime_dlls(featherdoc_sample_insert_table_row_before)
-
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/my_test.docx
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/samples/chinese_invoice_template.docx
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-endif()
-
-if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF)
-    featherdoc_collect_pdf_runtime_environment(
-        FEATHERDOC_PDF_RUNTIME_ENVIRONMENT FALSE)
-
-    add_executable(featherdoc_pdfio_probe samples/pdfio_probe.cpp)
-    target_link_libraries(featherdoc_pdfio_probe PRIVATE FeatherDoc::Pdf)
-    featherdoc_copy_runtime_dlls(featherdoc_pdfio_probe)
-
-    add_executable(featherdoc_pdf_document_probe samples/pdf_document_probe.cpp)
-    target_link_libraries(featherdoc_pdf_document_probe PRIVATE FeatherDoc::Pdf)
-    featherdoc_copy_runtime_dlls(featherdoc_pdf_document_probe)
-
-    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
-        add_test(
-            NAME pdfio_generator_probe
-            COMMAND featherdoc_pdfio_probe
-                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
-        )
-        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
-            set_tests_properties(pdfio_generator_probe PROPERTIES
-                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
-        endif()
-        add_test(
-            NAME pdf_document_generator_probe
-            COMMAND featherdoc_pdf_document_probe
-                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
-        )
-        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
-            set_tests_properties(pdf_document_generator_probe PROPERTIES
-                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
-        endif()
-    endif()
-endif()
-
-if(BUILD_SAMPLES AND FEATHERDOC_BUILD_PDF_IMPORT)
-    add_executable(featherdoc_pdfium_probe samples/pdfium_probe.cpp)
-    target_link_libraries(featherdoc_pdfium_probe PRIVATE FeatherDoc::PdfImport)
-    if(DEFINED FEATHERDOC_PDFIUM_TARGET AND NOT FEATHERDOC_PDFIUM_TARGET STREQUAL "")
-        target_link_libraries(featherdoc_pdfium_probe PRIVATE
-            ${FEATHERDOC_PDFIUM_TARGET})
-    endif()
-    if(DEFINED FEATHERDOC_PDFIUM_SOURCE_DIR AND
-       NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
-        target_include_directories(featherdoc_pdfium_probe PRIVATE
-            "${FEATHERDOC_PDFIUM_SOURCE_DIR}/public")
-    endif()
-    featherdoc_copy_runtime_dlls(featherdoc_pdfium_probe)
-
-    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdfio_probe)
-        add_test(
-            NAME pdfium_parser_probe
-            COMMAND featherdoc_pdfium_probe
-                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-pdfio-probe.pdf"
-        )
-        featherdoc_collect_pdf_runtime_environment(
-            FEATHERDOC_PDF_RUNTIME_ENVIRONMENT TRUE)
-        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
-            set_tests_properties(pdfium_parser_probe PROPERTIES
-                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
-        endif()
-        set_tests_properties(pdfium_parser_probe
-            PROPERTIES DEPENDS pdfio_generator_probe)
-    endif()
-
-    if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING AND TARGET featherdoc_pdf_document_probe)
-        add_test(
-            NAME pdfium_document_parser_probe
-            COMMAND featherdoc_pdfium_probe
-                "${CMAKE_CURRENT_BINARY_DIR}/featherdoc-document-probe.pdf"
-        )
-        featherdoc_collect_pdf_runtime_environment(
-            FEATHERDOC_PDF_RUNTIME_ENVIRONMENT TRUE)
-        if(NOT FEATHERDOC_PDF_RUNTIME_ENVIRONMENT STREQUAL "")
-            set_tests_properties(pdfium_document_parser_probe PROPERTIES
-                ENVIRONMENT "${FEATHERDOC_PDF_RUNTIME_ENVIRONMENT}")
-        endif()
-        set_tests_properties(pdfium_document_parser_probe
-            PROPERTIES DEPENDS pdf_document_generator_probe)
-    endif()
-endif()
-
-if(BUILD_CLI)
-    add_executable(featherdoc_cli
-        cli/featherdoc_cli_main.cpp
-        cli/featherdoc_cli_domain_names.cpp
-        cli/featherdoc_cli_domain_parse.cpp
-        cli/featherdoc_cli_errors.cpp
-        cli/featherdoc_cli_field_parse.cpp
-        cli/featherdoc_cli_inspect_content_options_parse.cpp
-        cli/featherdoc_cli_image_options_parse.cpp
-        cli/featherdoc_cli_bookmark_text_options_parse.cpp
-        cli/featherdoc_cli_document_mutation_options_parse.cpp
-        cli/featherdoc_cli_inspect_numbering_options_parse.cpp
-        cli/featherdoc_cli_inspect_style_options_parse.cpp
-        cli/featherdoc_cli_inspect_table_item_options_parse.cpp
-        cli/featherdoc_cli_json.cpp
-        cli/featherdoc_cli_json_parse.cpp
-        cli/featherdoc_cli_numbering_catalog_diff.cpp
-        cli/featherdoc_cli_numbering_catalog_lint.cpp
-        cli/featherdoc_cli_numbering_catalog_options_parse.cpp
-        cli/featherdoc_cli_numbering_catalog_parse.cpp
-        cli/featherdoc_cli_numbering_catalog_patch_apply.cpp
-        cli/featherdoc_cli_numbering_catalog_patch_parse.cpp
-        cli/featherdoc_cli_numbering_options_parse.cpp
-        cli/featherdoc_cli_page_setup_parse.cpp
-        cli/featherdoc_cli_paragraph_list_options_parse.cpp
-        cli/featherdoc_cli_paragraph_run_options_parse.cpp
-        cli/featherdoc_cli_semantic_diff_options_parse.cpp
-        cli/featherdoc_cli_style_ensure_options_parse.cpp
-        cli/featherdoc_cli_table_cell_options_parse.cpp
-        cli/featherdoc_cli_template_inspect_options_parse.cpp
-        cli/featherdoc_cli_template_table_json_patch_apply.cpp
-        cli/featherdoc_cli_template_table_json_patch_parse.cpp
-        cli/featherdoc_cli_template_table_options_parse.cpp
-        cli/featherdoc_cli_template_table_mutation_options_parse.cpp
-        cli/featherdoc_cli_template_validation_options_parse.cpp
-        cli/featherdoc_cli_run_properties_options_parse.cpp
-        cli/featherdoc_cli_parse.cpp
-        cli/featherdoc_cli_pdf_parse.cpp
-        cli/featherdoc_cli_review_mutation_plan_parse.cpp
-        cli/featherdoc_cli_run_recipe_parse.cpp
-        cli/featherdoc_cli_section_options_parse.cpp
-        cli/featherdoc_cli_style_options_parse.cpp
-        cli/featherdoc_cli_style_refactor_plan.cpp
-        cli/featherdoc_cli_style_refactor_plan_parse.cpp
-        cli/featherdoc_cli_style_refactor_options_parse.cpp
-        cli/featherdoc_cli_style_refactor_rollback_parse.cpp
-        cli/featherdoc_cli_table_style_look_options_parse.cpp
-        cli/featherdoc_cli_table_position_plan_build.cpp
-        cli/featherdoc_cli_table_position_options_parse.cpp
-        cli/featherdoc_cli_table_position_plan_parse.cpp
-        cli/featherdoc_cli_template_schema_ops.cpp
-        cli/featherdoc_cli_template_schema_options_parse.cpp
-        cli/featherdoc_cli_template_schema_patch_ops.cpp
-        cli/featherdoc_cli_template_schema_patch_parse.cpp
-        cli/featherdoc_cli_template_schema_parse.cpp
-        cli/featherdoc_cli_template_slot_parse.cpp
-        cli/featherdoc_cli_text.cpp
-        cli/featherdoc_cli_usage.cpp
-        cli/featherdoc_cli_validation_part.cpp
-        cli/featherdoc_cli.cpp)
-    target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::FeatherDoc)
-    if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
-        target_compile_definitions(featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
-        target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::Pdf)
-    endif()
-    if(FEATHERDOC_BUILD_PDF_IMPORT AND TARGET FeatherDocPdfImport)
-        target_compile_definitions(
-            featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF_IMPORT=1)
-        target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::PdfImport)
-    endif()
-    featherdoc_copy_runtime_dlls(featherdoc_cli)
-
-    install(
-        TARGETS featherdoc_cli
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    )
-endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCli.cmake")
 
 # PDF writer builds can use bundled PDFio/libpng helper targets that are not
 # exported as part of the public package yet. Keep install exports free of the
@@ -1318,6 +395,11 @@ install(
 install(
     FILES ${HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+    FILES ${FEATHERDOC_MODULE_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc
 )
 
 if(FEATHERDOC_BUILD_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)
@@ -1387,6 +469,13 @@ install(
         "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
         "${CMAKE_CURRENT_SOURCE_DIR}/LEGAL.md"
     DESTINATION "${FEATHERDOC_INSTALL_DATADIR}"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/changelog_archive_1.9.0.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/changelog_archive_1.8.0_and_earlier.md"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs"
 )
 
 install(

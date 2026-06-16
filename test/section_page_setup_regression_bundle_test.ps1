@@ -1,7 +1,8 @@
 param(
     [string]$RepoRoot,
     [string]$BuildDir,
-    [string]$WorkingDir
+    [string]$WorkingDir,
+    [string[]]$CaseId = @()
 )
 
 Set-StrictMode -Version Latest
@@ -55,11 +56,17 @@ $regressionScript = Join-Path $resolvedRepoRoot "scripts\run_section_page_setup_
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
-& $regressionScript `
-    -BuildDir $resolvedBuildDir `
-    -OutputDir $outputDir `
-    -SkipBuild `
-    -SkipVisual
+$regressionParameters = @{
+    BuildDir = $resolvedBuildDir
+    OutputDir = $outputDir
+    SkipBuild = $true
+    SkipVisual = $true
+}
+if ($CaseId.Count -gt 0) {
+    $regressionParameters.CaseId = $CaseId
+}
+
+& $regressionScript @regressionParameters
 
 if ($LASTEXITCODE -ne 0) {
     throw "Section page setup regression bundle generation failed."
@@ -89,20 +96,25 @@ Assert-True -Condition ((-not $summaryHasAggregateEvidence) -or $null -eq $summa
 Assert-True -Condition ((-not $manifestHasAggregateEvidence) -or $null -eq $manifest.aggregate_evidence) `
     -Message "review_manifest.json unexpectedly contained aggregate visual evidence."
 
-$expectedCases = @(
+$allExpectedCases = @(
     [ordered]@{ id = "api-sample"; docx = "section_page_setup.docx"; inspection = "inspect_page_setup.json" },
     [ordered]@{ id = "cli-rewrite"; docx = "section_page_setup_cli.docx"; inspection = "inspect_page_setup.json" }
 )
+$expectedCases = @(if ($CaseId.Count -eq 0) {
+        $allExpectedCases
+    } else {
+        $allExpectedCases | Where-Object { $CaseId -contains $_.id }
+    })
 
-Assert-True -Condition ($summary.cases.Count -eq $expectedCases.Count) `
+Assert-True -Condition (@($summary.cases).Count -eq $expectedCases.Count) `
     -Message "summary.json case count mismatch."
-Assert-True -Condition ($manifest.cases.Count -eq $expectedCases.Count) `
+Assert-True -Condition (@($manifest.cases).Count -eq $expectedCases.Count) `
     -Message "review_manifest.json case count mismatch."
 
 for ($index = 0; $index -lt $expectedCases.Count; $index++) {
     $expectedCase = $expectedCases[$index]
-    $summaryCase = $summary.cases[$index]
-    $manifestCase = $manifest.cases[$index]
+    $summaryCase = @($summary.cases)[$index]
+    $manifestCase = @($manifest.cases)[$index]
     $caseDir = Join-Path $outputDir $expectedCase.id
     $expectedDocxPath = [System.IO.Path]::GetFullPath((Join-Path $caseDir $expectedCase.docx))
     $expectedInspectionPath = [System.IO.Path]::GetFullPath((Join-Path $caseDir $expectedCase.inspection))
@@ -128,16 +140,19 @@ for ($index = 0; $index -lt $expectedCases.Count; $index++) {
     Assert-Contains -Path $expectedInspectionPath -ExpectedText '"count":2' -Label $expectedCase.inspection
 }
 
-$cliSetResultPath = Join-Path $outputDir "cli-rewrite\set_section_page_setup.json"
-Assert-True -Condition (Test-Path -LiteralPath $cliSetResultPath) `
-    -Message "Expected CLI mutation JSON is missing: $cliSetResultPath"
-Assert-Contains -Path $cliSetResultPath -ExpectedText '"command":"set-section-page-setup"' -Label "set_section_page_setup.json"
-Assert-Contains -Path $cliSetResultPath -ExpectedText '"orientation":"landscape"' -Label "set_section_page_setup.json"
+if ($expectedCases.id -contains "cli-rewrite") {
+    $cliSetResultPath = Join-Path $outputDir "cli-rewrite\set_section_page_setup.json"
+    Assert-True -Condition (Test-Path -LiteralPath $cliSetResultPath) `
+        -Message "Expected CLI mutation JSON is missing: $cliSetResultPath"
+    Assert-Contains -Path $cliSetResultPath -ExpectedText '"command":"set-section-page-setup"' -Label "set_section_page_setup.json"
+    Assert-Contains -Path $cliSetResultPath -ExpectedText '"orientation":"landscape"' -Label "set_section_page_setup.json"
+}
 
 Assert-Contains -Path $checklistPath -ExpectedText "api-sample" -Label "review_checklist.md"
 Assert-Contains -Path $checklistPath -ExpectedText "cli-rewrite" -Label "review_checklist.md"
 Assert-Contains -Path $finalReviewPath -ExpectedText "## Verdict" -Label "final_review.md"
-Assert-Contains -Path $finalReviewPath -ExpectedText "api-sample:" -Label "final_review.md"
-Assert-Contains -Path $finalReviewPath -ExpectedText "cli-rewrite:" -Label "final_review.md"
+foreach ($expectedCase in $expectedCases) {
+    Assert-Contains -Path $finalReviewPath -ExpectedText "$($expectedCase.id):" -Label "final_review.md"
+}
 
 Write-Host "Section page setup regression bundle structure passed."

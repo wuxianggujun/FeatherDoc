@@ -1,0 +1,20 @@
+#pragma once
+
+#include <string_view>
+#include <vector>
+
+namespace featherdoc_cli {
+
+[[nodiscard]] auto run_insert_template_table_column_before_command(
+    std::string_view command, const std::vector<std::string_view> &arguments)
+    -> int;
+
+[[nodiscard]] auto run_insert_template_table_column_after_command(
+    std::string_view command, const std::vector<std::string_view> &arguments)
+    -> int;
+
+[[nodiscard]] auto run_remove_template_table_column_command(
+    std::string_view command, const std::vector<std::string_view> &arguments)
+    -> int;
+
+} // namespace featherdoc_cli

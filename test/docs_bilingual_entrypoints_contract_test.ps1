@@ -67,6 +67,23 @@ function Get-RepoFileText {
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $path
 }
 
+function New-TextFromCodePoints {
+    param(
+        [object[]]$Parts
+    )
+
+    $builder = New-Object System.Text.StringBuilder
+    foreach ($part in $Parts) {
+        if ($part -is [int]) {
+            [void]$builder.Append([char]$part)
+        } else {
+            [void]$builder.Append([string]$part)
+        }
+    }
+
+    return $builder.ToString()
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     throw "RepoRoot is required."
 }
@@ -107,7 +124,12 @@ $readme = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.md"
 $readmeZh = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "README.zh-CN.md"
 $themeLayout = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\_themes\armstrong\layout.html"
 $themeCss = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\_themes\armstrong\static\rtd.css_t"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($marker in @(
         'data-featherdoc-language-switch="global"',
@@ -256,6 +278,12 @@ foreach ($marker in @(
 }
 foreach ($marker in @(
         "How To Read These Pages",
+        "Public Include Entry Points",
+        "featherdoc/document_core.hpp",
+        "featherdoc/tables.hpp",
+        "featherdoc/templates.hpp",
+        "featherdoc/styles_numbering.hpp",
+        "featherdoc/reviews_fields.hpp",
         "FDOC_EN_API_PUBLIC_SIGNATURES",
         "FDOC_EN_API_TYPED_PARAMETERS",
         "FDOC_EN_API_RETURN_SEMANTICS"
@@ -454,6 +482,12 @@ foreach ($marker in @(
 }
 foreach ($marker in @(
         "FDOC_ZH_CN_API_HOW_TO_READ",
+        "featherdoc.hpp",
+        "featherdoc/document_core.hpp",
+        "featherdoc/tables.hpp",
+        "featherdoc/templates.hpp",
+        "featherdoc/styles_numbering.hpp",
+        "featherdoc/reviews_fields.hpp",
         "FDOC_ZH_CN_API_PUBLIC_SIGNATURES",
         "FDOC_ZH_CN_API_TYPED_PARAMETERS",
         "FDOC_ZH_CN_API_RETURN_SEMANTICS"
@@ -595,6 +629,12 @@ foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/en/api/pdf_workflow.html",
+        '## Branch Policy',
+        '`dev` is the active development branch.',
+        'Codex/local automation work should continue directly on the current `dev`',
+        'Do not create `codex/*` or other task branches unless the',
+        'maintainer explicitly requests a new branch.',
+        '`master` is kept as the stable/release branch.',
         "https://shop.input.im/?code=fbe6f3d5",
         "sponsor/zhifubao.jpg",
         "sponsor/weixin.png"
@@ -613,6 +653,11 @@ foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/pdf_workflow.html",
+        (New-TextFromCodePoints @("## ", 0x5206, 0x652F, 0x7B56, 0x7565)),
+        (New-TextFromCodePoints @('`dev` ', 0x662F, 0x5F53, 0x524D, 0x4E3B, 0x5F00, 0x53D1, 0x5206, 0x652F, 0x3002)),
+        (New-TextFromCodePoints @("Codex / ", 0x672C, 0x5730, 0x81EA, 0x52A8, 0x5316, 0x9ED8, 0x8BA4, 0x76F4, 0x63A5, 0x5728, 0x5F53, 0x524D, ' `dev` ', 0x5206, 0x652F, 0x63A8, 0x8FDB)),
+        (New-TextFromCodePoints @(0x4E0D, 0x8981, 0x4E3B, 0x52A8, 0x521B, 0x5EFA, ' `codex/*` ', 0x6216, 0x5176, 0x5B83, 0x4EFB, 0x52A1, 0x5206, 0x652F, 0x3002)),
+        (New-TextFromCodePoints @('`master` ', 0x4FDD, 0x7559, 0x4E3A, 0x7A33, 0x5B9A, "/", 0x53D1, 0x5E03, 0x5206, 0x652F, 0x3002)),
         "https://shop.input.im/?code=fbe6f3d5",
         "sponsor/zhifubao.jpg",
         "sponsor/weixin.png"

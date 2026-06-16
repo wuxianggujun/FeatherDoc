@@ -40,6 +40,19 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 
+$cmakePaths = @(
+    (Join-Path $resolvedRepoRoot "test\CMakeLists.txt")
+)
+$cmakeModuleDir = Join-Path $resolvedRepoRoot "test\cmake"
+if (Test-Path -LiteralPath $cmakeModuleDir) {
+    $cmakePaths += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+        Sort-Object Name |
+        ForEach-Object { $_.FullName }
+}
+$cmakeRegistrationText = ($cmakePaths | ForEach-Object {
+        Get-Content -Raw -Encoding UTF8 -LiteralPath $_
+    }) -join "`n"
+
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\run_pdf_visual_release_gate.ps1"
 $scriptText = Get-Content -Raw -LiteralPath $scriptPath
 $manifestPath = Join-Path $resolvedRepoRoot "test\pdf_regression_manifest.json"
@@ -97,7 +110,7 @@ Assert-ContainsText -Text $scriptText -ExpectedText '"-CtestExecutable", $resolv
     -Message "PDF visual release gate should pass explicit CTest into the nested unicode visual regression."
 Assert-ContainsText -Text (Get-Content -Raw -LiteralPath (Join-Path $resolvedRepoRoot "scripts\run_pdf_unicode_font_roundtrip_visual_regression.ps1")) -ExpectedText '[string]$CtestExecutable = "ctest"' `
     -Message "Unicode font visual regression should allow CTest to be passed explicitly."
-Assert-ContainsText -Text (Get-Content -Raw -LiteralPath (Join-Path $resolvedRepoRoot "test\CMakeLists.txt")) -ExpectedText '${CMAKE_CTEST_COMMAND}' `
+Assert-ContainsText -Text $cmakeRegistrationText -ExpectedText '${CMAKE_CTEST_COMMAND}' `
     -Message "CTest registration should pass an absolute CTest executable into the unicode visual regression."
 Assert-ContainsText -Text $scriptText -ExpectedText '-ExecutablePath "powershell"' `
     -Message "PDF visual release gate should run unicode visual regression through captured command logging."

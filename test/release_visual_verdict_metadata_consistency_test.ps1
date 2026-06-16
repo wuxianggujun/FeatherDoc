@@ -30,6 +30,23 @@ function Assert-NotContainsText {
     }
 }
 
+function Assert-Equal {
+    param($Actual, $Expected, [string]$Message)
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected='$Expected' Actual='$Actual'."
+    }
+}
+
+function Assert-SequenceEqual {
+    param([object[]]$Actual, [object[]]$Expected, [string]$Message)
+
+    Assert-Equal -Actual $Actual.Count -Expected $Expected.Count -Message "$Message Count mismatch."
+    for ($index = 0; $index -lt $Expected.Count; ++$index) {
+        Assert-Equal -Actual ([string]$Actual[$index]) -Expected ([string]$Expected[$index]) `
+            -Message "$Message Index $index mismatch."
+    }
+}
+
 function Assert-LineContainsAll {
     param(
         [string[]]$Lines,
@@ -71,6 +88,32 @@ New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 $visualMetadataHelperPath = Join-Path (Join-Path $resolvedRepoRoot "scripts") "release_visual_metadata_helpers.ps1"
 Assert-ScriptParses -Path $visualMetadataHelperPath
 $visualMetadataHelperText = Get-Content -Raw -LiteralPath $visualMetadataHelperPath
+. $visualMetadataHelperPath
+. (Join-Path $PSScriptRoot "pdf_import_diagnostics_contract_field_helpers.ps1")
+
+$expectedImportDiagnosticsContractFields = @(Get-PdfImportDiagnosticsContractFields)
+$pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary ([pscustomobject][ordered]@{
+        pdf_bounded_ctest = [pscustomobject][ordered]@{
+            status = "pass"
+            summary_count = 1
+            pass_count = 1
+            selected_test_count = 10
+            skipped_test_count = 0
+            import_diagnostics_contract_tests = @("pdf_cli_import", "pdf_import_failure", "pdf_import_table_heuristic")
+            import_diagnostics_contract_fields = @($expectedImportDiagnosticsContractFields)
+            import_negative_boundary_contract_cases = @("short_label_prose_remains_paragraphs", "invoice_summary_form_remains_paragraphs")
+        }
+    })
+Assert-SequenceEqual `
+    -Actual @($pdfBoundedCtestEvidence.import_diagnostics_contract_fields | ForEach-Object { [string]$_ }) `
+    -Expected $expectedImportDiagnosticsContractFields `
+    -Message "Get-PdfBoundedCtestEvidence should preserve import diagnostics contract fields without filtering or reordering."
+$pdfBoundedCtestImportDiagnosticsDisplay = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
+Assert-Equal `
+    -Actual ([string]$pdfBoundedCtestImportDiagnosticsDisplay.fields) `
+    -Expected ($expectedImportDiagnosticsContractFields -join ", ") `
+    -Message "Get-PdfBoundedCtestImportDiagnosticsDisplay should preserve import diagnostics contract field display order."
+
 Assert-ContainsText -Text $visualMetadataHelperText `
     -ExpectedText '$summaryVerdict = Get-OptionalPropertyValue -Object $VisualGateSummary -Name ("{0}_verdict" -f $TaskKey)' `
     -Message "release_visual_metadata_helpers.ps1 should read same-run task verdict fields from the release summary before falling back to the visual gate summary."
@@ -331,7 +374,12 @@ foreach ($scriptInfo in $metadataScripts) {
 
 $bodyScriptPath = Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1"
 Assert-ScriptParses -Path $bodyScriptPath
-$bodyScriptText = Get-Content -Raw -LiteralPath $bodyScriptPath
+$bodyScriptText = @(
+    Get-Content -Raw -LiteralPath $bodyScriptPath
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "scripts") -Filter "write_release_body_zh_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 Assert-ContainsText -Text $bodyScriptText `
     -ExpectedText '. (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")' `
     -Message "write_release_body_zh.ps1 should use the shared release visual metadata helper."
@@ -385,9 +433,19 @@ Assert-LineContainsAll -Lines $bodyScriptLines `
     -Fragments @('Page number fields review status', 'Get-DisplayValue -Value $pageNumberFieldsReviewStatus') `
     -Message "write_release_body_zh.ps1 should render the page number fields visual review status in the full body."
 
-$releasePreflightPath = Join-Path $resolvedRepoRoot "scripts\run_release_candidate_checks.ps1"
-Assert-ScriptParses -Path $releasePreflightPath
-$releasePreflightText = Get-Content -Raw -LiteralPath $releasePreflightPath
+$releasePreflightRoot = Join-Path $resolvedRepoRoot "scripts"
+$releasePreflightPath = Join-Path $releasePreflightRoot "run_release_candidate_checks.ps1"
+$releasePreflightScripts = @($releasePreflightPath) + @(
+    Get-ChildItem -LiteralPath $releasePreflightRoot -Filter "run_release_candidate_checks_*.ps1" |
+        Sort-Object FullName |
+        ForEach-Object { $_.FullName }
+)
+foreach ($releasePreflightScript in $releasePreflightScripts) {
+    Assert-ScriptParses -Path $releasePreflightScript
+}
+$releasePreflightText = @(
+    $releasePreflightScripts | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_ }
+) -join "`n"
 foreach ($label in @("Smoke", "Fixed grid", "Section page setup", "Page number fields")) {
     Assert-ContainsText -Text $releasePreflightText `
         -ExpectedText ('[pscustomobject]@{{ Label = "{0}";' -f $label) `

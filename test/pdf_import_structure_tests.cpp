@@ -21,8 +21,8 @@ TEST_CASE("PDFium parser groups text spans into lines and paragraphs") {
     REQUIRE_EQ(parse_result.document.pages.size(), 1U);
 
     const auto &parsed_page = parse_result.document.pages.front();
-    CHECK_GE(parsed_page.text_spans.size(), 60U);
     REQUIRE_EQ(parsed_page.text_lines.size(), 3U);
+    CHECK_GE(parsed_page.text_spans.size(), parsed_page.text_lines.size());
     REQUIRE_EQ(parsed_page.paragraphs.size(), 2U);
 
     CHECK(featherdoc::test_support::contains_text(

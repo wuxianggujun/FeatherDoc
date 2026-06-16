@@ -37,8 +37,19 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
-$statusDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_api_mainline_status_zh.rst"
-$cmakeLists = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+$documentApiStatusDocs = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\document_api_mainline_status_zh.rst"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "docs") -Filter "document_api_mainline_status_zh_*.rst" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+)
+$statusDoc = $documentApiStatusDocs -join "`n"
+$cmakeLists = @(
+    Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
+    Get-ChildItem -LiteralPath (Join-Path $resolvedRepoRoot "test\cmake") -Filter "*.cmake" |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+) -join "`n"
 
 foreach ($marker in @(
         "document_api_mainline_status.v1",

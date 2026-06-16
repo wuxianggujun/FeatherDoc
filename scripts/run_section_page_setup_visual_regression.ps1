@@ -2,6 +2,7 @@ param(
     [string]$BuildDir = "build-section-page-setup-regression-nmake",
     [string]$OutputDir = "output/section-page-setup-visual-regression",
     [int]$Dpi = 144,
+    [string[]]$CaseId = @(),
     [switch]$SkipBuild,
     [switch]$SkipVisual,
     [switch]$KeepWordOpen,
@@ -65,6 +66,20 @@ function Find-BuildExecutable {
         [string]$BuildRoot,
         [string]$TargetName
     )
+
+    $directCandidates = @(
+        (Join-Path $BuildRoot "$TargetName.exe"),
+        (Join-Path $BuildRoot $TargetName),
+        (Join-Path $BuildRoot (Join-Path "Debug" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "Release" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "RelWithDebInfo" "$TargetName.exe")),
+        (Join-Path $BuildRoot (Join-Path "MinSizeRel" "$TargetName.exe"))
+    )
+    foreach ($candidate in $directCandidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
 
     $candidates = Get-ChildItem -Path $BuildRoot -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ieq "$TargetName.exe" -or $_.Name -ieq $TargetName } |
@@ -224,6 +239,12 @@ function Invoke-CommandCapture {
     }
 }
 
+function Test-CaseRequested {
+    param([string]$Id)
+
+    return $CaseId.Count -eq 0 -or $CaseId -contains $Id
+}
+
 $repoRoot = Resolve-RepoRoot
 $resolvedBuildDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $BuildDir
 $resolvedOutputDir = Resolve-RepoPath -RepoRoot $repoRoot -InputPath $OutputDir
@@ -258,6 +279,13 @@ $cases = @(
         )
     }
 )
+
+$knownCaseIds = @($cases | ForEach-Object { $_.id })
+foreach ($requestedCaseId in $CaseId) {
+    if ($knownCaseIds -notcontains $requestedCaseId) {
+        throw "Unknown section page setup regression case '$requestedCaseId'."
+    }
+}
 
 New-Item -ItemType Directory -Path $resolvedOutputDir -Force | Out-Null
 
@@ -320,6 +348,7 @@ $apiInspectPath = Join-Path $apiCaseDir "inspect_page_setup.json"
 $apiVisualDir = Join-Path $apiCaseDir "visual"
 $apiVisualRelativeDir = Join-Path $OutputDir (Join-Path "api-sample" "visual")
 
+if (Test-CaseRequested "api-sample") {
 New-Item -ItemType Directory -Path $apiCaseDir -Force | Out-Null
 
 Write-Step "Generating API sample document via $sampleExecutable"
@@ -388,6 +417,7 @@ if (-not $SkipVisual) {
 
 $summary.cases += $apiCaseSummary
 $reviewManifest.cases += $apiCaseSummary
+}
 
 $cliCaseDir = Join-Path $resolvedOutputDir "cli-rewrite"
 $cliDocxPath = Join-Path $cliCaseDir "section_page_setup_cli.docx"
@@ -396,7 +426,16 @@ $cliInspectPath = Join-Path $cliCaseDir "inspect_page_setup.json"
 $cliVisualDir = Join-Path $cliCaseDir "visual"
 $cliVisualRelativeDir = Join-Path $OutputDir (Join-Path "cli-rewrite" "visual")
 
+if (Test-CaseRequested "cli-rewrite") {
 New-Item -ItemType Directory -Path $cliCaseDir -Force | Out-Null
+if (-not (Test-Path -LiteralPath $apiDocxPath)) {
+    New-Item -ItemType Directory -Path $apiCaseDir -Force | Out-Null
+    Write-Step "Generating API sample input document via $sampleExecutable"
+    & $sampleExecutable $apiDocxPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Sample execution failed: featherdoc_sample_section_page_setup"
+    }
+}
 
 Write-Step "Rewriting section 0 through featherdoc_cli"
 Invoke-CommandCapture `
@@ -492,6 +531,7 @@ if (-not $SkipVisual) {
 
 $summary.cases += $cliCaseSummary
 $reviewManifest.cases += $cliCaseSummary
+}
 
 if (-not $SkipVisual) {
     $contactSheetPaths = @()
@@ -583,14 +623,15 @@ $finalReview = @"
 
 ## Case findings
 
-- api-sample:
+"@
+foreach ($case in $summary.cases) {
+    $finalReview += @"
+- $($case.id):
   Verdict:
   Notes:
 
-- cli-rewrite:
-  Verdict:
-  Notes:
 "@
+}
 $finalReview | Set-Content -Path $finalReviewPath -Encoding UTF8
 
 Write-Step "Completed section page setup regression run"

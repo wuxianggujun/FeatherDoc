@@ -14,13 +14,6 @@
 
 namespace {
 
-auto read_binary_file(const fs::path &path) -> std::string {
-    std::ifstream stream(path, std::ios::binary);
-    REQUIRE(stream.good());
-    return std::string(std::istreambuf_iterator<char>(stream),
-                       std::istreambuf_iterator<char>());
-}
-
 auto utf8_from_u8(std::u8string_view text) -> std::string {
     return {reinterpret_cast<const char *>(text.data()), text.size()};
 }
@@ -165,13 +158,6 @@ void assert_pdfium_can_read(const fs::path &path, std::size_t expected_pages,
 void assert_pdfium_can_read(const fs::path &, std::size_t,
                             std::initializer_list<std::string_view>) {}
 #endif
-
-void write_binary_file(const fs::path &path, const std::string &data) {
-    std::ofstream stream(path, std::ios::binary);
-    REQUIRE(stream.good());
-    stream.write(data.data(), static_cast<std::streamsize>(data.size()));
-    REQUIRE(stream.good());
-}
 
 auto is_json_whitespace(char ch) -> bool {
     return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';

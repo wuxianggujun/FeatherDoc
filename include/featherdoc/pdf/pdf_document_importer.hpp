@@ -110,6 +110,13 @@ public:
     import_text(const std::filesystem::path &input_path,
                 featherdoc::Document &document,
                 const PdfDocumentImportOptions &options = {});
+
+    // Imports an already parsed PDF document; parse_options are not used
+    // because no parser is invoked on this path.
+    [[nodiscard]] PdfDocumentImportResult
+    import_parsed_document(PdfParsedDocument parsed_document,
+                           featherdoc::Document &document,
+                           const PdfDocumentImportOptions &options = {});
 };
 
 [[nodiscard]] PdfDocumentImportResult

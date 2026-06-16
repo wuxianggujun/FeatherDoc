@@ -46,7 +46,17 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 
 $scriptPath = Join-Path $RepoRoot "scripts\edit_document_from_plan.ps1"
+$scriptHelperPaths = Get-ChildItem `
+    -LiteralPath (Join-Path $RepoRoot "scripts") `
+    -Filter "edit_document_from_plan_*.ps1" |
+    Sort-Object FullName |
+    ForEach-Object { $_.FullName }
 $testPath = Join-Path $RepoRoot "test\edit_document_from_plan_test.ps1"
+$testHelperPaths = Get-ChildItem `
+    -LiteralPath (Join-Path $RepoRoot "test") `
+    -Filter "edit_document_from_plan_test_*.ps1" |
+    Sort-Object FullName |
+    ForEach-Object { $_.FullName }
 $tablePositionPlanTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_table_position_plan_test.ps1"
 $numberingCatalogTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_numbering_catalog_test.ps1"
 $contentControlSyncTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_content_control_sync_test.ps1"
@@ -60,9 +70,17 @@ $revisionCleanupTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_rev
 $updateFieldsAliasesTestPath = Join-Path $RepoRoot "test\edit_document_from_plan_update_fields_aliases_test.ps1"
 $editPlanOperationsDocsPath = Join-Path $RepoRoot "docs\en\api\edit_plan_operations.rst"
 
-$scriptText = Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+$scriptText = @(
+    Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptPath
+    foreach ($scriptHelperPath in $scriptHelperPaths) {
+        Get-Content -Raw -Encoding UTF8 -LiteralPath $scriptHelperPath
+    }
+) -join "`n"
 $testText = @(
     Get-Content -Raw -Encoding UTF8 -LiteralPath $testPath
+    foreach ($testHelperPath in $testHelperPaths) {
+        Get-Content -Raw -Encoding UTF8 -LiteralPath $testHelperPath
+    }
     Get-Content -Raw -Encoding UTF8 -LiteralPath $tablePositionPlanTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $numberingCatalogTestPath
     Get-Content -Raw -Encoding UTF8 -LiteralPath $contentControlSyncTestPath

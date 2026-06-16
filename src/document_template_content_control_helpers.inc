@@ -1,0 +1,11 @@
+#include "document_template_content_control_summary_helpers.inc"
+
+#include "document_template_content_control_text_helpers.inc"
+
+#include "document_template_content_control_custom_xml_helpers.inc"
+
+#include "document_template_content_control_property_helpers.inc"
+
+#include "document_template_content_control_form_state_helpers.inc"
+
+#include "document_template_content_control_text_replacement_helpers.inc"

@@ -259,7 +259,8 @@ foreach ($entry in $entries) {
     }
     $scriptArgs += $targetModeArgs
 
-    $commandOutput = @(& powershell.exe -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_template_schema_baseline.ps1") @scriptArgs 2>&1)
+    $powerShellPath = (Get-Process -Id $PID).Path
+    $commandOutput = @(& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "check_template_schema_baseline.ps1") @scriptArgs 2>&1)
     $exitCode = $LASTEXITCODE
     $lines = @($commandOutput | ForEach-Object { $_.ToString() })
     foreach ($line in $lines) {

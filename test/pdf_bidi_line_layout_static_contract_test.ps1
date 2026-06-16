@@ -29,14 +29,20 @@ $paragraphsImplPath = Join-Path $resolvedRepoRoot "src\pdf\pdf_document_adapter_
 $tableLayoutPath = Join-Path $resolvedRepoRoot "src\pdf\pdf_document_adapter_table_layout.cpp"
 $renderPath = Join-Path $resolvedRepoRoot "src\pdf\pdf_document_adapter_render.cpp"
 $cmakePath = Join-Path $resolvedRepoRoot "test\CMakeLists.txt"
-
+$cmakeModuleDir = Join-Path $resolvedRepoRoot "test\cmake"
+$cmakeTextParts = @(Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath)
+if (Test-Path -LiteralPath $cmakeModuleDir) {
+    $cmakeTextParts += Get-ChildItem -LiteralPath $cmakeModuleDir -Filter "*.cmake" |
+        Sort-Object Name |
+        ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+}
 $textHeader = Get-Content -Raw -LiteralPath $textHeaderPath
 $textImpl = Get-Content -Raw -LiteralPath $textImplPath
 $paragraphsHeader = Get-Content -Raw -LiteralPath $paragraphsHeaderPath
 $paragraphsImpl = Get-Content -Raw -LiteralPath $paragraphsImplPath
 $tableLayout = Get-Content -Raw -LiteralPath $tableLayoutPath
 $render = Get-Content -Raw -LiteralPath $renderPath
-$cmake = Get-Content -Raw -LiteralPath $cmakePath
+$cmake = $cmakeTextParts -join "`n"
 
 Assert-ContainsText -Text $textHeader -ExpectedText "bool rtl{false};" `
     -Message "PDF adapter text structs should carry run-level RTL metadata."

@@ -120,6 +120,16 @@ function Write-JsonFile {
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\write_schema_patch_confidence_calibration_report.ps1"
+$scriptHelperPath = Join-Path $resolvedRepoRoot "scripts\write_schema_patch_confidence_calibration_report_helpers.ps1"
+
+foreach ($pathToParse in @($scriptPath, $scriptHelperPath)) {
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($pathToParse, [ref]$tokens, [ref]$errors) | Out-Null
+    if ($errors.Count -gt 0) {
+        throw "Schema patch confidence calibration report script has parse errors: $pathToParse"
+    }
+}
 
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
 

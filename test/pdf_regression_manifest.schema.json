@@ -58,6 +58,40 @@
           "type": "integer",
           "minimum": 1
         },
+        "expected_pdf_min_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_pdf_max_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_image_dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "width",
+              "height"
+            ]
+          }
+        },
         "expect_unicode": {
           "type": "boolean"
         },
@@ -80,6 +114,14 @@
             "type": "string"
           }
         }
+      },
+      "dependentRequired": {
+        "expected_pdf_min_bytes": [
+          "expected_pdf_max_bytes"
+        ],
+        "expected_pdf_max_bytes": [
+          "expected_pdf_min_bytes"
+        ]
       },
       "required": [
         "id",

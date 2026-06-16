@@ -118,7 +118,7 @@ Write-Host "Test project fixture"
 Write-Host "    Start 1: pdf_alpha"
 Write-Host "1/3 Test #1: pdf_alpha ................................................   Passed    0.01 sec"
 Write-Host "    Start 2: pdf_slow"
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 30
 Write-Host "2/3 Test #2: pdf_slow .................................................   Passed    9.99 sec"
 exit 0
 '@ | Set-Content -LiteralPath $fakeTimeout -Encoding UTF8
@@ -129,7 +129,7 @@ $timeoutResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-OutputJson", $timeoutSummaryPath,
     "-LogDir", (Join-Path $resolvedWorkingDir "timeout-logs"),
     "-CtestExecutable", $fakeTimeout,
-    "-OuterTimeoutSeconds", "1",
+    "-OuterTimeoutSeconds", "5",
     "-CtestTimeoutSeconds", "60"
 )
 Assert-Equal -Actual $timeoutResult.ExitCode -Expected 124 `
@@ -145,7 +145,7 @@ Assert-Equal -Actual ([string]$timeoutSummary.outer_guard_status) -Expected "tim
     -Message "Timed-out fake CTest should preserve outer guard status."
 Assert-True -Condition ([bool]$timeoutSummary.outer_guard_timed_out) `
     -Message "Timed-out fake CTest should preserve outer guard flag."
-Assert-Equal -Actual ([int]$timeoutSummary.outer_guard_timeout_seconds) -Expected 1 `
+Assert-Equal -Actual ([int]$timeoutSummary.outer_guard_timeout_seconds) -Expected 5 `
     -Message "Timed-out fake CTest should preserve outer guard timeout seconds."
 Assert-Equal -Actual ([int]$timeoutSummary.selected_test_count) -Expected 3 `
     -Message "Timed-out fake CTest should preserve selected test count from progress lines."

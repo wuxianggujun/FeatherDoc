@@ -54,6 +54,15 @@ Common options:
 * ``--summary-json <path>`` writes a machine-readable export summary.
 * ``--json`` prints a machine-readable command result.
 
+CJK font sourcing is explicit. Current release artifacts do not redistribute
+CJK TTF / OTF / TTC font binaries; callers provide fonts through
+``--cjk-font-file``, ``--font-map``, ``FEATHERDOC_PDF_CJK_FONT``, the test-only
+``FEATHERDOC_TEST_CJK_FONT``, or installed platform font candidates. Bundling a
+CJK font in a future release requires an OFL 1.1 font such as Noto Sans CJK,
+Source Han Sans, or Source Han Serif, plus source URL, exact version, font file
+names, LICENSE / NOTICE, Reserved Font Name obligations, and release manifest
+audit evidence.
+
 Successful JSON includes ``command``, ``ok``, ``output``, ``bytes_written`` and
 the effective option set:
 
@@ -131,22 +140,67 @@ PDF Import JSON Diagnostics
 This section documents the PDF import JSON diagnostics emitted by
 ``featherdoc_cli import-pdf --json``.
 
-Successful JSON output includes the common fields ``command``, ``ok``,
-``input`` and ``output`` plus import counters:
+Successful JSON output includes the common mutation fields ``command``,
+``ok``, ``in_place``, ``sections``, ``headers`` and ``footers``, then the PDF
+import fields ``input`` and ``output`` plus import counters:
 
 .. code-block:: json
 
    {
      "command": "import-pdf",
      "ok": true,
+     "in_place": false,
+     "sections": 1,
+     "headers": 0,
+     "footers": 0,
      "input": "input.pdf",
      "output": "imported.docx",
      "paragraphs_imported": 2,
      "tables_imported": 1,
      "table_continuation_diagnostics_count": 2,
-     "table_continuation_diagnostics": [],
-     "import_table_candidates_as_tables": true,
-     "min_table_continuation_confidence": 90
+     "table_continuation_diagnostics": [
+       {
+         "page_index": 0,
+         "block_index": 1,
+         "source_row_offset": 0,
+         "continuation_confidence": 0,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": false,
+         "is_first_block_on_page": false,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": false,
+         "column_anchors_match": false,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "created_new_table",
+         "blocker": "no_previous_table"
+       },
+       {
+         "page_index": 1,
+         "block_index": 0,
+         "source_row_offset": 0,
+         "continuation_confidence": 85,
+         "minimum_continuation_confidence": 0,
+         "has_previous_table": true,
+         "is_first_block_on_page": true,
+         "is_near_page_top": true,
+         "source_rows_consistent": true,
+         "column_count_matches": true,
+         "column_anchors_match": true,
+         "previous_has_repeating_header": false,
+         "source_has_repeating_header": false,
+         "header_matches_previous": true,
+         "header_match_kind": "not_required",
+         "skipped_repeating_header": false,
+         "disposition": "merged_with_previous_table",
+         "blocker": "none"
+       }
+     ],
+     "import_table_candidates_as_tables": true
    }
 
 ``min_table_continuation_confidence`` is present only when the command line
@@ -174,21 +228,55 @@ Each diagnostic object uses these stable fields:
 * ``blocker``: the first reason a cross-page merge was rejected, or ``none``
   when the table was merged.
 
+Diagnostic object fields are intentionally shown in CLI JSON emission order.
+Keep the user-facing example aligned with the CLI implementation:
+``page_index``, ``block_index``, ``source_row_offset``,
+``continuation_confidence``, ``minimum_continuation_confidence``,
+``has_previous_table``, ``is_first_block_on_page``, ``is_near_page_top``,
+``source_rows_consistent``, ``column_count_matches``,
+``column_anchors_match``, ``previous_has_repeating_header``,
+``source_has_repeating_header``, ``header_matches_previous``,
+``header_match_kind``, ``skipped_repeating_header``, ``disposition`` and
+``blocker``.
+
 ``header_match_kind`` can be ``none``, ``not_required``, ``exact``,
 ``normalized_text``, ``plural_variant``, ``canonical_text`` or ``token_set``.
 ``blocker`` can be ``none``, ``no_previous_table``,
 ``not_first_block_on_page``, ``not_near_page_top``,
 ``inconsistent_source_rows``, ``column_count_mismatch``,
 ``column_anchors_mismatch``, ``repeated_header_mismatch`` or
-``continuation_confidence_below_threshold``. ``inconsistent_source_rows`` is an
-internal consistency guard for malformed table candidates.
-``inconsistent_source_rows`` is an internal consistency guard.
+``continuation_confidence_below_threshold``.
+
+When a repeated-header continuation is merged, the diagnostic records the
+rule-based decision explicitly: ``source_row_offset = 1`` means the first
+source row was skipped as the repeated header,
+``skipped_repeating_header = true``, ``continuation_confidence = 95``,
+``header_match_kind = exact`` and ``blocker = none``. This confidence is a
+deterministic heuristic score, not a probability.
+
+.. code-block:: json
+
+   {
+     "source_row_offset": 1,
+     "continuation_confidence": 95,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": true,
+     "disposition": "merged_with_previous_table",
+     "blocker": "none"
+   }
+
+``inconsistent_source_rows`` is an internal consistency guard for malformed
+table candidates. The current parser
+normalizes each table-candidate row to the detected column anchors, so normal
+imports should not rely on it as a stable user-triggered blocker.
 
 Common continuation blockers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use ``blocker`` as the first triage field when a table was kept separate:
 
+* ``column_count_mismatch`` means the candidate has a different detected
+  column count than the previous table.
 * ``repeated_header_mismatch`` means both table candidates looked like
   repeated-header tables, but their header text did not match after the
   conservative normalization rules.
@@ -203,11 +291,28 @@ Use ``blocker`` as the first triage field when a table was kept separate:
 
 Representative diagnostic snippets:
 
+The following complete blocker diagnostic objects mirror CLI JSON field order
+for common split cases:
+
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 70,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
      "header_matches_previous": false,
      "header_match_kind": "none",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "repeated_header_mismatch"
    }
@@ -215,8 +320,45 @@ Representative diagnostic snippets:
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 30,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": false,
+     "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": false,
+     "header_match_kind": "none",
+     "skipped_repeating_header": false,
+     "disposition": "created_new_table",
+     "blocker": "column_count_mismatch"
+   }
+
+.. code-block:: json
+
+   {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 55,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
      "column_count_matches": true,
      "column_anchors_match": false,
+     "previous_has_repeating_header": true,
+     "source_has_repeating_header": true,
+     "header_matches_previous": true,
+     "header_match_kind": "exact",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "column_anchors_mismatch"
    }
@@ -224,8 +366,22 @@ Representative diagnostic snippets:
 .. code-block:: json
 
    {
-     "continuation_confidence": 80,
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 85,
      "minimum_continuation_confidence": 90,
+     "has_previous_table": true,
+     "is_first_block_on_page": true,
+     "is_near_page_top": true,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "continuation_confidence_below_threshold"
    }
@@ -233,7 +389,22 @@ Representative diagnostic snippets:
 .. code-block:: json
 
    {
+     "page_index": 0,
+     "block_index": 2,
+     "source_row_offset": 0,
+     "continuation_confidence": 35,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": false,
+     "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_first_block_on_page"
    }
@@ -241,8 +412,22 @@ Representative diagnostic snippets:
 .. code-block:: json
 
    {
+     "page_index": 1,
+     "block_index": 0,
+     "source_row_offset": 0,
+     "continuation_confidence": 45,
+     "minimum_continuation_confidence": 0,
+     "has_previous_table": true,
      "is_first_block_on_page": true,
      "is_near_page_top": false,
+     "source_rows_consistent": true,
+     "column_count_matches": true,
+     "column_anchors_match": true,
+     "previous_has_repeating_header": false,
+     "source_has_repeating_header": false,
+     "header_matches_previous": true,
+     "header_match_kind": "not_required",
+     "skipped_repeating_header": false,
      "disposition": "created_new_table",
      "blocker": "not_near_page_top"
    }
@@ -267,7 +452,8 @@ Failure JSON keeps ``ok`` set to ``false`` and reports the ``import`` stage:
 ``no_text_paragraphs``. Running without
 ``--import-table-candidates-as-tables`` against a PDF where table candidates are
 detected reports ``table_candidates_detected`` and does not write the target
-DOCX.
+DOCX. Scanned or image-only PDFs without extractable text paragraphs report
+``no_text_paragraphs`` and also leave the target DOCX unwritten.
 
 Command-line parse errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~

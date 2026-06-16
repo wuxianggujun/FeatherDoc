@@ -341,6 +341,7 @@ $visualReviewTaskSummaryLine = Get-VisualReviewTaskSummaryLine -VisualGateSummar
 $pdfVisualGateSummaryPath = Get-PdfVisualGateSummaryPath -Summary $summary
 $pdfVisualGateEvidence = Get-PdfVisualGateEvidence -SummaryPath $pdfVisualGateSummaryPath -RepoRoot $repoRoot
 $pdfBoundedCtestEvidence = Get-PdfBoundedCtestEvidence -Summary $summary
+$pdfBoundedCtestImportDiagnostics = Get-PdfBoundedCtestImportDiagnosticsDisplay -Evidence $pdfBoundedCtestEvidence
 $installDirLeaf = if ([string]::IsNullOrWhiteSpace($installDir)) {
     "build-msvc-install"
 } else {
@@ -475,6 +476,11 @@ if ($pdfBoundedCtestEvidence.status -ne "not_available") {
     [void]$lines.Add("- PDF bounded CTest auxiliary evidence: status=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.status), summaries=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.summary_count), pass=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.pass_count), selected_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.selected_test_count), skipped_tests=$(Get-DisplayValue -Value $pdfBoundedCtestEvidence.skipped_test_count)")
     [void]$lines.Add("- PDF bounded CTest auxiliary subsets: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.subsets) -join ', '))")
     [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+    if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract tests: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.tests)")
+        [void]$lines.Add("- PDF bounded CTest import diagnostics contract fields: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+        [void]$lines.Add("- PDF bounded CTest import negative boundary cases: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+    }
 }
 [void]$lines.Add('- PDF release readiness checklist: `docs/pdf_release_readiness_checklist_zh.rst`')
 [void]$lines.Add("- Smoke verdict: $(Get-DisplayValue -Value $smokeVerdict)")
@@ -556,6 +562,10 @@ if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.summary_json)) {
 [void]$lines.Add("- PDF bounded CTest summaries / pass: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.summary_count, $pdfBoundedCtestEvidence.pass_count))")
 [void]$lines.Add("- PDF bounded CTest selected / skipped tests: $(Get-DisplayValue -Value ('{0}/{1}' -f $pdfBoundedCtestEvidence.selected_test_count, $pdfBoundedCtestEvidence.skipped_test_count))")
 [void]$lines.Add("- PDF bounded CTest auxiliary summaries: $(Get-DisplayValue -Value (@($pdfBoundedCtestEvidence.summary_json_display) -join ', '))")
+if ($pdfBoundedCtestImportDiagnostics.has_evidence) {
+    [void]$lines.Add("- PDF bounded CTest import diagnostics contract fields: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.fields)")
+    [void]$lines.Add("- PDF bounded CTest import negative boundary cases: $(Get-DisplayValue -Value $pdfBoundedCtestImportDiagnostics.negative_boundary_cases)")
+}
 [void]$lines.Add('- PDF release readiness checklist: `docs/pdf_release_readiness_checklist_zh.rst`')
 foreach ($curatedVisualReview in $curatedVisualReviewEntries) {
     [void]$lines.Add("- $($curatedVisualReview.label) review task: $(Get-DisplayPath -RepoRoot $repoRoot -Path $curatedVisualReview.task_dir)")

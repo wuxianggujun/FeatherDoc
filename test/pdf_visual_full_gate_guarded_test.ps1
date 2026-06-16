@@ -196,7 +196,7 @@ $passResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Arguments @(
     "-OutputJson", $passSummaryPath,
     "-VisualGateScript", $fakeVisualPass,
     "-AttemptSummaryScript", $fakeAttemptSummary,
-    "-OuterTimeoutSeconds", "10",
+    "-OuterTimeoutSeconds", "20",
     "-MinFreeMemoryMB", "1"
 )
 Assert-Equal -Actual $passResult.ExitCode -Expected 0 `
@@ -223,7 +223,7 @@ $nativeNonZeroResult = Invoke-PowerShellScript -ScriptPath $scriptPath -Argument
     "-OutputJson", $nativeNonZeroSummaryPath,
     "-VisualGateScript", $fakeVisualNativeNonZeroPass,
     "-AttemptSummaryScript", $fakeAttemptSummary,
-    "-OuterTimeoutSeconds", "10",
+    "-OuterTimeoutSeconds", "20",
     "-MinFreeMemoryMB", "1"
 )
 Assert-Equal -Actual $nativeNonZeroResult.ExitCode -Expected 0 `

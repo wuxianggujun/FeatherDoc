@@ -282,6 +282,27 @@ function Assert-RstJsonCodeBlocksParse {
     }
 }
 
+function Assert-TextContainsFragmentsInOrder {
+    param(
+        [string]$Text,
+        [string[]]$Fragments,
+        [string]$Label
+    )
+
+    $searchOffset = 0
+    foreach ($fragment in $Fragments) {
+        $index = $Text.IndexOf(
+            $fragment,
+            $searchOffset,
+            [System.StringComparison]::Ordinal)
+        if ($index -lt 0) {
+            throw "$Label does not contain expected fragment '$fragment' after offset $searchOffset."
+        }
+
+        $searchOffset = $index + $fragment.Length
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 }
@@ -294,7 +315,9 @@ $chineseApiIndexPath = Join-Path $resolvedRepoRoot "docs\zh-CN\api\index.rst"
 $changelogPath = Join-Path $resolvedRepoRoot "CHANGELOG.md"
 $cmakeListsPath = Join-Path $resolvedRepoRoot "CMakeLists.txt"
 $pdfImporterHeaderPath = Join-Path $resolvedRepoRoot "include\featherdoc\pdf\pdf_document_importer.hpp"
-$cliPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli.cpp"
+$cliCommandSupportPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_command_support.hpp"
+$pdfCliImportCommandsPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_commands.cpp"
+$pdfCliImportOutputPath = Join-Path $resolvedRepoRoot "cli\featherdoc_cli_pdf_import_output.cpp"
 $pdfCliImportTestsPath = Join-Path $resolvedRepoRoot "test\pdf_cli_import_tests.cpp"
 $pdfImportStructureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_structure_tests.cpp"
 $pdfImportFailureTestsPath = Join-Path $resolvedRepoRoot "test\pdf_import_failure_tests.cpp"
@@ -307,11 +330,19 @@ $chineseApiIndexText = Get-Content -Raw -Encoding UTF8 -LiteralPath $chineseApiI
 $changelogText = Get-Content -Raw -Encoding UTF8 -LiteralPath $changelogPath
 $cmakeListsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakeListsPath
 $pdfImporterHeaderText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImporterHeaderPath
-$cliText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliPath
-$pdfCliImportTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportTestsPath
+$cliCommandSupportText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cliCommandSupportPath
+$pdfCliImportCommandsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportCommandsPath
+$pdfCliImportOutputText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfCliImportOutputPath
+$pdfCliImportTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfCliImportTestsPath) -Filter "pdf_cli_import*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfCliImportTestsText = $pdfCliImportTestsTextParts -join "`n"
 $pdfImportStructureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportStructureTestsPath
 $pdfImportFailureTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportFailureTestsPath
-$pdfImportTableHeuristicTestsText = Get-Content -Raw -Encoding UTF8 -LiteralPath $pdfImportTableHeuristicTestsPath
+$pdfImportTableHeuristicTestsTextParts = Get-ChildItem -LiteralPath (Split-Path -Parent $pdfImportTableHeuristicTestsPath) -Filter "pdf_import_table_heuristic*.cpp" |
+    Sort-Object Name |
+    ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }
+$pdfImportTableHeuristicTestsText = $pdfImportTableHeuristicTestsTextParts -join "`n"
 
 $englishPdfInstalledDocs = @('docs/en/api/pdf_workflow.rst')
 $chinesePdfInstalledDocs = @('docs/zh-CN/api/pdf_workflow.rst')
@@ -350,17 +381,26 @@ $requiredPdfImportDocsTerms = @(
 $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "PDF Import JSON Diagnostics",
     "PDF import JSON diagnostics",
+    "common mutation fields",
+    '"in_place": false',
+    '"sections": 1',
+    '"headers": 0',
+    '"footers": 0',
     '"table_continuation_diagnostics_count": 2',
-    '"table_continuation_diagnostics": []',
+    '"table_continuation_diagnostics": [',
     "page_index",
     "block_index",
     "source_row_offset",
     "continuation_confidence",
     "minimum_continuation_confidence",
+    '"minimum_continuation_confidence": 0',
     "has_previous_table",
+    '"has_previous_table": false',
+    '"has_previous_table": true',
     "is_first_block_on_page",
     "is_near_page_top",
     "source_rows_consistent",
+    '"source_rows_consistent": true',
     "column_count_matches",
     "column_anchors_match",
     "previous_has_repeating_header",
@@ -375,24 +415,52 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "token_set",
     "skipped_repeating_header",
     "disposition",
+    '"disposition": "merged_with_previous_table"',
     "created_new_table",
     "merged_with_previous_table",
     "blocker",
+    '"blocker": "no_previous_table"',
+    '"blocker": "none"',
     "no_previous_table",
     "not_first_block_on_page",
     "not_near_page_top",
     "inconsistent_source_rows",
     "internal consistency guard",
+    "normalizes each table-candidate row to the detected column anchors",
+    "stable user-triggered blocker",
     "column_count_mismatch",
     "column_anchors_mismatch",
     "repeated_header_mismatch",
     "continuation_confidence_below_threshold",
     "Common continuation blockers",
+    "When a repeated-header continuation is merged",
+    "source_row_offset = 1",
+    '"source_row_offset": 1',
+    "skipped_repeating_header = true",
+    '"skipped_repeating_header": true',
+    "continuation_confidence = 95",
+    '"continuation_confidence": 95',
+    "header_match_kind = exact",
+    '"header_match_kind": "exact"',
+    "blocker = none",
+    "not a probability",
+    "complete blocker diagnostic objects mirror CLI JSON field order",
+    '"continuation_confidence": 70',
+    '"continuation_confidence": 55',
+    '"continuation_confidence": 85',
+    '"continuation_confidence": 30',
+    '"continuation_confidence": 35',
+    '"continuation_confidence": 45',
+    '"column_count_matches": false',
+    '"column_anchors_match": false',
+    '"blocker": "column_count_mismatch"',
     '"blocker": "repeated_header_mismatch"',
     '"blocker": "column_anchors_mismatch"',
     '"blocker": "continuation_confidence_below_threshold"',
     '"blocker": "not_first_block_on_page"',
     '"blocker": "not_near_page_top"',
+    '"block_index": 2',
+    '"has_previous_table": true',
     '"is_first_block_on_page": false',
     '"is_near_page_top": false',
     '"minimum_continuation_confidence": 90',
@@ -411,7 +479,9 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     "extract_text_disabled",
     "extract_geometry_disabled",
     "table_candidates_detected",
-    "no_text_paragraphs"
+    "no_text_paragraphs",
+    "Scanned or image-only PDFs without extractable text paragraphs report",
+    "leave the target DOCX unwritten"
 )
 
 $requiredPdfImportScopeDocsTerms = @(
@@ -441,6 +511,86 @@ $requiredPdfImportScopeDocsTerms = @(
     "Unsupported cases must fail or remain paragraphs"
 )
 
+$requiredPdfImportCommonMutationJsonKeys = @(
+    '\"in_place\"',
+    '\"sections\"',
+    '\"headers\"',
+    '\"footers\"'
+)
+
+$requiredPdfImportCliJsonSummaryKeys = @(
+    '\"table_continuation_diagnostics_count\"',
+    '\"table_continuation_diagnostics\"'
+)
+
+$requiredPdfImportCliJsonDiagnosticFieldKeys = @(
+    '\"page_index\"',
+    '\"block_index\"',
+    '\"source_row_offset\"',
+    '\"continuation_confidence\"',
+    '\"minimum_continuation_confidence\"',
+    '\"has_previous_table\"',
+    '\"is_first_block_on_page\"',
+    '\"is_near_page_top\"',
+    '\"source_rows_consistent\"',
+    '\"column_count_matches\"',
+    '\"column_anchors_match\"',
+    '\"previous_has_repeating_header\"',
+    '\"source_has_repeating_header\"',
+    '\"header_matches_previous\"',
+    '\"header_match_kind\"',
+    '\"skipped_repeating_header\"',
+    '\"disposition\"',
+    '\"blocker\"'
+)
+
+$pdfImportDiagnosticDocsFieldOrder = @(
+    '"page_index"',
+    '"block_index"',
+    '"source_row_offset"',
+    '"continuation_confidence"',
+    '"minimum_continuation_confidence"',
+    '"has_previous_table"',
+    '"is_first_block_on_page"',
+    '"is_near_page_top"',
+    '"source_rows_consistent"',
+    '"column_count_matches"',
+    '"column_anchors_match"',
+    '"previous_has_repeating_header"',
+    '"source_has_repeating_header"',
+    '"header_matches_previous"',
+    '"header_match_kind"',
+    '"skipped_repeating_header"',
+    '"disposition"',
+    '"blocker"'
+)
+
+$pdfImportDiagnosticCliFieldOrder = @(
+    '\"page_index\"',
+    '\"block_index\"',
+    '\"source_row_offset\"',
+    '\"continuation_confidence\"',
+    '\"minimum_continuation_confidence\"',
+    '\"has_previous_table\"',
+    '\"is_first_block_on_page\"',
+    '\"is_near_page_top\"',
+    '\"source_rows_consistent\"',
+    '\"column_count_matches\"',
+    '\"column_anchors_match\"',
+    '\"previous_has_repeating_header\"',
+    '\"source_has_repeating_header\"',
+    '\"header_matches_previous\"',
+    '\"header_match_kind\"',
+    '\"skipped_repeating_header\"',
+    '\"disposition\"',
+    '\"blocker\"'
+)
+
+$requiredPdfImportCliJsonFailureKinds = @(
+    '"failure_kind":"table_candidates_detected"',
+    '"failure_kind":"no_text_paragraphs"'
+)
+
 $scopeCoverageAnchors = @(
     @{
         Label = "Paragraph import from extractable PDF text"
@@ -453,6 +603,24 @@ $scopeCoverageAnchors = @(
         DocExpected = "Table candidates are rejected by default"
         Text = $pdfImportFailureTestsText
         Expected = "PDF text importer classifies detected table candidates"
+    },
+    @{
+        Label = "Scanned PDF import boundary"
+        DocExpected = "scanned PDFs"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
+    },
+    @{
+        Label = "OCR import boundary"
+        DocExpected = "OCR"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
+    },
+    @{
+        Label = "Image-only import boundary"
+        DocExpected = "image-only"
+        Text = $pdfImportFailureTestsText
+        Expected = "PDF text importer classifies image-only pages without text paragraphs"
     },
     @{
         Label = "Opt-in table promotion"
@@ -572,13 +740,19 @@ $scopeCoverageAnchors = @(
         Label = "Short-label prose stays paragraphs"
         DocExpected = "short-label prose"
         Text = $pdfImportTableHeuristicTestsText
-        Expected = "PDFium parser does not classify two-column short-label prose as table candidate"
+        Expected = "PDF text importer keeps short-label prose as paragraphs"
     },
     @{
         Label = "Free-form column drift stays paragraphs"
         DocExpected = "free-form"
         Text = $pdfImportTableHeuristicTestsText
         Expected = "PDF text importer keeps free-form column drift prose as paragraphs"
+    },
+    @{
+        Label = "Invoice summary form stays paragraphs"
+        DocExpected = "free-form"
+        Text = $pdfImportTableHeuristicTestsText
+        Expected = "PDF text importer keeps invoice summary form as paragraphs"
     },
     @{
         Label = "Local anchor drift split"
@@ -610,6 +784,18 @@ Assert-RstJsonCodeBlocksParse `
 Assert-RstJsonCodeBlocksParse `
     -Text $chinesePdfWorkflowDocsText `
     -Label "docs/zh-CN/api/pdf_workflow.rst"
+Assert-TextContainsFragmentsInOrder `
+    -Text $englishPdfWorkflowDocsText `
+    -Fragments $pdfImportDiagnosticDocsFieldOrder `
+    -Label "docs/en/api/pdf_workflow.rst PDF import diagnostic JSON field order"
+Assert-TextContainsFragmentsInOrder `
+    -Text $chinesePdfWorkflowDocsText `
+    -Fragments $pdfImportDiagnosticDocsFieldOrder `
+    -Label "docs/zh-CN/api/pdf_workflow.rst PDF import diagnostic JSON field order"
+Assert-TextContainsFragmentsInOrder `
+    -Text $pdfCliImportOutputText `
+    -Fragments $pdfImportDiagnosticCliFieldOrder `
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp PDF import diagnostic JSON field order"
 
 foreach ($marker in @(
     "PDF",
@@ -623,11 +809,32 @@ foreach ($marker in @(
     "featherdoc_cli import-pdf input.pdf --output imported.docx --json",
     "--import-table-candidates-as-tables",
     "--min-table-continuation-confidence",
+    "mutation",
+    '"in_place": false',
+    '"sections": 1',
+    '"headers": 0',
+    '"footers": 0',
     "table_continuation_diagnostics_count",
     "table_continuation_diagnostics",
     "column_anchors_mismatch",
     "continuation_confidence_below_threshold",
     "inconsistent_source_rows",
+    "source_row_offset = 1",
+    '"source_row_offset": 1',
+    "skipped_repeating_header = true",
+    '"skipped_repeating_header": true',
+    "continuation_confidence = 95",
+    '"continuation_confidence": 95',
+    "header_match_kind = exact",
+    '"header_match_kind": "exact"',
+    "blocker = none",
+    '"continuation_confidence": 70',
+    '"continuation_confidence": 55',
+    '"continuation_confidence": 85',
+    '"continuation_confidence": 30',
+    '"column_count_matches": false',
+    '"column_anchors_match": false',
+    '"blocker": "column_count_mismatch"',
     "parse_failed",
     "document_create_failed",
     "extract_geometry_disabled",
@@ -635,6 +842,13 @@ foreach ($marker in @(
     "Unsupported cases must fail or remain paragraphs"
 )) {
     Assert-ContainsText -Text $chinesePdfWorkflowDocsText -ExpectedText $marker -Label "docs/zh-CN/api/pdf_workflow.rst"
+}
+
+foreach ($key in $requiredPdfImportCommonMutationJsonKeys) {
+    Assert-ContainsText `
+        -Text $cliCommandSupportText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_command_support.hpp"
 }
 
 foreach ($anchor in $scopeCoverageAnchors) {
@@ -683,21 +897,42 @@ Assert-DocumentedEnumMembers `
     -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $failureKindMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $dispositionMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $blockerMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
 Assert-CliMapsEnumMembers `
-    -Text $cliText `
+    -Text $pdfCliImportOutputText `
     -Members $headerMatchKindMembers `
-    -Label "cli/featherdoc_cli.cpp"
+    -Label "cli/featherdoc_cli_pdf_import_output.cpp"
+
+foreach ($key in $requiredPdfImportCliJsonSummaryKeys) {
+    Assert-ContainsText `
+        -Text $pdfCliImportCommandsText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_pdf_import_commands.cpp"
+}
+
+foreach ($key in $requiredPdfImportCliJsonDiagnosticFieldKeys) {
+    Assert-ContainsText `
+        -Text $pdfCliImportOutputText `
+        -ExpectedText $key `
+        -Label "cli/featherdoc_cli_pdf_import_output.cpp"
+}
+
+foreach ($failureKind in $requiredPdfImportCliJsonFailureKinds) {
+    Assert-ContainsText `
+        -Text $pdfCliImportTestsText `
+        -ExpectedText $failureKind `
+        -Label "test/pdf_cli_import*.cpp"
+}
 
 $cliJsonBlockerMembers = Get-CliJsonBlockerMembers -Text $pdfCliImportTestsText
 foreach ($blockerMember in $blockerMembers) {
@@ -712,6 +947,14 @@ foreach ($blockerMember in $blockerMembers) {
 Assert-ContainsText `
     -Text $englishPdfWorkflowDocsText `
     -ExpectedText '``inconsistent_source_rows`` is an internal consistency guard' `
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-ContainsText `
+    -Text $englishPdfWorkflowDocsText `
+    -ExpectedText 'normalizes each table-candidate row to the detected column anchors' `
+    -Label "docs/en/api/pdf_workflow.rst"
+Assert-ContainsText `
+    -Text $englishPdfWorkflowDocsText `
+    -ExpectedText 'stable user-triggered blocker' `
     -Label "docs/en/api/pdf_workflow.rst"
 
 Assert-RstToctreeContainsEntries `
