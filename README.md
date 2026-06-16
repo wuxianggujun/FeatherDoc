@@ -21,6 +21,7 @@ site.
 - Simplified Chinese API reference: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/>
 - English getting started: <https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html>
 - Simplified Chinese getting started: <https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html>
+- Word document workflows: <https://wuxianggujun.github.io/FeatherDoc/en/word_document_workflow.html>
 - PDF workflows: <https://wuxianggujun.github.io/FeatherDoc/en/api/pdf_workflow.html>
 - Source docs: [`docs/index.rst`](docs/index.rst)
 - Documentation maintenance: [`docs/documentation_maintenance_zh.rst`](docs/documentation_maintenance_zh.rst)

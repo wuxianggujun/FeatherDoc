@@ -94,6 +94,7 @@ $rootIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.
 $docsConf = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\conf.py"
 $englishIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\index.rst"
 $englishGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\getting_started.rst"
+$englishWordDocumentWorkflow = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\word_document_workflow.rst"
 $englishApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\index.rst"
 $englishDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\document.rst"
 $englishParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\paragraph_run.rst"
@@ -108,6 +109,7 @@ $englishPdfWorkflowApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath 
 $englishEnumsApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\en\api\enums.rst"
 $chineseIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\index.rst"
 $chineseGettingStarted = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\getting_started.rst"
+$chineseWordDocumentWorkflow = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\word_document_workflow.rst"
 $chineseApiIndex = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\index.rst"
 $chineseDocumentApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\document.rst"
 $chineseParagraphRunApi = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\zh-CN\api\paragraph_run.rst"
@@ -237,6 +239,7 @@ Assert-RepoPathMissing -Root $resolvedRepoRoot -RelativePath "docs\libreoffice_p
 foreach ($marker in @(
         "../zh-CN/index",
         "getting_started",
+        "word_document_workflow",
         "api/index",
         "api/pdf_workflow"
     )) {
@@ -249,6 +252,7 @@ Assert-DoesNotContainText -Text $englishIndex -UnexpectedText "../index" `
 foreach ($marker in @(
         "Install And Build",
         "Minimal C++ Usage",
+        "word_document_workflow",
         "api/document",
         "api/paragraph_run",
         "api/table",
@@ -260,7 +264,24 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "Word Document Workflows",
+        "Workflow Map",
         "featherdoc::Document",
+        "TemplatePart",
+        "scripts/edit_document_from_plan.ps1",
+        "run_word_visual_smoke.ps1",
+        "Get-Content -Encoding UTF8",
+        "api/document",
+        "api/template_part",
+        "api/edit_plan_operations"
+    )) {
+    Assert-ContainsText -Text $englishWordDocumentWorkflow -ExpectedText $marker `
+        -Message "English Word document workflow guide should preserve task-oriented DOCX workflow marker."
+}
+
+foreach ($marker in @(
+        "featherdoc::Document",
+        "../word_document_workflow",
         "document",
         "paragraph_run",
         "table",
@@ -426,6 +447,7 @@ Assert-DoesNotContainText -Text $englishEnumsApi -UnexpectedText "../../api/enum
 foreach ($marker in @(
         "../en/index",
         "getting_started",
+        "word_document_workflow",
         "api/index",
         "api/pdf_workflow"
     )) {
@@ -452,6 +474,7 @@ foreach ($marker in @(
         "cmake -S . -B build",
         "BUILD_CLI",
         "featherdoc::Document",
+        "word_document_workflow",
         "api/document",
         "api/paragraph_run",
         "api/table",
@@ -463,7 +486,24 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        (New-TextFromCodePoints @("Word ", 0x6587, 0x6863, 0x5904, 0x7406, 0x5DE5, 0x4F5C, 0x6D41)),
+        (New-TextFromCodePoints @(0x5DE5, 0x4F5C, 0x6D41, 0x5730, 0x56FE)),
+        "featherdoc::Document",
+        "TemplatePart",
+        "scripts/edit_document_from_plan.ps1",
+        "run_word_visual_smoke.ps1",
+        "Get-Content -Encoding UTF8",
+        "api/document",
+        "api/template_part",
+        "api/edit_plan_operations"
+    )) {
+    Assert-ContainsText -Text $chineseWordDocumentWorkflow -ExpectedText $marker `
+        -Message "Chinese Word document workflow guide should preserve task-oriented DOCX workflow marker."
+}
+
+foreach ($marker in @(
         "../../en/api/index",
+        "../word_document_workflow",
         "featherdoc::Document",
         "document",
         "paragraph_run",
@@ -628,6 +668,7 @@ foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/",
         "https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html",
+        "https://wuxianggujun.github.io/FeatherDoc/en/word_document_workflow.html",
         "https://wuxianggujun.github.io/FeatherDoc/en/api/pdf_workflow.html",
         '## Branch Policy',
         '`dev` is the active development branch.',
@@ -652,6 +693,7 @@ foreach ($marker in @(
         "https://wuxianggujun.github.io/FeatherDoc/en/api/",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html",
         "https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html",
+        "https://wuxianggujun.github.io/FeatherDoc/zh-CN/word_document_workflow.html",
         "https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/pdf_workflow.html",
         (New-TextFromCodePoints @("## ", 0x5206, 0x652F, 0x7B56, 0x7565)),
         (New-TextFromCodePoints @('`dev` ', 0x662F, 0x5F53, 0x524D, 0x4E3B, 0x5F00, 0x53D1, 0x5206, 0x652F, 0x3002)),

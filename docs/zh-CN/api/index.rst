@@ -3,6 +3,7 @@ API 参考
 
 中文 API 参考按对象和脚本操作分组。请从下面的对象地图直接进入具体页面，
 避免在旧版根目录长文档里查找 API 能力。
+如果需要按任务串起完整流程，请先读 :doc:`../word_document_workflow`。
 
 语言
 ----
@@ -59,6 +60,9 @@ API 页面按公开 C++ 对象拆分，而不是继续维护一篇很长的 READ
    * - ``featherdoc::Document``
      - 加载、保存、检查和修改 ``.docx`` 包的根对象。
      - :doc:`document`
+   * - Word 文档处理工作流
+     - 按任务串起文档生成、填充、审阅和批量编辑流程。
+     - :doc:`../word_document_workflow`
    * - ``featherdoc::Paragraph`` / ``featherdoc::Run``
      - 编辑正文文本和 run 级格式。
      - :doc:`paragraph_run`

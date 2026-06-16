@@ -209,6 +209,17 @@ is an array ordered by table candidate discovery. It explains why a detected
 table started a new table, merged with the previous page table, or was blocked
 from merging across a page boundary.
 
+For thresholded runs, the summary-level threshold field is emitted alongside
+the diagnostics:
+
+.. code-block:: json
+
+   {
+     "table_continuation_diagnostics_count": 2,
+     "import_table_candidates_as_tables": true,
+     "min_table_continuation_confidence": 90
+   }
+
 Each diagnostic object uses these stable fields:
 
 * ``page_index`` and ``block_index``: zero-based location of the table

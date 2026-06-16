@@ -388,6 +388,8 @@ $requiredPdfImportJsonDiagnosticsDocsTerms = @(
     '"footers": 0',
     '"table_continuation_diagnostics_count": 2',
     '"table_continuation_diagnostics": [',
+    "min_table_continuation_confidence",
+    '"min_table_continuation_confidence": 90',
     "page_index",
     "block_index",
     "source_row_offset",
@@ -520,7 +522,8 @@ $requiredPdfImportCommonMutationJsonKeys = @(
 
 $requiredPdfImportCliJsonSummaryKeys = @(
     '\"table_continuation_diagnostics_count\"',
-    '\"table_continuation_diagnostics\"'
+    '\"table_continuation_diagnostics\"',
+    '\"min_table_continuation_confidence\"'
 )
 
 $requiredPdfImportCliJsonDiagnosticFieldKeys = @(
