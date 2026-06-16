@@ -41,6 +41,8 @@ Where To Go Next
 
 * Use :doc:`api/document` for open/save, sections, headers, footers,
   inspection, and document-wide editing.
+* Use :doc:`word_document_workflow` when you want a task-oriented path for
+  generating, filling, reviewing, or batch-editing Word documents.
 * Use :doc:`api/paragraph_run` for paragraphs and runs.
 * Use :doc:`api/table` for tables, rows, and cells.
 * Use :doc:`api/template_part` for bookmarks, content controls, template slots,

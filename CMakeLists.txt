@@ -492,6 +492,18 @@ install(
 
 install(
     FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/en/word_document_workflow.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs/en"
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/zh-CN/word_document_workflow.rst"
+    DESTINATION "${FEATHERDOC_INSTALL_DATADIR}/docs/zh-CN"
+)
+
+install(
+    FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-contact-sheet.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-05.png"
         "${CMAKE_CURRENT_SOURCE_DIR}/docs/assets/readme/visual-smoke-page-06.png"

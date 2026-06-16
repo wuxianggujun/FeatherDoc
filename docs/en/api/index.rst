@@ -3,6 +3,7 @@ English API Reference
 
 This language-local API entry gives the ``/en/api/`` path a stable structure.
 Use the object map below to jump directly to focused API pages.
+For an end-to-end task view, use :doc:`../word_document_workflow`.
 
 Language
 --------
@@ -65,6 +66,9 @@ Object Map
    * - ``featherdoc::Document``
      - Root handle for opening, saving, inspecting, and mutating ``.docx`` files.
      - :doc:`document`
+   * - Word document workflows
+     - Task-oriented path for generating, filling, reviewing, and batch-editing Word documents.
+     - :doc:`../word_document_workflow`
    * - ``featherdoc::Paragraph`` / ``featherdoc::Run``
      - Text content and run-level formatting.
      - :doc:`paragraph_run`

@@ -20,6 +20,7 @@ Quick Links
 -----------
 
 * :doc:`getting_started`
+* :doc:`word_document_workflow`
 * :doc:`api/index`
 * :doc:`api/pdf_workflow`
 
@@ -34,3 +35,4 @@ Quick Links
    :caption: User Guides
 
    getting_started
+   word_document_workflow

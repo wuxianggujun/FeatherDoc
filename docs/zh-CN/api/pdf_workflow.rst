@@ -193,6 +193,16 @@ PDF 导入 JSON 诊断
 ``table_continuation_diagnostics`` 按表格候选发现顺序排列，用于解释候选表格为什么新建表格、
 为什么与上一页表格合并，或者为什么被阻止跨页合并。
 
+设置阈值的运行会在 summary 层输出该阈值字段，并与 diagnostics 同时出现：
+
+.. code-block:: json
+
+   {
+     "table_continuation_diagnostics_count": 2,
+     "import_table_candidates_as_tables": true,
+     "min_table_continuation_confidence": 90
+   }
+
 稳定字段包括：
 
 * ``page_index``、``block_index``、``source_row_offset``。

@@ -20,6 +20,7 @@ Microsoft Word 文档。
 - 英文 API 参考：<https://wuxianggujun.github.io/FeatherDoc/en/api/>
 - 中文快速开始：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/getting_started.html>
 - 英文快速开始：<https://wuxianggujun.github.io/FeatherDoc/en/getting_started.html>
+- Word 文档处理工作流：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/word_document_workflow.html>
 - PDF 工作流：<https://wuxianggujun.github.io/FeatherDoc/zh-CN/api/pdf_workflow.html>
 - 文档源码：[`docs/index.rst`](docs/index.rst)
 - 文档维护：[`docs/documentation_maintenance_zh.rst`](docs/documentation_maintenance_zh.rst)
