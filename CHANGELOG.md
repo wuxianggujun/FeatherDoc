@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-06-16
+
 ### Added
 
 - Added `featherdoc_cli export-pdf --expand-header-footer-page-placeholders`
