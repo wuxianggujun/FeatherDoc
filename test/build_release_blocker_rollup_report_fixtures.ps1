@@ -243,6 +243,10 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
             source_report = "output/project-template-onboarding-governance/summary.json"
             source_report_display = ".\output\project-template-onboarding-governance\summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            requires_reviewer_action = $true
+            reviewer_action_summary = "review_schema_update_candidate"
+            reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+            reviewer_actions = @("review_schema_update_candidate")
         }
     )
     action_items = @(
@@ -255,6 +259,10 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
             source_report = "output/project-template-onboarding-governance/summary.json"
             source_report_display = ".\output\project-template-onboarding-governance\summary.json"
             source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            requires_reviewer_action = $true
+            reviewer_action_summary = "review_schema_update_candidate"
+            reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+            reviewer_actions = @("review_schema_update_candidate")
         }
     )
 })

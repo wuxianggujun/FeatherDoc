@@ -196,6 +196,10 @@ foreach ($path in @($inputPaths)) {
                     "pdf_dependency_inputs",
                     "readiness_action_evidence_count",
                     "readiness_action_evidence",
+                    "requires_reviewer_action",
+                    "reviewer_action_summary",
+                    "reviewer_action_reason",
+                    "reviewer_actions",
                     "matched_document_count",
                     "unmatched_catalog_document_count",
                     "unmatched_baseline_document_count",
@@ -315,7 +319,11 @@ foreach ($path in @($inputPaths)) {
                     "build_dir_auto_candidates",
                     "pdf_dependency_inputs",
                     "readiness_action_evidence_count",
-                    "readiness_action_evidence"
+                    "readiness_action_evidence",
+                    "requires_reviewer_action",
+                    "reviewer_action_summary",
+                    "reviewer_action_reason",
+                    "reviewer_actions"
                 )
             Normalize-ReadinessActionEvidence `
                 -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `

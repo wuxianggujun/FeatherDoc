@@ -126,8 +126,11 @@
      approval matrix 现在还会输出 ``reviewer_action_summary``、
      ``reviewer_action_reason`` 和 ``reviewer_actions``，让 pending / rejected
      的模板行直接带可执行复核入口。
+     ``build_project_template_delivery_readiness_report.ps1`` 已把这些 reviewer action
+     字段透传到模板 ``schema_history`` 和历史 blocker；release blocker rollup 与
+     release governance handoff 会继续保留同名字段并在 Markdown 中展示。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
-     同步解释。
+     同步解释；后续入口材料重构不能丢失 ``reviewer_action_*`` 字段。
 
 6. ``P1-CONTENT-01``：content-control 与 Custom XML 绑定治理
 
@@ -156,9 +159,13 @@
      ``repair_action_classes`` 的 reviewer-facing 可见性也已纳入 release note
      bundle fixture 与统一 helper，覆盖 content-control blocker 的三类动作和
      duplicate-binding action item 的人工确认动作。
-     ``REVIEWER_CHECKLIST.md`` 进一步用精确断言锁住 content-control blocker
-     与 duplicate-binding action item 的 source report、source JSON、
-     action、open command 和 command template 指引。
+      ``REVIEWER_CHECKLIST.md`` 进一步用精确断言锁住 content-control blocker
+      与 duplicate-binding action item 的 source report、source JSON、
+      action、open command 和 command template 指引。
+      schema approval history 的 ``reviewer_action_summary``、
+      ``reviewer_action_reason`` 和 ``reviewer_actions`` 已从 delivery readiness
+      进入 release blocker rollup 与 release governance handoff，便于 reviewer
+      直接识别 pending / rejected 模板的下一步处理动作。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

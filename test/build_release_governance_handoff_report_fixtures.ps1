@@ -294,6 +294,10 @@ function Write-GovernanceFixtures {
                     source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                     source_json = "output/project-template-onboarding-governance/summary.json"
                     source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                    requires_reviewer_action = $true
+                    reviewer_action_summary = "review_schema_update_candidate"
+                    reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                    reviewer_actions = @("review_schema_update_candidate")
                     schema_approval_status_summary = @(
                         [ordered]@{
                             status = "pending_review"
@@ -313,6 +317,10 @@ function Write-GovernanceFixtures {
                     source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                     source_json = "output/project-template-onboarding-governance/summary.json"
                     source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                    requires_reviewer_action = $true
+                    reviewer_action_summary = "review_schema_update_candidate"
+                    reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                    reviewer_actions = @("review_schema_update_candidate")
                     schema_approval_status_summary = @(
                         [ordered]@{
                             status = "pending_review"

@@ -288,6 +288,14 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            $reviewerActionSummary = Get-JsonString -Object $blocker -Name "reviewer_action_summary"
+            $reviewerActionReason = Get-JsonString -Object $blocker -Name "reviewer_action_reason"
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+                $lines.Add("  - reviewer_action: ``$reviewerActionSummary``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+                $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
+            }
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $blocker
         }
     }
@@ -315,6 +323,14 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            $reviewerActionSummary = Get-JsonString -Object $item -Name "reviewer_action_summary"
+            $reviewerActionReason = Get-JsonString -Object $item -Name "reviewer_action_reason"
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+                $lines.Add("  - reviewer_action: ``$reviewerActionSummary``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+                $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }
@@ -344,6 +360,14 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
+            }
+            $reviewerActionSummary = Get-JsonString -Object $item -Name "reviewer_action_summary"
+            $reviewerActionReason = Get-JsonString -Object $item -Name "reviewer_action_reason"
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+                $lines.Add("  - reviewer_action: ``$reviewerActionSummary``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+                $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }

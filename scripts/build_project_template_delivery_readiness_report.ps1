@@ -216,6 +216,10 @@ foreach ($blocker in @($globalReleaseBlockers.ToArray())) {
             action = Get-JsonString -Object $blocker -Name "action"
             message = Get-JsonString -Object $blocker -Name "message"
             reason = Get-JsonString -Object $blocker -Name "reason" -DefaultValue (Get-JsonString -Object $blocker -Name "message")
+            requires_reviewer_action = Get-JsonBool -Object $blocker -Name "requires_reviewer_action"
+            reviewer_action_summary = Get-JsonString -Object $blocker -Name "reviewer_action_summary"
+            reviewer_action_reason = Get-JsonString -Object $blocker -Name "reviewer_action_reason"
+            reviewer_actions = @(Get-JsonArray -Object $blocker -Name "reviewer_actions")
         }) | Out-Null
 }
 
@@ -237,6 +241,10 @@ foreach ($template in @($templates.ToArray())) {
             action = Get-JsonString -Object $blocker -Name "action" -DefaultValue ([string]$template.schema_approval_action)
             message = Get-JsonString -Object $blocker -Name "message" -DefaultValue "Release blocker requires review."
             reason = Get-JsonString -Object $blocker -Name "reason" -DefaultValue (Get-JsonString -Object $blocker -Name "message" -DefaultValue "Release blocker requires review.")
+            requires_reviewer_action = Get-JsonBool -Object $blocker -Name "requires_reviewer_action"
+            reviewer_action_summary = Get-JsonString -Object $blocker -Name "reviewer_action_summary"
+            reviewer_action_reason = Get-JsonString -Object $blocker -Name "reviewer_action_reason"
+            reviewer_actions = @(Get-JsonArray -Object $blocker -Name "reviewer_actions")
             onboarding_governance_status = Get-JsonString -Object $blocker -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
             onboarding_governance_release_ready = Get-JsonString -Object $blocker -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
             onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $blocker -Name "onboarding_governance_schema_approval_status_summary")
@@ -273,6 +281,10 @@ foreach ($template in @($templates.ToArray())) {
             reason = Get-JsonString -Object $item -Name "reason" -DefaultValue (Get-JsonString -Object $item -Name "title")
             command = Get-JsonString -Object $item -Name "command"
             open_command = Get-JsonString -Object $item -Name "open_command" -DefaultValue (Get-JsonString -Object $item -Name "command" -DefaultValue $deliveryReadinessOpenCommand)
+            requires_reviewer_action = Get-JsonBool -Object $item -Name "requires_reviewer_action"
+            reviewer_action_summary = Get-JsonString -Object $item -Name "reviewer_action_summary"
+            reviewer_action_reason = Get-JsonString -Object $item -Name "reviewer_action_reason"
+            reviewer_actions = @(Get-JsonArray -Object $item -Name "reviewer_actions")
             onboarding_governance_status = Get-JsonString -Object $item -Name "onboarding_governance_status" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_status")
             onboarding_governance_release_ready = Get-JsonString -Object $item -Name "onboarding_governance_release_ready" -DefaultValue (Get-JsonString -Object $template -Name "onboarding_governance_release_ready")
             onboarding_governance_schema_approval_status_summary = @(Get-JsonArray -Object $item -Name "onboarding_governance_schema_approval_status_summary")

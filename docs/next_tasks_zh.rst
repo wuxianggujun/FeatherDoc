@@ -77,7 +77,10 @@ P1：模板契约与项目模板工作流
    * ``project_template_approval_matrix`` 已增加 ``reviewer_action_summary``、
      ``reviewer_action_reason`` 和 ``reviewer_actions``，并用 pending /
      rejected fixture 覆盖人工复核入口。
-   * 把审批历史趋势继续接入 release blocker rollup 和 checklist。
+   * ``reviewer_action_*`` 字段已从 approval history 接入 delivery readiness、
+     release blocker rollup 和 release governance handoff。
+   * 下一步继续把同一组 reviewer action 字段纳入 release note bundle /
+     reviewer checklist / material safety 的入口材料断言。
 
 4. schema migration 人工复核入口：
 
@@ -102,6 +105,9 @@ P1：Release governance 与发布材料一致性
      release blocker rollup、handoff、bundle、reviewer checklist 的同名透传。
    * final review、handoff、bundle 和 reviewer checklist 应显示同一组治理明细。
    * 避免只保留汇总计数，丢失具体阻断项。
+   * schema approval history 的 ``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions`` 已进入 rollup 与 handoff；
+     后续 bundle/checklist 改动必须继续保留。
 
 2. 加强发布资产 contract：
 

@@ -512,6 +512,12 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.readiness_release_ready)) {
                 $lines.Add("  - readiness_release_ready: ``$($blocker.readiness_release_ready)``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.reviewer_action_summary)) {
+                $lines.Add("  - reviewer_action: ``$($blocker.reviewer_action_summary)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$blocker.reviewer_action_reason)) {
+                $lines.Add("  - reviewer_action_reason: $($blocker.reviewer_action_reason)") | Out-Null
+            }
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $blocker
         }
     }
@@ -546,6 +552,12 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_release_ready)) {
                 $lines.Add("  - readiness_release_ready: ``$($item.readiness_release_ready)``") | Out-Null
             }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_summary)) {
+                $lines.Add("  - reviewer_action: ``$($item.reviewer_action_summary)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_reason)) {
+                $lines.Add("  - reviewer_action_reason: $($item.reviewer_action_reason)") | Out-Null
+            }
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
         }
     }
@@ -579,6 +591,12 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_release_ready)) {
                 $lines.Add("  - readiness_release_ready: ``$($item.readiness_release_ready)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_summary)) {
+                $lines.Add("  - reviewer_action: ``$($item.reviewer_action_summary)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_reason)) {
+                $lines.Add("  - reviewer_action_reason: $($item.reviewer_action_reason)") | Out-Null
             }
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
         }

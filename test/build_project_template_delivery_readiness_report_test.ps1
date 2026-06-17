@@ -246,6 +246,28 @@ function New-BlockedEvidence {
                 issue_keys = @()
             }
         )
+        project_template_approval_matrix = @(
+            [ordered]@{
+                template_scope = "project-finance/invoice-template"
+                project_id = "project-finance"
+                template_name = "invoice-template"
+                latest_review_state = "pending"
+                requires_reviewer_action = $true
+                reviewer_action_summary = "review_schema_update_candidate"
+                reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                reviewer_actions = @("review_schema_update_candidate")
+            },
+            [ordered]@{
+                template_scope = "project-finance/statement-template"
+                project_id = "project-finance"
+                template_name = "statement-template"
+                latest_review_state = "approved"
+                requires_reviewer_action = $false
+                reviewer_action_summary = "none"
+                reviewer_action_reason = "latest_review_state=approved; no reviewer action required"
+                reviewer_actions = @()
+            }
+        )
     })
 
     return [pscustomobject]@{
@@ -443,6 +465,27 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Template should be linked to matching schema history."
     Assert-Equal -Actual ([string]$invoice.schema_history.status) -Expected "pending_review" `
         -Message "Template history should preserve pending readiness status."
+    Assert-Equal -Actual ([bool]$invoice.schema_history.requires_reviewer_action) -Expected $true `
+        -Message "Template history should preserve reviewer-action requirement from approval matrix."
+    Assert-Equal -Actual ([string]$invoice.schema_history.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Template history should surface approval-matrix reviewer action."
+    Assert-ContainsText -Text ([string]$invoice.schema_history.reviewer_action_reason) -ExpectedText "latest_review_state=pending" `
+        -Message "Template history should preserve reviewer action reason."
+    Assert-True -Condition (@($invoice.schema_history.reviewer_actions) -contains "review_schema_update_candidate") `
+        -Message "Template history should preserve reviewer action list."
+    $schemaHistoryBlocker = @(
+        $summary.release_blockers |
+            Where-Object { [string]$_.id -eq "project_template_delivery_readiness.schema_approval_history" } |
+            Select-Object -First 1
+    )[0]
+    Assert-Equal -Actual ([bool]$schemaHistoryBlocker.requires_reviewer_action) -Expected $true `
+        -Message "Schema history blocker should carry reviewer-action requirement."
+    Assert-Equal -Actual ([string]$schemaHistoryBlocker.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Schema history blocker should carry reviewer action summary."
+    Assert-ContainsText -Text ([string]$schemaHistoryBlocker.reviewer_action_reason) -ExpectedText "latest_review_state=pending" `
+        -Message "Schema history blocker should carry reviewer action reason."
+    Assert-True -Condition (@($schemaHistoryBlocker.reviewer_actions) -contains "review_schema_update_candidate") `
+        -Message "Schema history blocker should carry reviewer actions."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Delivery Readiness Report" `
@@ -459,6 +502,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action=``review_schema_update_candidate``" `
+        -Message "Markdown template rows should surface reviewer action summaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action: ``review_schema_update_candidate``" `
+        -Message "Markdown release blockers should surface reviewer action summaries."
 }
 
 function New-SmokeSummaryEvidence {

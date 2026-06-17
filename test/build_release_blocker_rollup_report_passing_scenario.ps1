@@ -285,6 +285,24 @@ if (Test-Scenario -Name "passing") {
     Assert-ContainsText -Text (($projectTemplateSourceReport.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" }) -join "`n") `
         -ExpectedText "pending_review=1" `
         -Message "Rollup should preserve project-template schema approval status summary."
+    $projectTemplateRollupBlocker = ($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "project_template_onboarding.schema_approval" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([bool]$projectTemplateRollupBlocker.requires_reviewer_action) -Expected $true `
+        -Message "Rollup should preserve project-template reviewer-action requirement on blockers."
+    Assert-Equal -Actual ([string]$projectTemplateRollupBlocker.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Rollup should preserve project-template reviewer action summary on blockers."
+    Assert-ContainsText -Text ([string]$projectTemplateRollupBlocker.reviewer_action_reason) -ExpectedText "latest_review_state=pending" `
+        -Message "Rollup should preserve project-template reviewer action reason on blockers."
+    Assert-True -Condition (@($projectTemplateRollupBlocker.reviewer_actions) -contains "review_schema_update_candidate") `
+        -Message "Rollup should preserve project-template reviewer actions on blockers."
+    $projectTemplateRollupAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "review_project_template_schema_approval" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([bool]$projectTemplateRollupAction.requires_reviewer_action) -Expected $true `
+        -Message "Rollup should preserve project-template reviewer-action requirement on action items."
+    Assert-Equal -Actual ([string]$projectTemplateRollupAction.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Rollup should preserve project-template reviewer action summary on action items."
     $pdfPreflightSourceReport = ($summary.source_reports |
         Where-Object { [string]$_.schema -eq "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" } |
         Select-Object -First 1)
@@ -643,6 +661,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include raw source JSON paths for traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "origin_source_report_display:" `
         -Message "Markdown should include origin source report display paths for traceability."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action: ``review_schema_update_candidate``" `
+        -Message "Markdown should include project-template reviewer action summaries."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metrics" `
         -Message "Markdown should include governance metrics."
     Assert-ContainsText -Text $markdown -ExpectedText "Source Report Contracts" `

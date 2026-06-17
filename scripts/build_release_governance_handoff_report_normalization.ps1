@@ -154,6 +154,10 @@ function Add-NormalizedBlockers {
             readiness_status = $readinessStatus
             readiness_release_ready = $readinessReleaseReady
             schema_approval_status_summary = @(Get-JsonArray -Object $blocker -Name "schema_approval_status_summary")
+            requires_reviewer_action = Get-JsonBool -Object $blocker -Name "requires_reviewer_action"
+            reviewer_action_summary = Get-JsonString -Object $blocker -Name "reviewer_action_summary"
+            reviewer_action_reason = Get-JsonString -Object $blocker -Name "reviewer_action_reason"
+            reviewer_actions = @(Get-JsonArray -Object $blocker -Name "reviewer_actions")
             onboarding_governance_status = $onboardingStatus
             onboarding_governance_release_ready = $onboardingReleaseReady
             onboarding_governance_schema_approval_status_summary = @($onboardingSchemaApprovalSummary)
@@ -283,6 +287,10 @@ function Add-NormalizedActions {
             readiness_status = $readinessStatus
             readiness_release_ready = $readinessReleaseReady
             schema_approval_status_summary = @(Get-JsonArray -Object $item -Name "schema_approval_status_summary")
+            requires_reviewer_action = Get-JsonBool -Object $item -Name "requires_reviewer_action"
+            reviewer_action_summary = Get-JsonString -Object $item -Name "reviewer_action_summary"
+            reviewer_action_reason = Get-JsonString -Object $item -Name "reviewer_action_reason"
+            reviewer_actions = @(Get-JsonArray -Object $item -Name "reviewer_actions")
             onboarding_governance_status = $onboardingStatus
             onboarding_governance_release_ready = $onboardingReleaseReady
             onboarding_governance_schema_approval_status_summary = @($onboardingSchemaApprovalSummary)

@@ -681,11 +681,23 @@ function Add-HistoryToTemplates {
     param([object[]]$Templates, [object[]]$Histories, $Warnings)
 
     $historyByName = @{}
+    $reviewerActionByScope = @{}
+    $reviewerActionByTemplateName = @{}
     foreach ($history in @($Histories)) {
         foreach ($entry in @(Get-JsonArray -Object $history -Name "entry_histories")) {
             $name = Get-JsonString -Object $entry -Name "name"
             if ([string]::IsNullOrWhiteSpace($name)) { continue }
             $historyByName[$name.ToLowerInvariant()] = $entry
+        }
+        foreach ($matrixEntry in @(Get-JsonArray -Object $history -Name "project_template_approval_matrix")) {
+            $templateScope = Get-JsonString -Object $matrixEntry -Name "template_scope"
+            if (-not [string]::IsNullOrWhiteSpace($templateScope)) {
+                $reviewerActionByScope[$templateScope.ToLowerInvariant()] = $matrixEntry
+            }
+            $templateName = Get-JsonString -Object $matrixEntry -Name "template_name"
+            if (-not [string]::IsNullOrWhiteSpace($templateName)) {
+                $reviewerActionByTemplateName[$templateName.ToLowerInvariant()] = $matrixEntry
+            }
         }
     }
 
@@ -710,7 +722,17 @@ function Add-HistoryToTemplates {
         }
 
         $historyEntry = $historyByName[$key]
+        $reviewerActionEntry = $null
+        $templateScope = Get-JsonString -Object $historyEntry -Name "template_scope"
+        if (-not [string]::IsNullOrWhiteSpace($templateScope) -and $reviewerActionByScope.ContainsKey($templateScope.ToLowerInvariant())) {
+            $reviewerActionEntry = $reviewerActionByScope[$templateScope.ToLowerInvariant()]
+        } elseif ($reviewerActionByTemplateName.ContainsKey($key)) {
+            $reviewerActionEntry = $reviewerActionByTemplateName[$key]
+        }
         $historyStatus = Get-HistoryReadinessStatus -HistoryEntry $historyEntry
+        $reviewerActionSummary = Get-JsonString -Object $reviewerActionEntry -Name "reviewer_action_summary" -DefaultValue (Get-JsonString -Object $historyEntry -Name "latest_action")
+        $reviewerActionReason = Get-JsonString -Object $reviewerActionEntry -Name "reviewer_action_reason"
+        $reviewerActions = @(Get-JsonArray -Object $reviewerActionEntry -Name "reviewer_actions")
         $template["schema_history_available"] = $true
         $template["schema_history"] = [ordered]@{
             status = $historyStatus
@@ -724,6 +746,10 @@ function Add-HistoryToTemplates {
             pending_run_count = Get-JsonInt -Object $historyEntry -Name "pending_run_count"
             approved_run_count = Get-JsonInt -Object $historyEntry -Name "approved_run_count"
             issue_keys = @(Get-JsonArray -Object $historyEntry -Name "issue_keys")
+            requires_reviewer_action = Get-JsonBool -Object $reviewerActionEntry -Name "requires_reviewer_action"
+            reviewer_action_summary = $reviewerActionSummary
+            reviewer_action_reason = $reviewerActionReason
+            reviewer_actions = @($reviewerActions)
         }
 
         if ($historyStatus -in @("blocked", "pending_review")) {
@@ -731,12 +757,23 @@ function Add-HistoryToTemplates {
             foreach ($blocker in @($template.release_blockers)) {
                 $blockers.Add($blocker) | Out-Null
             }
-            $blockers.Add((New-ReleaseBlocker `
+            $historyBlocker = New-ReleaseBlocker `
                 -Id "project_template_delivery_readiness.schema_approval_history" `
                 -Source "schema_approval_history" `
                 -Status $historyStatus `
                 -Action (Get-JsonString -Object $historyEntry -Name "latest_action" -DefaultValue "review_schema_approval_history") `
-                -Message "Latest schema approval history entry is not release-ready.")) | Out-Null
+                -Message "Latest schema approval history entry is not release-ready."
+            $historyBlocker["requires_reviewer_action"] = Get-JsonBool -Object $reviewerActionEntry -Name "requires_reviewer_action"
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+                $historyBlocker["reviewer_action_summary"] = $reviewerActionSummary
+            }
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+                $historyBlocker["reviewer_action_reason"] = $reviewerActionReason
+            }
+            if ($reviewerActions.Count -gt 0) {
+                $historyBlocker["reviewer_actions"] = @($reviewerActions)
+            }
+            $blockers.Add($historyBlocker) | Out-Null
             $template["release_blocked"] = $true
             $template["release_ready"] = $false
             $template["release_blockers"] = @($blockers.ToArray())
@@ -804,11 +841,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($template in @($Summary.templates)) {
-            $lines.Add(("- ``{0}``: onboarding=``{1}`` schema=``{2}`` history=``{3}`` blockers=``{4}`` source=``{5}``" -f
+            $reviewerActionSummary = Get-JsonString -Object $template.schema_history -Name "reviewer_action_summary"
+            $lines.Add(("- ``{0}``: onboarding=``{1}`` schema=``{2}`` history=``{3}`` reviewer_action=``{4}`` blockers=``{5}`` source=``{6}``" -f
                 $template.template_name,
                 $template.onboarding_status,
                 $template.schema_approval_status,
                 $template.schema_history.status,
+                $reviewerActionSummary,
                 $template.release_blocker_count,
                 $template.source_kind)) | Out-Null
         }
@@ -826,6 +865,14 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.reason)) {
                 $lines.Add("  - reason: $($blocker.reason)") | Out-Null
+            }
+            $reviewerActionSummary = Get-JsonString -Object $blocker -Name "reviewer_action_summary"
+            $reviewerActionReason = Get-JsonString -Object $blocker -Name "reviewer_action_reason"
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+                $lines.Add("  - reviewer_action: ``$reviewerActionSummary``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+                $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
         }
     }

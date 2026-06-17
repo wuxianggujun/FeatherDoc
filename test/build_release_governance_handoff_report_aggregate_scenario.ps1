@@ -81,6 +81,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should carry onboarding governance next action on blockers."
     Assert-Equal -Actual ([int]$projectTemplateBlocker.onboarding_governance_next_action_group_count) -Expected 1 `
         -Message "Aggregate handoff should carry onboarding governance next-action group count on blockers."
+    Assert-Equal -Actual ([bool]$projectTemplateBlocker.requires_reviewer_action) -Expected $true `
+        -Message "Aggregate handoff should carry reviewer-action requirement on project-template blockers."
+    Assert-Equal -Actual ([string]$projectTemplateBlocker.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Aggregate handoff should carry reviewer action summary on project-template blockers."
+    Assert-ContainsText -Text ([string]$projectTemplateBlocker.reviewer_action_reason) -ExpectedText "latest_review_state=pending" `
+        -Message "Aggregate handoff should carry reviewer action reason on project-template blockers."
+    Assert-True -Condition (@($projectTemplateBlocker.reviewer_actions) -contains "review_schema_update_candidate") `
+        -Message "Aggregate handoff should carry reviewer actions on project-template blockers."
     $projectTemplateAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "approve_project_template_schema" } |
         Select-Object -First 1)
@@ -102,6 +110,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should carry onboarding governance next action on action items."
     Assert-Equal -Actual ([int]$projectTemplateAction.onboarding_governance_next_action_group_count) -Expected 1 `
         -Message "Aggregate handoff should carry onboarding governance next-action group count on action items."
+    Assert-Equal -Actual ([bool]$projectTemplateAction.requires_reviewer_action) -Expected $true `
+        -Message "Aggregate handoff should carry reviewer-action requirement on project-template action items."
+    Assert-Equal -Actual ([string]$projectTemplateAction.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+        -Message "Aggregate handoff should carry reviewer action summary on project-template action items."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.report_id):$($_.metric):$($_.level):$($_.score)" }) -join "`n"
     Assert-ContainsText -Text $metricText -ExpectedText "numbering_catalog_governance:real_corpus_confidence:low:56" `
         -Message "Aggregate handoff should preserve numbering real-corpus confidence metric."
@@ -291,6 +303,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template schema approval gate status."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_approval_status_summary" `
         -Message "Markdown should include project-template schema approval status summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action: ``review_schema_update_candidate``" `
+        -Message "Markdown should include project-template reviewer action summaries."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness`' -ExpectedFragments @(
         'status=',
         'ready=',
@@ -435,4 +449,3 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
         -Message "Markdown should include command template details."
 }
-
