@@ -186,6 +186,9 @@
      release asset manifest 的 material safety 负例已分别覆盖
      ``reviewer_action_reason`` 和 ``reviewer_actions``，不再只依赖
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。
+     package release assets 的 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
+     ``REVIEWER_CHECKLIST.md`` 已补 ``reviewer_action_*`` 值级断言，确保
+     readiness / onboarding no-action 语义不会只剩字段名。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

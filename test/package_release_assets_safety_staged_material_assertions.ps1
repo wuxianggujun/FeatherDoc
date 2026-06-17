@@ -226,6 +226,22 @@ foreach ($entrypointMaterial in @(
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_action_summary' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_action_reason' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_actions' -Label $entrypointMaterial.Label
+    Assert-LineContainsAll -Path $entrypointMaterial.Path -ExpectedFragments @(
+        'project_template_delivery_readiness',
+        'project_template_delivery_readiness_contract',
+        'requires_reviewer_action=False',
+        'reviewer_action_summary=none',
+        'reviewer_action_reason=latest_review_state=approved; no reviewer action required',
+        'reviewer_actions=(none)'
+    ) -Label $entrypointMaterial.Label
+    Assert-LineContainsAll -Path $entrypointMaterial.Path -ExpectedFragments @(
+        'project_template_onboarding.schema_approval',
+        'project_template_onboarding_governance_contract',
+        'requires_reviewer_action=False',
+        'reviewer_action_summary=none',
+        'reviewer_action_reason=latest_review_state=approved; no reviewer action required',
+        'reviewer_actions=(none)'
+    ) -Label $entrypointMaterial.Label
 }
 foreach ($entrypointMaterial in @(
         @{ Path = $stagedStartHerePath; Label = 'staged START_HERE.md' },

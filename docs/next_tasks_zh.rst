@@ -152,6 +152,9 @@ P1：Release governance 与发布材料一致性
    * release asset manifest 的 material safety 负例已补到
      ``reviewer_action_reason`` 和 ``reviewer_actions``，避免只用
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。
+   * package release assets 的三份入口材料已补 ``reviewer_action_*`` 值级断言，
+     要求 readiness / onboarding 的 no-action 语义与对应 contract 出现在同一条
+     reviewer-facing 材料里。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及
