@@ -34,6 +34,29 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             -Text ('Open source JSON `{0}` while handling release governance {1} `{2}`.' -f $sourceJsonDisplay, $ItemKind, $id)
     }
 
+    $reviewerActionSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "reviewer_action_summary"
+    if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text ('Use reviewer action `{0}` for release governance {1} `{2}`.' -f $reviewerActionSummary, $ItemKind, $id)
+    }
+
+    $reviewerActionReason = Get-ReleaseBlockerPropertyValue -Object $Item -Name "reviewer_action_reason"
+    if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text ('Reviewer action reason for release governance {0} `{1}`: {2}' -f $ItemKind, $id, $reviewerActionReason)
+    }
+
+    $reviewerActions = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "reviewer_actions" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($reviewerActions.Count -gt 0) {
+        Add-ReleaseBlockerActionGuidanceLine `
+            -Lines $guidanceLines `
+            -Text ('Reviewer action candidates for release governance {0} `{1}`: {2}' -f $ItemKind, $id, ($reviewerActions -join ', '))
+    }
+
     if ([string]::Equals($action, "prepare_pdf_visual_release_gate_build_outputs", [System.StringComparison]::OrdinalIgnoreCase)) {
         Add-ReleaseBlockerActionGuidanceLine `
             -Lines $guidanceLines `

@@ -313,6 +313,10 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'source_json_display: .\output\project-template-onboarding-governance\summary.json',
         'readiness_status: failed',
         'readiness_release_ready: False',
+        'requires_reviewer_action: true',
+        'reviewer_action: review_schema_update_candidate',
+        'reviewer_action_reason: latest_review_state=pending; issue_keys=(none)',
+        'reviewer_actions: review_schema_update_candidate',
         'project_template_onboarding_governance_contract:',
         'status: pending_review',
         'release_ready: False',
@@ -627,6 +631,9 @@ Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup block
 Assert-Contains -Path $checklistPath -ExpectedText 'Open source report' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'while handling release governance blocker' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open source JSON' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Use reviewer action `review_schema_update_candidate` for release governance blocker `project_template_onboarding.schema_approval`.' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Reviewer action reason for release governance blocker `project_template_onboarding.schema_approval`: latest_review_state=pending; issue_keys=(none)' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Reviewer action candidates for release governance blocker `project_template_onboarding.schema_approval`: review_schema_update_candidate' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Review ' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'repair_hint' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Rerun Custom XML sync or explicitly fill the bound content control before release.' -Label 'REVIEWER_CHECKLIST.md'
@@ -641,6 +648,8 @@ Assert-Contains -Path $checklistPath -ExpectedText 'build_dir_exists,cmake_cache
 Assert-Contains -Path $checklistPath -ExpectedText 'Release blocker rollup action items' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Run ' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'for release governance action item' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Use reviewer action `review_schema_update_candidate` for release governance action item `review_invoice_schema`.' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $checklistPath -ExpectedText 'Reviewer action reason for release governance action item `review_invoice_schema`: latest_review_state=pending; issue_keys=(none)' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'build_document_skeleton_governance_rollup_report.ps1 -InputRoot .\output\document-skeleton-governance' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open source report `.\output\content-control-data-binding-governance\summary.json` while handling release governance action item `review_duplicate_content_control_binding`.' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'Open source JSON `.\output\content-control-data-binding\inspect-content-controls.json` while handling release governance action item `review_duplicate_content_control_binding`.' -Label 'REVIEWER_CHECKLIST.md'

@@ -10,6 +10,35 @@ function Get-ReleaseGovernanceHandoff {
     return Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff"
 }
 
+function Add-ReleaseGovernanceReviewerActionLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    $requiresReviewerAction = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $Item -Name "requires_reviewer_action"
+    if (-not [string]::IsNullOrWhiteSpace($requiresReviewerAction)) {
+        [void]$Lines.Add("  - requires_reviewer_action: $requiresReviewerAction")
+    }
+
+    $reviewerActionSummary = Get-ReleaseBlockerPropertyValue -Object $Item -Name "reviewer_action_summary"
+    if (-not [string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+        [void]$Lines.Add("  - reviewer_action: $reviewerActionSummary")
+    }
+
+    $reviewerActionReason = Get-ReleaseBlockerPropertyValue -Object $Item -Name "reviewer_action_reason"
+    if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+        [void]$Lines.Add("  - reviewer_action_reason: $reviewerActionReason")
+    }
+
+    $reviewerActions = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "reviewer_actions" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($reviewerActions.Count -gt 0) {
+        [void]$Lines.Add("  - reviewer_actions: $($reviewerActions -join ', ')")
+    }
+}
+
 function Add-ReleaseGovernanceRollupSourceLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -67,6 +96,7 @@ function Add-ReleaseGovernanceRollupSourceLines {
     if (-not [string]::IsNullOrWhiteSpace($readinessReleaseReady)) {
         [void]$Lines.Add("  - readiness_release_ready: $readinessReleaseReady")
     }
+    Add-ReleaseGovernanceReviewerActionLines -Lines $Lines -Item $Item
     Add-ProjectTemplateOnboardingGovernanceContractLines `
         -Lines $Lines `
         -Item $Item `

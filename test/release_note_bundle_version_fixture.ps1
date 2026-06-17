@@ -293,6 +293,10 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
                 source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                requires_reviewer_action = $true
+                reviewer_action_summary = "review_schema_update_candidate"
+                reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                reviewer_actions = @("review_schema_update_candidate")
             },
             [ordered]@{
                 id = "schema_patch_confidence_calibration.pending_schema_approvals"
@@ -398,6 +402,10 @@ $summary = [ordered]@{
                 source_report_display = ".\output\project-template-delivery-readiness\summary.json"
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+                requires_reviewer_action = $true
+                reviewer_action_summary = "review_schema_update_candidate"
+                reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                reviewer_actions = @("review_schema_update_candidate")
             },
             [ordered]@{
                 id = "resolve_pending_schema_approvals"
@@ -598,6 +606,10 @@ $summary = [ordered]@{
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
                 readiness_status = "failed"
                 readiness_release_ready = "False"
+                requires_reviewer_action = $true
+                reviewer_action_summary = "review_schema_update_candidate"
+                reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                reviewer_actions = @("review_schema_update_candidate")
                 onboarding_governance_status = "pending_review"
                 onboarding_governance_release_ready = "False"
                 onboarding_governance_schema_approval_status_summary = "pending_review"
@@ -643,6 +655,10 @@ $summary = [ordered]@{
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
                 readiness_status = "failed"
                 readiness_release_ready = "False"
+                requires_reviewer_action = $true
+                reviewer_action_summary = "review_schema_update_candidate"
+                reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
+                reviewer_actions = @("review_schema_update_candidate")
                 onboarding_governance_status = "pending_review"
                 onboarding_governance_release_ready = "False"
                 onboarding_governance_schema_approval_status_summary = "pending_review"

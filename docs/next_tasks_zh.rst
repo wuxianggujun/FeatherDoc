@@ -79,8 +79,9 @@ P1：模板契约与项目模板工作流
      rejected fixture 覆盖人工复核入口。
    * ``reviewer_action_*`` 字段已从 approval history 接入 delivery readiness、
      release blocker rollup 和 release governance handoff。
-   * 下一步继续把同一组 reviewer action 字段纳入 release note bundle /
-     reviewer checklist / material safety 的入口材料断言。
+   * 同一组 reviewer action 字段已纳入 release note bundle 入口材料，
+     ``REVIEWER_CHECKLIST.md`` 会输出 reviewer action、原因和候选动作，
+     release note bundle 回归会同时验证 material safety 审计。
 
 4. schema migration 人工复核入口：
 
@@ -137,9 +138,11 @@ P1：Release governance 与发布材料一致性
      duplicate-binding action item 的精确 source / command guidance 断言，
      包括 source report、source JSON、action、open command 和
      command template。
-   * 下一步转向 release-facing 入口材料里 source 和 command guidance
-     是否还有泛化断言或漏断言的检查，避免只展示结论而缺少
-     可执行修复路径。
+   * schema approval ``reviewer_action_*`` 已进入 ``release_handoff.md``、
+     ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``，
+     并由 release note bundle fixture 断言入口材料与 material safety 审计。
+   * 下一步转向 release asset manifest / GitHub Release assets 的 contract
+     复核，确保入口材料、manifest 和最终发布资产里的治理证据一致。
 
 
 P2：样式与编号治理

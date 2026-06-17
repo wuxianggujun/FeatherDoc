@@ -129,6 +129,9 @@
      ``build_project_template_delivery_readiness_report.ps1`` 已把这些 reviewer action
      字段透传到模板 ``schema_history`` 和历史 blocker；release blocker rollup 与
      release governance handoff 会继续保留同名字段并在 Markdown 中展示。
+     release note bundle 的入口材料也会从统一 source contract 输出
+     ``requires_reviewer_action``、``reviewer_action``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions``。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
      同步解释；后续入口材料重构不能丢失 ``reviewer_action_*`` 字段。
 
@@ -166,6 +169,9 @@
       ``reviewer_action_reason`` 和 ``reviewer_actions`` 已从 delivery readiness
       进入 release blocker rollup 与 release governance handoff，便于 reviewer
       直接识别 pending / rejected 模板的下一步处理动作。
+      这组字段已继续进入 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
+      ``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``；reviewer checklist
+      会为 blocker 与 action item 输出 reviewer action、原因和候选动作。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
