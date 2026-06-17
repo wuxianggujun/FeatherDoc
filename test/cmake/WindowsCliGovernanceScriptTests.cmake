@@ -753,3 +753,54 @@
                 -Scenario
                 fail_on_blocker
             )
+
+            add_test(
+                NAME
+                build_project_template_workflow_dashboard_aggregate
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_workflow_dashboard_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_workflow_dashboard_aggregate
+                -Scenario
+                aggregate
+            )
+
+            add_test(
+                NAME
+                build_project_template_workflow_dashboard_ready
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_workflow_dashboard_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_workflow_dashboard_ready
+                -Scenario
+                ready
+            )
+
+            add_test(
+                NAME
+                build_project_template_workflow_dashboard_fail_on_blocker
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_workflow_dashboard_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_workflow_dashboard_fail_on_blocker
+                -Scenario
+                fail_on_blocker
+            )

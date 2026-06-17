@@ -1,0 +1,249 @@
+param(
+    [string]$RepoRoot,
+    [string]$WorkingDir,
+    [ValidateSet("all", "aggregate", "ready", "missing_inputs", "fail_on_blocker")]
+    [string]$Scenario = "all"
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+if (-not $RepoRoot) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+}
+
+if (-not $WorkingDir) {
+    $WorkingDir = Join-Path $RepoRoot "build\build_project_template_workflow_dashboard_test"
+}
+
+function Assert-True {
+    param([bool]$Condition, [string]$Message)
+    if (-not $Condition) { throw $Message }
+}
+
+function Assert-Equal {
+    param($Actual, $Expected, [string]$Message)
+    if ($Actual -ne $Expected) { throw "$Message Expected='$Expected' Actual='$Actual'." }
+}
+
+function Assert-ContainsText {
+    param([string]$Text, [string]$ExpectedText, [string]$Message)
+    if ($Text -notmatch [regex]::Escape($ExpectedText)) {
+        throw "$Message Missing='$ExpectedText'."
+    }
+}
+
+function Test-Scenario {
+    param([string]$Name)
+    return ($Scenario -eq "all" -or $Scenario -eq $Name)
+}
+
+function Write-JsonFile {
+    param([string]$Path, $Value)
+
+    $dir = Split-Path -Parent $Path
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    ($Value | ConvertTo-Json -Depth 24) | Set-Content -LiteralPath $Path -Encoding UTF8
+}
+
+function Invoke-DashboardScript {
+    param([string[]]$Arguments)
+
+    $powerShellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
+    $powerShellPath = if ($powerShellCommand) { $powerShellCommand.Source } else { (Get-Process -Id $PID).Path }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = @(& $powerShellPath -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $scriptPath @Arguments 2>&1)
+        $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Text = (@($output | ForEach-Object { $_.ToString() }) -join [System.Environment]::NewLine)
+    }
+}
+
+function New-OnboardingGovernanceReport {
+    param(
+        [string]$Status = "blocked",
+        [bool]$ReleaseReady = $false,
+        [int]$BlockerCount = 1,
+        [int]$WarningCount = 1
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        summary_schema_version = 1
+        status = $Status
+        release_ready = $ReleaseReady
+        release_blocker_count = $BlockerCount
+        warning_count = $WarningCount
+        schema_approval_status_summary = "pending_review=1"
+        next_action = [ordered]@{
+            action = "review_schema_update_candidate"
+            reason = "Schema approval is pending."
+            blocker_id = "project_template_onboarding.schema_approval"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+        }
+        next_action_summary = @(
+            [ordered]@{
+                action = "review_schema_update_candidate"
+                blocker_id = "project_template_onboarding.schema_approval"
+                entry_names = @("invoice-template")
+            }
+        )
+        next_action_group_count = 1
+        source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+        source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+    }
+}
+
+function New-DeliveryReadinessReport {
+    param(
+        [string]$Status = "blocked",
+        [bool]$ReleaseReady = $false,
+        [int]$BlockerCount = 1,
+        [int]$WarningCount = 0
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.project_template_delivery_readiness_report.v1"
+        summary_schema_version = 1
+        status = $Status
+        release_ready = $ReleaseReady
+        release_blocker_count = $BlockerCount
+        warning_count = $WarningCount
+        latest_schema_approval_gate_status = "blocked"
+        schema_approval_status_summary = "pending_review=1"
+        onboarding_governance_next_action = [ordered]@{
+            action = "collect_project_template_onboarding_governance_evidence"
+            reason = "Delivery readiness depends on onboarding governance evidence."
+            blocker_id = "project_template_delivery_readiness.onboarding_governance"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1"
+        }
+        onboarding_governance_next_action_summary = @(
+            [ordered]@{
+                action = "collect_project_template_onboarding_governance_evidence"
+                blocker_id = "project_template_delivery_readiness.onboarding_governance"
+                entry_names = @("invoice-template")
+            }
+        )
+        onboarding_governance_next_action_group_count = 1
+        source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+        source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+    }
+}
+
+$resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
+$resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
+$scriptPath = Join-Path $resolvedRepoRoot "scripts\build_project_template_workflow_dashboard.ps1"
+New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
+
+if (Test-Scenario -Name "aggregate") {
+    $scenarioDir = Join-Path $resolvedWorkingDir "aggregate"
+    $onboardingPath = Join-Path $scenarioDir "project_template_onboarding_governance_summary.json"
+    $deliveryPath = Join-Path $scenarioDir "project_template_delivery_readiness_summary.json"
+    $outputJson = Join-Path $scenarioDir "project_template_workflow_dashboard.json"
+    $outputMarkdown = Join-Path $scenarioDir "project_template_workflow_dashboard.md"
+
+    Write-JsonFile -Path $onboardingPath -Value (New-OnboardingGovernanceReport)
+    Write-JsonFile -Path $deliveryPath -Value (New-DeliveryReadinessReport)
+
+    $result = Invoke-DashboardScript -Arguments @(
+        "-OnboardingGovernanceJson", $onboardingPath,
+        "-DeliveryReadinessJson", $deliveryPath,
+        "-SummaryJson", $outputJson,
+        "-ReportMarkdown", $outputMarkdown
+    )
+
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Workflow dashboard aggregate scenario should pass."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJson | ConvertFrom-Json
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputMarkdown
+
+    Assert-Equal -Actual ([string]$summary.schema) -Expected "featherdoc.project_template_workflow_dashboard.v1" `
+        -Message "Workflow dashboard schema mismatch."
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Workflow dashboard should be blocked when inputs have blockers."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Workflow dashboard release_ready should be false."
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 2 `
+        -Message "Workflow dashboard should include both source reports."
+    Assert-Equal -Actual ([string]$summary.next_action.action) -Expected "review_schema_update_candidate" `
+        -Message "Workflow dashboard should expose the first blocking next action."
+    Assert-ContainsText -Text $markdown -ExpectedText "Project Template Workflow Dashboard" `
+        -Message "Workflow dashboard Markdown should have a title."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_onboarding_governance" `
+        -Message "Workflow dashboard Markdown should include onboarding governance."
+    Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
+        -Message "Workflow dashboard Markdown should include delivery readiness."
+}
+
+if (Test-Scenario -Name "ready") {
+    $scenarioDir = Join-Path $resolvedWorkingDir "ready"
+    $onboardingPath = Join-Path $scenarioDir "project_template_onboarding_governance_summary.json"
+    $deliveryPath = Join-Path $scenarioDir "project_template_delivery_readiness_summary.json"
+    $outputJson = Join-Path $scenarioDir "project_template_workflow_dashboard.json"
+
+    Write-JsonFile -Path $onboardingPath -Value (New-OnboardingGovernanceReport -Status "ready" -ReleaseReady $true -BlockerCount 0 -WarningCount 0)
+    Write-JsonFile -Path $deliveryPath -Value (New-DeliveryReadinessReport -Status "ready" -ReleaseReady $true -BlockerCount 0 -WarningCount 0)
+
+    $result = Invoke-DashboardScript -Arguments @(
+        "-OnboardingGovernanceJson", $onboardingPath,
+        "-DeliveryReadinessJson", $deliveryPath,
+        "-SummaryJson", $outputJson
+    )
+
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Workflow dashboard ready scenario should pass."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJson | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready" `
+        -Message "Workflow dashboard should be ready when all inputs are release-ready."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Workflow dashboard release_ready should be true."
+    Assert-Equal -Actual ([string]$summary.next_action.action) -Expected "project_template_workflow_ready" `
+        -Message "Workflow dashboard should expose a ready next action."
+}
+
+if (Test-Scenario -Name "missing_inputs") {
+    $scenarioDir = Join-Path $resolvedWorkingDir "missing-inputs"
+    New-Item -ItemType Directory -Path $scenarioDir -Force | Out-Null
+    $outputJson = Join-Path $scenarioDir "project_template_workflow_dashboard.json"
+
+    $result = Invoke-DashboardScript -Arguments @("-SummaryJson", $outputJson)
+
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Workflow dashboard missing-inputs scenario should still write a summary."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJson | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "missing_input" `
+        -Message "Workflow dashboard should report missing_input."
+    Assert-Equal -Actual ([int]$summary.missing_input_count) -Expected 2 `
+        -Message "Workflow dashboard should report two missing inputs."
+}
+
+if (Test-Scenario -Name "fail_on_blocker") {
+    $scenarioDir = Join-Path $resolvedWorkingDir "fail-on-blocker"
+    $onboardingPath = Join-Path $scenarioDir "project_template_onboarding_governance_summary.json"
+    $deliveryPath = Join-Path $scenarioDir "project_template_delivery_readiness_summary.json"
+    $outputJson = Join-Path $scenarioDir "project_template_workflow_dashboard.json"
+
+    Write-JsonFile -Path $onboardingPath -Value (New-OnboardingGovernanceReport)
+    Write-JsonFile -Path $deliveryPath -Value (New-DeliveryReadinessReport)
+
+    $result = Invoke-DashboardScript -Arguments @(
+        "-OnboardingGovernanceJson", $onboardingPath,
+        "-DeliveryReadinessJson", $deliveryPath,
+        "-SummaryJson", $outputJson,
+        "-FailOnBlocker"
+    )
+
+    Assert-True -Condition ($result.ExitCode -ne 0) `
+        -Message "Workflow dashboard -FailOnBlocker should fail when dashboard is blocked."
+    Assert-ContainsText -Text $result.Text -ExpectedText "not release-ready" `
+        -Message "Workflow dashboard -FailOnBlocker output should explain the failure."
+}
+
+Write-Host "Project template workflow dashboard regression passed."

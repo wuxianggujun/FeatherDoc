@@ -212,6 +212,8 @@ $requiredScriptPaths = @(
     "scripts\sync_project_template_schema_approval.ps1",
     "scripts\write_project_template_schema_approval_history.ps1",
     "scripts\build_project_template_onboarding_governance_report.ps1",
+    "scripts\build_project_template_delivery_readiness_report.ps1",
+    "scripts\build_project_template_workflow_dashboard.ps1",
     "scripts\export_template_render_plan.ps1",
     "scripts\prepare_template_render_data_workspace.ps1",
     "scripts\render_template_document_from_workspace.ps1",

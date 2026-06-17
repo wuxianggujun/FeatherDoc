@@ -133,6 +133,9 @@
   onboarding governance 报告。
 - ``scripts/build_project_template_delivery_readiness_report.ps1``：生成项目模板
   delivery readiness 报告。
+- ``scripts/build_project_template_workflow_dashboard.ps1``：聚合 onboarding
+  governance 与 delivery readiness 报告，生成项目模板工作流 dashboard JSON /
+  Markdown，固定 release_ready、blocker、warning 和 next action 交接面。
 - ``scripts/onboard_project_template.ps1``：为真实项目模板生成可复核的接入
   bundle，并在显式要求时注册 smoke manifest。
 
