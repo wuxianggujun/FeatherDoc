@@ -16,6 +16,8 @@
     $projectTemplateSmokeSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.summary_json
     $projectTemplateSmokeOutputDirDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.output_dir
     $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
+    $projectTemplateWorkflowDashboardSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_workflow_dashboard_report.summary_json
+    $projectTemplateWorkflowDashboardReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_workflow_dashboard_report.report_markdown
     $releaseGovernanceHandoffSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.summary_json
     $releaseGovernanceHandoffReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.report_markdown
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
@@ -189,6 +191,7 @@
 - PDF full CTest observed failures: $($summary.steps.pdf_full_ctest_readiness.failed_test_count), zero failed observed $($summary.steps.pdf_full_ctest_readiness.zero_failed_tests_observed)
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
+- Project template workflow dashboard: $($summary.steps.project_template_workflow_dashboard.status)
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
@@ -225,6 +228,9 @@ $wordVisualStandardReviewMetadataEvidenceMarkdown
 - Release governance handoff summary: $releaseGovernanceHandoffSummaryDisplay
 - Release governance handoff report: $releaseGovernanceHandoffReportDisplay
 - Release governance handoff counts: $($summary.release_governance_handoff.loaded_report_count)/$($summary.release_governance_handoff.expected_report_count) reports, $($summary.release_governance_handoff.missing_report_count) missing, $($summary.release_governance_handoff.release_blocker_count) blockers, $($summary.release_governance_handoff.action_item_count) actions
+- Project template workflow dashboard summary: $projectTemplateWorkflowDashboardSummaryDisplay
+- Project template workflow dashboard report: $projectTemplateWorkflowDashboardReportDisplay
+- Project template workflow dashboard counts: $($summary.project_template_workflow_dashboard_report.source_report_count) reports, $($summary.project_template_workflow_dashboard_report.release_blocker_count) blockers, $($summary.project_template_workflow_dashboard_report.warning_count) warnings
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath

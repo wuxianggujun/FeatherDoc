@@ -214,6 +214,7 @@ $projectTemplateSchemaApprovalHistoryScript = Join-Path $repoRoot "scripts\write
 $projectTemplateSmokeDiscoverScript = Join-Path $repoRoot "scripts\discover_project_template_smoke_candidates.ps1"
 $releaseBlockerRollupScript = Join-Path $repoRoot "scripts\build_release_blocker_rollup_report.ps1"
 $releaseGovernanceHandoffScript = Join-Path $repoRoot "scripts\build_release_governance_handoff_report.ps1"
+$projectTemplateWorkflowDashboardScript = Join-Path $repoRoot "scripts\build_project_template_workflow_dashboard.ps1"
 $visualGateScript = Join-Path $repoRoot "scripts\run_word_visual_release_gate.ps1"
 $releaseNoteBundleScript = Join-Path $repoRoot "scripts\write_release_note_bundle.ps1"
 $releaseMaterialAuditScript = Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
@@ -382,6 +383,22 @@ $releaseGovernanceHandoffMarkdownPath = if ($releaseGovernanceHandoffRequested) 
 } else {
     ""
 }
+$projectTemplateWorkflowDashboardRequested = $ReleaseEvidenceScope -ne "pdf-only"
+$resolvedProjectTemplateWorkflowDashboardOutputDir = if ($projectTemplateWorkflowDashboardRequested) {
+    Join-Path $reportDir "project-template-workflow-dashboard"
+} else {
+    ""
+}
+$projectTemplateWorkflowDashboardSummaryPath = if ($projectTemplateWorkflowDashboardRequested) {
+    Join-Path $resolvedProjectTemplateWorkflowDashboardOutputDir "project_template_workflow_dashboard.json"
+} else {
+    ""
+}
+$projectTemplateWorkflowDashboardMarkdownPath = if ($projectTemplateWorkflowDashboardRequested) {
+    Join-Path $resolvedProjectTemplateWorkflowDashboardOutputDir "project_template_workflow_dashboard.md"
+} else {
+    ""
+}
 
 New-Item -ItemType Directory -Path $resolvedSummaryOutputDir -Force | Out-Null
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -430,6 +447,20 @@ $summary = [ordered]@{
     manifest_signoff_entrypoints = $releaseManifestSignoffEntrypoints
     project_template_readiness_checklist_entrypoints = $releaseProjectTemplateReadinessChecklistEntrypoints
     release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateReadinessChecklistMaterialSafetyAudit
+    project_template_workflow_dashboard = $projectTemplateWorkflowDashboardSummaryPath
+    project_template_workflow_dashboard_report = [ordered]@{
+        requested = $projectTemplateWorkflowDashboardRequested
+        status = if ($projectTemplateWorkflowDashboardRequested) { "pending" } else { "not_requested" }
+        output_dir = $resolvedProjectTemplateWorkflowDashboardOutputDir
+        summary_json = $projectTemplateWorkflowDashboardSummaryPath
+        report_markdown = $projectTemplateWorkflowDashboardMarkdownPath
+        release_ready = $false
+        release_blocker_count = 0
+        warning_count = 0
+        source_report_count = 0
+        next_action = $null
+        error = ""
+    }
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
     pdf_visual_gate = $pdfVisualGateSummaryInfo
     pdf_visual_gate_attempt_summary_json = $resolvedPdfVisualGateAttemptSummaryJson
@@ -649,6 +680,17 @@ $summary = [ordered]@{
             release_entry_project_template_readiness_checklist_material_safety_audit_source_reports = @()
             word_visual_standard_review_metadata_source_report_count = 0
             word_visual_standard_review_metadata_source_reports = @()
+            error = ""
+        }
+        project_template_workflow_dashboard = [ordered]@{
+            status = if ($projectTemplateWorkflowDashboardRequested) { "pending" } else { "not_requested" }
+            summary_json = $projectTemplateWorkflowDashboardSummaryPath
+            report_markdown = $projectTemplateWorkflowDashboardMarkdownPath
+            release_ready = $false
+            release_blocker_count = 0
+            warning_count = 0
+            source_report_count = 0
+            next_action = $null
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo

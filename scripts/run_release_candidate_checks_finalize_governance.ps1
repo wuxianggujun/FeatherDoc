@@ -299,3 +299,50 @@
             }
         }
     }
+
+    if ($projectTemplateWorkflowDashboardRequested) {
+        try {
+            Write-Step "Building project-template workflow dashboard"
+            ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+            Invoke-ProjectTemplateWorkflowDashboard `
+                -ScriptPath $projectTemplateWorkflowDashboardScript `
+                -ReleaseCandidateSummaryJson $summaryPath `
+                -OutputDir $resolvedProjectTemplateWorkflowDashboardOutputDir `
+                -SummaryJson $projectTemplateWorkflowDashboardSummaryPath `
+                -ReportMarkdown $projectTemplateWorkflowDashboardMarkdownPath
+            $workflowDashboardSummary = Read-ProjectTemplateWorkflowDashboardSummary -Path $projectTemplateWorkflowDashboardSummaryPath
+            $workflowDashboardReleaseReadyValue = if ($null -eq $workflowDashboardSummary) { $false } else { Get-OptionalPropertyValue -Object $workflowDashboardSummary -Name "release_ready" }
+            $workflowDashboardReleaseReady = if ($workflowDashboardReleaseReadyValue -is [bool]) {
+                [bool]$workflowDashboardReleaseReadyValue
+            } else {
+                [string]$workflowDashboardReleaseReadyValue -eq "true"
+            }
+
+            $summary.project_template_workflow_dashboard_report.status = if ($null -eq $workflowDashboardSummary) { "missing_summary" } else { [string]$workflowDashboardSummary.status }
+            $summary.project_template_workflow_dashboard_report.release_ready = $workflowDashboardReleaseReady
+            $summary.project_template_workflow_dashboard_report.release_blocker_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "release_blocker_count") }
+            $summary.project_template_workflow_dashboard_report.warning_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "warning_count") }
+            $summary.project_template_workflow_dashboard_report.source_report_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "source_report_count") }
+            $summary.project_template_workflow_dashboard_report.next_action = if ($null -eq $workflowDashboardSummary) { $null } else { Get-OptionalPropertyValue -Object $workflowDashboardSummary -Name "next_action" }
+            $summary.project_template_workflow_dashboard_report.error = ""
+
+            $summary.steps.project_template_workflow_dashboard.status = $summary.project_template_workflow_dashboard_report.status
+            $summary.steps.project_template_workflow_dashboard.release_ready = $summary.project_template_workflow_dashboard_report.release_ready
+            $summary.steps.project_template_workflow_dashboard.release_blocker_count = $summary.project_template_workflow_dashboard_report.release_blocker_count
+            $summary.steps.project_template_workflow_dashboard.warning_count = $summary.project_template_workflow_dashboard_report.warning_count
+            $summary.steps.project_template_workflow_dashboard.source_report_count = $summary.project_template_workflow_dashboard_report.source_report_count
+            $summary.steps.project_template_workflow_dashboard.next_action = $summary.project_template_workflow_dashboard_report.next_action
+            $summary.steps.project_template_workflow_dashboard.error = ""
+        } catch {
+            $workflowDashboardError = $_.Exception.Message
+            $summary.project_template_workflow_dashboard_report.status = "failed"
+            $summary.project_template_workflow_dashboard_report.release_ready = $false
+            $summary.project_template_workflow_dashboard_report.error = $workflowDashboardError
+            $summary.steps.project_template_workflow_dashboard.status = "failed"
+            $summary.steps.project_template_workflow_dashboard.release_ready = $false
+            $summary.steps.project_template_workflow_dashboard.error = $workflowDashboardError
+            Write-Step "Project-template workflow dashboard failed: $workflowDashboardError"
+        }
+
+        ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
+    }

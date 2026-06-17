@@ -273,6 +273,39 @@ function Read-ReleaseCandidateSummaryInput {
     }
 }
 
+function Get-ReleaseCandidateWorkflowReportPath {
+    param(
+        $Summary,
+        [string]$TopLevelName,
+        [string]$ContractName
+    )
+
+    $topLevelPath = Get-JsonString -Object $Summary -Name $TopLevelName
+    if (-not [string]::IsNullOrWhiteSpace($topLevelPath)) {
+        return $topLevelPath
+    }
+
+    $contractContainers = @(
+        Get-JsonProperty -Object $Summary -Name "release_governance_handoff"
+    )
+    $steps = Get-JsonProperty -Object $Summary -Name "steps"
+    if ($null -ne $steps) {
+        $contractContainers += Get-JsonProperty -Object $steps -Name "release_governance_handoff"
+    }
+
+    foreach ($container in @($contractContainers)) {
+        $contract = Get-JsonProperty -Object $container -Name $ContractName
+        foreach ($fieldName in @("source_json", "source_json_display", "source_report", "source_report_display")) {
+            $contractPath = Get-JsonString -Object $contract -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($contractPath)) {
+                return $contractPath
+            }
+        }
+    }
+
+    return ""
+}
+
 function Read-WorkflowReport {
     param(
         [string]$RepoRoot,
@@ -507,15 +540,23 @@ $resolvedReleaseCandidateSummaryPath = Resolve-RepoPath -RepoRoot $repoRoot -Pat
 $releaseCandidateSummary = Read-ReleaseCandidateSummaryInput -Path $resolvedReleaseCandidateSummaryPath
 if ($null -ne $releaseCandidateSummary) {
     if ([string]::IsNullOrWhiteSpace($resolvedOnboardingPath)) {
+        $onboardingPathFromSummary = Get-ReleaseCandidateWorkflowReportPath `
+            -Summary $releaseCandidateSummary `
+            -TopLevelName "project_template_onboarding_governance" `
+            -ContractName "project_template_onboarding_governance_contract"
         $resolvedOnboardingPath = Resolve-RepoPath `
             -RepoRoot $repoRoot `
-            -Path (Get-JsonString -Object $releaseCandidateSummary -Name "project_template_onboarding_governance") `
+            -Path $onboardingPathFromSummary `
             -AllowMissing
     }
     if ([string]::IsNullOrWhiteSpace($resolvedDeliveryPath)) {
+        $deliveryPathFromSummary = Get-ReleaseCandidateWorkflowReportPath `
+            -Summary $releaseCandidateSummary `
+            -TopLevelName "project_template_delivery_readiness" `
+            -ContractName "project_template_delivery_readiness_contract"
         $resolvedDeliveryPath = Resolve-RepoPath `
             -RepoRoot $repoRoot `
-            -Path (Get-JsonString -Object $releaseCandidateSummary -Name "project_template_delivery_readiness") `
+            -Path $deliveryPathFromSummary `
             -AllowMissing
     }
 }

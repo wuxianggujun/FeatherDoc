@@ -33,6 +33,10 @@ if ($releaseGovernanceHandoffRequested) {
     Write-Host "Release governance handoff summary: $releaseGovernanceHandoffSummaryPath"
     Write-Host "Release governance handoff report: $releaseGovernanceHandoffMarkdownPath"
 }
+if ($projectTemplateWorkflowDashboardRequested) {
+    Write-Host "Project template workflow dashboard summary: $projectTemplateWorkflowDashboardSummaryPath"
+    Write-Host "Project template workflow dashboard report: $projectTemplateWorkflowDashboardMarkdownPath"
+}
 Write-Host "Start here: $startHerePath"
 
 if ($null -ne $releaseBlockerRollupFailure) {

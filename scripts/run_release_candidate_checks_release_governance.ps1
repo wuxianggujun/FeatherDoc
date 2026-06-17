@@ -190,3 +190,43 @@ function Read-ReleaseGovernanceHandoffSummary {
 
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
 }
+
+function Invoke-ProjectTemplateWorkflowDashboard {
+    param(
+        [string]$ScriptPath,
+        [string]$ReleaseCandidateSummaryJson,
+        [string]$OutputDir,
+        [string]$SummaryJson,
+        [string]$ReportMarkdown
+    )
+
+    Invoke-ChildPowerShell -ScriptPath $ScriptPath `
+        -Arguments @(
+            "-ReleaseCandidateSummaryJson"
+            $ReleaseCandidateSummaryJson
+            "-OutputDir"
+            $OutputDir
+            "-SummaryJson"
+            $SummaryJson
+            "-ReportMarkdown"
+            $ReportMarkdown
+        ) `
+        -FailureMessage "Failed to build project-template workflow dashboard."
+
+    if (-not (Test-Path -LiteralPath $SummaryJson)) {
+        throw "Project-template workflow dashboard did not write summary JSON: $SummaryJson"
+    }
+    if (-not (Test-Path -LiteralPath $ReportMarkdown)) {
+        throw "Project-template workflow dashboard did not write Markdown report: $ReportMarkdown"
+    }
+}
+
+function Read-ProjectTemplateWorkflowDashboardSummary {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
