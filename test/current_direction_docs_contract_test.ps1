@@ -64,6 +64,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
 $nextTasksDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\next_tasks_zh.rst"
+$longTaskBoardDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\long_task_board_zh.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $scriptTaskIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\script_task_index_zh.rst"
 $cmakeLists = @(
@@ -107,6 +108,7 @@ foreach ($marker in @(
         "WordprocessingML",
         "project_identity_zh",
         "next_tasks_zh",
+        "long_task_board_zh",
         "v1_7_roadmap_zh",
         "open()",
         "create_empty()",
@@ -146,6 +148,7 @@ foreach ($marker in @(
 foreach ($marker in @(
         "docs/current_direction_zh.rst",
         "docs/next_tasks_zh.rst",
+        "docs/long_task_board_zh.rst",
         "docs/document_governance_acceptance_zh.rst",
         "docs/release_metadata_pipeline_zh.rst",
         "docs/release_metadata_maintenance_checklist_zh.rst",
@@ -178,6 +181,8 @@ foreach ($marker in @(
 
 foreach ($marker in @(
         "next_tasks_zh",
+        "long_task_board_zh",
+        "P1-SCHEMA-01",
         "P0",
         "P1",
         "P2",
@@ -197,6 +202,32 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $nextTasksDoc -ExpectedText $marker `
         -Message "Next tasks document should preserve actionable backlog marker '$marker'."
+}
+
+foreach ($marker in @(
+        "long_task_board_zh",
+        "active goal",
+        "dev",
+        "codex/*",
+        "P0-CI-01",
+        "P1-SCHEMA-01",
+        "P1-TEMPLATE-01",
+        "P1-DASHBOARD-01",
+        "P1-APPROVAL-01",
+        "P1-CONTENT-01",
+        "P1-RELEASE-01",
+        "P2-STYLE-01",
+        "P2-NUMBERING-01",
+        "P2-TABLE-01",
+        "P2-WORD-01",
+        "P3-PDF-01",
+        "P3-DOCS-01",
+        "git status --short --branch",
+        "git diff --check",
+        "git push origin dev"
+    )) {
+    Assert-ContainsText -Text $longTaskBoardDoc -ExpectedText $marker `
+        -Message "Long task board should preserve execution ledger marker '$marker'."
 }
 
 foreach ($marker in @(

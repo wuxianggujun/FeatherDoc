@@ -5,11 +5,12 @@
 
 ``FeatherDoc`` 接下来到底继续推进什么功能，什么功能不该抢着做。
 
-这份文档和 :doc:`project_identity_zh`、:doc:`next_tasks_zh`、历史路线图
-:doc:`v1_7_roadmap_zh` 的关系是：
+这份文档和 :doc:`project_identity_zh`、:doc:`next_tasks_zh`、
+:doc:`long_task_board_zh`、历史路线图 :doc:`v1_7_roadmap_zh` 的关系是：
 
 - ``project_identity_zh`` 负责说明项目是什么、为什么独立演进
 - ``next_tasks_zh`` 负责把当前路线拆成可执行 backlog，并记录下一步最小动作
+- ``long_task_board_zh`` 负责当前 long-running goal 的逐轮执行台账
 - ``v1_7_roadmap_zh`` 只作为前一阶段能力补齐路线的历史归档
 - 本文负责约束当前阶段的产品主线和功能准入标准
 

@@ -6,6 +6,7 @@
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
 脚本、源码、文档、测试或发布治理材料上。
+长期逐轮执行台账见 :doc:`long_task_board_zh`，本页负责保留完整 backlog。
 
 任务清单维护 marker：``next_tasks_zh``。
 
@@ -212,6 +213,7 @@ P3：文档、测试与索引治理
 
    * ``docs/current_direction_zh.rst`` 负责产品主线。
    * ``docs/next_tasks_zh.rst`` 负责可执行 backlog。
+   * ``docs/long_task_board_zh.rst`` 负责长任务逐轮推进台账。
    * ``docs/documentation_maintenance_zh.rst`` 负责维护边界。
    * ``docs/script_task_index_zh.rst`` 负责脚本入口。
 
@@ -251,3 +253,4 @@ P3：文档、测试与索引治理
 3. release material safety 已覆盖 dashboard 入口、分组摘要和 reviewer stop
    condition；后续保持 ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
 4. 下一步进入真实业务模板语料扩展和样式建议置信度校准。
+   第一轮按 ``docs/long_task_board_zh.rst`` 的 ``P1-SCHEMA-01`` 执行。
