@@ -203,6 +203,55 @@ function Convert-NextActionToSummary {
     }
 }
 
+function Convert-NextActionSummaryEntry {
+    param(
+        $Entry,
+        $SourceReport
+    )
+
+    $sourceNextAction = $null
+    if ($null -ne $SourceReport) {
+        $sourceNextAction = $SourceReport.next_action
+    }
+
+    $action = Get-JsonString -Object $Entry -Name "action"
+    if ([string]::IsNullOrWhiteSpace($action)) {
+        $action = Get-JsonString -Object $sourceNextAction -Name "action"
+    }
+
+    $reason = Get-JsonString -Object $Entry -Name "reason"
+    if ([string]::IsNullOrWhiteSpace($reason)) {
+        $reason = Get-JsonString -Object $sourceNextAction -Name "reason"
+    }
+
+    $blockerId = Get-JsonString -Object $Entry -Name "blocker_id"
+    if ([string]::IsNullOrWhiteSpace($blockerId)) {
+        $blockerId = Get-JsonString -Object $sourceNextAction -Name "blocker_id"
+    }
+
+    $command = Get-JsonString -Object $Entry -Name "command"
+    if ([string]::IsNullOrWhiteSpace($command)) {
+        $command = Get-JsonString -Object $sourceNextAction -Name "command"
+    }
+
+    $entryNames = @(
+        Get-JsonArray -Object $Entry -Name "entry_names" |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+
+    return [ordered]@{
+        source_report_id = [string]$SourceReport.id
+        action = $action
+        reason = $reason
+        blocker_id = $blockerId
+        command = $command
+        entry_names = $entryNames
+        source_report_display = [string]$SourceReport.source_report_display
+        source_json_display = [string]$SourceReport.source_json_display
+    }
+}
+
 function Read-WorkflowReport {
     param(
         [string]$RepoRoot,
@@ -389,6 +438,23 @@ function New-DashboardMarkdown {
         }
     }
     [void]$lines.Add("")
+    [void]$lines.Add("## Next action groups")
+    [void]$lines.Add("")
+    if ([int]$Summary.next_action_group_count -eq 0) {
+        [void]$lines.Add("- none")
+    } else {
+        foreach ($actionGroup in @($Summary.next_action_summary)) {
+            $entryNameText = (@($actionGroup.entry_names) -join ", ")
+            [void]$lines.Add("- source=``$($actionGroup.source_report_id)`` action=``$($actionGroup.action)`` blocker_id=``$($actionGroup.blocker_id)`` entries=``$entryNameText``")
+            if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.reason)) {
+                [void]$lines.Add("  - reason: $($actionGroup.reason)")
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.command)) {
+                [void]$lines.Add("  - command: ``$($actionGroup.command)``")
+            }
+        }
+    }
+    [void]$lines.Add("")
     [void]$lines.Add("## Handoff")
     [void]$lines.Add("")
     [void]$lines.Add("- command: ``$($Summary.next_action.command)``")
@@ -476,6 +542,20 @@ $nextAction = if ($null -ne $firstBlockingReport) {
     }
 }
 
+$nextActionSummary = @()
+foreach ($report in $sourceReports) {
+    foreach ($entry in @($report.next_action_summary)) {
+        $normalizedEntry = Convert-NextActionSummaryEntry -Entry $entry -SourceReport $report
+        $hasActionDetails = -not [string]::IsNullOrWhiteSpace([string]$normalizedEntry.action) -or
+            -not [string]::IsNullOrWhiteSpace([string]$normalizedEntry.blocker_id) -or
+            @($normalizedEntry.entry_names).Count -gt 0
+        if ($hasActionDetails) {
+            $nextActionSummary += $normalizedEntry
+        }
+    }
+}
+$nextActionGroupCount = $nextActionSummary.Count
+
 $summary = [ordered]@{
     schema = $dashboardSchema
     summary_schema_version = 1
@@ -488,6 +568,8 @@ $summary = [ordered]@{
     missing_input_count = $missingInputCount
     schema_mismatch_count = $schemaMismatchCount
     next_action = $nextAction
+    next_action_summary = $nextActionSummary
+    next_action_group_count = $nextActionGroupCount
     source_reports = $sourceReports
     source_schema_summary = @(
         [ordered]@{

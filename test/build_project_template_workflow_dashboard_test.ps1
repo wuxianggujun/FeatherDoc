@@ -74,6 +74,32 @@ function New-OnboardingGovernanceReport {
         [int]$WarningCount = 1
     )
 
+    $schemaApprovalStatusSummary = if ($ReleaseReady) { "approved=1" } else { "pending_review=1" }
+    $nextAction = [ordered]@{
+        action = "review_schema_update_candidate"
+        reason = "Schema approval is pending."
+        blocker_id = "project_template_onboarding.schema_approval"
+        command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
+    }
+    $nextActionSummary = @(
+        [ordered]@{
+            action = "review_schema_update_candidate"
+            blocker_id = "project_template_onboarding.schema_approval"
+            entry_names = @("invoice-template")
+        }
+    )
+    $nextActionGroupCount = 1
+    if ($ReleaseReady) {
+        $nextAction = [ordered]@{
+            action = "project_template_onboarding_governance_ready"
+            reason = "Onboarding governance evidence is ready."
+            blocker_id = ""
+            command = ""
+        }
+        $nextActionSummary = @()
+        $nextActionGroupCount = 0
+    }
+
     return [ordered]@{
         schema = "featherdoc.project_template_onboarding_governance_report.v1"
         summary_schema_version = 1
@@ -81,21 +107,10 @@ function New-OnboardingGovernanceReport {
         release_ready = $ReleaseReady
         release_blocker_count = $BlockerCount
         warning_count = $WarningCount
-        schema_approval_status_summary = "pending_review=1"
-        next_action = [ordered]@{
-            action = "review_schema_update_candidate"
-            reason = "Schema approval is pending."
-            blocker_id = "project_template_onboarding.schema_approval"
-            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\sync_project_template_schema_approval.ps1"
-        }
-        next_action_summary = @(
-            [ordered]@{
-                action = "review_schema_update_candidate"
-                blocker_id = "project_template_onboarding.schema_approval"
-                entry_names = @("invoice-template")
-            }
-        )
-        next_action_group_count = 1
+        schema_approval_status_summary = $schemaApprovalStatusSummary
+        next_action = $nextAction
+        next_action_summary = $nextActionSummary
+        next_action_group_count = $nextActionGroupCount
         source_report_display = ".\output\project-template-onboarding-governance\summary.json"
         source_json_display = ".\output\project-template-onboarding-governance\summary.json"
     }
@@ -109,6 +124,33 @@ function New-DeliveryReadinessReport {
         [int]$WarningCount = 0
     )
 
+    $latestSchemaApprovalGateStatus = if ($ReleaseReady) { "ready" } else { "blocked" }
+    $schemaApprovalStatusSummary = if ($ReleaseReady) { "approved=1" } else { "pending_review=1" }
+    $nextAction = [ordered]@{
+        action = "collect_project_template_onboarding_governance_evidence"
+        reason = "Delivery readiness depends on onboarding governance evidence."
+        blocker_id = "project_template_delivery_readiness.onboarding_governance"
+        command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1"
+    }
+    $nextActionSummary = @(
+        [ordered]@{
+            action = "collect_project_template_onboarding_governance_evidence"
+            blocker_id = "project_template_delivery_readiness.onboarding_governance"
+            entry_names = @("invoice-template")
+        }
+    )
+    $nextActionGroupCount = 1
+    if ($ReleaseReady) {
+        $nextAction = [ordered]@{
+            action = "project_template_delivery_readiness_ready"
+            reason = "Delivery readiness evidence is ready."
+            blocker_id = ""
+            command = ""
+        }
+        $nextActionSummary = @()
+        $nextActionGroupCount = 0
+    }
+
     return [ordered]@{
         schema = "featherdoc.project_template_delivery_readiness_report.v1"
         summary_schema_version = 1
@@ -116,22 +158,11 @@ function New-DeliveryReadinessReport {
         release_ready = $ReleaseReady
         release_blocker_count = $BlockerCount
         warning_count = $WarningCount
-        latest_schema_approval_gate_status = "blocked"
-        schema_approval_status_summary = "pending_review=1"
-        onboarding_governance_next_action = [ordered]@{
-            action = "collect_project_template_onboarding_governance_evidence"
-            reason = "Delivery readiness depends on onboarding governance evidence."
-            blocker_id = "project_template_delivery_readiness.onboarding_governance"
-            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_onboarding_governance_report.ps1"
-        }
-        onboarding_governance_next_action_summary = @(
-            [ordered]@{
-                action = "collect_project_template_onboarding_governance_evidence"
-                blocker_id = "project_template_delivery_readiness.onboarding_governance"
-                entry_names = @("invoice-template")
-            }
-        )
-        onboarding_governance_next_action_group_count = 1
+        latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
+        schema_approval_status_summary = $schemaApprovalStatusSummary
+        onboarding_governance_next_action = $nextAction
+        onboarding_governance_next_action_summary = $nextActionSummary
+        onboarding_governance_next_action_group_count = $nextActionGroupCount
         source_report_display = ".\output\project-template-delivery-readiness\summary.json"
         source_json_display = ".\output\project-template-delivery-readiness\summary.json"
     }
@@ -174,8 +205,17 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard should include both source reports."
     Assert-Equal -Actual ([string]$summary.next_action.action) -Expected "review_schema_update_candidate" `
         -Message "Workflow dashboard should expose the first blocking next action."
+    Assert-Equal -Actual ([int]$summary.next_action_group_count) -Expected 2 `
+        -Message "Workflow dashboard should aggregate both source next action groups."
+    $nextActionSourceIds = (@($summary.next_action_summary) | ForEach-Object { [string]$_.source_report_id }) -join [System.Environment]::NewLine
+    Assert-ContainsText -Text $nextActionSourceIds -ExpectedText "project_template_onboarding_governance" `
+        -Message "Workflow dashboard next action summary should include onboarding governance."
+    Assert-ContainsText -Text $nextActionSourceIds -ExpectedText "project_template_delivery_readiness" `
+        -Message "Workflow dashboard next action summary should include delivery readiness."
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Workflow Dashboard" `
         -Message "Workflow dashboard Markdown should have a title."
+    Assert-ContainsText -Text $markdown -ExpectedText "Next action groups" `
+        -Message "Workflow dashboard Markdown should include next action groups."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_onboarding_governance" `
         -Message "Workflow dashboard Markdown should include onboarding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
@@ -206,6 +246,8 @@ if (Test-Scenario -Name "ready") {
         -Message "Workflow dashboard release_ready should be true."
     Assert-Equal -Actual ([string]$summary.next_action.action) -Expected "project_template_workflow_ready" `
         -Message "Workflow dashboard should expose a ready next action."
+    Assert-Equal -Actual ([int]$summary.next_action_group_count) -Expected 0 `
+        -Message "Workflow dashboard should not report next action groups when inputs are ready."
 }
 
 if (Test-Scenario -Name "missing_inputs") {
