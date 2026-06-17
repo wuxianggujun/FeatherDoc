@@ -370,6 +370,25 @@ Assert-Contains -Path $guidePath -ExpectedText 'Run workflow' -Label 'ARTIFACT_G
 Assert-Contains -Path $startHerePath -ExpectedText 'Actions' -Label 'START_HERE.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-refresh-output' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $checklistPath -ExpectedText 'release-publish-output' -Label 'REVIEWER_CHECKLIST.md'
+$manifestSignoffRequiredFields = @(
+    'status',
+    'release_ready',
+    'release_blocker_count',
+    'warning_count',
+    'schema_approval_status_summary',
+    'onboarding_governance_next_action',
+    'onboarding_governance_next_action_summary',
+    'onboarding_governance_next_action_group_count',
+    'next_action',
+    'next_action_summary',
+    'next_action_group_count',
+    'requires_reviewer_action',
+    'reviewer_action_summary',
+    'reviewer_action_reason',
+    'reviewer_actions',
+    'source_report_display',
+    'source_json_display'
+)
 $manifestEntryDocuments = @(
     [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
     [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
@@ -378,6 +397,8 @@ foreach ($document in $manifestEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'release_assets_manifest.json' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_delivery_readiness_contract' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'project_template_onboarding_governance_contract' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'status' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'release_ready' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'release_blocker_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'warning_count' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'schema_approval_status_summary' -Label $document.Label
@@ -400,6 +421,8 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'Confirm the packaged
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_assets_manifest.json must include' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_delivery_readiness_contract' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'project_template_onboarding_governance_contract' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'status' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_ready' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'release_blocker_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'warning_count' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'schema_approval_status_summary' -Label 'REVIEWER_CHECKLIST.md'
@@ -415,6 +438,19 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'reviewer_action_reas
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'reviewer_actions' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'
+$manifestSignoffEntryDocuments = @(
+    [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
+    [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },
+    [pscustomobject]@{ Path = $startHerePath; Label = "START_HERE.md" }
+)
+foreach ($document in $manifestSignoffEntryDocuments) {
+    $manifestSignoffExpectedFragments = @(
+        'release_assets_manifest.json',
+        'project_template_delivery_readiness_contract',
+        'project_template_onboarding_governance_contract'
+    ) + $manifestSignoffRequiredFields
+    Assert-LineContainsAll -Path $document.Path -ExpectedFragments $manifestSignoffExpectedFragments -Label $document.Label
+}
 $checklistHandoffEntryDocuments = @(
     [pscustomobject]@{ Path = $guidePath; Label = "ARTIFACT_GUIDE.md" },
     [pscustomobject]@{ Path = $checklistPath; Label = "REVIEWER_CHECKLIST.md" },

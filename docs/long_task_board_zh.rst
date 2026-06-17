@@ -189,6 +189,10 @@
      package release assets 的 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
      ``REVIEWER_CHECKLIST.md`` 已补 ``reviewer_action_*`` 值级断言，确保
      readiness / onboarding no-action 语义不会只剩字段名。
+     release note bundle 现在进一步逐行断言三份入口材料的 manifest signoff
+     同时包含 ``status``、``release_ready``、``reviewer_action_*``、
+     ``source_report_display`` 和 ``source_json_display`` 等完整必备字段；
+     三个入口生成脚本也由文档契约测试锁定同一字段集合。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

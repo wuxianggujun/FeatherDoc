@@ -155,6 +155,11 @@ P1：Release governance 与发布材料一致性
    * package release assets 的三份入口材料已补 ``reviewer_action_*`` 值级断言，
      要求 readiness / onboarding 的 no-action 语义与对应 contract 出现在同一条
      reviewer-facing 材料里。
+   * release note bundle 现在会逐行断言 ``START_HERE.md``、
+     ``ARTIFACT_GUIDE.md`` 和 ``REVIEWER_CHECKLIST.md`` 的 manifest signoff
+     同时包含 ``status``、``release_ready``、``reviewer_action_*``、
+     ``source_report_display`` 和 ``source_json_display`` 等完整必备字段；
+     三个入口生成脚本也由文档契约测试锁定同一字段集合。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及

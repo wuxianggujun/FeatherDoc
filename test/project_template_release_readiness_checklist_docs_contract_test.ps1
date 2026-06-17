@@ -534,6 +534,26 @@ foreach ($marker in @(
         -Message "Release visual metadata helpers should keep project-template signoff scope marker '$marker'."
 }
 
+$manifestSignoffRequiredFields = @(
+    "status",
+    "release_ready",
+    "release_blocker_count",
+    "warning_count",
+    "schema_approval_status_summary",
+    "onboarding_governance_next_action",
+    "onboarding_governance_next_action_summary",
+    "onboarding_governance_next_action_group_count",
+    "next_action",
+    "next_action_summary",
+    "next_action_group_count",
+    "requires_reviewer_action",
+    "reviewer_action_summary",
+    "reviewer_action_reason",
+    "reviewer_actions",
+    "source_report_display",
+    "source_json_display"
+)
+
 foreach ($scriptInfo in @(
     [pscustomobject]@{ Name = "write_release_metadata_start_here.ps1"; Text = $startHereScript },
     [pscustomobject]@{ Name = "write_release_artifact_guide.ps1"; Text = $artifactGuideScript },
@@ -543,6 +563,11 @@ foreach ($scriptInfo in @(
         -Message "$($scriptInfo.Name) should gate project-template signoff text on explicit manifest contracts."
     Assert-ContainsText -Text $scriptInfo.Text -ExpectedText 'if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence)' `
         -Message "$($scriptInfo.Name) should skip PDF-only placeholders while preserving materialized project-template release-entry evidence."
+
+    foreach ($field in $manifestSignoffRequiredFields) {
+        Assert-ContainsText -Text $scriptInfo.Text -ExpectedText $field `
+            -Message "$($scriptInfo.Name) should keep manifest signoff required field '$field'."
+    }
 }
 
 foreach ($marker in @(
