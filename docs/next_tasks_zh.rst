@@ -149,6 +149,9 @@ P1：Release governance 与发布材料一致性
      ``publish_github_release.ps1`` 也已补上传后 manifest 刷新回归，确保
      ``upload.remote_assets`` 只记录 manifest assets 中的正式 ZIP，并保留远端
      URL、大小和下载计数。
+   * release asset manifest 的 material safety 负例已补到
+     ``reviewer_action_reason`` 和 ``reviewer_actions``，避免只用
+     ``reviewer_action_summary`` 代表整组 reviewer action 字段。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及

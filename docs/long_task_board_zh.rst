@@ -183,6 +183,9 @@
      GitHub Release refresh / publish workflow 已补维护契约，固定
      ``RELEASE_OUTPUT_ROOT``、发布脚本入口、``release-refresh-output`` /
      ``release-publish-output`` 以及 ``output/release-assets/**`` 上传路径。
+     release asset manifest 的 material safety 负例已分别覆盖
+     ``reviewer_action_reason`` 和 ``reviewer_actions``，不再只依赖
+     ``reviewer_action_summary`` 代表整组 reviewer action 字段。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

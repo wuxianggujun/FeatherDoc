@@ -49,6 +49,38 @@ $passManifestWarningOnlyReadiness.project_template_delivery_readiness_contract.w
 ($passManifestWarningOnlyReadiness | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $passManifestWarningOnlyReadinessPath -Encoding UTF8
 & $auditScript -Path $passManifestWarningOnlyReadinessPath
 
+function Assert-ManifestContractFieldRequired {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ContractName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$FieldName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CaseSlug
+    )
+
+    $caseDir = Join-Path $failDir $CaseSlug
+    $casePath = Join-Path $caseDir "release_assets_manifest.json"
+    New-Item -ItemType Directory -Path $caseDir -Force | Out-Null
+    $caseManifest = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    $contract = $caseManifest.PSObject.Properties[$ContractName].Value
+    $contract.PSObject.Properties.Remove($FieldName)
+    ($caseManifest | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $casePath -Encoding UTF8
+
+    $failedAsExpected = $false
+    try {
+        & $auditScript -Path $casePath
+    } catch {
+        $failedAsExpected = $true
+    }
+
+    if (-not $failedAsExpected) {
+        throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing $ContractName.$FieldName."
+    }
+}
+
 $badManifestMissingDeliveryReadinessNextActionDir = Join-Path $failDir "manifest-missing-project-template-delivery-readiness-next-action"
 $badManifestMissingDeliveryReadinessNextActionPath = Join-Path $badManifestMissingDeliveryReadinessNextActionDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingDeliveryReadinessNextActionDir -Force | Out-Null
@@ -85,6 +117,16 @@ if (-not $missingDeliveryReadinessReviewerActionFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_delivery_readiness_contract.reviewer_action_summary."
 }
 
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_delivery_readiness_contract" `
+    -FieldName "reviewer_action_reason" `
+    -CaseSlug "manifest-missing-project-template-delivery-readiness-reviewer-action-reason"
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_delivery_readiness_contract" `
+    -FieldName "reviewer_actions" `
+    -CaseSlug "manifest-missing-project-template-delivery-readiness-reviewer-actions"
+
 $badManifestMissingOnboardingGovernanceNextActionSummaryDir = Join-Path $failDir "manifest-missing-project-template-onboarding-governance-next-action-summary"
 $badManifestMissingOnboardingGovernanceNextActionSummaryPath = Join-Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir -Force | Out-Null
@@ -120,6 +162,16 @@ try {
 if (-not $missingOnboardingGovernanceReviewerActionFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_onboarding_governance_contract.reviewer_action_summary."
 }
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_onboarding_governance_contract" `
+    -FieldName "reviewer_action_reason" `
+    -CaseSlug "manifest-missing-project-template-onboarding-governance-reviewer-action-reason"
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_onboarding_governance_contract" `
+    -FieldName "reviewer_actions" `
+    -CaseSlug "manifest-missing-project-template-onboarding-governance-reviewer-actions"
 
 $badManifestMissingProjectTemplateChecklistEntrypointsDir = Join-Path $failDir "manifest-missing-project-template-readiness-checklist-entrypoints"
 $badManifestMissingProjectTemplateChecklistEntrypointsPath = Join-Path $badManifestMissingProjectTemplateChecklistEntrypointsDir "release_assets_manifest.json"
