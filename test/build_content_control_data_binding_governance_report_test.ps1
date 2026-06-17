@@ -289,6 +289,12 @@ Assert-Equal -Actual ([int]$summary.repair_plan_requires_user_values_count) -Exp
     -Message "Summary should count repair paths that need user-provided binding values."
 Assert-Equal -Actual ([int]$summary.repair_plan_requires_visual_verification_count) -Expected 4 `
     -Message "Summary should count apply paths that require visual verification."
+Assert-Equal -Actual ([int]$summary.repair_action_release_blocking_count) -Expected 2 `
+    -Message "Summary should count release-blocking repair actions."
+Assert-Equal -Actual ([int]$summary.repair_action_auto_repair_candidate_count) -Expected 2 `
+    -Message "Summary should count repair actions that have executable command candidates."
+Assert-Equal -Actual ([int]$summary.repair_action_manual_confirmation_required_count) -Expected 5 `
+    -Message "Summary should count repair actions requiring reviewer confirmation."
 Assert-Equal -Actual ([string]$summary.input_docx) -Expected "samples/invoice.docx" `
     -Message "Summary should expose the unique input DOCX provenance."
 Assert-Equal -Actual ([string]$summary.input_docx_display) -Expected ".\samples\invoice.docx" `
@@ -434,9 +440,25 @@ Assert-ContainsText -Text $repairStatuses -ExpectedText "requires_user_values" `
     -Message "Repair plan should flag value-dependent binding paths."
 Assert-ContainsText -Text $repairStatuses -ExpectedText "review_only" `
     -Message "Repair plan should flag review-only paths."
+$repairActionClasses = @{}
+foreach ($entry in @($summary.repair_action_class_summary)) {
+    $repairActionClasses[[string]$entry.repair_action_class] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$repairActionClasses["release_blocking"]) -Expected 2 `
+    -Message "Repair action class summary should count release-blocking actions."
+Assert-Equal -Actual ([int]$repairActionClasses["auto_repair_candidate"]) -Expected 2 `
+    -Message "Repair action class summary should count auto-repair candidate actions."
+Assert-Equal -Actual ([int]$repairActionClasses["manual_confirmation_required"]) -Expected 5 `
+    -Message "Repair action class summary should count manual-confirmation actions."
 $syncPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "sync_bound_content_control" })[0]
 Assert-Equal -Actual ([string]$syncPlan.source_id) -Expected "content_control_data_binding.bound_placeholder" `
     -Message "Bound placeholder sync plan should keep the source blocker id."
+Assert-ContainsText -Text ((@($syncPlan.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "release_blocking" `
+    -Message "Bound placeholder sync plan should be release-blocking."
+Assert-ContainsText -Text ((@($syncPlan.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "auto_repair_candidate" `
+    -Message "Bound placeholder sync plan should remain an executable repair candidate."
+Assert-ContainsText -Text ((@($syncPlan.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "manual_confirmation_required" `
+    -Message "Bound placeholder sync plan should require reviewer confirmation."
 Assert-ContainsText -Text ([string]$syncPlan.source_json) -ExpectedText "inspect-content-controls.json" `
     -Message "Bound placeholder sync plan should keep raw source JSON."
 Assert-ContainsText -Text ([string]$syncPlan.source_json_display) -ExpectedText "inspect-content-controls.json" `
@@ -460,6 +482,8 @@ Assert-Equal -Actual ([string]$syncPlan.template_name) -Expected "invoice-templa
 $unboundPlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "bind_or_exempt_form_control" })[0]
 Assert-Equal -Actual ([string]$unboundPlan.plan_status) -Expected "requires_user_values" `
     -Message "Unbound form repair should require user-provided binding values."
+Assert-ContainsText -Text ((@($unboundPlan.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "manual_confirmation_required" `
+    -Message "Unbound form repair should require manual confirmation."
 Assert-ContainsText -Text ([string]$unboundPlan.open_command) `
     -ExpectedText "build_content_control_data_binding_governance_report.ps1" `
     -Message "Action-derived repair plans should keep reviewer open commands."
@@ -469,6 +493,8 @@ Assert-ContainsText -Text ((@($unboundPlan.required_user_values) | ForEach-Objec
 $duplicatePlan = @($summary.repair_plan_items | Where-Object { [string]$_.repair_strategy -eq "deduplicate_or_confirm_shared_binding" })[0]
 Assert-Equal -Actual ([bool]$duplicatePlan.apply_supported) -Expected $false `
     -Message "Duplicate binding repair should stay review-only."
+Assert-ContainsText -Text ((@($duplicatePlan.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") -ExpectedText "manual_confirmation_required" `
+    -Message "Duplicate binding repair should require manual confirmation."
 Assert-Equal -Actual ([string]$duplicatePlan.duplicate_binding_key) -Expected "{55555555-5555-5555-5555-555555555555}|/invoice/dueDate" `
     -Message "Duplicate binding repair plan should keep the shared-binding key."
 Assert-Equal -Actual ([int]$duplicatePlan.duplicate_member_count) -Expected 2 `
@@ -651,6 +677,12 @@ Assert-ContainsText -Text $markdown -ExpectedText "Repair plans requiring user v
     -Message "Markdown should expose repair plans requiring user-provided values."
 Assert-ContainsText -Text $markdown -ExpectedText "Repair plans requiring visual verification: ``4``" `
     -Message "Markdown should expose repair plans requiring visual verification."
+Assert-ContainsText -Text $markdown -ExpectedText "Release-blocking repair actions: ``2``" `
+    -Message "Markdown should expose release-blocking repair action counts."
+Assert-ContainsText -Text $markdown -ExpectedText "Auto-repair candidate actions: ``2``" `
+    -Message "Markdown should expose auto-repair candidate counts."
+Assert-ContainsText -Text $markdown -ExpectedText "Manual-confirmation repair actions: ``5``" `
+    -Message "Markdown should expose manual-confirmation action counts."
 Assert-ContainsText -Text $markdown -ExpectedText "fix_custom_xml_data_binding_source" `
     -Message "Markdown should include remediation action."
 Assert-ContainsText -Text $markdown -ExpectedText "command_template" `
@@ -669,6 +701,16 @@ Assert-ContainsText -Text $markdown -ExpectedText "locked_bound" `
     -Message "Markdown should include locked binding coverage."
 Assert-ContainsText -Text $markdown -ExpectedText "## Repair Plan Feasibility" `
     -Message "Markdown should include repair plan feasibility."
+Assert-ContainsText -Text $markdown -ExpectedText "## Repair Action Classes" `
+    -Message "Markdown should include repair action class summary."
+Assert-ContainsText -Text $markdown -ExpectedText "release_blocking" `
+    -Message "Markdown should include release-blocking repair action class."
+Assert-ContainsText -Text $markdown -ExpectedText "auto_repair_candidate" `
+    -Message "Markdown should include auto-repair candidate action class."
+Assert-ContainsText -Text $markdown -ExpectedText "manual_confirmation_required" `
+    -Message "Markdown should include manual-confirmation action class."
+Assert-ContainsText -Text $markdown -ExpectedText "classes=" `
+    -Message "Markdown repair plans should include per-item action classes."
 Assert-ContainsText -Text $markdown -ExpectedText "native_dry_run_supported" `
     -Message "Markdown should state native dry-run support."
 Assert-ContainsText -Text $markdown -ExpectedText "requires_visual_verification" `

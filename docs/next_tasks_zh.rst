@@ -80,6 +80,9 @@ P1：模板契约与项目模板工作流
 
    * 为 schema patch / migration 输出更明确的修复建议。
    * 区分自动可修复、需人工确认、必须阻断发布三类动作。
+   * 对 content-control / Custom XML repair plan，保留
+     ``repair_action_class_summary`` 和 ``repair_action_classes``，并让每类动作都能追溯到
+     ``source_report_display``、``source_json_display`` 和 ``command_template``。
    * 保持 ``source_schema``、``source_report_display``、``source_json_display`` 和
      ``open_command`` 一路透传到发布材料。
 

@@ -128,13 +128,17 @@
 
 6. ``P1-CONTENT-01``：content-control 与 Custom XML 绑定治理
 
-   * 状态：``DOING``。
+   * 状态：``GUARDED``。
    * 目标：继续强化 content-control slot、数据绑定、修复建议和模板 schema 的闭环。
+   * 当前产物：``build_content_control_data_binding_governance_report.ps1`` 会输出
+     ``repair_action_class_summary`` 和 ``repair_action_classes``，把 repair plan
+     标成 ``release_blocking``、``auto_repair_candidate``、
+     ``manual_confirmation_required`` 三类，并保留 source 与 command。
    * 验收：新增规则必须能说明自动修复、人工确认或发布阻断的边界。
 
 7. ``P1-RELEASE-01``：release governance 材料一致性
 
-   * 状态：``GUARDED``。
+   * 状态：``DOING``。
    * 目标：blocker / warning / action item 在 dashboard、handoff、bundle、
      checklist 中保持同一来源。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
@@ -184,9 +188,9 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-CONTENT-01``，优先检查 content-control / Custom XML
-   data-binding 治理报告是否仍有 reviewer-facing 缺口。
-3. 小步补自动可修复、需人工确认、必须阻断发布三类动作的 source 和 command。
+2. 继续推进 ``P1-RELEASE-01``，优先检查新增治理字段是否进入 release blocker
+   rollup、handoff、bundle 和 reviewer checklist。
+3. 小步补 release-facing 入口材料里缺失的 source、command 或 action class 透传。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

@@ -106,6 +106,12 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      让 reviewer 能从 release bundle 追溯到具体模板、输入 DOCX 与 schema 目标。
    * ``repair_plan_schema`` 必须保留
      ``featherdoc.content_control_data_binding_repair_plan.v1``。
+   * ``repair_action_class_summary`` 必须把 repair plan 分成
+     ``release_blocking``、``auto_repair_candidate`` 和
+     ``manual_confirmation_required`` 三类；每个 ``repair_plan_items[]`` 条目也必须保留
+     ``repair_action_classes``、``source_report_display``、``source_json_display`` 和
+     ``command_template``，让 reviewer 能区分自动可执行候选、需人工确认和必须阻断发布的
+     content-control / Custom XML 动作。
 
 5. Release governance 已消费结论：
 

@@ -506,6 +506,14 @@ function New-RepairPlanItem {
     } else {
         @()
     }
+    $commandTemplate = Get-JsonString -Object $Item -Name "command_template"
+    $repairActionClasses = Get-RepairActionClasses `
+        -SourceKind $SourceKind `
+        -PlanStatus $planStatus `
+        -ApplySupported $applySupported `
+        -RequiredUserValues $requiredUserValues `
+        -RequiresVisualVerification $requiresVisualVerification `
+        -CommandTemplate $commandTemplate
 
     return [ordered]@{
         source_kind = $SourceKind
@@ -528,7 +536,7 @@ function New-RepairPlanItem {
         open_command = Get-JsonString -Object $Item -Name "open_command"
         repair_strategy = $repairStrategy
         repair_hint = Get-JsonString -Object $Item -Name "repair_hint"
-        command_template = Get-JsonString -Object $Item -Name "command_template"
+        command_template = $commandTemplate
         duplicate_binding_key = Get-JsonString -Object $Item -Name "duplicate_binding_key"
         duplicate_member_count = Get-JsonInt -Object $Item -Name "duplicate_member_count"
         duplicate_members = @(
@@ -539,7 +547,61 @@ function New-RepairPlanItem {
         native_dry_run_supported = $false
         required_user_values = @($requiredUserValues)
         requires_visual_verification = $requiresVisualVerification
+        repair_action_classes = @($repairActionClasses)
     }
+}
+
+function Get-RepairActionClasses {
+    param(
+        [string]$SourceKind,
+        [string]$PlanStatus,
+        [bool]$ApplySupported,
+        [object[]]$RequiredUserValues,
+        [bool]$RequiresVisualVerification,
+        [string]$CommandTemplate
+    )
+
+    $classes = New-Object 'System.Collections.Generic.List[string]'
+    $requiredUserValueCount = [int](($RequiredUserValues | Measure-Object).Count)
+    if ($SourceKind -eq "release_blocker") {
+        $classes.Add("release_blocking") | Out-Null
+    }
+    if ($ApplySupported -and
+        $requiredUserValueCount -eq 0 -and
+        -not [string]::IsNullOrWhiteSpace($CommandTemplate)) {
+        $classes.Add("auto_repair_candidate") | Out-Null
+    }
+    if ($RequiresVisualVerification -or
+        $requiredUserValueCount -gt 0 -or
+        $PlanStatus -in @("source_fix_required", "review_only")) {
+        $classes.Add("manual_confirmation_required") | Out-Null
+    }
+    if ($classes.Count -eq 0) {
+        $classes.Add("manual_confirmation_required") | Out-Null
+    }
+
+    return @($classes.ToArray() | Sort-Object -Unique)
+}
+
+function New-RepairActionClassSummary {
+    param([object[]]$Items)
+
+    $classes = @(
+        "release_blocking",
+        "auto_repair_candidate",
+        "manual_confirmation_required"
+    )
+
+    return @(
+        foreach ($class in $classes) {
+            [ordered]@{
+                repair_action_class = $class
+                count = @($Items | Where-Object {
+                        @(Get-JsonArray -Object $_ -Name "repair_action_classes") -contains $class
+                    }).Count
+            }
+        }
+    )
 }
 
 function Add-SummaryGroup {
@@ -703,6 +765,9 @@ function New-ReportMarkdown {
     $lines.Add("- Apply-supported repair plans: ``$($Summary.repair_plan_apply_supported_count)``") | Out-Null
     $lines.Add("- Repair plans requiring user values: ``$($Summary.repair_plan_requires_user_values_count)``") | Out-Null
     $lines.Add("- Repair plans requiring visual verification: ``$($Summary.repair_plan_requires_visual_verification_count)``") | Out-Null
+    $lines.Add("- Release-blocking repair actions: ``$($Summary.repair_action_release_blocking_count)``") | Out-Null
+    $lines.Add("- Auto-repair candidate actions: ``$($Summary.repair_action_auto_repair_candidate_count)``") | Out-Null
+    $lines.Add("- Manual-confirmation repair actions: ``$($Summary.repair_action_manual_confirmation_required_count)``") | Out-Null
     if (-not [string]::IsNullOrWhiteSpace([string]$Summary.input_docx_display)) {
         $lines.Add("- Input DOCX: ``$($Summary.input_docx_display)``") | Out-Null
     } elseif (-not [string]::IsNullOrWhiteSpace([string]$Summary.input_docx)) {
@@ -810,13 +875,25 @@ function New-ReportMarkdown {
         }
     }
     $lines.Add("") | Out-Null
+    $lines.Add("## Repair Action Classes") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.repair_action_class_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($entry in @($Summary.repair_action_class_summary)) {
+            $lines.Add("- ``$($entry.repair_action_class)``: ``$($entry.count)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
     $lines.Add("## Repair Plan Feasibility") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.repair_plan_items).Count -eq 0) {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($item in @($Summary.repair_plan_items)) {
-            $lines.Add("- ``$($item.source_id)``: source=``$($item.source_kind)`` strategy=``$($item.repair_strategy)`` status=``$($item.plan_status)`` apply_supported=``$($item.apply_supported)`` native_dry_run_supported=``$($item.native_dry_run_supported)`` requires_visual_verification=``$($item.requires_visual_verification)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
+            $repairActionClasses = @(Get-JsonArray -Object $item -Name "repair_action_classes")
+            $repairActionClassText = if ($repairActionClasses.Count -gt 0) { $repairActionClasses -join "," } else { "(none)" }
+            $lines.Add("- ``$($item.source_id)``: source=``$($item.source_kind)`` strategy=``$($item.repair_strategy)`` status=``$($item.plan_status)`` classes=``$repairActionClassText`` apply_supported=``$($item.apply_supported)`` native_dry_run_supported=``$($item.native_dry_run_supported)`` requires_visual_verification=``$($item.requires_visual_verification)`` source_report_display=``$($item.source_report_display)`` source_json_display=``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.tag) -or
                 -not [string]::IsNullOrWhiteSpace([string]$item.alias)) {
                 $lines.Add("  - selector: tag=``$($item.tag)`` alias=``$($item.alias)``") | Out-Null
