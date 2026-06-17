@@ -9,6 +9,11 @@ function Add-ContentControlRepairContractViolations {
     $expectedRepairStrategy = "sync_bound_content_control"
     $expectedRepairHintMarker = "Rerun Custom XML sync"
     $expectedCommand = "sync-content-controls-from-custom-xml"
+    $expectedRepairActionClasses = @(
+        "release_blocking",
+        "auto_repair_candidate",
+        "manual_confirmation_required"
+    )
     $label = "content-control repair contract"
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
 
@@ -97,6 +102,24 @@ function Add-ContentControlRepairContractViolations {
                 -File $File `
                 -Label $label `
                 -Text "content_control_data_binding.bound_placeholder command_template must include $expectedCommand."
+        }
+
+        $repairActionClassValues = @(Get-JsonPropertyValue -Object $blocker -Name "repair_action_classes")
+        $repairActionClasses = @(
+            foreach ($value in $repairActionClassValues) {
+                if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+                    [string]$value
+                }
+            }
+        )
+        foreach ($expectedClass in $expectedRepairActionClasses) {
+            if ($repairActionClasses -notcontains $expectedClass) {
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "content_control_data_binding.bound_placeholder must carry repair_action_classes including $expectedClass."
+            }
         }
     }
 }

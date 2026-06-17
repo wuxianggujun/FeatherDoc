@@ -41,7 +41,11 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "Rerun Custom XML sync",
             "sync_bound_content_control",
             "command_template",
-            "sync-content-controls-from-custom-xml"
+            "sync-content-controls-from-custom-xml",
+            "repair_action_classes",
+            "release_blocking",
+            "auto_repair_candidate",
+            "manual_confirmation_required"
         )
         $contentControlBlockNeedles = @($contentControlAnchor) + $contentControlNeedles
         if (-not (Test-ReleaseEntryContentControlTraceBlockContainsAll -Text $Content -Needles $contentControlBlockNeedles)) {

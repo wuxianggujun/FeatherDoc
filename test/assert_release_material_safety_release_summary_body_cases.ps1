@@ -81,6 +81,39 @@ if (-not $badContentControlCommandFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed content-control blocker without sync command_template."
 }
 
+$badContentControlRepairActionClassesPath = Join-Path $failDir "content_control_missing_repair_action_classes.json"
+$badContentControlRepairActionClasses = [ordered]@{
+    schema = "featherdoc.content_control_data_binding_governance_report.v1"
+    release_blockers = @(
+        [ordered]@{
+            id = "content_control_data_binding.bound_placeholder"
+            severity = "blocker"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
+            input_docx = $contentControlInputDocx
+            input_docx_display = $contentControlInputDocxDisplay
+            template_name = $contentControlTemplateName
+            schema_target = $contentControlSchemaTarget
+            target_mode = $contentControlTargetMode
+            repair_strategy = "sync_bound_content_control"
+            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
+            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+        }
+    )
+}
+($badContentControlRepairActionClasses | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $badContentControlRepairActionClassesPath -Encoding UTF8
+
+$badContentControlRepairActionClassesFailedAsExpected = $false
+try {
+    & $auditScript -Path $badContentControlRepairActionClassesPath
+} catch {
+    $badContentControlRepairActionClassesFailedAsExpected = $true
+}
+
+if (-not $badContentControlRepairActionClassesFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed content-control blocker without repair_action_classes."
+}
+
 $badReleaseSummaryTracePath = Join-Path $failDir "release_summary.zh-CN.md"
 Set-Content -LiteralPath $badReleaseSummaryTracePath -Encoding UTF8 -Value @"
 # Release summary

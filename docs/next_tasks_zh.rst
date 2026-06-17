@@ -111,8 +111,10 @@ P1：Release governance 与发布材料一致性
    * 新增发布材料字段时同步补 ``assert_release_material_safety`` 覆盖。
    * 如果字段只出现在 detached notes 而没有进入入口材料，应视为不完整。
    * 重点保护 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``。
-   * 下一步优先把 ``repair_action_classes`` 纳入 release material safety
-     静态/样例断言，防止后续入口材料重构时丢字段。
+   * ``repair_action_classes`` 已纳入 release material safety 静态/样例断言，
+     后续入口材料重构时必须继续保留同名字段和三类 action marker。
+   * 下一步转向 release-facing 入口材料里 source、command 和 action guidance
+     的完整性检查，避免只展示结论而缺少可执行修复路径。
 
 
 P2：样式与编号治理
@@ -259,10 +261,12 @@ P3：文档、测试与索引治理
 1. 等待当前 ``dev`` 最新 CI 全部完成；失败则先修 CI。
 2. project-template workflow dashboard 的 ``next_action_summary`` 分组展示已进入
    release materials 和版本契约测试；后续保持该展示不被删减。
-3. release material safety 已覆盖 dashboard 入口、分组摘要和 reviewer stop
-   condition；后续保持 ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
+3. release material safety 已覆盖 dashboard 入口、分组摘要、reviewer stop
+   condition 和 content-control ``repair_action_classes``；后续保持
+   ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
 4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
-   report、notice、tender。下一步按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。
+   report、notice、tender。下一步先按 ``docs/long_task_board_zh.rst`` 的
+   ``P1-RELEASE-01`` 小步补 release-facing source / command / action guidance，
+   再回到 ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。

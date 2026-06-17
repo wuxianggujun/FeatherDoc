@@ -47,6 +47,7 @@ function New-TestContentControlRepairContract {
         repair_strategy = "sync_bound_content_control"
         repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
         command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+        repair_action_classes = @("release_blocking", "auto_repair_candidate", "manual_confirmation_required")
     }
 }
 
