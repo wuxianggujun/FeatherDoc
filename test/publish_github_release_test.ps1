@@ -61,6 +61,35 @@ $payload = [ordered]@{
     allow_incomplete = [bool]$AllowIncomplete
 }
 Add-Content -LiteralPath $env:FEATHERDOC_PUBLISH_RELEASE_LOG -Value (($payload | ConvertTo-Json -Compress))
+
+if (-not [string]::IsNullOrWhiteSpace($env:FEATHERDOC_PUBLISH_RELEASE_WRITE_MANIFEST)) {
+    $manifestDir = Join-Path $OutputRoot ("v{0}" -f $ReleaseVersion)
+    New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
+
+    $manifest = [ordered]@{
+        release_version = $ReleaseVersion
+        assets = @(
+            [ordered]@{
+                label = "msvc_install"
+                path = (Join-Path $manifestDir ("FeatherDoc-v{0}-msvc-install.zip" -f $ReleaseVersion))
+            },
+            [ordered]@{
+                label = "visual_validation_gallery"
+                path = (Join-Path $manifestDir ("FeatherDoc-v{0}-visual-validation-gallery.zip" -f $ReleaseVersion))
+            },
+            [ordered]@{
+                label = "release_evidence"
+                path = (Join-Path $manifestDir ("FeatherDoc-v{0}-release-evidence.zip" -f $ReleaseVersion))
+            }
+        )
+        upload = [ordered]@{
+            requested_tag = $UploadReleaseTag
+            uploaded = $false
+            release_url = ""
+        }
+    }
+    ($manifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath (Join-Path $manifestDir "release_assets_manifest.json") -Encoding UTF8
+}
 '@
 
 Set-Content -LiteralPath $fakeSyncPath -Encoding UTF8 -Value @'
@@ -235,6 +264,115 @@ if (-not [bool]$ciEntries[1].allow_ci_artifact_publish) {
 }
 if (-not [bool]$ciEntries[1].publish) {
     throw "CI artifact sync step did not receive -Publish."
+}
+
+$manifestOutputRoot = Join-Path $resolvedWorkingDir "release-assets-with-manifest"
+$manifestPath = Join-Path (Join-Path $manifestOutputRoot "v1.6.4") "release_assets_manifest.json"
+Set-Content -LiteralPath $callLogPath -Encoding UTF8 -Value ""
+$env:FEATHERDOC_PUBLISH_RELEASE_LOG = $callLogPath
+$env:FEATHERDOC_PUBLISH_RELEASE_WRITE_MANIFEST = "1"
+function global:gh {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+
+    $global:LASTEXITCODE = 0
+    if ($Arguments.Count -lt 4 -or
+        $Arguments[0] -ne "release" -or
+        $Arguments[1] -ne "view" -or
+        $Arguments[2] -ne "v1.6.4") {
+        throw "Unexpected gh invocation: $($Arguments -join ' ')"
+    }
+
+    [ordered]@{
+        url = "https://github.example/releases/tag/v1.6.4"
+        assets = @(
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-msvc-install.zip"
+                url = "https://github.example/assets/msvc-install"
+                size = 1234
+                downloadCount = 2
+            },
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"
+                url = "https://github.example/assets/visual-gallery"
+                size = 5678
+                downloadCount = 3
+            },
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-release-evidence.zip"
+                url = "https://github.example/assets/release-evidence"
+                size = 9012
+                downloadCount = 4
+            },
+            [ordered]@{
+                name = "unrelated.zip"
+                url = "https://github.example/assets/unrelated"
+                size = 1
+                downloadCount = 99
+            }
+        )
+    } | ConvertTo-Json -Depth 8
+}
+
+try {
+    $publishScript = Join-Path $resolvedRepoRoot "scripts\publish_github_release.ps1"
+    & $publishScript `
+        -SummaryJson $summaryPath `
+        -OutputRoot $manifestOutputRoot `
+        -PackageScriptPath $fakePackagePath `
+        -SyncNotesScriptPath $fakeSyncPath
+} finally {
+    Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_LOG -ErrorAction SilentlyContinue
+    Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_WRITE_MANIFEST -ErrorAction SilentlyContinue
+    Remove-Item Function:\gh -ErrorAction SilentlyContinue
+}
+
+if (-not (Test-Path -LiteralPath $manifestPath)) {
+    throw "publish_github_release.ps1 did not leave a release_assets_manifest.json for upload evidence."
+}
+
+$manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+if ([string]$manifest.upload.requested_tag -ne "v1.6.4") {
+    throw "Updated manifest did not preserve requested upload tag."
+}
+if (-not [bool]$manifest.upload.uploaded) {
+    throw "Updated manifest did not record upload=true."
+}
+if ([string]$manifest.upload.release_url -ne "https://github.example/releases/tag/v1.6.4") {
+    throw "Updated manifest did not record the GitHub Release URL."
+}
+
+$remoteAssets = @($manifest.upload.remote_assets)
+if ($remoteAssets.Count -ne 3) {
+    throw "Updated manifest should record exactly the three packaged remote assets, found $($remoteAssets.Count)."
+}
+
+$remoteAssetsByName = @{}
+foreach ($asset in $remoteAssets) {
+    $remoteAssetsByName[[string]$asset.name] = $asset
+}
+
+foreach ($expectedAsset in @(
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-msvc-install.zip"; Url = "https://github.example/assets/msvc-install"; Size = 1234; Downloads = 2 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"; Url = "https://github.example/assets/visual-gallery"; Size = 5678; Downloads = 3 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-release-evidence.zip"; Url = "https://github.example/assets/release-evidence"; Size = 9012; Downloads = 4 }
+    )) {
+    if (-not $remoteAssetsByName.ContainsKey($expectedAsset.Name)) {
+        throw "Updated manifest lost remote asset '$($expectedAsset.Name)'."
+    }
+    $actualAsset = $remoteAssetsByName[$expectedAsset.Name]
+    if ([string]$actualAsset.url -ne $expectedAsset.Url) {
+        throw "Updated manifest recorded wrong URL for '$($expectedAsset.Name)'."
+    }
+    if ([int]$actualAsset.size_bytes -ne $expectedAsset.Size) {
+        throw "Updated manifest recorded wrong size for '$($expectedAsset.Name)'."
+    }
+    if ([int]$actualAsset.download_count -ne $expectedAsset.Downloads) {
+        throw "Updated manifest recorded wrong download count for '$($expectedAsset.Name)'."
+    }
+}
+
+if ($remoteAssetsByName.ContainsKey("unrelated.zip")) {
+    throw "Updated manifest included a remote asset that is not listed in manifest.assets."
 }
 
 Write-Host "Publish GitHub release wrapper regression passed."

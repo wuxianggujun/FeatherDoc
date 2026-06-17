@@ -176,6 +176,10 @@
      ``reviewer_action_summary``、``reviewer_action_reason`` 和
      ``reviewer_actions``，并由 manifest signoff 必备字段与 material safety
      负例测试守住。
+     ``publish_github_release.ps1`` 的上传后 manifest 刷新逻辑已补 add-or-update
+     写入，离线 fake gh 回归会验证 ``upload.remote_assets`` 只包含
+     ``release_assets_manifest.json`` 里列出的正式 ZIP，并保留远端 URL、大小和
+     下载计数。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
@@ -224,7 +228,7 @@
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
 2. 继续推进 ``P1-RELEASE-01``，小步复核 GitHub Release refresh / publish
-   前后的资产证据是否与 ``release_assets_manifest.json`` 保持一致。
+   workflow artifact 输出是否与 ``release_assets_manifest.json`` 保持一致。
 3. 复核 release note bundle、release material safety、release asset
    manifest 三条链路对 reviewer action、content-control action/class/source/command
    字段的断言是否存在重复盲区；优先补薄弱测试，不做大重构。

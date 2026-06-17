@@ -146,8 +146,11 @@ P1：Release governance 与发布材料一致性
      ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``，
      并由 release note bundle fixture 断言入口材料与 material safety 审计。
    * release asset manifest 已开始承接 schema approval reviewer action 字段，
-     下一步转向 GitHub Release refresh / publish 前后的资产证据复核，确保入口材料、
-     manifest 和最终发布资产里的治理证据一致。
+     ``publish_github_release.ps1`` 也已补上传后 manifest 刷新回归，确保
+     ``upload.remote_assets`` 只记录 manifest assets 中的正式 ZIP，并保留远端
+     URL、大小和下载计数。
+   * 下一步继续复核 GitHub Release refresh / publish workflow artifact 输出，
+     确保入口材料、manifest 和最终发布资产里的治理证据一致。
 
 
 P2：样式与编号治理

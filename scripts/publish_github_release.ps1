@@ -214,6 +214,21 @@ function Test-CiArtifactPublishBoundary {
     return $ciOnlyVisualVerdicts -contains $VisualVerdict
 }
 
+function Set-JsonObjectProperty {
+    param(
+        $Object,
+        [string]$Name,
+        $Value
+    )
+
+    if ($null -eq $Object.PSObject.Properties[$Name]) {
+        Add-Member -InputObject $Object -NotePropertyName $Name -NotePropertyValue $Value
+        return
+    }
+
+    $Object.$Name = $Value
+}
+
 function Update-UploadedAssetManifest {
     param(
         [string]$RepoRoot,
@@ -245,9 +260,9 @@ function Update-UploadedAssetManifest {
     if ($null -eq $manifest.PSObject.Properties["upload"]) {
         Add-Member -InputObject $manifest -NotePropertyName upload -NotePropertyValue ([pscustomobject]@{})
     }
-    $manifest.upload.requested_tag = $ReleaseTag
-    $manifest.upload.uploaded = $true
-    $manifest.upload.release_url = Get-OptionalPropertyValue -Object $releaseView -Name "url"
+    Set-JsonObjectProperty -Object $manifest.upload -Name "requested_tag" -Value $ReleaseTag
+    Set-JsonObjectProperty -Object $manifest.upload -Name "uploaded" -Value $true
+    Set-JsonObjectProperty -Object $manifest.upload -Name "release_url" -Value (Get-OptionalPropertyValue -Object $releaseView -Name "url")
 
     $remoteAssets = @()
     foreach ($asset in @($manifest.assets)) {
@@ -262,7 +277,7 @@ function Update-UploadedAssetManifest {
             }
         }
     }
-    $manifest.upload.remote_assets = $remoteAssets
+    Set-JsonObjectProperty -Object $manifest.upload -Name "remote_assets" -Value $remoteAssets
     ($manifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
     Write-Step "Refreshed uploaded asset manifest from GitHub release view"
 }
