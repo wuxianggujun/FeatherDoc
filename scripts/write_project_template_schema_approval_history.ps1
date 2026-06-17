@@ -623,6 +623,30 @@ function Get-SchemaApprovalMatrixReviewState {
     return "unknown"
 }
 
+function Get-SchemaApprovalMatrixReviewerActionSummary {
+    param(
+        [string]$ReviewState,
+        [string[]]$LatestActions
+    )
+
+    $actions = @($LatestActions |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        Sort-Object -Unique)
+    if ($ReviewState -in @("approved", "not_required")) {
+        return "none"
+    }
+    if ($actions.Count -gt 0) {
+        return ($actions -join ",")
+    }
+
+    switch ($ReviewState) {
+        "blocked" { return "fix_blocking_schema_approval" }
+        "pending" { return "review_pending_schema_approval" }
+        "rejected" { return "revise_rejected_schema_approval" }
+        default { return "inspect_schema_approval_history" }
+    }
+}
+
 function New-SchemaApprovalReviewMatrix {
     param([object[]]$EntryHistories)
 
@@ -650,6 +674,23 @@ function New-SchemaApprovalReviewMatrix {
             ForEach-Object { [string]$_.latest_action } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             Sort-Object -Unique)
+        $requiresReviewerAction = ($reviewState -notin @("approved", "not_required"))
+        $reviewerActionSummary = Get-SchemaApprovalMatrixReviewerActionSummary `
+            -ReviewState $reviewState `
+            -LatestActions $latestActions
+        $reviewerActions = if ($requiresReviewerAction -and $latestActions.Count -gt 0) {
+            @($latestActions)
+        } elseif ($requiresReviewerAction -and $reviewerActionSummary -ne "none") {
+            @($reviewerActionSummary)
+        } else {
+            @()
+        }
+        $issueSummary = if ($issueKeys.Count -gt 0) { $issueKeys -join "," } else { "(none)" }
+        $reviewerActionReason = if ($requiresReviewerAction) {
+            "latest_review_state=$reviewState; issue_keys=$issueSummary"
+        } else {
+            "latest_review_state=$reviewState; no reviewer action required"
+        }
 
         $entryDetails = @(
             foreach ($entry in $scopeEntries) {
@@ -671,7 +712,10 @@ function New-SchemaApprovalReviewMatrix {
             project_id = Get-LatestNonEmptyString -Values @($scopeEntries | ForEach-Object { [string]$_.project_id })
             template_name = Get-LatestNonEmptyString -Values @($scopeEntries | ForEach-Object { [string]$_.template_name }) -DefaultValue $scope
             latest_review_state = $reviewState
-            requires_reviewer_action = ($reviewState -notin @("approved", "not_required"))
+            requires_reviewer_action = $requiresReviewerAction
+            reviewer_action_summary = $reviewerActionSummary
+            reviewer_action_reason = $reviewerActionReason
+            reviewer_actions = @($reviewerActions)
             entry_count = $scopeEntries.Count
             run_count = [int](@($scopeEntries | Measure-Object -Property run_count -Sum).Sum)
             historical_blocked_run_count = [int](@($scopeEntries | Measure-Object -Property blocked_run_count -Sum).Sum)
@@ -751,7 +795,7 @@ function Write-HistoryMarkdown {
             if ([string]::IsNullOrWhiteSpace($issues)) {
                 $issues = "(none)"
             }
-            [void]$lines.Add("- $($item.template_scope): state=$($item.latest_review_state) project=$($item.project_id) template=$($item.template_name) entries=$($item.entry_count) runs=$($item.run_count) historical_blocked_runs=$($item.historical_blocked_run_count) latest_blocked=$($item.latest_blocked_entry_count) latest_pending=$($item.latest_pending_entry_count) latest_rejected=$($item.latest_rejected_entry_count) latest_approved=$($item.latest_approved_entry_count) actions=$actions issues=$issues summary=$($item.latest_summary_json_display)")
+            [void]$lines.Add("- $($item.template_scope): state=$($item.latest_review_state) project=$($item.project_id) template=$($item.template_name) entries=$($item.entry_count) runs=$($item.run_count) historical_blocked_runs=$($item.historical_blocked_run_count) latest_blocked=$($item.latest_blocked_entry_count) latest_pending=$($item.latest_pending_entry_count) latest_rejected=$($item.latest_rejected_entry_count) latest_approved=$($item.latest_approved_entry_count) actions=$actions reviewer_action=$($item.reviewer_action_summary) reviewer_reason=$($item.reviewer_action_reason) issues=$issues summary=$($item.latest_summary_json_display)")
         }
     } else {
         [void]$lines.Add("- No project-template approval matrix entries found in the selected summaries.")

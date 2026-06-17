@@ -122,6 +122,10 @@ $listOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-lis
 $listOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-list.md"
 $arrayOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-array.json"
 $arrayOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-array.md"
+$reviewStateFixtureDir = Join-Path $resolvedWorkingDir "review-state-fixture"
+$reviewStateSummaryPath = Join-Path $reviewStateFixtureDir "summary.json"
+$reviewStateOutputJsonPath = Join-Path $resolvedWorkingDir "schema-approval-history-review-state.json"
+$reviewStateOutputMarkdownPath = Join-Path $resolvedWorkingDir "schema-approval-history-review-state.md"
 $dirModeFixtureDir = Join-Path $resolvedWorkingDir "dir-mode"
 $dirModeNestedSummaryDir = Join-Path $dirModeFixtureDir "nested"
 $dirModeSummaryPath = Join-Path $dirModeFixtureDir "summary.json"
@@ -408,6 +412,87 @@ Assert-True -Condition (@($arrayHistory.runs | ForEach-Object { [string]$_.summa
     -Message "Array SummaryJson should include the smoke summary source."
 Assert-True -Condition (@($arrayHistory.runs | ForEach-Object { [string]$_.summary_json_display }) -contains $expectedReleaseSummaryDisplay) `
     -Message "Array SummaryJson should include the release summary source."
+
+New-Item -ItemType Directory -Path $reviewStateFixtureDir -Force | Out-Null
+$reviewStateSummary = [ordered]@{
+    generated_at = "2026-05-03T10:00:00"
+    schema_patch_review_count = 2
+    schema_patch_review_changed_count = 2
+    schema_patch_approval_pending_count = 1
+    schema_patch_approval_approved_count = 0
+    schema_patch_approval_rejected_count = 1
+    schema_patch_approval_compliance_issue_count = 0
+    schema_patch_approval_invalid_result_count = 0
+    schema_patch_approval_gate_status = "pending"
+    schema_patch_approval_gate_blocked = $false
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "schema-review-policy-pending"
+            project_id = "project-policy"
+            template_name = "policy-template"
+            candidate_type = "update"
+            status = "pending_review"
+            decision = "pending"
+            action = "review_schema_update_candidate"
+            compliance_issue_count = 0
+            compliance_issues = @()
+        },
+        [ordered]@{
+            name = "schema-review-notice-rejected"
+            project_id = "project-notice"
+            template_name = "notice-template"
+            candidate_type = "update"
+            status = "rejected"
+            decision = "rejected"
+            action = "revise_schema_update_candidate"
+            compliance_issue_count = 0
+            compliance_issues = @()
+        }
+    )
+}
+($reviewStateSummary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $reviewStateSummaryPath -Encoding UTF8
+$reviewStateResult = Invoke-ScriptAndCapture -ScriptPath $scriptPath -Arguments @(
+    "-SummaryJson", $reviewStateSummaryPath,
+    "-OutputJson", $reviewStateOutputJsonPath,
+    "-OutputMarkdown", $reviewStateOutputMarkdownPath
+)
+Assert-Equal -Actual $reviewStateResult.ExitCode -Expected 0 `
+    -Message "Schema approval history writer should expose reviewer action guidance for pending/rejected matrix rows. Output: $($reviewStateResult.Text)"
+$reviewStateHistory = Get-Content -Raw -Encoding UTF8 -LiteralPath $reviewStateOutputJsonPath | ConvertFrom-Json
+Assert-Equal -Actual ([int]$reviewStateHistory.project_template_approval_matrix_latest_pending_template_count) -Expected 1 `
+    -Message "Approval matrix should count currently pending template scopes."
+Assert-Equal -Actual ([int]$reviewStateHistory.project_template_approval_matrix_latest_rejected_template_count) -Expected 1 `
+    -Message "Approval matrix should count currently rejected template scopes."
+
+$pendingMatrix = $reviewStateHistory.project_template_approval_matrix | Where-Object { $_.template_scope -eq "project-policy/policy-template" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$pendingMatrix.latest_review_state) -Expected "pending" `
+    -Message "Approval matrix should preserve the pending state for reviewer action routing."
+Assert-Equal -Actual ([bool]$pendingMatrix.requires_reviewer_action) -Expected $true `
+    -Message "Pending matrix rows should require reviewer action."
+Assert-Equal -Actual ([string]$pendingMatrix.reviewer_action_summary) -Expected "review_schema_update_candidate" `
+    -Message "Pending matrix rows should expose the source reviewer action."
+Assert-True -Condition (@($pendingMatrix.reviewer_actions) -contains "review_schema_update_candidate") `
+    -Message "Pending matrix rows should expose reviewer action arrays."
+Assert-ContainsText -Text ([string]$pendingMatrix.reviewer_action_reason) -ExpectedText "latest_review_state=pending" `
+    -Message "Pending matrix rows should explain why reviewer action is required."
+
+$rejectedMatrix = $reviewStateHistory.project_template_approval_matrix | Where-Object { $_.template_scope -eq "project-notice/notice-template" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$rejectedMatrix.latest_review_state) -Expected "rejected" `
+    -Message "Approval matrix should preserve the rejected state for reviewer action routing."
+Assert-Equal -Actual ([bool]$rejectedMatrix.requires_reviewer_action) -Expected $true `
+    -Message "Rejected matrix rows should require reviewer action."
+Assert-Equal -Actual ([string]$rejectedMatrix.reviewer_action_summary) -Expected "revise_schema_update_candidate" `
+    -Message "Rejected matrix rows should expose the source reviewer action."
+
+$reviewStateMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $reviewStateOutputMarkdownPath
+Assert-ContainsText -Text $reviewStateMarkdown -ExpectedText "project-policy/policy-template: state=pending" `
+    -Message "Markdown matrix should include pending template scope."
+Assert-ContainsText -Text $reviewStateMarkdown -ExpectedText "reviewer_action=review_schema_update_candidate" `
+    -Message "Markdown matrix should include pending reviewer action guidance."
+Assert-ContainsText -Text $reviewStateMarkdown -ExpectedText "project-notice/notice-template: state=rejected" `
+    -Message "Markdown matrix should include rejected template scope."
+Assert-ContainsText -Text $reviewStateMarkdown -ExpectedText "reviewer_action=revise_schema_update_candidate" `
+    -Message "Markdown matrix should include rejected reviewer action guidance."
 
 New-Item -ItemType Directory -Path $dirModeNestedSummaryDir -Force | Out-Null
 $dirModeSummary = [ordered]@{

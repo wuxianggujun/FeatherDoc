@@ -74,6 +74,9 @@ P1：模板契约与项目模板工作流
    * 增强 pending / rejected / approved 状态的人工复核入口。
    * 保持 ``project_template_approval_matrix`` 可按 ``project_id`` /
      ``template_name`` 展示最新状态、历史阻断和 reviewer action。
+   * ``project_template_approval_matrix`` 已增加 ``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions``，并用 pending /
+     rejected fixture 覆盖人工复核入口。
    * 把审批历史趋势继续接入 release blocker rollup 和 checklist。
 
 4. schema migration 人工复核入口：
@@ -284,5 +287,5 @@ P3：文档、测试与索引治理
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
    report、notice、tender。下一步先按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-RELEASE-01`` 小步补 release-facing source / command guidance，
-   再回到 ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。
+   ``P1-APPROVAL-01`` 已开始补 approval matrix 的 reviewer action 字段；
+   下一步继续确认这些字段进入 release blocker rollup 和 reviewer bundle。

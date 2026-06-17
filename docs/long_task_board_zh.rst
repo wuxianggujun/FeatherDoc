@@ -123,6 +123,9 @@
      ``project_template_approval_matrix``，并在 ``entry_histories`` 中保留
      ``project_id``、``template_name`` 与 ``template_scope``，方便 reviewer 按项目模板
      复核最新状态、历史阻断和下一步 action。
+     approval matrix 现在还会输出 ``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions``，让 pending / rejected
+     的模板行直接带可执行复核入口。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
      同步解释。
 
