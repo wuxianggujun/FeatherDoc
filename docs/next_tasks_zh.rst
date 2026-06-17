@@ -72,6 +72,8 @@ P1：模板契约与项目模板工作流
 
    * 让 schema approval history 更适合多项目、多模板、多轮审批。
    * 增强 pending / rejected / approved 状态的人工复核入口。
+   * 保持 ``project_template_approval_matrix`` 可按 ``project_id`` /
+     ``template_name`` 展示最新状态、历史阻断和 reviewer action。
    * 把审批历史趋势继续接入 release blocker rollup 和 checklist。
 
 4. schema migration 人工复核入口：

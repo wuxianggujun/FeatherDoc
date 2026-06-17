@@ -189,10 +189,13 @@ schema approval 字段的 ``summary.json``，避免把无关治理摘要和
 ``schema_patch_approval_result.json`` 等审批明细误算成一次运行。报表同时写出
 ``latest_blocking_summary`` 和 ``entry_histories``：前者直接指出最近一次阻断的
 条目、审计缺口和修复动作，后者按模板 entry 聚合 blocked / pending / approved /
-needs_changes 的历史状态。release-candidate preflight 在启用 project template smoke
-时会自动生成 ``project_template_schema_approval_history.json`` / ``.md`` 并写入 release
-交付文档。这样接入新模板或发布前复核时，都能直接看到 schema drift 的可审计摘要、
-审批记录与下一步动作。
+needs_changes 的历史状态。报表还会写出 ``project_template_approval_matrix``，
+按 ``project_id`` / ``template_name`` / ``template_scope`` 聚合多项目模板的最新审批
+状态、历史阻断次数、待处理 action 和 source summary，避免 reviewer 只能按零散
+entry name 排查。release-candidate preflight 在启用 project template smoke 时会自动
+生成 ``project_template_schema_approval_history.json`` / ``.md`` 并写入 release 交付文档。
+这样接入新模板或发布前复核时，都能直接看到 schema drift 的可审计摘要、审批记录、
+项目模板矩阵与下一步动作。
 
 ``write_schema_patch_confidence_calibration_report.ps1`` 现在会在
 ``featherdoc.schema_patch_confidence_calibration_report.v1`` 中写出

@@ -76,6 +76,44 @@ function Get-RepoRelativeDisplayPath {
     return $resolvedPath
 }
 
+function Get-LatestNonEmptyString {
+    param(
+        [object[]]$Values,
+        [string]$DefaultValue = ""
+    )
+
+    $normalizedValues = @($Values)
+    for ($index = $normalizedValues.Count - 1; $index -ge 0; $index -= 1) {
+        $value = [string]($normalizedValues[$index])
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+
+    return $DefaultValue
+}
+
+function Get-TemplateScope {
+    param(
+        [string]$ProjectId,
+        [string]$TemplateName,
+        [string]$Fallback = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ProjectId) -and
+        -not [string]::IsNullOrWhiteSpace($TemplateName)) {
+        return "$ProjectId/$TemplateName"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TemplateName)) {
+        return $TemplateName
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ProjectId)) {
+        return $ProjectId
+    }
+
+    return $Fallback
+}
+
 function Ensure-PathParent {
     param([string]$Path)
 
@@ -308,9 +346,16 @@ function New-SchemaApprovalHistoryApprovalItem {
     $approvalResult = Get-OptionalStringProperty -Object $Item -Name "approval_result"
     $schemaUpdateCandidate = Get-OptionalStringProperty -Object $Item -Name "schema_update_candidate"
     $reviewJson = Get-OptionalStringProperty -Object $Item -Name "review_json"
+    $name = Get-OptionalStringProperty -Object $Item -Name "name"
+    $projectId = Get-OptionalStringProperty -Object $Item -Name "project_id"
+    $templateName = Get-OptionalStringProperty -Object $Item -Name "template_name"
 
     return [pscustomobject]@{
-        name = Get-OptionalStringProperty -Object $Item -Name "name"
+        name = $name
+        project_id = $projectId
+        template_name = $templateName
+        template_scope = Get-TemplateScope -ProjectId $projectId -TemplateName $templateName -Fallback $name
+        candidate_type = Get-OptionalStringProperty -Object $Item -Name "candidate_type"
         status = $status
         decision = Get-OptionalStringProperty -Object $Item -Name "decision"
         action = Get-OptionalStringProperty -Object $Item -Name "action"
@@ -465,6 +510,10 @@ function New-SchemaApprovalEntryHistories {
                         generated_at = [string]$run.generated_at
                         summary_json = [string]$run.summary_json
                         summary_json_display = [string]$run.summary_json_display
+                        project_id = [string]$item.project_id
+                        template_name = [string]$item.template_name
+                        template_scope = [string]$item.template_scope
+                        candidate_type = [string]$item.candidate_type
                         status = [string]$item.status
                         decision = [string]$item.decision
                         action = [string]$item.action
@@ -487,6 +536,10 @@ function New-SchemaApprovalEntryHistories {
             continue
         }
         $latestSnapshot = $orderedSnapshots[-1]
+        $projectId = Get-LatestNonEmptyString -Values @($orderedSnapshots | ForEach-Object { [string]$_.project_id })
+        $templateName = Get-LatestNonEmptyString -Values @($orderedSnapshots | ForEach-Object { [string]$_.template_name }) -DefaultValue $entryName
+        $templateScope = Get-TemplateScope -ProjectId $projectId -TemplateName $templateName -Fallback $entryName
+        $candidateType = Get-LatestNonEmptyString -Values @($orderedSnapshots | ForEach-Object { [string]$_.candidate_type })
         $issueKeys = @($orderedSnapshots |
             ForEach-Object { @($_.compliance_issues) } |
             Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
@@ -494,6 +547,10 @@ function New-SchemaApprovalEntryHistories {
 
         [void]$histories.Add([pscustomobject]@{
             name = $entryName
+            project_id = $projectId
+            template_name = $templateName
+            template_scope = $templateScope
+            candidate_type = $candidateType
             run_count = $orderedSnapshots.Count
             blocked_run_count = @($orderedSnapshots | Where-Object { [bool]$_.blocked }).Count
             pending_run_count = @($orderedSnapshots | Where-Object { $_.decision -eq "pending" -or $_.status -eq "pending_review" }).Count
@@ -506,6 +563,7 @@ function New-SchemaApprovalEntryHistories {
             latest_status = [string]$latestSnapshot.status
             latest_decision = [string]$latestSnapshot.decision
             latest_action = [string]$latestSnapshot.action
+            latest_blocked = [bool]$latestSnapshot.blocked
             latest_compliance_issue_count = [int]$latestSnapshot.compliance_issue_count
             latest_compliance_issues = @($latestSnapshot.compliance_issues)
             latest_summary_json = [string]$latestSnapshot.summary_json
@@ -517,6 +575,120 @@ function New-SchemaApprovalEntryHistories {
     }
 
     return @($histories.ToArray() | Sort-Object name)
+}
+
+function Get-SchemaApprovalEntryLatestReviewState {
+    param($Entry)
+
+    $status = [string]$Entry.latest_status
+    $decision = [string]$Entry.latest_decision
+    if ([bool]$Entry.latest_blocked -or $status -eq "invalid_result" -or [int]$Entry.latest_compliance_issue_count -gt 0) {
+        return "blocked"
+    }
+    if ($decision -eq "pending" -or $status -eq "pending_review") {
+        return "pending"
+    }
+    if ($decision -in @("rejected", "needs_changes") -or $status -in @("rejected", "needs_changes")) {
+        return "rejected"
+    }
+    if ($decision -eq "approved" -or $status -eq "approved") {
+        return "approved"
+    }
+    if ($decision -eq "not_required" -or $status -eq "not_required") {
+        return "not_required"
+    }
+
+    return "unknown"
+}
+
+function Get-SchemaApprovalMatrixReviewState {
+    param([string[]]$States)
+
+    if (@($States | Where-Object { $_ -eq "blocked" }).Count -gt 0) {
+        return "blocked"
+    }
+    if (@($States | Where-Object { $_ -eq "pending" }).Count -gt 0) {
+        return "pending"
+    }
+    if (@($States | Where-Object { $_ -eq "rejected" }).Count -gt 0) {
+        return "rejected"
+    }
+    if (@($States | Where-Object { $_ -eq "approved" }).Count -gt 0) {
+        return "approved"
+    }
+    if (@($States | Where-Object { $_ -eq "not_required" }).Count -gt 0) {
+        return "not_required"
+    }
+
+    return "unknown"
+}
+
+function New-SchemaApprovalReviewMatrix {
+    param([object[]]$EntryHistories)
+
+    $scopes = @($EntryHistories |
+        ForEach-Object { [string]$_.template_scope } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+
+    $matrix = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($scope in $scopes) {
+        $scopeEntries = @($EntryHistories | Where-Object { [string]$_.template_scope -eq $scope } | Sort-Object name)
+        if ($scopeEntries.Count -eq 0) {
+            continue
+        }
+
+        $latestOrderedEntries = @($scopeEntries | Sort-Object latest_generated_at, latest_summary_json_display, name)
+        $latestEntry = $latestOrderedEntries[-1]
+        $latestStates = @($scopeEntries | ForEach-Object { Get-SchemaApprovalEntryLatestReviewState -Entry $_ })
+        $reviewState = Get-SchemaApprovalMatrixReviewState -States $latestStates
+        $issueKeys = @($scopeEntries |
+            ForEach-Object { @($_.issue_keys) } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            Sort-Object -Unique)
+        $latestActions = @($scopeEntries |
+            ForEach-Object { [string]$_.latest_action } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique)
+
+        $entryDetails = @(
+            foreach ($entry in $scopeEntries) {
+                [pscustomobject]@{
+                    name = [string]$entry.name
+                    latest_review_state = Get-SchemaApprovalEntryLatestReviewState -Entry $entry
+                    latest_status = [string]$entry.latest_status
+                    latest_decision = [string]$entry.latest_decision
+                    latest_action = [string]$entry.latest_action
+                    run_count = [int]$entry.run_count
+                    blocked_run_count = [int]$entry.blocked_run_count
+                    latest_summary_json_display = [string]$entry.latest_summary_json_display
+                }
+            }
+        )
+
+        [void]$matrix.Add([pscustomobject]@{
+            template_scope = $scope
+            project_id = Get-LatestNonEmptyString -Values @($scopeEntries | ForEach-Object { [string]$_.project_id })
+            template_name = Get-LatestNonEmptyString -Values @($scopeEntries | ForEach-Object { [string]$_.template_name }) -DefaultValue $scope
+            latest_review_state = $reviewState
+            requires_reviewer_action = ($reviewState -notin @("approved", "not_required"))
+            entry_count = $scopeEntries.Count
+            run_count = [int](@($scopeEntries | Measure-Object -Property run_count -Sum).Sum)
+            historical_blocked_run_count = [int](@($scopeEntries | Measure-Object -Property blocked_run_count -Sum).Sum)
+            latest_blocked_entry_count = @($latestStates | Where-Object { $_ -eq "blocked" }).Count
+            latest_pending_entry_count = @($latestStates | Where-Object { $_ -eq "pending" }).Count
+            latest_rejected_entry_count = @($latestStates | Where-Object { $_ -eq "rejected" }).Count
+            latest_approved_entry_count = @($latestStates | Where-Object { $_ -eq "approved" }).Count
+            latest_not_required_entry_count = @($latestStates | Where-Object { $_ -eq "not_required" }).Count
+            issue_keys = $issueKeys
+            latest_actions = $latestActions
+            latest_generated_at = [string]$latestEntry.latest_generated_at
+            latest_summary_json_display = [string]$latestEntry.latest_summary_json_display
+            entries = $entryDetails
+        })
+    }
+
+    return @($matrix.ToArray() | Sort-Object template_scope)
 }
 
 function Write-HistoryMarkdown {
@@ -537,6 +709,10 @@ function Write-HistoryMarkdown {
     [void]$lines.Add("- Passed runs: $($History.passed_run_count)")
     [void]$lines.Add("- Total compliance issues: $($History.total_schema_patch_approval_compliance_issue_count)")
     [void]$lines.Add("- Total invalid approval results: $($History.total_schema_patch_approval_invalid_result_count)")
+    [void]$lines.Add("- Project-template approval matrix templates: $($History.project_template_approval_matrix_template_count)")
+    [void]$lines.Add("- Project-template approval matrix projects: $($History.project_template_approval_matrix_project_count)")
+    [void]$lines.Add("- Project-template approval matrix latest pending templates: $($History.project_template_approval_matrix_latest_pending_template_count)")
+    [void]$lines.Add("- Project-template approval matrix latest blocked templates: $($History.project_template_approval_matrix_latest_blocked_template_count)")
     if ($History.latest_blocking_summary.status -eq "blocked") {
         $latestIssues = @($History.latest_blocking_summary.issue_keys) -join ","
         if ([string]::IsNullOrWhiteSpace($latestIssues)) {
@@ -561,6 +737,24 @@ function Write-HistoryMarkdown {
         }
     } else {
         [void]$lines.Add("- No blocked schema approval run found in the selected summaries.")
+    }
+    [void]$lines.Add("")
+    [void]$lines.Add("## Project Template Approval Matrix")
+    [void]$lines.Add("")
+    if (@($History.project_template_approval_matrix).Count -gt 0) {
+        foreach ($item in @($History.project_template_approval_matrix)) {
+            $actions = @($item.latest_actions) -join ","
+            if ([string]::IsNullOrWhiteSpace($actions)) {
+                $actions = "(none)"
+            }
+            $issues = @($item.issue_keys) -join ","
+            if ([string]::IsNullOrWhiteSpace($issues)) {
+                $issues = "(none)"
+            }
+            [void]$lines.Add("- $($item.template_scope): state=$($item.latest_review_state) project=$($item.project_id) template=$($item.template_name) entries=$($item.entry_count) runs=$($item.run_count) historical_blocked_runs=$($item.historical_blocked_run_count) latest_blocked=$($item.latest_blocked_entry_count) latest_pending=$($item.latest_pending_entry_count) latest_rejected=$($item.latest_rejected_entry_count) latest_approved=$($item.latest_approved_entry_count) actions=$actions issues=$issues summary=$($item.latest_summary_json_display)")
+        }
+    } else {
+        [void]$lines.Add("- No project-template approval matrix entries found in the selected summaries.")
     }
     [void]$lines.Add("")
     [void]$lines.Add("## Entry History")
@@ -632,7 +826,8 @@ foreach ($summaryPath in $summaryPaths) {
 $sortedRuns = @($runs.ToArray() | Sort-Object generated_at, summary_json)
 $latestRun = if ($sortedRuns.Count -gt 0) { $sortedRuns[-1] } else { $null }
 $latestBlockingSummary = New-LatestSchemaApprovalBlockingSummary -Runs $sortedRuns
-$entryHistories = New-SchemaApprovalEntryHistories -Runs $sortedRuns
+$entryHistories = @(New-SchemaApprovalEntryHistories -Runs $sortedRuns)
+$projectTemplateApprovalMatrix = @(New-SchemaApprovalReviewMatrix -EntryHistories $entryHistories)
 $history = [ordered]@{
     schema = "featherdoc.project_template_schema_approval_history.v1"
     generated_at = (Get-Date).ToString("s")
@@ -648,6 +843,14 @@ $history = [ordered]@{
     latest_gate_status = if ($null -ne $latestRun) { [string]$latestRun.schema_patch_approval_gate_status } else { "not_required" }
     latest_summary_json = if ($null -ne $latestRun) { [string]$latestRun.summary_json } else { "" }
     latest_blocking_summary = $latestBlockingSummary
+    project_template_approval_matrix_template_count = $projectTemplateApprovalMatrix.Count
+    project_template_approval_matrix_project_count = @($projectTemplateApprovalMatrix | ForEach-Object { [string]$_.project_id } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique).Count
+    project_template_approval_matrix_latest_pending_template_count = @($projectTemplateApprovalMatrix | Where-Object { $_.latest_review_state -eq "pending" }).Count
+    project_template_approval_matrix_latest_blocked_template_count = @($projectTemplateApprovalMatrix | Where-Object { $_.latest_review_state -eq "blocked" }).Count
+    project_template_approval_matrix_latest_rejected_template_count = @($projectTemplateApprovalMatrix | Where-Object { $_.latest_review_state -eq "rejected" }).Count
+    project_template_approval_matrix_latest_approved_template_count = @($projectTemplateApprovalMatrix | Where-Object { $_.latest_review_state -eq "approved" }).Count
+    project_template_approval_matrix_missing_project_metadata_count = @($projectTemplateApprovalMatrix | Where-Object { [string]::IsNullOrWhiteSpace([string]$_.project_id) }).Count
+    project_template_approval_matrix = $projectTemplateApprovalMatrix
     entry_histories = $entryHistories
     runs = $sortedRuns
 }

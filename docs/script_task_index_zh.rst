@@ -130,7 +130,8 @@
 - ``scripts/sync_project_template_schema_approval.ps1``：同步项目模板 schema
   approval 的 reviewer 决策与发布摘要。
 - ``scripts/write_project_template_schema_approval_history.ps1``：汇总多次
-  smoke / release summary 的 schema approval 历史。
+  smoke / release summary 的 schema approval 历史，并输出
+  ``project_template_approval_matrix`` 多项目模板审批矩阵。
 - ``scripts/build_project_template_onboarding_governance_report.ps1``：生成
   onboarding governance 报告。
 - ``scripts/build_project_template_delivery_readiness_report.ps1``：生成项目模板

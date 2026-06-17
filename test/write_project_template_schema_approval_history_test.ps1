@@ -146,6 +146,9 @@ $smokeSummary = [ordered]@{
     schema_patch_approval_items = @(
         [ordered]@{
             name = "schema-review-invalid"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            candidate_type = "update"
             status = "invalid_result"
             decision = "needs_changes"
             action = "fix_schema_patch_approval_result"
@@ -168,10 +171,10 @@ $releaseSummary = [ordered]@{
     }
     project_template_smoke = [ordered]@{
         summary_json = $smokeSummaryPath
-        schema_patch_review_count = 1
-        schema_patch_review_changed_count = 1
+        schema_patch_review_count = 2
+        schema_patch_review_changed_count = 2
         schema_patch_approval_pending_count = 0
-        schema_patch_approval_approved_count = 1
+        schema_patch_approval_approved_count = 2
         schema_patch_approval_rejected_count = 0
         schema_patch_approval_compliance_issue_count = 0
         schema_patch_approval_invalid_result_count = 0
@@ -179,6 +182,20 @@ $releaseSummary = [ordered]@{
         schema_patch_approval_items = @(
             [ordered]@{
                 name = "schema-review-invalid"
+                project_id = "project-finance"
+                template_name = "invoice-template"
+                candidate_type = "update"
+                status = "approved"
+                decision = "approved"
+                action = "promote_schema_update_candidate"
+                compliance_issue_count = 0
+                compliance_issues = @()
+            },
+            [ordered]@{
+                name = "schema-review-contract"
+                project_id = "project-legal"
+                template_name = "contract-template"
+                candidate_type = "add"
                 status = "approved"
                 decision = "approved"
                 action = "promote_schema_update_candidate"
@@ -226,9 +243,9 @@ Assert-Equal -Actual ([int]$history.passed_run_count) -Expected 1 `
     -Message "History should count passed runs."
 Assert-Equal -Actual ([int]$history.not_required_run_count) -Expected 0 `
     -Message "Unrelated directory summaries should not be counted as not_required runs."
-Assert-Equal -Actual ([int]$history.total_schema_patch_review_changed_count) -Expected 3 `
+Assert-Equal -Actual ([int]$history.total_schema_patch_review_changed_count) -Expected 4 `
     -Message "History should sum changed review counts."
-Assert-Equal -Actual ([int]$history.total_schema_patch_approval_item_count) -Expected 3 `
+Assert-Equal -Actual ([int]$history.total_schema_patch_approval_item_count) -Expected 4 `
     -Message "History should sum approval item counts from rollup counts and item arrays."
 Assert-Equal -Actual ([int]$history.total_schema_patch_approval_compliance_issue_count) -Expected 2 `
     -Message "History should sum compliance issue counts."
@@ -275,6 +292,45 @@ Assert-Equal -Actual ([string]$entryHistory.latest_summary_json_display) -Expect
     -Message "Entry history should expose the latest source summary display path."
 Assert-True -Condition (@($entryHistory.issue_keys) -contains "missing_reviewer") `
     -Message "Entry history should preserve historical issue keys."
+Assert-Equal -Actual ([string]$entryHistory.project_id) -Expected "project-finance" `
+    -Message "Entry history should preserve project id metadata."
+Assert-Equal -Actual ([string]$entryHistory.template_name) -Expected "invoice-template" `
+    -Message "Entry history should preserve template name metadata."
+Assert-Equal -Actual ([string]$entryHistory.template_scope) -Expected "project-finance/invoice-template" `
+    -Message "Entry history should expose a stable project/template scope."
+
+$contractEntryHistory = $history.entry_histories | Where-Object { $_.name -eq "schema-review-contract" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$contractEntryHistory.project_id) -Expected "project-legal" `
+    -Message "Entry history should preserve project metadata for additional templates."
+Assert-Equal -Actual ([string]$contractEntryHistory.template_scope) -Expected "project-legal/contract-template" `
+    -Message "Entry history should expose additional template scopes."
+
+Assert-Equal -Actual ([int]$history.project_template_approval_matrix_template_count) -Expected 2 `
+    -Message "Approval review matrix should count project/template scopes."
+Assert-Equal -Actual ([int]$history.project_template_approval_matrix_project_count) -Expected 2 `
+    -Message "Approval review matrix should count projects with metadata."
+Assert-Equal -Actual ([int]$history.project_template_approval_matrix_latest_approved_template_count) -Expected 2 `
+    -Message "Approval review matrix should count latest approved templates."
+Assert-Equal -Actual ([int]$history.project_template_approval_matrix_latest_blocked_template_count) -Expected 0 `
+    -Message "Approval review matrix should not treat historically fixed templates as currently blocked."
+Assert-Equal -Actual ([int]$history.project_template_approval_matrix_missing_project_metadata_count) -Expected 0 `
+    -Message "Approval review matrix should expose missing project metadata counts."
+
+$invoiceMatrix = $history.project_template_approval_matrix | Where-Object { $_.template_scope -eq "project-finance/invoice-template" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$invoiceMatrix.latest_review_state) -Expected "approved" `
+    -Message "Approval review matrix should expose the latest invoice template state."
+Assert-Equal -Actual ([int]$invoiceMatrix.run_count) -Expected 2 `
+    -Message "Approval review matrix should count invoice approval runs."
+Assert-Equal -Actual ([int]$invoiceMatrix.historical_blocked_run_count) -Expected 1 `
+    -Message "Approval review matrix should preserve historical blocked run counts."
+Assert-Equal -Actual ([bool]$invoiceMatrix.requires_reviewer_action) -Expected $false `
+    -Message "Approval review matrix should not require action after latest approval."
+
+$contractMatrix = $history.project_template_approval_matrix | Where-Object { $_.template_scope -eq "project-legal/contract-template" } | Select-Object -First 1
+Assert-Equal -Actual ([string]$contractMatrix.latest_review_state) -Expected "approved" `
+    -Message "Approval review matrix should expose the latest contract template state."
+Assert-Equal -Actual ([int]$contractMatrix.run_count) -Expected 1 `
+    -Message "Approval review matrix should count contract approval runs."
 
 $passedRun = $history.runs | Where-Object { $_.schema_patch_approval_gate_status -eq "passed" } | Select-Object -First 1
 Assert-Equal -Actual ([string]$passedRun.source_kind) -Expected "release_candidate_summary" `
@@ -303,6 +359,12 @@ Assert-ContainsText -Text $markdown -ExpectedText "Latest blocking summary: 2026
     -Message "Markdown should include the latest blocked run timestamp."
 Assert-ContainsText -Text $markdown -ExpectedText "summary=$expectedSmokeSummaryDisplay" `
     -Message "Markdown should include the latest blocked run source summary display path."
+Assert-ContainsText -Text $markdown -ExpectedText "## Project Template Approval Matrix" `
+    -Message "Markdown should include the project/template approval matrix section."
+Assert-ContainsText -Text $markdown -ExpectedText "project-finance/invoice-template: state=approved project=project-finance template=invoice-template" `
+    -Message "Markdown should summarize invoice approval matrix status."
+Assert-ContainsText -Text $markdown -ExpectedText "project-legal/contract-template: state=approved project=project-legal template=contract-template" `
+    -Message "Markdown should summarize contract approval matrix status."
 Assert-ContainsText -Text $markdown -ExpectedText "## Entry History" `
     -Message "Markdown should include entry history section."
 Assert-ContainsText -Text $markdown -ExpectedText "schema-review-invalid: latest=approved/approved runs=2 blocked_runs=1" `
@@ -311,6 +373,7 @@ Assert-ContainsText -Text $markdown -ExpectedText "summary=$expectedReleaseSumma
     -Message "Markdown should include the latest entry source summary display path."
 Assert-TextOrder -Text $markdown -ExpectedTexts @(
     "## Latest Blocking Summary",
+    "## Project Template Approval Matrix",
     "## Entry History",
     "## Runs",
     "## Blocked Approval Items"

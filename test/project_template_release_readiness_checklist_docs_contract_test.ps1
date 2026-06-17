@@ -233,6 +233,7 @@ foreach ($marker in @(
     "schema_patch_approval_gate_status",
     "schema_patch_approval_invalid_result_count",
     "project_template_smoke.schema_approval",
+    "project_template_approval_matrix",
     "write_project_template_schema_approval_history.ps1"
 )) {
     Assert-ContainsText -Text $templateSchemaDoc -ExpectedText $marker `

@@ -117,14 +117,18 @@
 
 5. ``P1-APPROVAL-01``：多项目 schema approval 维护体验
 
-   * 状态：``DOING``。
+   * 状态：``GUARDED``。
    * 目标：让 pending / rejected / approved 历史更适合多项目、多模板、多轮审批。
+   * 当前产物：``write_project_template_schema_approval_history.ps1`` 会输出
+     ``project_template_approval_matrix``，并在 ``entry_histories`` 中保留
+     ``project_id``、``template_name`` 与 ``template_scope``，方便 reviewer 按项目模板
+     复核最新状态、历史阻断和下一步 action。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
      同步解释。
 
 6. ``P1-CONTENT-01``：content-control 与 Custom XML 绑定治理
 
-   * 状态：``TODO``。
+   * 状态：``DOING``。
    * 目标：继续强化 content-control slot、数据绑定、修复建议和模板 schema 的闭环。
    * 验收：新增规则必须能说明自动修复、人工确认或发布阻断的边界。
 
@@ -180,9 +184,9 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-APPROVAL-01``，优先检查 schema approval history 是否能直接展示
-   多项目、多模板、多轮审批状态。
-3. 小步补 reviewer-facing 的 pending / rejected / approved 入口，不直接改动历史数据。
+2. 继续推进 ``P1-CONTENT-01``，优先检查 content-control / Custom XML
+   data-binding 治理报告是否仍有 reviewer-facing 缺口。
+3. 小步补自动可修复、需人工确认、必须阻断发布三类动作的 source 和 command。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

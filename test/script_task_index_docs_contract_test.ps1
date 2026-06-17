@@ -177,6 +177,7 @@ foreach ($marker in @(
         "status",
         "release_ready",
         "schema_approval_status_summary",
+        "project_template_approval_matrix",
         "project_template_delivery_readiness_contract",
         "project_template_onboarding_governance_contract",
         "release_entry_project_template_readiness_checklist_material_safety_audit",
