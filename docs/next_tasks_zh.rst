@@ -119,9 +119,13 @@ P1：Release governance 与发布材料一致性
      ``action=sync_or_fill_bound_content_control`` 和
      ``action=review_duplicate_content_control_binding``，防止 reviewer-facing
      文档丢失可分流处理的 action id。
+   * release note bundle fixture 已补 ``repair_action_classes``，统一 helper
+     现在要求四份入口文档保留 content-control blocker 的
+     ``release_blocking`` / ``auto_repair_candidate`` /
+     ``manual_confirmation_required`` 以及 duplicate-binding action item 的
+     ``manual_confirmation_required``。
    * 下一步转向 release-facing 入口材料里 source 和 command guidance
-     以及 action-class guidance 的完整性检查，避免只展示结论而缺少
-     可执行修复路径或处理边界。
+     的完整性检查，避免只展示结论而缺少可执行修复路径。
 
 
 P2：样式与编号治理
@@ -275,5 +279,5 @@ P3：文档、测试与索引治理
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
    report、notice、tender。下一步先按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-RELEASE-01`` 小步补 release-facing source / command / action-class guidance，
+   ``P1-RELEASE-01`` 小步补 release-facing source / command guidance，
    再回到 ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。

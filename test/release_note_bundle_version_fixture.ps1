@@ -281,6 +281,7 @@ $summary = [ordered]@{
                 repair_strategy = "sync_bound_content_control"
                 repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
                 command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+                repair_action_classes = @("release_blocking", "auto_repair_candidate", "manual_confirmation_required")
             },
             [ordered]@{
                 id = "project_template_onboarding.schema_approval"
@@ -388,6 +389,7 @@ $summary = [ordered]@{
                 repair_strategy = "deduplicate_or_confirm_shared_binding"
                 repair_hint = "Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths."
                 command_template = "featherdoc_cli inspect-content-controls <input.docx> --json"
+                repair_action_classes = @("manual_confirmation_required")
             },
             [ordered]@{
                 id = "review_invoice_schema"
