@@ -128,7 +128,14 @@ task 误算进 review scope。
   ``project_template_workflow_dashboard.md``，并把 ``status``、``release_ready``、
   ``release_blocker_count``、``warning_count``、``source_report_count`` 与
   ``next_action`` 写回 ``summary.json``、``steps.project_template_workflow_dashboard``
-  和 ``final_review.md``。
+  和 ``final_review.md``。发布入口材料也会同步展示
+  ``Project template workflow dashboard status``、
+  ``Project template workflow dashboard release ready``、
+  ``Project template workflow dashboard counts`` 与
+  ``Project template workflow dashboard next action``；其中
+  ``REVIEWER_CHECKLIST.md`` 会在 dashboard 未 release-ready 或 blocker 非零时保留
+  明确的 stop condition，``START_HERE.md`` 和 ``ARTIFACT_GUIDE.md`` 会给出
+  dashboard JSON / Markdown 证据路径，避免 reviewer 只看到 handoff 计数。
 
 当视觉 gate 完成后，preflight 会把 ``gate_summary.json`` 中的
 ``visual_verdict``、各 flow 的 review verdict、review status、review note、

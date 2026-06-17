@@ -46,6 +46,8 @@ $defaultPipelineText = @(
     '- release_blocker_count',
     '- review_task_summary',
     '- project_template_workflow_dashboard_report',
+    '- Project template workflow dashboard status',
+    '- Project template workflow dashboard next action',
     '- release_note_bundle',
     '- entrypoint_count',
     '- required_entrypoint_count',

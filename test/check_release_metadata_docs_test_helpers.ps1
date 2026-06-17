@@ -271,8 +271,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 322) {
-        throw "Expected JSON summary to count 322 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 324) {
+        throw "Expected JSON summary to count 324 required markers, got: $($summary.required_marker_count)"
     }
 }
 

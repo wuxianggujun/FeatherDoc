@@ -88,6 +88,57 @@ function Get-VisualTaskDir {
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 . (Join-Path $PSScriptRoot "release_blocker_metadata_helpers.ps1")
 
+function Get-WorkflowDashboardValue {
+    param(
+        $Step,
+        $Report,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyValue -Object $Step -Name $Name
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        $value = Get-OptionalPropertyValue -Object $Report -Name $Name
+    }
+
+    return $value
+}
+
+function Get-WorkflowDashboardObject {
+    param(
+        $Step,
+        $Report,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyObject -Object $Step -Name $Name
+    if ($null -eq $value) {
+        $value = Get-OptionalPropertyObject -Object $Report -Name $Name
+    }
+
+    return $value
+}
+
+function Get-WorkflowDashboardNextActionValue {
+    param(
+        $NextAction,
+        [string]$Name
+    )
+
+    if ($null -eq $NextAction) {
+        return ""
+    }
+
+    if ($NextAction -is [string]) {
+        if ($Name -eq "action") {
+            return [string]$NextAction
+        }
+
+        return ""
+    }
+
+    return Get-OptionalPropertyValue -Object $NextAction -Name $Name
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -268,6 +319,65 @@ if ([string]::IsNullOrWhiteSpace($projectTemplateSmokeExcludedCandidateCount)) {
     $projectTemplateSmokeExcludedCandidateCount = Get-OptionalPropertyValue -Object $projectTemplateSmokeSummary -Name "excluded_candidate_count"
 }
 
+$projectTemplateWorkflowDashboardReport = Get-OptionalPropertyObject -Object $summary -Name "project_template_workflow_dashboard_report"
+$projectTemplateWorkflowDashboardStep = Get-OptionalPropertyObject -Object $summary.steps -Name "project_template_workflow_dashboard"
+$projectTemplateWorkflowDashboardRequested = Get-OptionalPropertyValue -Object $projectTemplateWorkflowDashboardReport -Name "requested"
+$projectTemplateWorkflowDashboardStatus = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "status"
+if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardStatus)) {
+    $projectTemplateWorkflowDashboardStatus = if ($projectTemplateWorkflowDashboardRequested -eq "True") { "requested" } else { "not_requested" }
+}
+$projectTemplateWorkflowDashboardReleaseReady = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "release_ready"
+$projectTemplateWorkflowDashboardReleaseBlockerCount = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "release_blocker_count"
+$projectTemplateWorkflowDashboardWarningCount = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "warning_count"
+$projectTemplateWorkflowDashboardSourceReportCount = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "source_report_count"
+$projectTemplateWorkflowDashboardSummaryJson = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "summary_json"
+$projectTemplateWorkflowDashboardReportMarkdown = Get-WorkflowDashboardValue `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "report_markdown"
+$projectTemplateWorkflowDashboardNextAction = Get-WorkflowDashboardObject `
+    -Step $projectTemplateWorkflowDashboardStep `
+    -Report $projectTemplateWorkflowDashboardReport `
+    -Name "next_action"
+$projectTemplateWorkflowDashboardNextActionName = Get-WorkflowDashboardNextActionValue `
+    -NextAction $projectTemplateWorkflowDashboardNextAction `
+    -Name "action"
+$projectTemplateWorkflowDashboardNextActionReason = Get-WorkflowDashboardNextActionValue `
+    -NextAction $projectTemplateWorkflowDashboardNextAction `
+    -Name "reason"
+$projectTemplateWorkflowDashboardNextActionBlockerId = Get-WorkflowDashboardNextActionValue `
+    -NextAction $projectTemplateWorkflowDashboardNextAction `
+    -Name "blocker_id"
+$projectTemplateWorkflowDashboardNextActionCommand = Get-WorkflowDashboardNextActionValue `
+    -NextAction $projectTemplateWorkflowDashboardNextAction `
+    -Name "command"
+$projectTemplateWorkflowDashboardNextActionDisplay = $projectTemplateWorkflowDashboardNextActionName
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionReason)) {
+    $projectTemplateWorkflowDashboardNextActionDisplay = if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionDisplay)) {
+        $projectTemplateWorkflowDashboardNextActionReason
+    } else {
+        "$projectTemplateWorkflowDashboardNextActionDisplay ($projectTemplateWorkflowDashboardNextActionReason)"
+    }
+}
+
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
 $consumerDocument = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "consumer_document"
@@ -389,6 +499,13 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("- Project template smoke pending visual reviews: $(Get-DisplayValue -Value $projectTemplateSmokePendingReviewCount)")
 [void]$lines.Add("- Project template smoke full coverage required: $(Get-DisplayValue -Value $projectTemplateSmokeRequireFullCoverage)")
 [void]$lines.Add("- Project template smoke candidates registered / unregistered / excluded: $(Get-DisplayValue -Value ('{0}/{1}/{2}' -f $projectTemplateSmokeRegisteredCandidateCount, $projectTemplateSmokeUnregisteredCandidateCount, $projectTemplateSmokeExcludedCandidateCount))")
+[void]$lines.Add("- Project template workflow dashboard status: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardStatus)")
+[void]$lines.Add("- Project template workflow dashboard release ready: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardReleaseReady)")
+[void]$lines.Add("- Project template workflow dashboard counts: $(Get-DisplayValue -Value ('{0} reports, {1} blockers, {2} warnings' -f $projectTemplateWorkflowDashboardSourceReportCount, $projectTemplateWorkflowDashboardReleaseBlockerCount, $projectTemplateWorkflowDashboardWarningCount))")
+[void]$lines.Add("- Project template workflow dashboard next action: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardNextActionDisplay)")
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionBlockerId)) {
+    [void]$lines.Add("- Project template workflow dashboard next blocker: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardNextActionBlockerId)")
+}
 [void]$lines.Add("- Visual verdict: $(Get-DisplayValue -Value $visualVerdict)")
 if (-not [string]::IsNullOrWhiteSpace($visualReviewTaskSummaryLine)) {
     [void]$lines.Add("- $visualReviewTaskSummaryLine")
@@ -476,6 +593,11 @@ Add-ReleaseGovernanceHandoffMarkdownSection -Lines $lines -Summary $summary -Rep
 [void]$lines.Add("- Project template smoke candidate discovery: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeCandidateDiscoveryJson)")
 [void]$lines.Add("- Project template schema approval history JSON: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryJson)")
 [void]$lines.Add("- Project template schema approval history Markdown: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateSmokeSchemaApprovalHistoryMarkdown)")
+[void]$lines.Add("- Project template workflow dashboard summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateWorkflowDashboardSummaryJson)")
+[void]$lines.Add("- Project template workflow dashboard report: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateWorkflowDashboardReportMarkdown)")
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionCommand)) {
+    [void]$lines.Add("- Project template workflow dashboard next command: $projectTemplateWorkflowDashboardNextActionCommand")
+}
 if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     [void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
 }

@@ -132,7 +132,9 @@
   ``next_action`` 固定成 ``featherdoc.project_template_workflow_dashboard.v1``，
   并在 release candidate preflight 中通过
   ``project_template_workflow_dashboard_report`` 进入 ``summary.json``、
-  ``final_review.md`` 和发布面板
+  ``final_review.md`` 和发布面板；``START_HERE.md``、``ARTIFACT_GUIDE.md`` 与
+  ``REVIEWER_CHECKLIST.md`` 也会展示 dashboard status、release_ready、blocker /
+  warning 计数、证据路径和下一步动作，避免 reviewer 只从 handoff 计数反推项目模板状态
 
 接下来更值得补的是：
 

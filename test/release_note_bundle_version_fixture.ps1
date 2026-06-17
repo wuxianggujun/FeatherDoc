@@ -4,6 +4,8 @@ $installDir = Join-Path $resolvedWorkingDir "install"
 $gateReportDir = Join-Path $resolvedWorkingDir "word-visual-release-gate\report"
 $schemaApprovalHistoryJsonPath = Join-Path $reportDir "project_template_schema_approval_history.json"
 $schemaApprovalHistoryMarkdownPath = Join-Path $reportDir "project_template_schema_approval_history.md"
+$projectTemplateWorkflowDashboardSummaryPath = Join-Path $reportDir "project_template_workflow_dashboard.json"
+$projectTemplateWorkflowDashboardMarkdownPath = Join-Path $reportDir "project_template_workflow_dashboard.md"
 $taskOutputRoot = Join-Path $resolvedWorkingDir "tasks"
 $sectionPageSetupTaskDir = Join-Path $resolvedWorkingDir "tasks\section-page-setup"
 $pageNumberFieldsTaskDir = Join-Path $resolvedWorkingDir "tasks\page-number-fields"
@@ -806,6 +808,25 @@ $summary = [ordered]@{
             (New-TableLayoutDeliveryMetricFixture)
         )
     }
+    project_template_workflow_dashboard = $projectTemplateWorkflowDashboardSummaryPath
+    project_template_workflow_dashboard_report = [ordered]@{
+        requested = $true
+        status = "blocked"
+        output_dir = $reportDir
+        summary_json = $projectTemplateWorkflowDashboardSummaryPath
+        report_markdown = $projectTemplateWorkflowDashboardMarkdownPath
+        release_ready = $false
+        release_blocker_count = 2
+        warning_count = 1
+        source_report_count = 2
+        next_action = [ordered]@{
+            action = "review_schema_update_candidate"
+            reason = "Project template onboarding schema approval is pending."
+            blocker_id = "project_template_onboarding.schema_approval"
+            command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+            source_report_id = "project_template_onboarding_governance"
+        }
+    }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
     install_dir = $installDir
@@ -838,6 +859,22 @@ $summary = [ordered]@{
             status = "completed"
             schema_patch_approval_history_json = $schemaApprovalHistoryJsonPath
             schema_patch_approval_history_markdown = $schemaApprovalHistoryMarkdownPath
+        }
+        project_template_workflow_dashboard = [ordered]@{
+            status = "blocked"
+            summary_json = $projectTemplateWorkflowDashboardSummaryPath
+            report_markdown = $projectTemplateWorkflowDashboardMarkdownPath
+            release_ready = $false
+            release_blocker_count = 2
+            warning_count = 1
+            source_report_count = 2
+            next_action = [ordered]@{
+                action = "review_schema_update_candidate"
+                reason = "Project template onboarding schema approval is pending."
+                blocker_id = "project_template_onboarding.schema_approval"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+                source_report_id = "project_template_onboarding_governance"
+            }
         }
     }
     project_template_smoke = [ordered]@{
