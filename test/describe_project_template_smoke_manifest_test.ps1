@@ -81,9 +81,37 @@ Set-Content -LiteralPath $contactSheetPath -Encoding UTF8 -Value "placeholder im
 Set-Content -LiteralPath $renderedDocxPath -Encoding UTF8 -Value "placeholder rendered docx fixture"
 
 Write-JsonFile -Path $manifestPath -Value ([ordered]@{
+    business_template_corpus = @(
+        [ordered]@{
+            id = "project-finance-invoice-template"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            document_type = "invoice"
+            status = "registered"
+            source_entry = "invoice-template"
+            smoke_contract = @("template_validations", "schema_validation", "schema_baseline", "render_data", "visual_smoke")
+            coverage_goal = "Keep invoice template smoke coverage traceable to a business corpus entry."
+            notes = "Registered business corpus fixture."
+        },
+        [ordered]@{
+            id = "project-legal-contract-template"
+            project_id = "project-legal"
+            template_name = "contract-template"
+            document_type = "contract"
+            status = "planned"
+            smoke_contract = @("schema_validation", "schema_baseline", "render_data")
+            coverage_goal = "Track planned contract template coverage without adding a binary fixture."
+        }
+    )
     entries = @(
         [ordered]@{
             name = "invoice-template"
+            project_id = "project-finance"
+            template_name = "invoice-template"
+            business_domain = "finance"
+            business_document_type = "invoice"
+            corpus_role = "registered-business-template"
+            corpus_source_note = "Invoice fixture keeps business corpus metadata in the manifest description."
             input_docx = $inputDocxPath
             template_validations = @(
                 [ordered]@{
@@ -167,6 +195,16 @@ Assert-Equal -Actual ([bool]$report.latest_summary_available) -Expected $true `
     -Message "Description JSON should record loaded summary availability."
 Assert-Equal -Actual ([int]$report.entry_count) -Expected 1 `
     -Message "Description JSON should count manifest entries."
+Assert-Equal -Actual ([int]$report.business_template_corpus_count) -Expected 2 `
+    -Message "Description JSON should count business corpus profiles."
+Assert-Equal -Actual ([int]$report.registered_business_template_corpus_count) -Expected 1 `
+    -Message "Description JSON should count registered business corpus profiles."
+Assert-Equal -Actual ([int]$report.planned_business_template_corpus_count) -Expected 1 `
+    -Message "Description JSON should count planned business corpus profiles."
+Assert-Equal -Actual ([string]$report.business_document_type_summary[0].document_type) -Expected "contract" `
+    -Message "Description JSON should expose document-type summary entries."
+Assert-Equal -Actual ([string]$report.business_template_corpus[0].source_entry) -Expected "invoice-template" `
+    -Message "Description JSON should preserve registered source entry."
 Assert-Equal -Actual ([int]$report.latest_available_entry_count) -Expected 1 `
     -Message "Description JSON should count entries joined with latest summary data."
 Assert-Equal -Actual ([int]$report.latest_missing_entry_count) -Expected 0 `
@@ -181,6 +219,12 @@ Assert-Equal -Actual ([int]$report.latest_manual_review_pending_count) -Expected
 $entry = @($report.entries)[0]
 Assert-Equal -Actual ([string]$entry.name) -Expected "invoice-template" `
     -Message "Description JSON should preserve entry name."
+Assert-Equal -Actual ([string]$entry.project_id) -Expected "project-finance" `
+    -Message "Description JSON should preserve entry project id."
+Assert-Equal -Actual ([string]$entry.business_document_type) -Expected "invoice" `
+    -Message "Description JSON should preserve business document type."
+Assert-Equal -Actual ([string]$entry.corpus_role) -Expected "registered-business-template" `
+    -Message "Description JSON should preserve corpus role."
 Assert-Equal -Actual ([string]$entry.source_type) -Expected "repository-docx" `
     -Message "Description JSON should classify absolute input_docx as repository docx."
 Assert-Equal -Actual ([int]$entry.template_validation_count) -Expected 1 `
@@ -225,6 +269,16 @@ Assert-ContainsText -Text $textResult.Text -ExpectedText "Wrote text report" `
 $textReport = Get-Content -Raw -Encoding UTF8 -LiteralPath $textOutputPath
 Assert-ContainsText -Text $textReport -ExpectedText "Project template smoke manifest:" `
     -Message "Text report should include the manifest heading."
+Assert-ContainsText -Text $textReport -ExpectedText "Business template corpus: 2" `
+    -Message "Text report should include business corpus count."
+Assert-ContainsText -Text $textReport -ExpectedText "Planned business templates: 1" `
+    -Message "Text report should include planned business corpus count."
+Assert-ContainsText -Text $textReport -ExpectedText "business_document_type: invoice" `
+    -Message "Text report should include entry business document type."
+Assert-ContainsText -Text $textReport -ExpectedText "Business template corpus:" `
+    -Message "Text report should include business corpus section."
+Assert-ContainsText -Text $textReport -ExpectedText "project-legal-contract-template" `
+    -Message "Text report should include planned contract corpus profile."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest status: needs_review" `
     -Message "Text report should include latest status."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest visual verdict: needs_review" `

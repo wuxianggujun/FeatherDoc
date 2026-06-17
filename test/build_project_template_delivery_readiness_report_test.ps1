@@ -703,6 +703,9 @@ if (Test-Scenario -Name "manifest_description") {
         latest_summary_available = $false
         entry_count = 3
         registered_entry_count = 3
+        business_template_corpus_count = 6
+        registered_business_template_corpus_count = 1
+        planned_business_template_corpus_count = 5
         schema_validation_entry_count = 2
         schema_baseline_entry_count = 2
         visual_smoke_entry_count = 2
@@ -748,6 +751,12 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only warning should expose a smoke-run repair strategy."
     Assert-Equal -Actual ([int]$missingSmokeWarning.registered_template_count) -Expected 3 `
         -Message "Manifest-only warning should preserve registered template count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.business_template_corpus_count) -Expected 6 `
+        -Message "Manifest-only warning should preserve business corpus count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_business_template_corpus_count) -Expected 1 `
+        -Message "Manifest-only warning should preserve registered business corpus count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_corpus_count) -Expected 5 `
+        -Message "Manifest-only warning should preserve planned business corpus count."
     Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 3 `
         -Message "Manifest-only warning should preserve missing latest summary count."
     Assert-ContainsText -Text ([string]$missingSmokeWarning.command_template) -ExpectedText "run_project_template_smoke.ps1" `

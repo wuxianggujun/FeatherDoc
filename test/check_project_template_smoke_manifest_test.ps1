@@ -77,6 +77,11 @@ function New-ValidEntry {
 
     return [ordered]@{
         name = $Name
+        project_id = "project-test"
+        template_name = $Name
+        business_domain = "finance"
+        business_document_type = "invoice"
+        corpus_role = "registered-business-template"
         input_docx = $InputDocx
         template_validations = @(
             [ordered]@{
@@ -132,6 +137,28 @@ Set-Content -LiteralPath $renderMappingPath -Encoding UTF8 -Value "{ `"bookmark_
 $validManifestPath = Join-Path $fixtureRoot "valid.manifest.json"
 $validOutputPath = Join-Path $resolvedWorkingDir "reports\valid_manifest_check.json"
 Write-JsonFile -Path $validManifestPath -Value ([ordered]@{
+    business_template_corpus = @(
+        [ordered]@{
+            id = "project-test-invoice-template"
+            project_id = "project-test"
+            template_name = "invoice-template"
+            document_type = "invoice"
+            status = "registered"
+            source_entry = "invoice-template"
+            smoke_contract = @("template_validations", "schema_validation", "render_data", "visual_smoke")
+            coverage_goal = "Validate the lightweight invoice business template smoke contract."
+            notes = "Regression fixture for manifest business corpus metadata."
+        },
+        [ordered]@{
+            id = "project-test-contract-template"
+            project_id = "project-test"
+            template_name = "contract-template"
+            document_type = "contract"
+            status = "planned"
+            smoke_contract = @("schema_validation", "schema_baseline")
+            coverage_goal = "Track planned contract coverage without adding a binary fixture."
+        }
+    )
     entries = @(
         (New-ValidEntry -Name "invoice-template" -InputDocx $inputDocxPath)
     )
@@ -157,6 +184,12 @@ Assert-Equal -Actual ([int]$validReport.error_count) -Expected 0 `
     -Message "Valid report should have no errors."
 Assert-Equal -Actual ([int]$validReport.entry_count) -Expected 1 `
     -Message "Valid report should count one entry."
+Assert-Equal -Actual ([int]$validReport.business_template_corpus_count) -Expected 2 `
+    -Message "Valid report should count business corpus profiles."
+Assert-Equal -Actual ([int]$validReport.registered_business_template_corpus_count) -Expected 1 `
+    -Message "Valid report should count registered business corpus profiles."
+Assert-Equal -Actual ([int]$validReport.planned_business_template_corpus_count) -Expected 1 `
+    -Message "Valid report should count planned business corpus profiles."
 Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
     -ExpectedText "template_validations" `
     -Message "Valid report should include template validation checks."
@@ -217,6 +250,50 @@ Assert-ReportContainsIssue -Report $noChecksReport `
     -ExpectedPath "entries[0]" `
     -ExpectedMessage "does not enable any checks" `
     -Message "No-checks failure should explain the missing enabled checks."
+
+$invalidBusinessCorpusManifestPath = Join-Path $fixtureRoot "invalid-business-corpus.manifest.json"
+Write-JsonFile -Path $invalidBusinessCorpusManifestPath -Value ([ordered]@{
+    business_template_corpus = @(
+        [ordered]@{
+            id = "missing-source-entry"
+            project_id = "project-test"
+            template_name = "missing-template"
+            document_type = "contract"
+            status = "registered"
+            source_entry = "not-a-manifest-entry"
+            smoke_contract = @("schema_validation")
+            coverage_goal = "This fixture should fail because registered corpus entries must point at a manifest entry."
+        },
+        [ordered]@{
+            id = "missing-source-entry"
+            project_id = "project-test"
+            template_name = "bad-contract"
+            document_type = "contract"
+            status = "planned"
+            smoke_contract = @("unknown_check")
+            coverage_goal = "This fixture should fail because corpus ids and smoke contracts are invalid."
+        }
+    )
+    entries = @(
+        (New-ValidEntry -Name "invoice-template" -InputDocx $inputDocxPath)
+    )
+})
+$invalidBusinessCorpusResult = Invoke-ManifestCheck -Arguments @("-ManifestPath", $invalidBusinessCorpusManifestPath, "-Json")
+Assert-Equal -Actual $invalidBusinessCorpusResult.ExitCode -Expected 1 `
+    -Message "Invalid business corpus manifest should fail. Output: $($invalidBusinessCorpusResult.Text)"
+$invalidBusinessCorpusReport = $invalidBusinessCorpusResult.Text | ConvertFrom-Json
+Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
+    -ExpectedPath "business_template_corpus[0].source_entry" `
+    -ExpectedMessage "must reference an existing manifest entry" `
+    -Message "Registered business corpus entries should point at manifest entries."
+Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
+    -ExpectedPath "business_template_corpus[1].id" `
+    -ExpectedMessage "must be unique across business_template_corpus" `
+    -Message "Business corpus ids should be unique."
+Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
+    -ExpectedPath "business_template_corpus[1].smoke_contract[0]" `
+    -ExpectedMessage "must be one of: template_validations, schema_validation, schema_baseline, render_data, visual_smoke" `
+    -Message "Business corpus smoke contracts should use known smoke checks."
 
 $invalidSelectionManifestPath = Join-Path $fixtureRoot "invalid-selection.manifest.json"
 Write-JsonFile -Path $invalidSelectionManifestPath -Value ([ordered]@{

@@ -15,6 +15,12 @@
         "$ref": "#/$defs/entry"
       }
     },
+    "business_template_corpus": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/businessTemplateCorpusItem"
+      }
+    },
     "candidate_exclusions": {
       "type": "array",
       "items": {
@@ -267,11 +273,93 @@
         "reason"
       ]
     },
+    "businessTemplateCorpusItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "template_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "document_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "registered",
+            "planned"
+          ]
+        },
+        "source_entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "smoke_contract": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "coverage_goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "template_name",
+        "document_type",
+        "status",
+        "smoke_contract",
+        "coverage_goal"
+      ]
+    },
     "entry": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "template_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "business_domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "business_document_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_source_note": {
           "type": "string",
           "minLength": 1
         },

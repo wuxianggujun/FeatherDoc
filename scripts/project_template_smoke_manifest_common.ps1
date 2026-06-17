@@ -105,6 +105,22 @@ function Add-ProjectTemplateSmokeValidationIssue {
     }) | Out-Null
 }
 
+function Test-ProjectTemplateSmokeRequiredStringProperty {
+    param(
+        $Object,
+        [string]$Name,
+        [string]$Path,
+        [System.Collections.Generic.List[object]]$Issues
+    )
+
+    $propertyValue = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $Object -Name $Name
+    if ([string]::IsNullOrWhiteSpace($propertyValue)) {
+        Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path $Path -Message "must be a non-empty string"
+    }
+
+    return $propertyValue
+}
+
 function Test-ProjectTemplateSmokeBooleanProperty {
     param(
         $Object,
@@ -187,6 +203,66 @@ function Test-ProjectTemplateSmokeSlotSpec {
     }
     if ($null -ne $minValue -and $null -ne $maxValue -and $minValue -gt $maxValue) {
         Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path $Path -Message "'min' must be less than or equal to 'max'"
+    }
+}
+
+function Test-ProjectTemplateSmokeBusinessCorpus {
+    param(
+        [object[]]$CorpusItems,
+        [hashtable]$EntryNames,
+        [System.Collections.Generic.List[object]]$Issues
+    )
+
+    $seenIds = @{}
+    $allowedStatuses = @("registered", "planned")
+    $allowedContracts = @("template_validations", "schema_validation", "schema_baseline", "render_data", "visual_smoke")
+
+    for ($corpusIndex = 0; $corpusIndex -lt @($CorpusItems).Count; $corpusIndex++) {
+        $item = $CorpusItems[$corpusIndex]
+        $itemPath = "business_template_corpus[$corpusIndex]"
+
+        $id = Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "id" -Path "$itemPath.id" -Issues $Issues
+        [void](Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "project_id" -Path "$itemPath.project_id" -Issues $Issues)
+        [void](Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "template_name" -Path "$itemPath.template_name" -Issues $Issues)
+        [void](Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "document_type" -Path "$itemPath.document_type" -Issues $Issues)
+        [void](Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "coverage_goal" -Path "$itemPath.coverage_goal" -Issues $Issues)
+
+        if (-not [string]::IsNullOrWhiteSpace($id)) {
+            if ($seenIds.ContainsKey($id)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.id" -Message "must be unique across business_template_corpus"
+            } else {
+                $seenIds[$id] = $true
+            }
+        }
+
+        $status = Test-ProjectTemplateSmokeRequiredStringProperty -Object $item -Name "status" -Path "$itemPath.status" -Issues $Issues
+        if (-not [string]::IsNullOrWhiteSpace($status) -and $status -notin $allowedStatuses) {
+            Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.status" -Message "must be one of: registered, planned"
+        }
+
+        $contracts = @(Get-ProjectTemplateSmokeArrayProperty -Object $item -Name "smoke_contract")
+        if ($contracts.Count -eq 0) {
+            Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.smoke_contract" -Message "must contain at least one smoke contract"
+        }
+        for ($contractIndex = 0; $contractIndex -lt $contracts.Count; $contractIndex++) {
+            $contract = [string]$contracts[$contractIndex]
+            if ([string]::IsNullOrWhiteSpace($contract)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.smoke_contract[$contractIndex]" -Message "must be a non-empty string"
+            } elseif ($contract -notin $allowedContracts) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.smoke_contract[$contractIndex]" -Message "must be one of: $($allowedContracts -join ', ')"
+            }
+        }
+
+        $sourceEntry = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "source_entry"
+        if ($status -eq "registered") {
+            if ([string]::IsNullOrWhiteSpace($sourceEntry)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "is required when status is registered"
+            } elseif (-not $EntryNames.ContainsKey($sourceEntry)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry"
+            }
+        } elseif (-not [string]::IsNullOrWhiteSpace($sourceEntry) -and -not $EntryNames.ContainsKey($sourceEntry)) {
+            Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry when provided"
+        }
     }
 }
 
@@ -310,15 +386,29 @@ function Test-ProjectTemplateSmokeManifest {
             passed = $false
             error_count = $issues.Count
             entry_count = 0
+            business_template_corpus_count = 0
+            registered_business_template_corpus_count = 0
+            planned_business_template_corpus_count = 0
             errors = $issues.ToArray()
             entries = @()
         }
     }
 
     $entries = @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "entries")
+    $businessTemplateCorpus = @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "business_template_corpus")
     if ($entries.Count -eq 0) {
         Add-ProjectTemplateSmokeValidationIssue -Issues $issues -Path "entries" -Message "must contain at least one entry"
     }
+
+    $entryNames = @{}
+    foreach ($entry in $entries) {
+        $entryName = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "name"
+        if (-not [string]::IsNullOrWhiteSpace($entryName) -and -not $entryNames.ContainsKey($entryName)) {
+            $entryNames[$entryName] = $true
+        }
+    }
+
+    Test-ProjectTemplateSmokeBusinessCorpus -CorpusItems $businessTemplateCorpus -EntryNames $entryNames -Issues $issues
 
     $seenNames = @{}
 
@@ -519,6 +609,13 @@ function Test-ProjectTemplateSmokeManifest {
         passed = ($issues.Count -eq 0)
         error_count = $issues.Count
         entry_count = $entries.Count
+        business_template_corpus_count = $businessTemplateCorpus.Count
+        registered_business_template_corpus_count = @($businessTemplateCorpus | Where-Object {
+                (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $_ -Name "status") -eq "registered"
+            }).Count
+        planned_business_template_corpus_count = @($businessTemplateCorpus | Where-Object {
+                (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $_ -Name "status") -eq "planned"
+            }).Count
         errors = $issues.ToArray()
         entries = $entryReports.ToArray()
     }

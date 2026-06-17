@@ -219,6 +219,9 @@ function New-ProjectTemplateSmokeSummaryMissingWarning {
         manifest_path = Get-JsonString -Object $latestDescription -Name "manifest_path"
         manifest_path_display = $manifestPathDisplay
         registered_template_count = $registeredTemplateCount
+        business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "business_template_corpus_count"
+        registered_business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "registered_business_template_corpus_count"
+        planned_business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "planned_business_template_corpus_count"
         schema_validation_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_validation_entry_count"
         schema_baseline_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_baseline_entry_count"
         visual_smoke_entry_count = Get-JsonInt -Object $latestDescription -Name "visual_smoke_entry_count"

@@ -253,5 +253,7 @@ P3：文档、测试与索引治理
 3. release material safety 已覆盖 dashboard 入口、分组摘要和 reviewer stop
    condition；后续保持 ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
 4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
-   缺失来源 warning/action；下一步按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-TEMPLATE-01`` 扩展 manifest / 描述 / smoke contract 级别的真实业务模板语料入口。
+   缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
+   级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
+   report、notice、tender。下一步按 ``docs/long_task_board_zh.rst`` 的
+   ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。

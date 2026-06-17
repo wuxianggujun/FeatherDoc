@@ -99,9 +99,13 @@
 
 3. ``P1-TEMPLATE-01``：真实业务模板语料扩展
 
-   * 状态：``DOING``。
+   * 状态：``GUARDED``。
    * 目标：逐步补合同、制度、发票、报告、通知、标书等样本入口。
    * 最小实现：先补 manifest / 描述 / smoke contract，不直接塞大体积二进制样本。
+   * 当前产物：``samples/project_template_smoke.manifest.json`` 已增加
+     ``business_template_corpus``，注册 invoice，规划 contract、policy、report、
+     notice、tender；``describe_project_template_smoke_manifest.ps1`` 和 delivery
+     readiness warning 已暴露 registered / planned corpus 计数。
    * 验收：project-template smoke manifest 可解释新增样本来源、用途和验证边界。
 
 4. ``P1-DASHBOARD-01``：project-template workflow dashboard 持续治理
@@ -113,7 +117,7 @@
 
 5. ``P1-APPROVAL-01``：多项目 schema approval 维护体验
 
-   * 状态：``TODO``。
+   * 状态：``DOING``。
    * 目标：让 pending / rejected / approved 历史更适合多项目、多模板、多轮审批。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
      同步解释。
@@ -176,9 +180,9 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-TEMPLATE-01``，优先补 manifest / 描述 / smoke contract 级别的
-   真实业务模板语料入口。
-3. 避免直接加入大体积二进制样本；先让来源、用途和验证边界进入可审计文本契约。
+2. 继续推进 ``P1-APPROVAL-01``，优先检查 schema approval history 是否能直接展示
+   多项目、多模板、多轮审批状态。
+3. 小步补 reviewer-facing 的 pending / rejected / approved 入口，不直接改动历史数据。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

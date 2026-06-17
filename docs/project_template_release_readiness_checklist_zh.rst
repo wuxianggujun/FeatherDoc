@@ -68,6 +68,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      summary，必须先用
      ``scripts/describe_project_template_smoke_manifest.ps1 -Json`` 生成
      ``featherdoc.project_template_smoke_manifest_description.v1`` 作为清单诊断；
+     该诊断必须保留 ``business_template_corpus_count``、
+     ``registered_business_template_corpus_count``、
+     ``planned_business_template_corpus_count`` 和 ``business_document_type_summary``，
+     让 reviewer 能区分已注册业务模板与只做计划跟踪的语料类型；
      readiness 只能给出
      ``project_template_smoke_summary_missing`` warning，不能把 manifest
      本身当作模板已通过 smoke 的证据。
@@ -84,7 +88,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      必须大于 ``0``，且 blocker 必须携带稳定 ``id``、``action``、``message``
      和 source display 字段；若只有 manifest-only / missing-evidence 这类
      warning，``status`` 必须保持 ``needs_review``，并通过 ``warning_count`` 与
-     ``warnings[]`` 暴露修复入口。
+     ``warnings[]`` 暴露修复入口。manifest-only warning 也应保留
+     ``business_template_corpus_count``、``registered_business_template_corpus_count``
+     和 ``planned_business_template_corpus_count``，避免 release 面板只显示注册
+     entry 数量却丢失真实业务语料规划边界。
 
 4. Content-control data-binding 治理已接入：
 

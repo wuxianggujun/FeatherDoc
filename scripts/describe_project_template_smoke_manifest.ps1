@@ -103,6 +103,28 @@ function Get-ManifestEntrySourceType {
     return "unspecified"
 }
 
+function New-ManifestDescriptionGroupSummary {
+    param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
+
+    $values = @(
+        foreach ($item in @($Items)) {
+            $value = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name $PropertyName
+            if ([string]::IsNullOrWhiteSpace($value)) { $value = "unknown" }
+            [pscustomobject]@{ Value = $value }
+        }
+    )
+
+    return @(
+        foreach ($group in @($values | Group-Object Value |
+            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
+            $summary = [ordered]@{}
+            $summary[$OutputName] = [string]$group.Name
+            $summary["count"] = [int]$group.Count
+            $summary
+        }
+    )
+}
+
 function Get-SummaryLookup {
     param($Summary)
 
@@ -149,6 +171,21 @@ $summary = if (-not [string]::IsNullOrWhiteSpace($resolvedSummaryPath) -and
 }
 $summaryLookup = Get-SummaryLookup -Summary $summary
 
+$businessTemplateCorpus = New-Object 'System.Collections.Generic.List[object]'
+foreach ($item in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "business_template_corpus")) {
+    $businessTemplateCorpus.Add([pscustomobject]@{
+        id = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "id"
+        project_id = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "project_id"
+        template_name = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "template_name"
+        document_type = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "document_type"
+        status = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "status"
+        source_entry = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "source_entry"
+        smoke_contract = @(Get-ProjectTemplateSmokeArrayProperty -Object $item -Name "smoke_contract")
+        coverage_goal = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "coverage_goal"
+        notes = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "notes"
+    }) | Out-Null
+}
+
 $entries = New-Object 'System.Collections.Generic.List[object]'
 foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "entries")) {
     $name = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "name"
@@ -164,6 +201,12 @@ foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Na
 
     $entries.Add([pscustomobject]@{
         name = $name
+        project_id = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "project_id"
+        template_name = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "template_name"
+        business_domain = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "business_domain"
+        business_document_type = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "business_document_type"
+        corpus_role = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "corpus_role"
+        corpus_source_note = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "corpus_source_note"
         source_type = Get-ManifestEntrySourceType -Entry $entry
         input_docx = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "input_docx"
         input_docx_build_relative = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "input_docx_build_relative"
@@ -217,6 +260,11 @@ $report = [ordered]@{
     build_dir = $resolvedBuildDir
     entry_count = $entries.Count
     registered_entry_count = $entries.Count
+    business_template_corpus_count = $businessTemplateCorpus.Count
+    registered_business_template_corpus_count = @($businessTemplateCorpus.ToArray() | Where-Object { [string]$_.status -eq "registered" }).Count
+    planned_business_template_corpus_count = @($businessTemplateCorpus.ToArray() | Where-Object { [string]$_.status -eq "planned" }).Count
+    business_document_type_summary = @(New-ManifestDescriptionGroupSummary -Items $businessTemplateCorpus.ToArray() -PropertyName "document_type" -OutputName "document_type")
+    business_template_corpus = @($businessTemplateCorpus.ToArray())
     schema_validation_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_validation_enabled }).Count
     schema_baseline_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_baseline_enabled }).Count
     render_data_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.render_data_enabled }).Count
@@ -259,6 +307,9 @@ if ($Json) {
 $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Project template smoke manifest: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedManifestPath)")
 [void]$lines.Add("Registered entries: $($entries.Count)")
+[void]$lines.Add("Business template corpus: $($report.business_template_corpus_count)")
+[void]$lines.Add("Registered business templates: $($report.registered_business_template_corpus_count)")
+[void]$lines.Add("Planned business templates: $($report.planned_business_template_corpus_count)")
 if ($summary) {
     [void]$lines.Add("Latest summary: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
     [void]$lines.Add("Latest status: $($report.latest_overall_status)")
@@ -277,6 +328,18 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedBuildDir)) {
 
 foreach ($entry in $entries) {
     [void]$lines.Add("- $($entry.name)")
+    if (-not [string]::IsNullOrWhiteSpace($entry.project_id)) {
+        [void]$lines.Add("  project_id: $($entry.project_id)")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($entry.template_name)) {
+        [void]$lines.Add("  template_name: $($entry.template_name)")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($entry.business_document_type)) {
+        [void]$lines.Add("  business_document_type: $($entry.business_document_type)")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($entry.corpus_role)) {
+        [void]$lines.Add("  corpus_role: $($entry.corpus_role)")
+    }
     [void]$lines.Add("  source_type: $($entry.source_type)")
     if (-not [string]::IsNullOrWhiteSpace($entry.input_docx)) {
         [void]$lines.Add("  manifest_input_docx: $($entry.input_docx)")
@@ -354,6 +417,23 @@ foreach ($entry in $entries) {
         }
     } else {
         [void]$lines.Add("  latest_status: (not available)")
+    }
+    [void]$lines.Add("")
+}
+
+if ($businessTemplateCorpus.Count -gt 0) {
+    [void]$lines.Add("Business template corpus:")
+    foreach ($item in $businessTemplateCorpus) {
+        [void]$lines.Add("- $($item.id)")
+        [void]$lines.Add("  project_id: $($item.project_id)")
+        [void]$lines.Add("  template_name: $($item.template_name)")
+        [void]$lines.Add("  document_type: $($item.document_type)")
+        [void]$lines.Add("  status: $($item.status)")
+        if (-not [string]::IsNullOrWhiteSpace($item.source_entry)) {
+            [void]$lines.Add("  source_entry: $($item.source_entry)")
+        }
+        [void]$lines.Add("  smoke_contract: $((@($item.smoke_contract) -join ', '))")
+        [void]$lines.Add("  coverage_goal: $($item.coverage_goal)")
     }
     [void]$lines.Add("")
 }

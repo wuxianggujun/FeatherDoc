@@ -1,5 +1,92 @@
 ﻿{
     "$schema":  "./project_template_smoke.manifest.schema.json",
+    "business_template_corpus":  [
+                                     {
+                                         "id":  "project-finance-chinese-invoice-template",
+                                         "project_id":  "project-finance",
+                                         "template_name":  "chinese-invoice-template",
+                                         "document_type":  "invoice",
+                                         "status":  "registered",
+                                         "source_entry":  "chinese-invoice-template",
+                                         "smoke_contract":  [
+                                                                "schema_validation",
+                                                                "schema_baseline",
+                                                                "render_data",
+                                                                "visual_smoke"
+                                                            ],
+                                         "coverage_goal":  "Repository-backed invoice template with render-data and visual smoke coverage.",
+                                         "notes":  "Current lightweight business corpus anchor; do not replace with a detached output-only sample."
+                                     },
+                                     {
+                                         "id":  "project-legal-contract-template",
+                                         "project_id":  "project-legal",
+                                         "template_name":  "contract-template",
+                                         "document_type":  "contract",
+                                         "status":  "planned",
+                                         "smoke_contract":  [
+                                                                "schema_validation",
+                                                                "schema_baseline",
+                                                                "render_data"
+                                                            ],
+                                         "coverage_goal":  "Register a contract template through project-template smoke before using it for confidence thresholds.",
+                                         "notes":  "Planned text contract keeps the corpus requirement visible without adding a binary fixture in this step."
+                                     },
+                                     {
+                                         "id":  "project-operations-policy-handbook-template",
+                                         "project_id":  "project-operations",
+                                         "template_name":  "policy-handbook-template",
+                                         "document_type":  "policy",
+                                         "status":  "planned",
+                                         "smoke_contract":  [
+                                                                "schema_validation",
+                                                                "schema_baseline"
+                                                            ],
+                                         "coverage_goal":  "Register a policy or handbook template with schema drift review and approval evidence.",
+                                         "notes":  "Used to calibrate type-update and required-field review paths."
+                                     },
+                                     {
+                                         "id":  "project-delivery-project-report-template",
+                                         "project_id":  "project-delivery",
+                                         "template_name":  "project-report-template",
+                                         "document_type":  "report",
+                                         "status":  "planned",
+                                         "smoke_contract":  [
+                                                                "schema_validation",
+                                                                "schema_baseline",
+                                                                "visual_smoke"
+                                                            ],
+                                         "coverage_goal":  "Register a project report template that exercises section/header/footer and visual review routing.",
+                                         "notes":  "Keeps report coverage explicit before adding heavier DOCX samples."
+                                     },
+                                     {
+                                         "id":  "project-office-notice-template",
+                                         "project_id":  "project-office",
+                                         "template_name":  "notice-template",
+                                         "document_type":  "notice",
+                                         "status":  "planned",
+                                         "smoke_contract":  [
+                                                                "template_validations",
+                                                                "schema_validation"
+                                                            ],
+                                         "coverage_goal":  "Register a notice template for simple bookmark/content-control smoke coverage.",
+                                         "notes":  "Low-risk entry for lightweight template validation coverage."
+                                     },
+                                     {
+                                         "id":  "project-procurement-tender-template",
+                                         "project_id":  "project-procurement",
+                                         "template_name":  "tender-template",
+                                         "document_type":  "tender",
+                                         "status":  "planned",
+                                         "smoke_contract":  [
+                                                                "schema_validation",
+                                                                "schema_baseline",
+                                                                "render_data",
+                                                                "visual_smoke"
+                                                            ],
+                                         "coverage_goal":  "Register a tender template after schema and render-data contract are available.",
+                                         "notes":  "Tracks the heavier procurement document class without adding a large fixture now."
+                                     }
+                                 ],
     "candidate_exclusions":  [
                                  {
                                      "path":  "samples/my_test.docx",
@@ -50,6 +137,12 @@
                     },
                     {
                         "name":  "chinese-invoice-template",
+                        "project_id":  "project-finance",
+                        "template_name":  "chinese-invoice-template",
+                        "business_domain":  "finance",
+                        "business_document_type":  "invoice",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Repository-backed invoice template with schema, render-data, and visual smoke evidence.",
                         "input_docx":  "./samples/chinese_invoice_template.docx",
                         "schema_validation":  {
                                                   "schema_file":  "./baselines/template-schema/chinese_invoice_template.schema.json"
