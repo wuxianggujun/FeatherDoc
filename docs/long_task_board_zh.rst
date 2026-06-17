@@ -147,6 +147,9 @@
      release material safety 静态/样例断言守住入口材料里的三类 action marker。
      ``action=sync_or_fill_bound_content_control`` 也已透传到 release asset
      manifest 和入口材料合同，reviewer 可按统一 action id 分流处理。
+     release note bundle 的四份入口文档已由统一 helper 断言 content-control
+     blocker/action-item 的 action id，避免后续生成逻辑只保留说明文字而丢失
+     可机器追踪的处理动作。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
@@ -195,10 +198,10 @@
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
 2. 继续推进 ``P1-RELEASE-01``，小步补 release-facing 入口材料里缺失的
-   source 或 command guidance。
-3. 复核 ``repair_action_classes``、``action=sync_or_fill_bound_content_control``、
-   source 和 command guidance 是否在
-   ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 保持一致。
+   source、command guidance 或 action-class guidance。
+3. 复核 ``repair_action_classes`` 是否需要进入
+   ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 的
+   reviewer-facing 文案；若进入，先改生成逻辑，再补同级断言。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

@@ -137,6 +137,7 @@ function Assert-ContentControlGovernanceTrace {
     $expectedFragments = @(
         'content_control_data_binding.bound_placeholder',
         'custom_xml_sync_evidence_missing',
+        'action=sync_or_fill_bound_content_control',
         'source_schema=featherdoc.content_control_data_binding_governance_report.v1',
         'source_report_display: .\output\content-control-data-binding-governance\summary.json',
         'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
@@ -149,6 +150,7 @@ function Assert-ContentControlGovernanceTrace {
         'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.',
         $contentControlCommandTemplateMarker,
         'review_duplicate_content_control_binding',
+        'action=review_duplicate_content_control_binding',
         'repair_strategy: deduplicate_or_confirm_shared_binding',
         'repair_hint: Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths.',
         $contentControlDuplicateActionCommandTemplateMarker,
