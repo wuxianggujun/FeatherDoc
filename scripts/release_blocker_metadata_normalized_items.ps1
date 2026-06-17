@@ -42,6 +42,7 @@ function Get-NormalizedReleaseGovernanceBlockers {
                 source_json = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json")
                 source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "source_json_display")
                 message = [string](Get-ReleaseBlockerPropertyValue -Object $blocker -Name "message")
+                repair_action_classes = @(Get-ReleaseBlockerArrayProperty -Object $blocker -Name "repair_action_classes")
                 matched_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "matched_document_count"
                 unmatched_catalog_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "unmatched_catalog_document_count"
                 unmatched_baseline_document_count = Get-ReleaseBlockerPropertyObject -Object $blocker -Name "unmatched_baseline_document_count"
@@ -95,6 +96,7 @@ function Get-NormalizedReleaseGovernanceWarnings {
             source_report_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display")
             source_json = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json")
             source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_json_display")
+            repair_action_classes = @(Get-ReleaseBlockerArrayProperty -Object $warning -Name "repair_action_classes")
         }
 
         $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_suggestion_count"
@@ -158,6 +160,7 @@ function Get-NormalizedReleaseGovernanceActionItems {
             source_json = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_json")
             source_json_display = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "source_json_display")
             command = [string](Get-ReleaseBlockerPropertyValue -Object $item -Name "command")
+            repair_action_classes = @(Get-ReleaseBlockerArrayProperty -Object $item -Name "repair_action_classes")
         }
 
         foreach ($optionalCommandName in @("open_command", "audit_command", "review_command")) {
@@ -217,6 +220,11 @@ function Get-ReleaseGovernanceActionItemSummaryText {
         $summaryText += ('; source_report: `{0}`' -f $sourceReportDisplay)
     }
 
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $ActionItem -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $summaryText += ('; repair_action_classes: `{0}`' -f $repairActionClasses)
+    }
+
     foreach ($fieldName in @("source_report", "source_json")) {
         $value = Get-ReleaseBlockerPropertyValue -Object $ActionItem -Name $fieldName
         if (-not [string]::IsNullOrWhiteSpace($value)) {
@@ -259,6 +267,11 @@ function Get-ReleaseGovernanceWarningSummaryText {
         }
     }
 
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $Warning -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $summaryText += ('; repair_action_classes: `{0}`' -f $repairActionClasses)
+    }
+
     $styleMergeSuggestionCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_count"
     if ($null -ne $styleMergeSuggestionCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionCount)) {
         $summaryText += ('; style_merge_suggestion_count: `{0}`' -f [string]$styleMergeSuggestionCount)
@@ -294,6 +307,11 @@ function Get-ReleaseGovernanceBlockerSummaryText {
     $message = Get-ReleaseBlockerPropertyValue -Object $Blocker -Name "message"
     if (-not [string]::IsNullOrWhiteSpace($message)) {
         $summaryText += ('; message: {0}' -f $message)
+    }
+
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $Blocker -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $summaryText += ('; repair_action_classes: `{0}`' -f $repairActionClasses)
     }
 
     foreach ($field in @(
@@ -608,6 +626,11 @@ function Get-ReleaseGovernanceBlockerChecklistText {
         $text += ('; source_report `{0}`' -f $sourceReportDisplay)
     }
 
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $blocker -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $text += ('; repair_action_classes `{0}`' -f $repairActionClasses)
+    }
+
     return $text
 }
 
@@ -644,6 +667,11 @@ function Get-ReleaseGovernanceActionItemChecklistText {
         $text += ('; source_report `{0}`' -f $sourceReportDisplay)
     }
 
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $item -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $text += ('; repair_action_classes `{0}`' -f $repairActionClasses)
+    }
+
     return $text
 }
 
@@ -669,6 +697,11 @@ function Get-ReleaseGovernanceWarningChecklistText {
     $sourceReportDisplay = Get-ReleaseBlockerPropertyValue -Object $warning -Name "source_report_display"
     if (-not [string]::IsNullOrWhiteSpace($sourceReportDisplay)) {
         $text += ('; source_report `{0}`' -f $sourceReportDisplay)
+    }
+
+    $repairActionClasses = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $warning -Name "repair_action_classes")
+    if ($repairActionClasses -ne "(none)") {
+        $text += ('; repair_action_classes `{0}`' -f $repairActionClasses)
     }
 
     return $text

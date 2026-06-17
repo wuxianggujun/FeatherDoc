@@ -143,6 +143,21 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
     Assert-ContainsText -Text (($handoffReleaseSummary.release_governance_handoff.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "custom_xml_sync_evidence_missing" `
         -Message "Release candidate summary should carry content-control governance warnings."
+    $handoffContentControlBlocker = @($handoffReleaseSummary.release_governance_handoff.release_blockers |
+        Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ((@($handoffContentControlBlocker.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "release_blocking" `
+        -Message "Release candidate summary should carry content-control blocker repair action classes."
+    Assert-ContainsText -Text ((@($handoffContentControlBlocker.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "auto_repair_candidate" `
+        -Message "Release candidate summary should carry content-control auto-repair action class."
+    $handoffContentControlAction = @($handoffReleaseSummary.release_governance_handoff.action_items |
+        Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text ((@($handoffContentControlAction.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "manual_confirmation_required" `
+        -Message "Release candidate summary should carry content-control action item repair action classes."
     Assert-ContainsText -Text (($handoffReleaseSummary.steps.release_governance_handoff.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
         -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Release candidate step summary should carry handoff action open command."
@@ -201,6 +216,8 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
         -Message "Final review should include handoff project-template readiness status."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "readiness_release_ready: False" `
         -Message "Final review should include handoff project-template release_ready state."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "repair_action_classes: release_blocking, auto_repair_candidate, manual_confirmation_required" `
+        -Message "Final review should include handoff content-control repair action classes."
     Assert-MarkdownListBlockContainsAll -Text $handoffFinalReview -Anchor "project_template_onboarding.schema_approval: action=review_schema_update_candidate" -ExpectedFragments @(
         "project_template_onboarding_governance_contract:",
         "status: pending_review",
@@ -215,8 +232,12 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
         -Message "Release handoff bundle should include governance handoff details."
     Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "source_json_display: .\output\schema-patch-confidence-calibration\summary.json" `
         -Message "Release handoff bundle should include handoff source JSON display."
+    Assert-ContainsText -Text $handoffReleaseHandoff -ExpectedText "repair_action_classes: release_blocking, auto_repair_candidate, manual_confirmation_required" `
+        -Message "Release handoff bundle should include handoff repair action classes."
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "Handoff Action Items" `
         -Message "Reviewer checklist should include handoff action items."
+    Assert-ContainsText -Text $handoffChecklist -ExpectedText 'repair_action_classes `manual_confirmation_required`' `
+        -Message "Reviewer checklist should include handoff action item repair action classes."
     Assert-ContainsText -Text $handoffChecklist -ExpectedText "open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1" `
         -Message "Reviewer checklist should include handoff open command."
 
@@ -713,6 +734,15 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.target_mode }) -join "`n") `
     -ExpectedText "resolved-section-targets" `
     -Message "Auto-discovered rollup should carry content-control target_mode provenance."
+$autoDiscoverContentControlBlocker = @($autoDiscoverSummary.release_blocker_rollup.release_blockers |
+    Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text ((@($autoDiscoverContentControlBlocker.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "release_blocking" `
+    -Message "Auto-discovered rollup should preserve content-control release-blocking repair action classes."
+Assert-ContainsText -Text ((@($autoDiscoverContentControlBlocker.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "auto_repair_candidate" `
+    -Message "Auto-discovered rollup should preserve content-control auto-repair action classes."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.release_blockers | ForEach-Object { [string]$_.source_json_display }) -join "`n") `
     -ExpectedText "project-template-onboarding-governance\summary.json" `
     -Message "Auto-discovered rollup should carry onboarding governance source JSON display."
@@ -731,6 +761,12 @@ Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_i
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.target_mode }) -join "`n") `
     -ExpectedText "resolved-section-targets" `
     -Message "Auto-discovered rollup should carry content-control action target_mode provenance."
+$autoDiscoverContentControlAction = @($autoDiscoverSummary.release_blocker_rollup.action_items |
+    Where-Object { [string]$_.id -eq "review_duplicate_content_control_binding" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text ((@($autoDiscoverContentControlAction.repair_action_classes) | ForEach-Object { [string]$_ }) -join "`n") `
+    -ExpectedText "manual_confirmation_required" `
+    -Message "Auto-discovered rollup should preserve content-control action repair action classes."
 Assert-ContainsText -Text (($autoDiscoverSummary.release_blocker_rollup.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "sync_project_template_schema_approval.ps1" `
     -Message "Auto-discovered rollup should carry onboarding governance action open command."
@@ -750,6 +786,8 @@ Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "repair_hint
     -Message "Auto-discovered rollup Markdown should include warning repair hints."
 Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "sync-content-controls-from-custom-xml" `
     -Message "Auto-discovered rollup Markdown should include warning command templates."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText 'repair_action_classes: `release_blocking, auto_repair_candidate, manual_confirmation_required`' `
+    -Message "Auto-discovered rollup Markdown should include content-control repair action classes."
 Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "metadata_only_fields: ``leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap``" `
     -Message "Auto-discovered rollup Markdown should include generic PDF floating table metadata-only fields."
 Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
@@ -760,6 +798,8 @@ Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "metadata_only_
     -Message "Auto-discovered final review should include generic PDF floating table metadata-only fields."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "review_required_fields: full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution" `
     -Message "Auto-discovered final review should include generic PDF floating table review-required fields."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "repair_action_classes: release_blocking, auto_repair_candidate, manual_confirmation_required" `
+    -Message "Auto-discovered final review should include content-control repair action classes."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "project_template_onboarding.schema_approval" `
     -Message "Auto-discovered final review should include project-template blocker id."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "source_report_display:" `

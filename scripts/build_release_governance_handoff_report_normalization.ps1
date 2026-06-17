@@ -169,6 +169,7 @@ function Add-NormalizedBlockers {
             repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
             command_template = Get-JsonString -Object $blocker -Name "command_template"
+            repair_action_classes = @(Get-JsonArray -Object $blocker -Name "repair_action_classes")
             matched_document_count = Get-JsonProperty -Object $blocker -Name "matched_document_count"
             unmatched_catalog_document_count = Get-JsonProperty -Object $blocker -Name "unmatched_catalog_document_count"
             unmatched_baseline_document_count = Get-JsonProperty -Object $blocker -Name "unmatched_baseline_document_count"
@@ -297,6 +298,7 @@ function Add-NormalizedActions {
             repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $item -Name "repair_hint"
             command_template = Get-JsonString -Object $item -Name "command_template"
+            repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
         }
         if ($ForceInformational -or (Test-InformationalActionItem -Item $normalizedAction)) {
             $InformationalCollection.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $normalizedAction)) | Out-Null
@@ -329,6 +331,7 @@ function Add-NormalizedWarnings {
             repair_strategy = Get-JsonString -Object $warning -Name "repair_strategy"
             repair_hint = Get-JsonString -Object $warning -Name "repair_hint"
             command_template = Get-JsonString -Object $warning -Name "command_template"
+            repair_action_classes = @(Get-JsonArray -Object $warning -Name "repair_action_classes")
             source_schema = Get-JsonString -Object $warning -Name "source_schema" -DefaultValue ([string]$Report.schema)
             source_report = $sourceReport
             source_report_display = $sourceReportDisplay

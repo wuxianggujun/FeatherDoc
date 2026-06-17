@@ -1,3 +1,19 @@
+function Add-RepairActionClassMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    $repairActionClasses = @(
+        Get-JsonArray -Object $Item -Name "repair_action_classes" |
+            Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            ForEach-Object { [string]$_ }
+    )
+    if ($repairActionClasses.Count -gt 0) {
+        $Lines.Add("  - repair_action_classes: ``$($repairActionClasses -join ', ')``") | Out-Null
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -259,6 +275,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -289,6 +306,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }
@@ -317,6 +335,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }
@@ -345,6 +364,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $warning
             $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
             $repairHint = Get-JsonString -Object $warning -Name "repair_hint"
             $commandTemplate = Get-JsonString -Object $warning -Name "command_template"

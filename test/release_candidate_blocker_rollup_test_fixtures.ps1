@@ -126,6 +126,7 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            repair_action_classes = @("release_blocking", "auto_repair_candidate", "manual_confirmation_required")
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             input_docx = "samples/invoice.docx"
@@ -140,6 +141,7 @@ Write-JsonFile -Path $contentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            repair_action_classes = @("manual_confirmation_required")
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
@@ -248,6 +250,7 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             status = "placeholder_visible"
             message = "Autodiscovered bound content control still shows placeholder text."
             action = "sync_or_fill_bound_content_control"
+            repair_action_classes = @("release_blocking", "auto_repair_candidate", "manual_confirmation_required")
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             input_docx = "samples/invoice.docx"
@@ -262,6 +265,7 @@ Write-JsonFile -Path $autoDiscoverContentControlSummaryPath -Value ([ordered]@{
             id = "review_duplicate_content_control_binding"
             action = "review_duplicate_content_control_binding"
             title = "Review repeated content controls that share one Custom XML binding"
+            repair_action_classes = @("manual_confirmation_required")
             open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1"
             source_json = "output/content-control-data-binding/inspect-content-controls.json"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"

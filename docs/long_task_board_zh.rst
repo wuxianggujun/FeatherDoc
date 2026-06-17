@@ -141,6 +141,9 @@
    * 状态：``DOING``。
    * 目标：blocker / warning / action item 在 dashboard、handoff、bundle、
      checklist 中保持同一来源。
+   * 当前产物：``repair_action_classes`` 已从 content-control governance report
+     透传到 release blocker rollup、release governance handoff、final review、
+     handoff / artifact / start-here bundle 和 reviewer checklist。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
@@ -188,9 +191,9 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-RELEASE-01``，优先检查新增治理字段是否进入 release blocker
-   rollup、handoff、bundle 和 reviewer checklist。
-3. 小步补 release-facing 入口材料里缺失的 source、command 或 action class 透传。
+2. 继续推进 ``P1-RELEASE-01``，优先检查 release material safety 是否已经把
+   ``repair_action_classes`` 作为入口材料合同守住。
+3. 小步补 release-facing 入口材料里缺失的 source、command 或 action guidance。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

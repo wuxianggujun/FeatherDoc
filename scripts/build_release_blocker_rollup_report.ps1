@@ -164,6 +164,7 @@ foreach ($path in @($inputPaths)) {
                 repair_strategy = Get-JsonString -Object $blocker -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $blocker -Name "repair_hint"
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
+                repair_action_classes = @(Get-JsonArray -Object $blocker -Name "repair_action_classes")
             }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
@@ -283,6 +284,7 @@ foreach ($path in @($inputPaths)) {
                 repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
+                repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
             }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
@@ -348,6 +350,7 @@ foreach ($path in @($inputPaths)) {
                 repair_strategy = Get-JsonString -Object $warning -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $warning -Name "repair_hint"
                 command_template = Get-JsonString -Object $warning -Name "command_template"
+                repair_action_classes = @(Get-JsonArray -Object $warning -Name "repair_action_classes")
                 source_report = $path
                 source_report_display = Get-DisplayPath -RepoRoot $repoRoot -Path $path
                 origin_source_report = $originSourceReport

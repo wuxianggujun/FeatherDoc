@@ -95,6 +95,8 @@ P1：Release governance 与发布材料一致性
 1. 继续补齐 release blocker rollup 周边的人工作业分流：
 
    * blocker / warning / action item 必须带 source 和 command。
+   * content-control ``repair_action_classes`` 必须保持从 governance report 到
+     release blocker rollup、handoff、bundle、reviewer checklist 的同名透传。
    * final review、handoff、bundle 和 reviewer checklist 应显示同一组治理明细。
    * 避免只保留汇总计数，丢失具体阻断项。
 
@@ -109,6 +111,8 @@ P1：Release governance 与发布材料一致性
    * 新增发布材料字段时同步补 ``assert_release_material_safety`` 覆盖。
    * 如果字段只出现在 detached notes 而没有进入入口材料，应视为不完整。
    * 重点保护 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``。
+   * 下一步优先把 ``repair_action_classes`` 纳入 release material safety
+     静态/样例断言，防止后续入口材料重构时丢字段。
 
 
 P2：样式与编号治理

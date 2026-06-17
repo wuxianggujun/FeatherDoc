@@ -138,6 +138,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``check_docx_functional_smoke_readiness.ps1``，不能把它当作新鲜 Word COM 渲染。
    * ``scripts/build_release_governance_handoff_report.ps1`` 必须把同一批
      blocker / warning / action item 明细继续写入 handoff。
+   * content-control ``repair_action_classes`` 必须作为 reviewer-facing 字段从
+     release blocker rollup 继续进入 handoff、final review、START_HERE、
+     ARTIFACT_GUIDE 和 REVIEWER_CHECKLIST。
    * ``scripts/run_release_candidate_checks.ps1`` 生成的 summary / final review
      不能只显示计数，必须保留可打开的 ``source_report_display`` /
      ``source_json_display``。其中 ``steps.release_governance_handoff`` 和

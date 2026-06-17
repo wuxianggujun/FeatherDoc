@@ -15,6 +15,22 @@ function New-ReportMarkdown {
         }
     }
 
+    function Add-RepairActionClassMarkdownLines {
+        param(
+            [System.Collections.Generic.List[string]]$Lines,
+            [object]$Item
+        )
+
+        $repairActionClasses = @(
+            Get-JsonArray -Object $Item -Name "repair_action_classes" |
+                Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } |
+                ForEach-Object { [string]$_ }
+        )
+        if ($repairActionClasses.Count -gt 0) {
+            $Lines.Add("  - repair_action_classes: ``$($repairActionClasses -join ', ')``") | Out-Null
+        }
+    }
+
     function Format-OnboardingSchemaApprovalStatusSummary {
         param(
             [object[]]$Values,
@@ -486,6 +502,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.command_template)) {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
@@ -519,6 +536,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
@@ -552,6 +570,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.command_template)) {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
@@ -588,6 +607,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
                 $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
             }
+            Add-RepairActionClassMarkdownLines -Lines $lines -Item $warning
             Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
             $lines.Add("  - source_report_display: ``$($warning.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null

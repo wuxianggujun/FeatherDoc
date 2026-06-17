@@ -254,6 +254,15 @@ function Add-ReleaseGovernanceRepairLines {
         [AllowNull()]$Item
     )
 
+    $repairActionClasses = @(
+        Get-ReleaseBlockerArrayProperty -Object $Item -Name "repair_action_classes" |
+            Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            ForEach-Object { [string]$_ }
+    )
+    if ($repairActionClasses.Count -gt 0) {
+        [void]$Lines.Add("  - repair_action_classes: $($repairActionClasses -join ', ')")
+    }
+
     foreach ($fieldName in @("repair_strategy", "repair_hint", "command_template")) {
         $value = Convert-ReleaseBlockerLocalPathsForPublicText `
             -Text (Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName)
