@@ -459,6 +459,8 @@ $summary = [ordered]@{
         warning_count = 0
         source_report_count = 0
         next_action = $null
+        next_action_summary = @()
+        next_action_group_count = 0
         error = ""
     }
     pdf_visual_gate_summary_json = $resolvedPdfVisualGateSummaryJson
@@ -691,6 +693,8 @@ $summary = [ordered]@{
             warning_count = 0
             source_report_count = 0
             next_action = $null
+            next_action_summary = @()
+            next_action_group_count = 0
             error = ""
         }
         pdf_visual_gate = $pdfVisualGateSummaryInfo

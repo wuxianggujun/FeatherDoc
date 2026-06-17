@@ -826,6 +826,19 @@ $summary = [ordered]@{
             command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
             source_report_id = "project_template_onboarding_governance"
         }
+        next_action_summary = @(
+            [ordered]@{
+                source_report_id = "project_template_onboarding_governance"
+                action = "review_schema_update_candidate"
+                reason = "Project template onboarding schema approval is pending."
+                blocker_id = "project_template_onboarding.schema_approval"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+                entry_names = @("invoice-template")
+                source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            }
+        )
+        next_action_group_count = 1
     }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
@@ -875,6 +888,19 @@ $summary = [ordered]@{
                 command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
                 source_report_id = "project_template_onboarding_governance"
             }
+            next_action_summary = @(
+                [ordered]@{
+                    source_report_id = "project_template_onboarding_governance"
+                    action = "review_schema_update_candidate"
+                    reason = "Project template onboarding schema approval is pending."
+                    blocker_id = "project_template_onboarding.schema_approval"
+                    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+                    entry_names = @("invoice-template")
+                    source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                    source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                }
+            )
+            next_action_group_count = 1
         }
     }
     project_template_smoke = [ordered]@{
