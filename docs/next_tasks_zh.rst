@@ -165,6 +165,9 @@ P1：Release governance 与发布材料一致性
      ``requires_reviewer_action``、``reviewer_action_summary``、
      ``reviewer_action_reason`` 和 ``reviewer_actions``，避免 release notes
      只展示 readiness 状态而丢失人工复核动作。
+   * 文档契约测试已锁定 ``write_release_body_zh_summary.ps1`` 的 reviewer action
+     聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续重构只保留
+     release notes 文本而丢失源级聚合路径。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及

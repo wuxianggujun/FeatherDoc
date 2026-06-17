@@ -856,6 +856,21 @@ foreach ($marker in @(
         -Message "Release note body generator should consume project-template readiness checklist compact evidence."
 }
 
+foreach ($marker in @(
+    "Get-ProjectTemplateReviewerActionEvidence",
+    "Add-ProjectTemplateReviewerActionParts",
+    "Get-ProjectTemplateReviewerActionSuffix",
+    "release_blocker_rollup",
+    "release_governance_handoff",
+    "requires_reviewer_action",
+    "reviewer_action_summary",
+    "reviewer_action_reason",
+    "reviewer_actions"
+)) {
+    Assert-ContainsText -Text $releaseBodyScript -ExpectedText $marker `
+        -Message "Release note body generator should preserve project-template reviewer action aggregation marker '$marker'."
+}
+
 foreach ($scriptText in @($releaseBundleVersionTest)) {
     Assert-ContainsText -Text $scriptText -ExpectedText "Project-template readiness checklist handoff evidence" `
         -Message "Release entry tests should lock the checklist handoff evidence label."
@@ -879,6 +894,16 @@ foreach ($scriptText in @($releaseBundleVersionTest)) {
         -Message "Release entry tests should lock packaged checklist compact evidence source schema."
     Assert-ContainsText -Text $scriptText -ExpectedText "source_report=.\output\release-blocker-rollup\summary.json" `
         -Message "Release entry tests should lock packaged audit evidence to the release-blocker rollup source."
+}
+
+foreach ($marker in @(
+    "requires_reviewer_action=True",
+    "reviewer_action_summary=review_schema_update_candidate",
+    "reviewer_action_reason=latest_review_state=pending; issue_keys=(none)",
+    "reviewer_actions=review_schema_update_candidate"
+)) {
+    Assert-ContainsText -Text $releaseBundleVersionTest -ExpectedText $marker `
+        -Message "Release note bundle assertions should lock reviewer action field '$marker' in release notes."
 }
 
 Assert-ContainsText -Text $releaseChecksScript -ExpectedText "Project-template release entry evidence" `
