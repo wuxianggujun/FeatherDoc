@@ -552,6 +552,105 @@ function New-GroupSummary {
     )
 }
 
+function Test-BusinessTemplateSourceMetadataMissing {
+    param($Entry)
+
+    return ([string]::IsNullOrWhiteSpace((Get-JsonString -Object $Entry -Name "project_id")) -or
+        [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Entry -Name "template_name")) -or
+        [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Entry -Name "summary_json")))
+}
+
+function New-BusinessTemplateSourceStatus {
+    param($Entry)
+
+    $projectId = Get-JsonString -Object $Entry -Name "project_id"
+    $templateName = Get-JsonString -Object $Entry -Name "template_name"
+    $summaryJson = Get-JsonString -Object $Entry -Name "summary_json"
+
+    return [ordered]@{
+        missing_project_id = [string]::IsNullOrWhiteSpace($projectId)
+        missing_template_name = [string]::IsNullOrWhiteSpace($templateName)
+        missing_summary_json = [string]::IsNullOrWhiteSpace($summaryJson)
+    }
+}
+
+function New-BusinessTemplateCorpusSummary {
+    param([object[]]$Entries, [string]$RepoRoot)
+
+    $entryArray = @($Entries)
+    $missingEntries = @($entryArray | Where-Object { Test-BusinessTemplateSourceMetadataMissing -Entry $_ })
+    $projectIds = @($entryArray |
+        ForEach-Object { Get-JsonString -Object $_ -Name "project_id" } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $templateScopes = @($entryArray |
+        ForEach-Object { Get-JsonString -Object $_ -Name "template_scope" } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $sourceJsons = @($entryArray |
+        ForEach-Object { Get-JsonString -Object $_ -Name "summary_json" } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $sourceJsonDisplays = @($sourceJsons | ForEach-Object { Get-DisplayPath -RepoRoot $RepoRoot -Path $_ })
+
+    $templateSources = @(
+        foreach ($scope in $templateScopes) {
+            $scopeEntries = @($entryArray | Where-Object { (Get-JsonString -Object $_ -Name "template_scope") -eq $scope })
+            if ($scopeEntries.Count -eq 0) { continue }
+
+            $scopeSourceJsons = @($scopeEntries |
+                ForEach-Object { Get-JsonString -Object $_ -Name "summary_json" } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                Sort-Object -Unique)
+            [ordered]@{
+                project_id = Get-JsonString -Object $scopeEntries[0] -Name "project_id"
+                template_name = Get-JsonString -Object $scopeEntries[0] -Name "template_name"
+                template_scope = $scope
+                candidate_count = $scopeEntries.Count
+                candidate_types = @($scopeEntries |
+                    ForEach-Object { Get-JsonString -Object $_ -Name "candidate_type" } |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                    Sort-Object -Unique)
+                source_json_count = $scopeSourceJsons.Count
+                source_json_displays = @($scopeSourceJsons | ForEach-Object { Get-DisplayPath -RepoRoot $RepoRoot -Path $_ })
+            }
+        }
+    )
+
+    $missingSourceEntries = @(
+        foreach ($entry in $missingEntries) {
+            $status = New-BusinessTemplateSourceStatus -Entry $entry
+            $summaryJson = Get-JsonString -Object $entry -Name "summary_json"
+            [ordered]@{
+                project_id = Get-JsonString -Object $entry -Name "project_id"
+                template_name = Get-JsonString -Object $entry -Name "template_name"
+                template_scope = Get-JsonString -Object $entry -Name "template_scope"
+                candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+                candidate_name = Get-JsonString -Object $entry -Name "name"
+                source_json_display = if ([string]::IsNullOrWhiteSpace($summaryJson)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson }
+                missing_project_id = $status.missing_project_id
+                missing_template_name = $status.missing_template_name
+                missing_summary_json = $status.missing_summary_json
+            }
+        }
+    )
+
+    return [ordered]@{
+        entry_count = $entryArray.Count
+        traced_entry_count = ($entryArray.Count - $missingEntries.Count)
+        project_count = $projectIds.Count
+        template_count = $templateScopes.Count
+        source_json_count = $sourceJsons.Count
+        source_json_displays = @($sourceJsonDisplays)
+        missing_source_metadata_count = $missingEntries.Count
+        missing_project_id_count = @($entryArray | Where-Object { [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "project_id")) }).Count
+        missing_template_name_count = @($entryArray | Where-Object { [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "template_name")) }).Count
+        missing_summary_json_count = @($entryArray | Where-Object { [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "summary_json")) }).Count
+        template_sources = @($templateSources)
+        missing_source_entries = @($missingSourceEntries)
+    }
+}
+
 function Get-RecommendedMinConfidence {
     param([object[]]$Entries)
 
@@ -610,6 +709,7 @@ function New-Recommendations {
     $pendingEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "pending" })
     $invalidEntries = @($Entries | Where-Object { $_.calibration_outcome -eq "invalid_result" })
     $unscoredEntries = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" })
+    $missingSourceEntries = @($Entries | Where-Object { Test-BusinessTemplateSourceMetadataMissing -Entry $_ })
 
     if ($null -ne $RecommendedMinConfidence) {
         $recommendations.Add([ordered]@{
@@ -640,6 +740,13 @@ function New-Recommendations {
         -Priority "medium" `
         -Recommendation "Add explicit confidence metadata to future schema patch review or approval records." `
         -CountName "unscored_count"
+    Add-ScopedRecommendations `
+        -Recommendations $recommendations `
+        -Entries $missingSourceEntries `
+        -BaseId "add_business_template_source_metadata" `
+        -Priority "medium" `
+        -Recommendation "Add project_id, template_name, and source summary metadata before using this corpus for threshold tuning." `
+        -CountName "missing_source_metadata_count"
 
     return @($recommendations.ToArray())
 }
@@ -756,6 +863,31 @@ function New-Warnings {
         }) | Out-Null
     }
 
+    $missingSourceEntries = @($Entries | Where-Object { Test-BusinessTemplateSourceMetadataMissing -Entry $_ })
+    foreach ($entry in $missingSourceEntries) {
+        $sourceStatus = New-BusinessTemplateSourceStatus -Entry $entry
+        $warnings.Add([ordered]@{
+            id = Get-ScopedGovernanceId -BaseId "schema_patch_confidence_calibration.missing_business_template_source_metadata" -Entry $entry -AffectedCount $missingSourceEntries.Count
+            action = "add_business_template_source_metadata"
+            message = "Some schema patch candidates are missing business template source metadata."
+            missing_source_metadata_count = 1
+            missing_project_id = $sourceStatus.missing_project_id
+            missing_template_name = $sourceStatus.missing_template_name
+            missing_summary_json = $sourceStatus.missing_summary_json
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
+    }
+
     return @($warnings.ToArray())
 }
 
@@ -802,6 +934,27 @@ function New-ReportMarkdown {
     $lines.Add("- Runs: ``$($Summary.run_count)``") | Out-Null
     $lines.Add("- Entries: ``$($Summary.entry_count)``") | Out-Null
     $lines.Add("- Recommended min confidence: ``$($Summary.recommended_min_confidence)``") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("## Business Template Corpus") | Out-Null
+    $lines.Add("") | Out-Null
+    if ($null -eq $Summary.business_template_corpus_summary) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        $corpus = $Summary.business_template_corpus_summary
+        $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count)") | Out-Null
+        if (@($corpus.template_sources).Count -eq 0) {
+            $lines.Add("- template_sources: none") | Out-Null
+        } else {
+            foreach ($source in @($corpus.template_sources)) {
+                $candidateTypes = (@($source.candidate_types) -join ",")
+                $sourceDisplays = (@($source.source_json_displays) -join ",")
+                $lines.Add("- ``$($source.template_scope)``: candidates=$($source.candidate_count), candidate_types=``$candidateTypes``, source_json_displays=``$sourceDisplays``") | Out-Null
+            }
+        }
+        if (@($corpus.missing_source_entries).Count -gt 0) {
+            $lines.Add("- missing_source_entries=$(@($corpus.missing_source_entries).Count)") | Out-Null
+        }
+    }
     $lines.Add("") | Out-Null
     $lines.Add("## Confidence Buckets") | Out-Null
     $lines.Add("") | Out-Null

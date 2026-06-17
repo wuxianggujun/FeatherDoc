@@ -194,6 +194,18 @@ needs_changes 的历史状态。release-candidate preflight 在启用 project te
 交付文档。这样接入新模板或发布前复核时，都能直接看到 schema drift 的可审计摘要、
 审批记录与下一步动作。
 
+``write_schema_patch_confidence_calibration_report.ps1`` 现在会在
+``featherdoc.schema_patch_confidence_calibration_report.v1`` 中写出
+``business_template_corpus_summary``。该对象按 ``project_id``、``template_name``、
+``template_scope`` 和来源 ``summary_json`` 聚合真实业务模板语料覆盖，并记录
+``missing_source_metadata_count``、``missing_project_id_count``、
+``missing_template_name_count`` 与 ``missing_summary_json_count``。如果候选缺少项目、
+模板或来源 summary，报告会产生
+``schema_patch_confidence_calibration.missing_business_template_source_metadata`` warning
+和 ``add_business_template_source_metadata`` action item。这样后续继续扩大合同、制度、
+发票、报告、通知、标书等语料时，置信度阈值不会只依赖候选数量，而能回溯到具体业务
+模板来源。
+
 
 使用建议
 --------
@@ -209,6 +221,7 @@ needs_changes 的历史状态。release-candidate preflight 在启用 project te
 后续扩展方向
 ------------
 
-- 基于更多业务模板样本校准 rename / update 建议的置信度。
+- 基于更多业务模板样本校准 rename / update 建议的置信度，并保持
+  ``business_template_corpus_summary`` 里的语料来源完整。
 - 继续沉淀真实项目里的 schema approval 审计字段和 release gate 复核策略。
 - 基于历史报表继续补充趋势阈值、异常波动提示和版本治理看板。

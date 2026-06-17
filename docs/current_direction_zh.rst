@@ -119,6 +119,9 @@
 - schema patch confidence calibration 只读校准报告；pending approval、未打分候选和
   recommendation 现在会作为 release blocker / warning / action item 进入
   ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费；
+  报告同时保留 ``business_template_corpus_summary``，让 reviewer 能看到候选项来自
+  哪些项目、模板和 source JSON，并对缺少 project/template/source summary 的语料输出
+  ``add_business_template_source_metadata`` 动作；
   reviewer 分流约定为先用 ``source_report_display`` 打开 Markdown 报告，再用
   ``source_json_display`` 核对机器证据，最后复制 ``open_command`` 重新生成或复核校准材料
 - release blocker rollup 统一发布阻断汇总

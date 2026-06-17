@@ -252,5 +252,6 @@ P3：文档、测试与索引治理
    release materials 和版本契约测试；后续保持该展示不被删减。
 3. release material safety 已覆盖 dashboard 入口、分组摘要和 reviewer stop
    condition；后续保持 ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
-4. 下一步进入真实业务模板语料扩展和样式建议置信度校准。
-   第一轮按 ``docs/long_task_board_zh.rst`` 的 ``P1-SCHEMA-01`` 执行。
+4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
+   缺失来源 warning/action；下一步按 ``docs/long_task_board_zh.rst`` 的
+   ``P1-TEMPLATE-01`` 扩展 manifest / 描述 / smoke contract 级别的真实业务模板语料入口。

@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "fail_on_pending")]
+    [ValidateSet("all", "aggregate", "source_metadata", "fail_on_pending")]
     [string]$Scenario = "all"
 )
 
@@ -137,6 +137,13 @@ $fixtureRoot = Join-Path $resolvedWorkingDir "fixtures"
 $smokeSummaryPath = Join-Path $fixtureRoot "smoke\summary.json"
 $noopSmokeSummaryPath = Join-Path $fixtureRoot "noop-smoke\summary.json"
 $historyPath = Join-Path $fixtureRoot "history\project_template_schema_approval_history.json"
+$missingSourceSummaryPath = Join-Path $resolvedWorkingDir "missing-source-fixture\summary.json"
+
+foreach ($fixtureDir in @($fixtureRoot, (Join-Path $resolvedWorkingDir "missing-source-fixture"))) {
+    if (Test-Path -LiteralPath $fixtureDir) {
+        Remove-Item -LiteralPath $fixtureDir -Recurse -Force
+    }
+}
 
 Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_review_count = 4
@@ -370,6 +377,49 @@ Write-JsonFile -Path $historyPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $missingSourceSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_smoke_summary.v1"
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 1
+    schema_patch_reviews = @(
+        [ordered]@{
+            name = "legacy-notice-template"
+            template_name = "legacy-notice-template"
+            candidate_type = "add"
+            review_json = "legacy-notice.review.json"
+            changed = $true
+            baseline_slot_count = 1
+            generated_slot_count = 2
+            upsert_slot_count = 1
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 0
+            inserted_slots = 1
+            replaced_slots = 0
+            confidence = 91
+            reason_code = "legacy_fixture_without_project_id"
+        }
+    )
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "legacy-notice-template"
+            template_name = "legacy-notice-template"
+            candidate_type = "add"
+            status = "approved"
+            decision = "approved"
+            approved = $true
+            pending = $false
+            confidence = 91
+            reason_code = "legacy_fixture_without_project_id"
+            approval_result = "legacy-notice.approval.json"
+            schema_update_candidate = "legacy-notice.schema.json"
+            review_json = "legacy-notice.review.json"
+            compliance_issue_count = 0
+        }
+    )
+})
+
 if (Test-Scenario -Name "aggregate") {
     $outputDir = Join-Path $resolvedWorkingDir "aggregate-report"
     $result = Invoke-CalibrationScript -Arguments @(
@@ -403,6 +453,22 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose the number of real business projects."
     Assert-Equal -Actual ([int]$summary.template_count) -Expected 5 `
         -Message "Summary should expose the number of calibrated business templates."
+    Assert-HasProperty -Object $summary -Name "business_template_corpus_summary" `
+        -Message "Summary should expose business template corpus traceability."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.entry_count) -Expected 5 `
+        -Message "Corpus summary should count calibration entries."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.traced_entry_count) -Expected 5 `
+        -Message "Corpus summary should count entries with complete project/template/source metadata."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.project_count) -Expected 4 `
+        -Message "Corpus summary should expose business project coverage."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.template_count) -Expected 5 `
+        -Message "Corpus summary should expose business template coverage."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.source_json_count) -Expected 2 `
+        -Message "Corpus summary should expose distinct source JSON count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 0 `
+        -Message "Corpus summary should report missing source metadata count."
+    Assert-True -Condition (@($summary.business_template_corpus_summary.template_sources | Where-Object { $_.template_scope -eq "project-finance/invoice-template" }).Count -eq 1) `
+        -Message "Corpus summary should route invoice fixture back to its project/template scope."
 
     $invoiceEntry = @($summary.entries | Where-Object { $_.name -eq "invoice-template" })[0]
     Assert-Equal -Actual ([string]$invoiceEntry.project_id) -Expected "project-finance" `
@@ -526,6 +592,10 @@ if (Test-Scenario -Name "aggregate") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Patch Confidence Calibration Report" `
         -Message "Markdown should include title."
+    Assert-ContainsText -Text $markdown -ExpectedText "Business Template Corpus" `
+        -Message "Markdown should include business template corpus summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_jsons=2" `
+        -Message "Markdown should include source JSON coverage."
     Assert-ContainsText -Text $markdown -ExpectedText "Confidence Buckets" `
         -Message "Markdown should include confidence buckets."
     Assert-ContainsText -Text $markdown -ExpectedText "Project Templates" `
@@ -546,6 +616,50 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include source report display fields."
     Assert-ContainsText -Text $markdown -ExpectedText "open_command:" `
         -Message "Markdown should include action item open commands."
+}
+
+if (Test-Scenario -Name "source_metadata") {
+    $outputDir = Join-Path $resolvedWorkingDir "source-metadata-report"
+    $result = Invoke-CalibrationScript -Arguments @(
+        "-InputJson", $missingSourceSummaryPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Calibration report should not fail only because source metadata is incomplete. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "schema_patch_confidence_calibration.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready" `
+        -Message "Missing source metadata should be a warning, not a release blocker."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Missing source metadata alone should not fail release readiness."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.entry_count) -Expected 1 `
+        -Message "Source metadata scenario should expose corpus entry count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.traced_entry_count) -Expected 0 `
+        -Message "Missing project id should make the entry untraced."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 1 `
+        -Message "Corpus summary should count missing source metadata."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_project_id_count) -Expected 1 `
+        -Message "Corpus summary should count missing project ids."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Missing source metadata should produce one warning."
+    Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_template_source_metadata" `
+        -Message "Missing source metadata warning should use a stable id."
+    Assert-Equal -Actual ([string]$summary.warnings[0].action) -Expected "add_business_template_source_metadata" `
+        -Message "Missing source metadata warning should route to repair action."
+    Assert-Equal -Actual ([bool]$summary.warnings[0].missing_project_id) -Expected $true `
+        -Message "Missing source metadata warning should expose the missing project id flag."
+    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "add_business_template_source_metadata" }).Count -eq 1) `
+        -Message "Missing source metadata recommendation should be mirrored as an action item."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Business Template Corpus" `
+        -Message "Markdown should include business template corpus section for missing source scenario."
+    Assert-ContainsText -Text $markdown -ExpectedText "missing_source_metadata=1" `
+        -Message "Markdown should expose missing source metadata count."
+    Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_source_metadata" `
+        -Message "Markdown should include missing source metadata action."
 }
 
 if (Test-Scenario -Name "fail_on_pending") {

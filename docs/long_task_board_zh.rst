@@ -86,17 +86,20 @@
 
 2. ``P1-SCHEMA-01``：schema patch confidence 的真实业务语料来源追踪
 
-   * 状态：``DOING``。
+   * 状态：``GUARDED``。
    * 目标：让 schema patch confidence calibration report 能看出候选项来自哪些项目、
      模板或业务样本，而不是只有置信度汇总。
    * 最小实现：在报告 JSON / Markdown 中增加业务模板来源摘要、缺失来源信息 warning
      或 action item。
+   * 当前产物：``business_template_corpus_summary``、
+     ``schema_patch_confidence_calibration.missing_business_template_source_metadata`` 和
+     ``add_business_template_source_metadata`` 已进入脚本与测试。
    * 验收：``test/write_schema_patch_confidence_calibration_report_test.ps1`` 通过；
      文档契约测试仍能通过。
 
 3. ``P1-TEMPLATE-01``：真实业务模板语料扩展
 
-   * 状态：``TODO``。
+   * 状态：``DOING``。
    * 目标：逐步补合同、制度、发票、报告、通知、标书等样本入口。
    * 最小实现：先补 manifest / 描述 / smoke contract，不直接塞大体积二进制样本。
    * 验收：project-template smoke manifest 可解释新增样本来源、用途和验证边界。
@@ -173,8 +176,9 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-SCHEMA-01``，读取 schema patch confidence calibration 脚本和测试。
-3. 小步实现“业务模板来源摘要 / 缺失来源 warning”。
+2. 继续推进 ``P1-TEMPLATE-01``，优先补 manifest / 描述 / smoke contract 级别的
+   真实业务模板语料入口。
+3. 避免直接加入大体积二进制样本；先让来源、用途和验证边界进入可审计文本契约。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。
