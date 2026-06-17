@@ -124,8 +124,13 @@ P1：Release governance 与发布材料一致性
      ``release_blocking`` / ``auto_repair_candidate`` /
      ``manual_confirmation_required`` 以及 duplicate-binding action item 的
      ``manual_confirmation_required``。
+   * ``REVIEWER_CHECKLIST.md`` 已补 content-control blocker 与
+     duplicate-binding action item 的精确 source / command guidance 断言，
+     包括 source report、source JSON、action、open command 和
+     command template。
    * 下一步转向 release-facing 入口材料里 source 和 command guidance
-     的完整性检查，避免只展示结论而缺少可执行修复路径。
+     是否还有泛化断言或漏断言的检查，避免只展示结论而缺少
+     可执行修复路径。
 
 
 P2：样式与编号治理

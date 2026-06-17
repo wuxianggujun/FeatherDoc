@@ -153,6 +153,9 @@
      ``repair_action_classes`` 的 reviewer-facing 可见性也已纳入 release note
      bundle fixture 与统一 helper，覆盖 content-control blocker 的三类动作和
      duplicate-binding action item 的人工确认动作。
+     ``REVIEWER_CHECKLIST.md`` 进一步用精确断言锁住 content-control blocker
+     与 duplicate-binding action item 的 source report、source JSON、
+     action、open command 和 command template 指引。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
@@ -201,7 +204,7 @@
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
 2. 继续推进 ``P1-RELEASE-01``，小步复核 release-facing 入口材料里
-   source 和 command guidance 是否仍有缺口。
+   source 和 command guidance 是否还存在泛化断言或漏断言。
 3. 复核 release note bundle、release material safety、release asset
    manifest 三条链路对 content-control action/class/source/command 字段
    的断言是否存在重复盲区；优先补薄弱测试，不做大重构。
