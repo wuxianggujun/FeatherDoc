@@ -1,4 +1,94 @@
-﻿function Add-ProjectTemplateGovernanceContractSummaryLines {
+﻿function Test-ProjectTemplateReviewerActionEvidence {
+    param([AllowNull()]$Item)
+
+    foreach ($fieldName in @(
+            "requires_reviewer_action",
+            "reviewer_action_summary",
+            "reviewer_action_reason",
+            "reviewer_actions"
+        )) {
+        if (Test-ReleaseBlockerPropertyExists -Object $Item -Name $fieldName) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-ProjectTemplateReviewerActionEvidence {
+    param(
+        [AllowNull()]$Summary,
+        [string]$ReportId,
+        [string]$SourceSchema
+    )
+
+    $containers = @(
+        (Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_blocker_rollup"),
+        (Get-ReleaseBlockerPropertyObject -Object $Summary -Name "release_governance_handoff")
+    )
+    foreach ($container in $containers) {
+        foreach ($arrayName in @("release_blockers", "action_items", "warnings")) {
+            foreach ($item in @(Get-ReleaseBlockerArrayProperty -Object $container -Name $arrayName)) {
+                if (-not (Test-ProjectTemplateReviewerActionEvidence -Item $item)) {
+                    continue
+                }
+
+                $itemReportId = Get-ReleaseBlockerPropertyValue -Object $item -Name "report_id"
+                $itemSourceSchema = Get-ReleaseBlockerPropertyValue -Object $item -Name "source_schema"
+                if ((-not [string]::IsNullOrWhiteSpace($ReportId) -and
+                        [string]::Equals($itemReportId, $ReportId, [System.StringComparison]::Ordinal)) -or
+                    (-not [string]::IsNullOrWhiteSpace($SourceSchema) -and
+                        [string]::Equals($itemSourceSchema, $SourceSchema, [System.StringComparison]::Ordinal))) {
+                    return $item
+                }
+            }
+        }
+    }
+
+    return $null
+}
+
+function Add-ProjectTemplateReviewerActionParts {
+    param(
+        [System.Collections.Generic.List[string]]$Parts,
+        [AllowNull()]$Evidence
+    )
+
+    if ($null -eq $Evidence) {
+        return
+    }
+
+    $requiresReviewerAction = Get-ReleaseBlockerPropertyValue -Object $Evidence -Name "requires_reviewer_action"
+    if (-not [string]::IsNullOrWhiteSpace($requiresReviewerAction)) {
+        [void]$Parts.Add("requires_reviewer_action=$requiresReviewerAction")
+    }
+
+    foreach ($fieldName in @("reviewer_action_summary", "reviewer_action_reason")) {
+        $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Evidence -Name $fieldName
+        if (-not [string]::IsNullOrWhiteSpace($fieldValue)) {
+            [void]$Parts.Add("${fieldName}=$fieldValue")
+        }
+    }
+
+    $reviewerActions = Join-ReleaseBlockerValues -Values @(Get-ReleaseBlockerArrayProperty -Object $Evidence -Name "reviewer_actions")
+    if ($reviewerActions -ne "(none)") {
+        [void]$Parts.Add("reviewer_actions=$reviewerActions")
+    }
+}
+
+function Get-ProjectTemplateReviewerActionSuffix {
+    param([AllowNull()]$Evidence)
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    Add-ProjectTemplateReviewerActionParts -Parts $parts -Evidence $Evidence
+    if ($parts.Count -eq 0) {
+        return ""
+    }
+
+    return " " + ($parts -join " ")
+}
+
+function Add-ProjectTemplateGovernanceContractSummaryLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
         [AllowNull()]$Summary
@@ -21,6 +111,10 @@
     [void]$Lines.Add("## Project template governance contracts")
 
     if ($null -ne $readinessReport) {
+        $readinessReviewerActionEvidence = Get-ProjectTemplateReviewerActionEvidence `
+            -Summary $Summary `
+            -ReportId "project_template_delivery_readiness" `
+            -SourceSchema "featherdoc.project_template_delivery_readiness_report.v1"
         $readinessParts = New-Object 'System.Collections.Generic.List[string]'
         foreach ($part in @(
                 "project_template_delivery_readiness",
@@ -68,12 +162,17 @@
         if (-not [string]::IsNullOrWhiteSpace($onboardingGovernanceNextActionSummary)) {
             [void]$readinessParts.Add("onboarding_governance_next_action_summary=$onboardingGovernanceNextActionSummary")
         }
+        Add-ProjectTemplateReviewerActionParts -Parts $readinessParts -Evidence $readinessReviewerActionEvidence
         [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
         [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
         [void]$Lines.Add("- Project template readiness: $($readinessParts -join ' ')")
     }
 
     if ($null -ne $onboardingReport) {
+        $onboardingReviewerActionEvidence = Get-ProjectTemplateReviewerActionEvidence `
+            -Summary $Summary `
+            -ReportId "project_template_onboarding_governance" `
+            -SourceSchema "featherdoc.project_template_onboarding_governance_report.v1"
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "schema_approval_status_summary") `
             -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
@@ -111,6 +210,7 @@
         if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
             [void]$onboardingParts.Add("next_action_group_count=$nextActionGroupCount")
         }
+        Add-ProjectTemplateReviewerActionParts -Parts $onboardingParts -Evidence $onboardingReviewerActionEvidence
         [void]$onboardingParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $onboardingReport)")
         [void]$onboardingParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $onboardingReport)")
         [void]$Lines.Add("- Project template onboarding: $($onboardingParts -join ' ')")
@@ -177,12 +277,17 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
         -Schema "featherdoc.project_template_onboarding_governance_report.v1"
 
     if ($null -ne $readinessReport) {
+        $readinessReviewerActionEvidence = Get-ProjectTemplateReviewerActionEvidence `
+            -Summary $Summary `
+            -ReportId "project_template_delivery_readiness" `
+            -SourceSchema "featherdoc.project_template_delivery_readiness_report.v1"
+        $readinessReviewerActionSuffix = Get-ProjectTemplateReviewerActionSuffix -Evidence $readinessReviewerActionEvidence
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
         $onboardingGovernanceNextAction = Format-ProjectTemplateNextActionSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "onboarding_governance_next_action")
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} onboarding_governance_next_action={4} onboarding_governance_next_action_group_count={5} release_blocker_count={6} warning_count={7} source_report_display={8} source_json_display={9}。' -f `
+            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} onboarding_governance_next_action={4} onboarding_governance_next_action_group_count={5} release_blocker_count={6} warning_count={7}{8} source_report_display={9} source_json_display={10}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
@@ -191,12 +296,18 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "onboarding_governance_next_action_group_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_blocker_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "warning_count")),
+                $readinessReviewerActionSuffix,
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
         )
     }
 
     if ($null -ne $onboardingReport) {
+        $onboardingReviewerActionEvidence = Get-ProjectTemplateReviewerActionEvidence `
+            -Summary $Summary `
+            -ReportId "project_template_onboarding_governance" `
+            -SourceSchema "featherdoc.project_template_onboarding_governance_report.v1"
+        $onboardingReviewerActionSuffix = Get-ProjectTemplateReviewerActionSuffix -Evidence $onboardingReviewerActionEvidence
         $schemaApprovalSummary = Format-ProjectTemplateSchemaApprovalStatusSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "schema_approval_status_summary") `
             -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
@@ -204,12 +315,13 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
             -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "next_action")
 
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} next_action={3} next_action_group_count={4} source_report_display={5} source_json_display={6}。' -f `
+            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} next_action={3} next_action_group_count={4}{5} source_report_display={6} source_json_display={7}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "release_ready")),
                 (Get-DisplayValue -Value $schemaApprovalSummary),
                 (Get-DisplayValue -Value $nextAction),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "next_action_group_count")),
+                $onboardingReviewerActionSuffix,
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $onboardingReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $onboardingReport))
         )

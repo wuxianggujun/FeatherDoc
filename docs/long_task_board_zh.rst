@@ -193,6 +193,11 @@
      同时包含 ``status``、``release_ready``、``reviewer_action_*``、
      ``source_report_display`` 和 ``source_json_display`` 等完整必备字段；
      三个入口生成脚本也由文档契约测试锁定同一字段集合。
+     ``release_body.zh-CN.md`` 和 ``release_summary.zh-CN.md`` 的
+     project-template governance contract 摘要已从 blocker/action item 证据聚合
+     ``requires_reviewer_action``、``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions``，避免 release notes
+     只展示 readiness 状态而丢失人工复核动作。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

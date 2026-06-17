@@ -132,6 +132,10 @@ Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
     'onboarding_governance_next_action_group_count=1',
     'onboarding_governance_next_action=action=review_schema_update_candidate',
     'onboarding_governance_next_action_summary=action=review_schema_update_candidate',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_body.zh-CN.md'
@@ -146,6 +150,10 @@ Assert-LineContainsAll -Path $bodyPath -ExpectedFragments @(
     'next_action=action=review_schema_update_candidate',
     'next_action_summary=action=review_schema_update_candidate',
     'next_action_group_count=1',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-onboarding-governance\summary.json',
     'source_json_display=.\output\project-template-onboarding-governance\summary.json'
 ) -Label 'release_body.zh-CN.md'
@@ -195,6 +203,10 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'onboarding_governance_next_action_group_count=1',
     'release_blocker_count=1',
     'warning_count=0',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_summary.zh-CN.md'
@@ -206,6 +218,10 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'schema_approval_status_summary=pending_review',
     'next_action=action=review_schema_update_candidate',
     'next_action_group_count=1',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-onboarding-governance\summary.json',
     'source_json_display=.\output\project-template-onboarding-governance\summary.json'
 ) -Label 'release_summary.zh-CN.md'
@@ -233,6 +249,10 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'release_ready=False',
     'latest_schema_approval_gate_status=pending_review',
     'schema_approval_status_summary=pending_review',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_summary.zh-CN.md'
@@ -241,6 +261,10 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'status=pending_review',
     'release_ready=False',
     'schema_approval_status_summary=pending_review',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_schema_update_candidate',
+    'reviewer_action_reason=latest_review_state=pending; issue_keys=(none)',
+    'reviewer_actions=review_schema_update_candidate',
     'source_report_display=.\output\project-template-onboarding-governance\summary.json',
     'source_json_display=.\output\project-template-onboarding-governance\summary.json'
 ) -Label 'release_summary.zh-CN.md'
