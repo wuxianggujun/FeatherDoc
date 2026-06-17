@@ -180,6 +180,9 @@
      写入，离线 fake gh 回归会验证 ``upload.remote_assets`` 只包含
      ``release_assets_manifest.json`` 里列出的正式 ZIP，并保留远端 URL、大小和
      下载计数。
+     GitHub Release refresh / publish workflow 已补维护契约，固定
+     ``RELEASE_OUTPUT_ROOT``、发布脚本入口、``release-refresh-output`` /
+     ``release-publish-output`` 以及 ``output/release-assets/**`` 上传路径。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

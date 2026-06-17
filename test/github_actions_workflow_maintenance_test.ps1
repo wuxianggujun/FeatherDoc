@@ -136,16 +136,35 @@ $releasePublishWorkflow = $workflowTexts[".github\workflows\release-publish.yml"
 foreach ($marker in @(
         "allow-ci-artifact-publish:",
         "Allow publishing a CI artifact bundle when Word visual gate was skipped",
+        "RELEASE_OUTPUT_ROOT: output/release-assets",
         '$visualGateStatus -in @("skipped", "visual_gate_skipped")',
         '$visualVerdict -in @("", "visual_gate_skipped", "pending_manual_review")',
         "Refusing Release Publish because visual_verdict is",
         "Refusing Release Publish because visual_gate.status is",
         '"-ExecutionPolicy", "Bypass"',
         '"-File", ".\scripts\publish_github_release.ps1"',
-        "-AllowCiArtifactPublish"
+        '"-OutputRoot", $env:RELEASE_OUTPUT_ROOT',
+        '"-Publish"',
+        "-AllowCiArtifactPublish",
+        "name: release-publish-output",
+        "output/release-assets/**"
     )) {
     Assert-ContainsText -Text $releasePublishWorkflow -ExpectedText $marker `
         -Message "Release Publish workflow should keep the CI artifact boundary marker '$marker'."
+}
+
+$releaseRefreshWorkflow = $workflowTexts[".github\workflows\release-refresh.yml"]
+foreach ($marker in @(
+        "workflow_dispatch:",
+        "contents: write",
+        "RELEASE_OUTPUT_ROOT: output/release-assets",
+        "-File .\scripts\publish_github_release.ps1",
+        '-OutputRoot $env:RELEASE_OUTPUT_ROOT',
+        "name: release-refresh-output",
+        "output/release-assets/**"
+    )) {
+    Assert-ContainsText -Text $releaseRefreshWorkflow -ExpectedText $marker `
+        -Message "Release Refresh workflow should keep the release output artifact marker '$marker'."
 }
 
 Write-Host "GitHub Actions workflow maintenance contract passed."

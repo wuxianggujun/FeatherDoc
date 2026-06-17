@@ -149,8 +149,12 @@ P1：Release governance 与发布材料一致性
      ``publish_github_release.ps1`` 也已补上传后 manifest 刷新回归，确保
      ``upload.remote_assets`` 只记录 manifest assets 中的正式 ZIP，并保留远端
      URL、大小和下载计数。
-   * 下一步继续复核 GitHub Release refresh / publish workflow artifact 输出，
-     确保入口材料、manifest 和最终发布资产里的治理证据一致。
+   * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
+     锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
+     ``release-refresh-output`` / ``release-publish-output`` 以及
+     ``output/release-assets/**`` 上传路径。
+   * 下一步等待当前 ``dev`` 最新 CI 全绿；若失败则先修 CI，否则继续推进
+     release blocker rollup 与 reviewer bundle 的治理证据一致性。
 
 
 P2：样式与编号治理
