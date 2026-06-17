@@ -773,6 +773,23 @@
 
             add_test(
                 NAME
+                build_project_template_workflow_dashboard_release_candidate_summary
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_project_template_workflow_dashboard_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_project_template_workflow_dashboard_release_candidate_summary
+                -Scenario
+                release_candidate_summary
+            )
+
+            add_test(
+                NAME
                 build_project_template_workflow_dashboard_ready
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

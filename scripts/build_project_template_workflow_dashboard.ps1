@@ -10,6 +10,7 @@ for source artifacts and does not rerun smoke, CMake, Word, PDF, or visual
 automation.
 #>
 param(
+    [string]$ReleaseCandidateSummaryJson = "",
     [string]$OnboardingGovernanceJson = "",
     [string]$DeliveryReadinessJson = "",
     [string]$OutputDir = "output/project-template-workflow-dashboard",
@@ -252,6 +253,26 @@ function Convert-NextActionSummaryEntry {
     }
 }
 
+function Read-ReleaseCandidateSummaryInput {
+    param(
+        [string]$Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $null
+    }
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Release candidate summary does not exist: $Path"
+    }
+
+    try {
+        return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+    } catch {
+        throw "Release candidate summary is not valid JSON: $Path"
+    }
+}
+
 function Read-WorkflowReport {
     param(
         [string]$RepoRoot,
@@ -482,6 +503,23 @@ Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 
 $resolvedOnboardingPath = Resolve-RepoPath -RepoRoot $repoRoot -Path $OnboardingGovernanceJson -AllowMissing
 $resolvedDeliveryPath = Resolve-RepoPath -RepoRoot $repoRoot -Path $DeliveryReadinessJson -AllowMissing
+$resolvedReleaseCandidateSummaryPath = Resolve-RepoPath -RepoRoot $repoRoot -Path $ReleaseCandidateSummaryJson -AllowMissing
+$releaseCandidateSummary = Read-ReleaseCandidateSummaryInput -Path $resolvedReleaseCandidateSummaryPath
+if ($null -ne $releaseCandidateSummary) {
+    if ([string]::IsNullOrWhiteSpace($resolvedOnboardingPath)) {
+        $resolvedOnboardingPath = Resolve-RepoPath `
+            -RepoRoot $repoRoot `
+            -Path (Get-JsonString -Object $releaseCandidateSummary -Name "project_template_onboarding_governance") `
+            -AllowMissing
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedDeliveryPath)) {
+        $resolvedDeliveryPath = Resolve-RepoPath `
+            -RepoRoot $repoRoot `
+            -Path (Get-JsonString -Object $releaseCandidateSummary -Name "project_template_delivery_readiness") `
+            -AllowMissing
+    }
+}
+$releaseCandidateSummaryDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $resolvedReleaseCandidateSummaryPath
 
 Write-Step "Reading workflow evidence"
 $onboardingReport = Read-WorkflowReport -RepoRoot $repoRoot -Path $resolvedOnboardingPath -Id "project_template_onboarding_governance" -ExpectedSchema $onboardingGovernanceSchema
@@ -567,6 +605,8 @@ $summary = [ordered]@{
     source_report_count = $sourceReports.Count
     missing_input_count = $missingInputCount
     schema_mismatch_count = $schemaMismatchCount
+    release_candidate_summary_json = $resolvedReleaseCandidateSummaryPath
+    release_candidate_summary_json_display = $releaseCandidateSummaryDisplay
     next_action = $nextAction
     next_action_summary = $nextActionSummary
     next_action_group_count = $nextActionGroupCount

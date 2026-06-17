@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "ready", "missing_inputs", "fail_on_blocker")]
+    [ValidateSet("all", "aggregate", "release_candidate_summary", "ready", "missing_inputs", "fail_on_blocker")]
     [string]$Scenario = "all"
 )
 
@@ -168,6 +168,19 @@ function New-DeliveryReadinessReport {
     }
 }
 
+function New-ReleaseCandidateSummary {
+    param(
+        [string]$OnboardingGovernancePath,
+        [string]$DeliveryReadinessPath
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.release_candidate_summary"
+        project_template_onboarding_governance = $OnboardingGovernancePath
+        project_template_delivery_readiness = $DeliveryReadinessPath
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 $scriptPath = Join-Path $resolvedRepoRoot "scripts\build_project_template_workflow_dashboard.ps1"
@@ -220,6 +233,35 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard Markdown should include onboarding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
         -Message "Workflow dashboard Markdown should include delivery readiness."
+}
+
+if (Test-Scenario -Name "release_candidate_summary") {
+    $scenarioDir = Join-Path $resolvedWorkingDir "release-candidate-summary"
+    $onboardingPath = Join-Path $scenarioDir "project_template_onboarding_governance_summary.json"
+    $deliveryPath = Join-Path $scenarioDir "project_template_delivery_readiness_summary.json"
+    $releaseCandidateSummaryPath = Join-Path $scenarioDir "release_candidate_summary.json"
+    $outputJson = Join-Path $scenarioDir "project_template_workflow_dashboard.json"
+
+    Write-JsonFile -Path $onboardingPath -Value (New-OnboardingGovernanceReport)
+    Write-JsonFile -Path $deliveryPath -Value (New-DeliveryReadinessReport)
+    Write-JsonFile -Path $releaseCandidateSummaryPath -Value (New-ReleaseCandidateSummary `
+            -OnboardingGovernancePath $onboardingPath `
+            -DeliveryReadinessPath $deliveryPath)
+
+    $result = Invoke-DashboardScript -Arguments @(
+        "-ReleaseCandidateSummaryJson", $releaseCandidateSummaryPath,
+        "-SummaryJson", $outputJson
+    )
+
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Workflow dashboard release-candidate-summary scenario should pass."
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputJson | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "blocked" `
+        -Message "Workflow dashboard should read source paths from release-candidate summary."
+    Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 2 `
+        -Message "Workflow dashboard should include both release-candidate source reports."
+    Assert-ContainsText -Text ([string]$summary.release_candidate_summary_json_display) -ExpectedText "release_candidate_summary.json" `
+        -Message "Workflow dashboard should expose release-candidate summary display path."
 }
 
 if (Test-Scenario -Name "ready") {
