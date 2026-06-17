@@ -132,6 +132,10 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
             "next_action",
             "next_action_summary",
             "next_action_group_count",
+            "requires_reviewer_action",
+            "reviewer_action_summary",
+            "reviewer_action_reason",
+            "reviewer_actions",
             "source_report_display",
             "source_json_display"
         )) {
@@ -462,6 +466,18 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
         [int]$projectTemplateDeliveryReadinessSchemaSummary[0].count -ne 4) {
         throw "Release assets manifest lost project template delivery readiness schema_approval_status_summary in AllowIncomplete mode."
     }
+    if ([bool]$projectTemplateDeliveryReadinessContract.requires_reviewer_action) {
+        throw "Release assets manifest lost project template delivery readiness requires_reviewer_action=false in AllowIncomplete mode."
+    }
+    if ([string]$projectTemplateDeliveryReadinessContract.reviewer_action_summary -ne "none") {
+        throw "Release assets manifest lost project template delivery readiness reviewer_action_summary in AllowIncomplete mode."
+    }
+    if ([string]$projectTemplateDeliveryReadinessContract.reviewer_action_reason -ne "latest_review_state=approved; no reviewer action required") {
+        throw "Release assets manifest lost project template delivery readiness reviewer_action_reason in AllowIncomplete mode."
+    }
+    if (@($projectTemplateDeliveryReadinessContract.reviewer_actions).Count -ne 0) {
+        throw "Release assets manifest lost project template delivery readiness empty reviewer_actions in AllowIncomplete mode."
+    }
 
     $projectTemplateOnboardingGovernanceContract = $manifest.project_template_onboarding_governance_contract
     if ($null -eq $projectTemplateOnboardingGovernanceContract) {
@@ -487,6 +503,18 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
     }
     if ([string]$projectTemplateOnboardingGovernanceContract.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
         throw "Release assets manifest lost project template onboarding governance source_json_display in AllowIncomplete mode."
+    }
+    if ([bool]$projectTemplateOnboardingGovernanceContract.requires_reviewer_action) {
+        throw "Release assets manifest lost project template onboarding governance requires_reviewer_action=false in AllowIncomplete mode."
+    }
+    if ([string]$projectTemplateOnboardingGovernanceContract.reviewer_action_summary -ne "none") {
+        throw "Release assets manifest lost project template onboarding governance reviewer_action_summary in AllowIncomplete mode."
+    }
+    if ([string]$projectTemplateOnboardingGovernanceContract.reviewer_action_reason -ne "latest_review_state=approved; no reviewer action required") {
+        throw "Release assets manifest lost project template onboarding governance reviewer_action_reason in AllowIncomplete mode."
+    }
+    if (@($projectTemplateOnboardingGovernanceContract.reviewer_actions).Count -ne 0) {
+        throw "Release assets manifest lost project template onboarding governance empty reviewer_actions in AllowIncomplete mode."
     }
 
     $stagedSummaryContent = Get-Content -Raw -LiteralPath $stagedSummaryPath

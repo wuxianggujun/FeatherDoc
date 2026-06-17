@@ -222,6 +222,16 @@ foreach ($entrypointMaterial in @(
         @{ Path = $stagedArtifactGuidePath; Label = 'staged ARTIFACT_GUIDE.md' },
         @{ Path = $stagedReviewerChecklistPath; Label = 'staged REVIEWER_CHECKLIST.md' }
     )) {
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'requires_reviewer_action' -Label $entrypointMaterial.Label
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_action_summary' -Label $entrypointMaterial.Label
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_action_reason' -Label $entrypointMaterial.Label
+    Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'reviewer_actions' -Label $entrypointMaterial.Label
+}
+foreach ($entrypointMaterial in @(
+        @{ Path = $stagedStartHerePath; Label = 'staged START_HERE.md' },
+        @{ Path = $stagedArtifactGuidePath; Label = 'staged ARTIFACT_GUIDE.md' },
+        @{ Path = $stagedReviewerChecklistPath; Label = 'staged REVIEWER_CHECKLIST.md' }
+    )) {
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'pdf_floating_table_support_coverage' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'pdf_floating_table_reviewer_focus' -Label $entrypointMaterial.Label
     Assert-Contains -Path $entrypointMaterial.Path -ExpectedText 'metadata-only tblpPr' -Label $entrypointMaterial.Label

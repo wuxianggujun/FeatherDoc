@@ -331,6 +331,10 @@ Add-ReleaseGovernanceHandoffMarkdownSection `
                         "next_action",
                         "next_action_summary",
                         "next_action_group_count",
+                        "requires_reviewer_action",
+                        "reviewer_action_summary",
+                        "reviewer_action_reason",
+                        "reviewer_actions",
                         "source_report_display",
                         "source_json_display"
                     )
@@ -412,7 +416,7 @@ Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff
     -Message "Handoff detail Markdown should render release assets manifest display path."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_entrypoint_ids: start_here, artifact_guide, reviewer_checklist" `
     -Message "Handoff detail Markdown should render manifest signoff entrypoint ids."
-Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_required_fields: status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, source_report_display, source_json_display" `
+Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "manifest_signoff_entrypoints_required_fields: status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, source_report_display, source_json_display" `
     -Message "Handoff detail Markdown should render the full manifest signoff required field contract."
 Assert-ContainsText -Text $handoffDetailMarkdown -ExpectedText "reviewer_manifest_scoped_project_template_trace" `
     -Message "Handoff detail Markdown should render manifest signoff checklist marker."

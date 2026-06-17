@@ -328,6 +328,18 @@ if ([string]$manifestProjectTemplateReadiness.source_report_display -ne $expecte
 if ([string]$manifestProjectTemplateReadiness.source_json_display -ne $expectedProjectTemplateDeliveryReadinessDisplay) {
     throw "release_assets_manifest.json lost project template delivery readiness source_json_display."
 }
+if ([bool]$manifestProjectTemplateReadiness.requires_reviewer_action) {
+    throw "release_assets_manifest.json lost project template delivery readiness requires_reviewer_action=false."
+}
+if ([string]$manifestProjectTemplateReadiness.reviewer_action_summary -ne "none") {
+    throw "release_assets_manifest.json lost project template delivery readiness reviewer_action_summary."
+}
+if ([string]$manifestProjectTemplateReadiness.reviewer_action_reason -ne "latest_review_state=approved; no reviewer action required") {
+    throw "release_assets_manifest.json lost project template delivery readiness reviewer_action_reason."
+}
+if (@($manifestProjectTemplateReadiness.reviewer_actions).Count -ne 0) {
+    throw "release_assets_manifest.json lost project template delivery readiness empty reviewer_actions."
+}
 $manifestProjectTemplateOnboarding = $manifest.project_template_onboarding_governance_contract
 if ($null -eq $manifestProjectTemplateOnboarding) {
     throw "release_assets_manifest.json lost project_template_onboarding_governance_contract."
@@ -370,4 +382,16 @@ if ([string]$manifestProjectTemplateOnboarding.source_report_display -ne $expect
 }
 if ([string]$manifestProjectTemplateOnboarding.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
     throw "release_assets_manifest.json lost project template onboarding governance source_json_display."
+}
+if ([bool]$manifestProjectTemplateOnboarding.requires_reviewer_action) {
+    throw "release_assets_manifest.json lost project template onboarding governance requires_reviewer_action=false."
+}
+if ([string]$manifestProjectTemplateOnboarding.reviewer_action_summary -ne "none") {
+    throw "release_assets_manifest.json lost project template onboarding governance reviewer_action_summary."
+}
+if ([string]$manifestProjectTemplateOnboarding.reviewer_action_reason -ne "latest_review_state=approved; no reviewer action required") {
+    throw "release_assets_manifest.json lost project template onboarding governance reviewer_action_reason."
+}
+if (@($manifestProjectTemplateOnboarding.reviewer_actions).Count -ne 0) {
+    throw "release_assets_manifest.json lost project template onboarding governance empty reviewer_actions."
 }

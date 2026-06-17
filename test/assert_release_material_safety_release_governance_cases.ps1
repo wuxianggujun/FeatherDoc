@@ -14,7 +14,7 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffManifestSignoffTracePath -
     - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
     - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
     - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
-    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, source_report_display, source_json_display``
+    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, source_report_display, source_json_display``
     - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
 "@
 
@@ -39,7 +39,7 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffManifestSignoffSplitPath -E
 
 - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
 - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
-- manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, source_report_display, source_json_display``
+- manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, source_report_display, source_json_display``
 - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
 "@
 
@@ -70,7 +70,7 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffManifestSignoffWrongSchemaP
     - manifest_signoff_entrypoints_required_entrypoint_count: ``3``
     - manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``
     - manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``
-    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, source_report_display, source_json_display``
+    - manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, source_report_display, source_json_display``
     - manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``
 "@
 

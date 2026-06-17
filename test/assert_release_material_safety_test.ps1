@@ -325,6 +325,10 @@ $projectTemplateDeliveryReadinessContract = [ordered]@{
         }
     )
     onboarding_governance_next_action_group_count = 1
+    requires_reviewer_action = $false
+    reviewer_action_summary = "none"
+    reviewer_action_reason = "latest_review_state=approved; no reviewer action required"
+    reviewer_actions = @()
     schema_history_blocked_run_count = 0
     schema_history_pending_run_count = 0
     schema_history_passed_run_count = 3
@@ -370,6 +374,10 @@ $projectTemplateOnboardingGovernanceContract = [ordered]@{
         }
     )
     next_action_group_count = 1
+    requires_reviewer_action = $false
+    reviewer_action_summary = "none"
+    reviewer_action_reason = "latest_review_state=approved; no reviewer action required"
+    reviewer_actions = @()
     blocked_entry_count = 0
     pending_review_entry_count = 0
     not_evaluated_entry_count = 0
@@ -436,6 +444,10 @@ $manifestSignoffEntrypoints = [ordered]@{
         "next_action",
         "next_action_summary",
         "next_action_group_count",
+        "requires_reviewer_action",
+        "reviewer_action_summary",
+        "reviewer_action_reason",
+        "reviewer_actions",
         "source_report_display",
         "source_json_display"
     )

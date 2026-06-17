@@ -113,6 +113,10 @@ P1：Release governance 与发布材料一致性
 2. 加强发布资产 contract：
 
    * ``release_assets_manifest.json`` 继续保留 project-template governance contracts。
+   * ``requires_reviewer_action``、``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions`` 已纳入
+     ``release_assets_manifest.json`` 的 delivery readiness / onboarding governance
+     contract，并进入 manifest signoff 必备字段。
    * GitHub Release refresh / publish 前必须能从 manifest 复核 release readiness。
    * 资产上传、release notes 同步和正式发布保持分步可控。
 
@@ -141,8 +145,9 @@ P1：Release governance 与发布材料一致性
    * schema approval ``reviewer_action_*`` 已进入 ``release_handoff.md``、
      ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``，
      并由 release note bundle fixture 断言入口材料与 material safety 审计。
-   * 下一步转向 release asset manifest / GitHub Release assets 的 contract
-     复核，确保入口材料、manifest 和最终发布资产里的治理证据一致。
+   * release asset manifest 已开始承接 schema approval reviewer action 字段，
+     下一步转向 GitHub Release refresh / publish 前后的资产证据复核，确保入口材料、
+     manifest 和最终发布资产里的治理证据一致。
 
 
 P2：样式与编号治理

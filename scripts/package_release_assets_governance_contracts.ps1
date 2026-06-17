@@ -21,6 +21,30 @@ function Resolve-GateRoot {
     return ""
 }
 
+function Get-OptionalArrayProperty {
+    param(
+        [AllowNull()]$Object,
+        [string]$Name
+    )
+
+    $value = Get-OptionalPropertyObject -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return @()
+    }
+    if ($value -is [string]) {
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            return @()
+        }
+
+        return @($value)
+    }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+
+    return @($value)
+}
+
 function Resolve-PdfVisualGateSummaryJson {
     param(
         [string]$RepoRoot,
@@ -331,6 +355,10 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         onboarding_governance_next_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action"
         onboarding_governance_next_action_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_summary"
         onboarding_governance_next_action_group_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_group_count"
+        requires_reviewer_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "requires_reviewer_action"
+        reviewer_action_summary = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_summary"
+        reviewer_action_reason = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_reason"
+        reviewer_actions = @(Get-OptionalArrayProperty -Object $readinessSummary -Name "reviewer_actions")
         schema_history_blocked_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
         schema_history_pending_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
         schema_history_passed_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"
@@ -373,6 +401,10 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
         next_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action"
         next_action_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_summary"
         next_action_group_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_group_count"
+        requires_reviewer_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "requires_reviewer_action"
+        reviewer_action_summary = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_summary"
+        reviewer_action_reason = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_reason"
+        reviewer_actions = @(Get-OptionalArrayProperty -Object $onboardingSummary -Name "reviewer_actions")
         blocked_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "blocked_entry_count"
         pending_review_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "pending_review_entry_count"
         not_evaluated_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "not_evaluated_entry_count"

@@ -124,6 +124,60 @@ function Get-JsonArray {
     return @($value)
 }
 
+function Add-ProjectTemplateReviewerActionContractViolations {
+    param(
+        [string]$File,
+        $Contract,
+        $Violations,
+        [string]$Label,
+        [string]$ContractName
+    )
+
+    $requiresReviewerAction = Get-JsonPropertyValue -Object $Contract -Name "requires_reviewer_action"
+    if ($null -eq $requiresReviewerAction) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.requires_reviewer_action is missing."
+    } elseif (-not (Test-StringValueInSet -Value $requiresReviewerAction -AllowedValues @("true", "false"))) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.requires_reviewer_action must be true or false."
+    }
+
+    $reviewerActionSummary = Get-JsonPropertyValue -Object $Contract -Name "reviewer_action_summary"
+    if ([string]::IsNullOrWhiteSpace([string]$reviewerActionSummary)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.reviewer_action_summary is missing."
+    }
+
+    $reviewerActionReason = Get-JsonPropertyValue -Object $Contract -Name "reviewer_action_reason"
+    if ([string]::IsNullOrWhiteSpace([string]$reviewerActionReason)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.reviewer_action_reason is missing."
+    }
+
+    $reviewerActionsProperty = $null
+    if ($null -ne $Contract) {
+        $reviewerActionsProperty = $Contract.PSObject.Properties["reviewer_actions"]
+    }
+    if ($null -eq $reviewerActionsProperty) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.reviewer_actions is missing."
+    }
+    $reviewerActions = @(Get-JsonArray -Object $Contract -Name "reviewer_actions" |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+    $requiresReviewerActionIsTrue = $false
+    if ($requiresReviewerAction -is [bool]) {
+        $requiresReviewerActionIsTrue = $requiresReviewerAction
+    } elseif ($null -ne $requiresReviewerAction) {
+        $requiresReviewerActionIsTrue = ([string]$requiresReviewerAction).Trim().ToLowerInvariant() -eq "true"
+    }
+
+    if ($requiresReviewerActionIsTrue) {
+        if ([string]::Equals([string]$reviewerActionSummary, "none", [System.StringComparison]::OrdinalIgnoreCase)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.reviewer_action_summary must name an action when requires_reviewer_action is true."
+        }
+        if ($reviewerActions.Count -eq 0) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $Label -Text "$ContractName.reviewer_actions must list at least one action when requires_reviewer_action is true."
+        }
+    }
+}
+
 function Get-JsonObjectNodes {
     param($Value)
 

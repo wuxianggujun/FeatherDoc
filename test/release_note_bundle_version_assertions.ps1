@@ -387,6 +387,10 @@ foreach ($document in $manifestEntryDocuments) {
     Assert-Contains -Path $document.Path -ExpectedText 'next_action' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'next_action_summary' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'next_action_group_count' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'requires_reviewer_action' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'reviewer_action_summary' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'reviewer_action_reason' -Label $document.Label
+    Assert-Contains -Path $document.Path -ExpectedText 'reviewer_actions' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_report_display' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'source_json_display' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'before refreshing or publishing GitHub Release assets' -Label $document.Label
@@ -405,6 +409,10 @@ Assert-Contains -Path $manifestChecklistPath -ExpectedText 'onboarding_governanc
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action_summary' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'next_action_group_count' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'requires_reviewer_action' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'reviewer_action_summary' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'reviewer_action_reason' -Label 'REVIEWER_CHECKLIST.md'
+Assert-Contains -Path $manifestChecklistPath -ExpectedText 'reviewer_actions' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_report_display' -Label 'REVIEWER_CHECKLIST.md'
 Assert-Contains -Path $manifestChecklistPath -ExpectedText 'source_json_display' -Label 'REVIEWER_CHECKLIST.md'
 $checklistHandoffEntryDocuments = @(

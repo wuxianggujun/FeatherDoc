@@ -96,6 +96,13 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.release_ready must be true or false."
     }
 
+    Add-ProjectTemplateReviewerActionContractViolations `
+        -File $File `
+        -Contract $contract `
+        -Violations $Violations `
+        -Label $label `
+        -ContractName "project_template_onboarding_governance_contract"
+
     $statusSummary = Get-JsonPropertyValue -Object $contract -Name "schema_approval_status_summary"
     if ($null -eq $statusSummary -or
         ($statusSummary -is [string] -and [string]::IsNullOrWhiteSpace($statusSummary)) -or
@@ -291,6 +298,10 @@ function Add-ManifestSignoffEntrypointsContractViolations {
         "next_action",
         "next_action_summary",
         "next_action_group_count",
+        "requires_reviewer_action",
+        "reviewer_action_summary",
+        "reviewer_action_reason",
+        "reviewer_actions",
         "source_report_display",
         "source_json_display"
     )) {

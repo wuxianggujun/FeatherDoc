@@ -162,16 +162,20 @@
      ``repair_action_classes`` 的 reviewer-facing 可见性也已纳入 release note
      bundle fixture 与统一 helper，覆盖 content-control blocker 的三类动作和
      duplicate-binding action item 的人工确认动作。
-      ``REVIEWER_CHECKLIST.md`` 进一步用精确断言锁住 content-control blocker
-      与 duplicate-binding action item 的 source report、source JSON、
-      action、open command 和 command template 指引。
-      schema approval history 的 ``reviewer_action_summary``、
-      ``reviewer_action_reason`` 和 ``reviewer_actions`` 已从 delivery readiness
-      进入 release blocker rollup 与 release governance handoff，便于 reviewer
-      直接识别 pending / rejected 模板的下一步处理动作。
-      这组字段已继续进入 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
-      ``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``；reviewer checklist
-      会为 blocker 与 action item 输出 reviewer action、原因和候选动作。
+     ``REVIEWER_CHECKLIST.md`` 进一步用精确断言锁住 content-control blocker
+     与 duplicate-binding action item 的 source report、source JSON、
+     action、open command 和 command template 指引。
+     schema approval history 的 ``reviewer_action_summary``、
+     ``reviewer_action_reason`` 和 ``reviewer_actions`` 已从 delivery readiness
+     进入 release blocker rollup 与 release governance handoff，便于 reviewer
+     直接识别 pending / rejected 模板的下一步处理动作。
+     这组字段已继续进入 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
+     ``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``；reviewer checklist
+     会为 blocker 与 action item 输出 reviewer action、原因和候选动作。
+     ``release_assets_manifest.json`` 也开始保留 ``requires_reviewer_action``、
+     ``reviewer_action_summary``、``reviewer_action_reason`` 和
+     ``reviewer_actions``，并由 manifest signoff 必备字段与 material safety
+     负例测试守住。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
@@ -219,11 +223,11 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-RELEASE-01``，小步复核 release-facing 入口材料里
-   source 和 command guidance 是否还存在泛化断言或漏断言。
+2. 继续推进 ``P1-RELEASE-01``，小步复核 GitHub Release refresh / publish
+   前后的资产证据是否与 ``release_assets_manifest.json`` 保持一致。
 3. 复核 release note bundle、release material safety、release asset
-   manifest 三条链路对 content-control action/class/source/command 字段
-   的断言是否存在重复盲区；优先补薄弱测试，不做大重构。
+   manifest 三条链路对 reviewer action、content-control action/class/source/command
+   字段的断言是否存在重复盲区；优先补薄弱测试，不做大重构。
 4. 运行相关 PowerShell 测试和 ``git diff --check``。
 5. 提交并推送 ``dev``。
 6. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。

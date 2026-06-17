@@ -67,6 +67,24 @@ if (-not $missingDeliveryReadinessNextActionFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_delivery_readiness_contract.onboarding_governance_next_action."
 }
 
+$badManifestMissingDeliveryReadinessReviewerActionDir = Join-Path $failDir "manifest-missing-project-template-delivery-readiness-reviewer-action"
+$badManifestMissingDeliveryReadinessReviewerActionPath = Join-Path $badManifestMissingDeliveryReadinessReviewerActionDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingDeliveryReadinessReviewerActionDir -Force | Out-Null
+$badManifestMissingDeliveryReadinessReviewerAction = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingDeliveryReadinessReviewerAction.project_template_delivery_readiness_contract.PSObject.Properties.Remove("reviewer_action_summary")
+($badManifestMissingDeliveryReadinessReviewerAction | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingDeliveryReadinessReviewerActionPath -Encoding UTF8
+
+$missingDeliveryReadinessReviewerActionFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingDeliveryReadinessReviewerActionPath
+} catch {
+    $missingDeliveryReadinessReviewerActionFailedAsExpected = $true
+}
+
+if (-not $missingDeliveryReadinessReviewerActionFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_delivery_readiness_contract.reviewer_action_summary."
+}
+
 $badManifestMissingOnboardingGovernanceNextActionSummaryDir = Join-Path $failDir "manifest-missing-project-template-onboarding-governance-next-action-summary"
 $badManifestMissingOnboardingGovernanceNextActionSummaryPath = Join-Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir -Force | Out-Null
@@ -83,6 +101,24 @@ try {
 
 if (-not $missingOnboardingGovernanceNextActionSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_onboarding_governance_contract.next_action_summary."
+}
+
+$badManifestMissingOnboardingGovernanceReviewerActionDir = Join-Path $failDir "manifest-missing-project-template-onboarding-governance-reviewer-action"
+$badManifestMissingOnboardingGovernanceReviewerActionPath = Join-Path $badManifestMissingOnboardingGovernanceReviewerActionDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingOnboardingGovernanceReviewerActionDir -Force | Out-Null
+$badManifestMissingOnboardingGovernanceReviewerAction = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingOnboardingGovernanceReviewerAction.project_template_onboarding_governance_contract.PSObject.Properties.Remove("reviewer_action_summary")
+($badManifestMissingOnboardingGovernanceReviewerAction | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingOnboardingGovernanceReviewerActionPath -Encoding UTF8
+
+$missingOnboardingGovernanceReviewerActionFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingOnboardingGovernanceReviewerActionPath
+} catch {
+    $missingOnboardingGovernanceReviewerActionFailedAsExpected = $true
+}
+
+if (-not $missingOnboardingGovernanceReviewerActionFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing project_template_onboarding_governance_contract.reviewer_action_summary."
 }
 
 $badManifestMissingProjectTemplateChecklistEntrypointsDir = Join-Path $failDir "manifest-missing-project-template-readiness-checklist-entrypoints"

@@ -604,6 +604,13 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.release_ready must be true or false."
     }
 
+    Add-ProjectTemplateReviewerActionContractViolations `
+        -File $File `
+        -Contract $contract `
+        -Violations $Violations `
+        -Label $label `
+        -ContractName "project_template_delivery_readiness_contract"
+
     $integerValues = @{}
     foreach ($fieldName in @(
         "schema_history_blocked_run_count",

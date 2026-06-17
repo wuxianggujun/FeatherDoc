@@ -342,6 +342,10 @@ $projectTemplateDeliveryReadinessSummary = [ordered]@{
         }
     )
     onboarding_governance_next_action_group_count = 1
+    requires_reviewer_action = $false
+    reviewer_action_summary = "none"
+    reviewer_action_reason = "latest_review_state=approved; no reviewer action required"
+    reviewer_actions = @()
 }
 ($projectTemplateDeliveryReadinessSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateDeliveryReadinessSummaryPath -Encoding UTF8
 
@@ -385,6 +389,10 @@ $projectTemplateOnboardingGovernanceSummary = [ordered]@{
         }
     )
     next_action_group_count = 1
+    requires_reviewer_action = $false
+    reviewer_action_summary = "none"
+    reviewer_action_reason = "latest_review_state=approved; no reviewer action required"
+    reviewer_actions = @()
 }
 ($projectTemplateOnboardingGovernanceSummary | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $projectTemplateOnboardingGovernanceSummaryPath -Encoding UTF8
 
@@ -549,6 +557,10 @@ $summary = [ordered]@{
             "next_action",
             "next_action_summary",
             "next_action_group_count",
+            "requires_reviewer_action",
+            "reviewer_action_summary",
+            "reviewer_action_reason",
+            "reviewer_actions",
             "source_report_display",
             "source_json_display"
         )

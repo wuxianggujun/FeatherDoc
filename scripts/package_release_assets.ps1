@@ -500,6 +500,28 @@ $publicManifest = Convert-StructuredValueToPublic `
     -Value $manifest `
     -RepoRoot $repoRoot `
     -PreferEvidenceAnchor
+
+foreach ($contractName in @(
+        "project_template_delivery_readiness_contract",
+        "project_template_onboarding_governance_contract"
+    )) {
+    $sourceContract = $manifest[$contractName]
+    $publicContract = $publicManifest[$contractName]
+    if ($null -ne $sourceContract -and
+        $null -ne $publicContract -and
+        $publicContract -is [System.Collections.IDictionary]) {
+        $publicContract["reviewer_actions"] = @(
+            Get-OptionalArrayProperty -Object $sourceContract -Name "reviewer_actions" |
+                ForEach-Object {
+                    Convert-StructuredValueToPublic `
+                        -Value $_ `
+                        -RepoRoot $repoRoot `
+                        -PreferEvidenceAnchor
+                }
+        )
+    }
+}
+
 ($publicManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
 if ($runStrictReleaseMaterialAudit) {
