@@ -37,6 +37,7 @@ $contentControlTargetMode = "resolved-section-targets"
 function New-TestContentControlRepairContract {
     return [ordered]@{
         id = "content_control_data_binding.bound_placeholder"
+        action = "sync_or_fill_bound_content_control"
         source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
         source_json_display = ".\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json"
         input_docx = $script:contentControlInputDocx

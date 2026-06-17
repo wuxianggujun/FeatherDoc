@@ -287,6 +287,7 @@ function Get-ContentControlRepairContracts {
 
         [void]$contracts.Add([ordered]@{
             id = $blockerId
+            action = Get-OptionalPropertyValue -Object $blocker -Name "action"
             source_schema = $schema
             source_json_display = Convert-EvidencePathToPublicDisplay -Value $resolvedContentControlSummaryPath -RepoRoot $RepoRoot
             input_docx = Get-OptionalPropertyValue -Object $blocker -Name "input_docx"
@@ -297,6 +298,7 @@ function Get-ContentControlRepairContracts {
             repair_strategy = Get-OptionalPropertyValue -Object $blocker -Name "repair_strategy"
             repair_hint = Get-OptionalPropertyValue -Object $blocker -Name "repair_hint"
             command_template = Get-OptionalPropertyValue -Object $blocker -Name "command_template"
+            repair_action_classes = @(Get-OptionalPropertyObject -Object $blocker -Name "repair_action_classes")
         })
     }
 

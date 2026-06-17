@@ -31,6 +31,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
         $contentControlAnchor = "content_control_data_binding.bound_placeholder"
         $contentControlNeedles = @(
             "featherdoc.content_control_data_binding_governance_report.v1",
+            "action=sync_or_fill_bound_content_control",
             "source_json_display",
             "input_docx",
             "template_name",

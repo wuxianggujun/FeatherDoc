@@ -6,6 +6,7 @@ function Add-ContentControlRepairContractViolations {
     )
 
     $contentControlBlockerId = "content_control_data_binding.bound_placeholder"
+    $expectedAction = "sync_or_fill_bound_content_control"
     $expectedRepairStrategy = "sync_bound_content_control"
     $expectedRepairHintMarker = "Rerun Custom XML sync"
     $expectedCommand = "sync-content-controls-from-custom-xml"
@@ -48,6 +49,15 @@ function Add-ContentControlRepairContractViolations {
     }
 
     foreach ($blocker in $contentControlBlockers) {
+        $action = [string](Get-JsonPropertyValue -Object $blocker -Name "action")
+        if ($action -ne $expectedAction) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "content_control_data_binding.bound_placeholder must carry action=$expectedAction."
+        }
+
         $sourceSchema = [string](Get-JsonPropertyValue -Object $blocker -Name "source_schema")
         if ($sourceSchema -ne "featherdoc.content_control_data_binding_governance_report.v1") {
             Add-AuditViolation `

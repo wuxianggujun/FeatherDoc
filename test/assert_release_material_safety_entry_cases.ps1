@@ -5,6 +5,7 @@ $passContentControlSummary = [ordered]@{
         [ordered]@{
             id = "content_control_data_binding.bound_placeholder"
             severity = "blocker"
+            action = "sync_or_fill_bound_content_control"
             source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
             source_json_display = ".\output\content-control-data-binding\inspect-content-controls.json"
             input_docx = $contentControlInputDocx
@@ -27,7 +28,7 @@ $passEntryGovernanceTracePath = Join-Path $passDir "START_HERE.md"
 Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
+- Content-control repair: content_control_data_binding.bound_placeholder action=sync_or_fill_bound_content_control -> sync_bound_content_control
 - Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json repair_action_classes=release_blocking,auto_repair_candidate,manual_confirmation_required
 - Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
@@ -39,13 +40,35 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$badEntryMissingContentControlActionDir = Join-Path $failDir "entry-missing-content-control-action"
+$badEntryMissingContentControlActionPath = Join-Path $badEntryMissingContentControlActionDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryMissingContentControlActionDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryMissingContentControlActionPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
+- Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
+- Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json repair_action_classes=release_blocking,auto_repair_candidate,manual_confirmation_required
+"@
+
+$missingEntryContentControlActionFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryMissingContentControlActionPath
+} catch {
+    $missingEntryContentControlActionFailedAsExpected = $true
+}
+
+if (-not $missingEntryContentControlActionFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md without content-control action."
+}
+
 $badEntryMissingContentControlRepairActionClassesDir = Join-Path $failDir "entry-missing-content-control-repair-action-classes"
 $badEntryMissingContentControlRepairActionClassesPath = Join-Path $badEntryMissingContentControlRepairActionClassesDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingContentControlRepairActionClassesDir -Force | Out-Null
 Set-Content -LiteralPath $badEntryMissingContentControlRepairActionClassesPath -Encoding UTF8 -Value @"
 # START_HERE
 
-- Content-control repair: content_control_data_binding.bound_placeholder -> sync_bound_content_control
+- Content-control repair: content_control_data_binding.bound_placeholder action=sync_or_fill_bound_content_control -> sync_bound_content_control
 - Content-control provenance: input_docx=samples/invoice.docx template_name=invoice-template schema_target=invoice target_mode=resolved-section-targets
 - Content-control contract: source_schema=featherdoc.content_control_data_binding_governance_report.v1 source_json_display=.\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json repair_strategy=sync_bound_content_control repair_hint=Rerun Custom XML sync or explicitly fill the bound content control before release. command_template=featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json
 "@

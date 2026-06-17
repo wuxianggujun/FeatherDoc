@@ -113,7 +113,9 @@ P1：Release governance 与发布材料一致性
    * 重点保护 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``。
    * ``repair_action_classes`` 已纳入 release material safety 静态/样例断言，
      后续入口材料重构时必须继续保留同名字段和三类 action marker。
-   * 下一步转向 release-facing 入口材料里 source、command 和 action guidance
+   * content-control ``action=sync_or_fill_bound_content_control`` 已纳入
+     JSON、entrypoint 和 release asset manifest 合同。
+   * 下一步转向 release-facing 入口材料里 source 和 command guidance
      的完整性检查，避免只展示结论而缺少可执行修复路径。
 
 
@@ -268,5 +270,5 @@ P3：文档、测试与索引治理
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
    report、notice、tender。下一步先按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-RELEASE-01`` 小步补 release-facing source / command / action guidance，
+   ``P1-RELEASE-01`` 小步补 release-facing source / command guidance，
    再回到 ``P1-APPROVAL-01`` 推进多项目 schema approval 维护体验。
