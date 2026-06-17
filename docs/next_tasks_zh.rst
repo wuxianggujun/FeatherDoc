@@ -248,6 +248,6 @@ P3：文档、测试与索引治理
 1. 等待当前 ``dev`` 最新 CI 全部完成；失败则先修 CI。
 2. project-template workflow dashboard 的 ``next_action_summary`` 分组展示已进入
    release materials 和版本契约测试；后续保持该展示不被删减。
-3. 继续补一轮 release material safety 覆盖，确保 dashboard 入口、分组摘要和
-   reviewer stop condition 不能被后续改动移除。
-4. 再进入真实业务模板语料扩展和样式建议置信度校准。
+3. release material safety 已覆盖 dashboard 入口、分组摘要和 reviewer stop
+   condition；后续保持 ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
+4. 下一步进入真实业务模板语料扩展和样式建议置信度校准。

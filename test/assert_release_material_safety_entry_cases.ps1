@@ -38,6 +38,129 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$passEntryWorkflowDashboardTraceDir = Join-Path $passDir "entry-project-template-workflow-dashboard-trace"
+$passEntryWorkflowDashboardTracePath = Join-Path $passEntryWorkflowDashboardTraceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntryWorkflowDashboardTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passEntryWorkflowDashboardTracePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
+- Project template workflow dashboard status: blocked
+- Project template workflow dashboard release ready: False
+- Project template workflow dashboard counts: 2 reports, 2 blockers, 1 warnings
+- Project template workflow dashboard summary: .\output\release-candidate-checks\report\project_template_workflow_dashboard.json
+- Project template workflow dashboard report: .\output\release-candidate-checks\report\project_template_workflow_dashboard.md
+- Project template workflow dashboard next action: review_schema_update_candidate (Project template onboarding schema approval is pending.)
+- Project template workflow dashboard next blocker: project_template_onboarding.schema_approval
+- Project template workflow dashboard next action groups: 1
+- Project template workflow dashboard action group: source=project_template_onboarding_governance action=review_schema_update_candidate blocker=project_template_onboarding.schema_approval entries=invoice-template
+"@
+
+& $auditScript -Path $passEntryWorkflowDashboardTracePath
+
+$passReviewerWorkflowDashboardTraceDir = Join-Path $passDir "reviewer-project-template-workflow-dashboard-trace"
+$passReviewerWorkflowDashboardTracePath = Join-Path $passReviewerWorkflowDashboardTraceDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $passReviewerWorkflowDashboardTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passReviewerWorkflowDashboardTracePath -Encoding UTF8 -Value @"
+# REVIEWER_CHECKLIST
+
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status: ready release_ready: True latest_schema_approval_gate_status=passed schema_approval_status_summary=approved=4 source_report_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_delivery_readiness_summary.json
+- Project template onboarding: project_template_onboarding.schema_approval project_template_onboarding_governance_contract source_schema=featherdoc.project_template_onboarding_governance_report.v1 schema_approval_status_summary=approved source_report_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json source_json_display=.\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json
+- Project template release readiness checklist: docs/project_template_release_readiness_checklist_zh.rst
+- Project template workflow dashboard status: blocked
+- Project template workflow dashboard release ready: False
+- Project template workflow dashboard counts: 2 reports, 2 blockers, 1 warnings
+- Project template workflow dashboard summary: .\output\release-candidate-checks\report\project_template_workflow_dashboard.json
+- Project template workflow dashboard report: .\output\release-candidate-checks\report\project_template_workflow_dashboard.md
+- Project template workflow dashboard next action: review_schema_update_candidate (Project template onboarding schema approval is pending.)
+- Project template workflow dashboard next action groups: 1
+- Project template workflow dashboard action group: source=project_template_onboarding_governance action=review_schema_update_candidate blocker=project_template_onboarding.schema_approval entries=invoice-template
+- [ ] Stop here until the project template workflow dashboard is release-ready; status `blocked`, release_ready `False`, blockers `2`, warnings `1`.
+"@
+
+& $auditScript -Path $passReviewerWorkflowDashboardTracePath
+
+$badEntryWorkflowDashboardMissingGroupCountDir = Join-Path $failDir "entry-project-template-workflow-dashboard-missing-group-count"
+$badEntryWorkflowDashboardMissingGroupCountPath = Join-Path $badEntryWorkflowDashboardMissingGroupCountDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWorkflowDashboardMissingGroupCountDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWorkflowDashboardMissingGroupCountPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template workflow dashboard status: blocked
+- Project template workflow dashboard release ready: False
+- Project template workflow dashboard counts: 2 reports, 2 blockers, 1 warnings
+- Project template workflow dashboard summary: .\output\release-candidate-checks\report\project_template_workflow_dashboard.json
+- Project template workflow dashboard report: .\output\release-candidate-checks\report\project_template_workflow_dashboard.md
+- Project template workflow dashboard next action: review_schema_update_candidate (Project template onboarding schema approval is pending.)
+- Project template workflow dashboard action group: source=project_template_onboarding_governance action=review_schema_update_candidate blocker=project_template_onboarding.schema_approval entries=invoice-template
+"@
+
+$badEntryWorkflowDashboardMissingGroupCountFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWorkflowDashboardMissingGroupCountPath
+} catch {
+    $badEntryWorkflowDashboardMissingGroupCountFailedAsExpected = $true
+}
+
+if (-not $badEntryWorkflowDashboardMissingGroupCountFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with workflow dashboard action group count removed."
+}
+
+$badEntryWorkflowDashboardMissingActionGroupDir = Join-Path $failDir "entry-project-template-workflow-dashboard-missing-action-group"
+$badEntryWorkflowDashboardMissingActionGroupPath = Join-Path $badEntryWorkflowDashboardMissingActionGroupDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntryWorkflowDashboardMissingActionGroupDir -Force | Out-Null
+Set-Content -LiteralPath $badEntryWorkflowDashboardMissingActionGroupPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project template workflow dashboard status: blocked
+- Project template workflow dashboard release ready: False
+- Project template workflow dashboard counts: 2 reports, 2 blockers, 1 warnings
+- Project template workflow dashboard summary: .\output\release-candidate-checks\report\project_template_workflow_dashboard.json
+- Project template workflow dashboard report: .\output\release-candidate-checks\report\project_template_workflow_dashboard.md
+- Project template workflow dashboard next action: review_schema_update_candidate (Project template onboarding schema approval is pending.)
+- Project template workflow dashboard next action groups: 1
+"@
+
+$badEntryWorkflowDashboardMissingActionGroupFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntryWorkflowDashboardMissingActionGroupPath
+} catch {
+    $badEntryWorkflowDashboardMissingActionGroupFailedAsExpected = $true
+}
+
+if (-not $badEntryWorkflowDashboardMissingActionGroupFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with non-zero workflow dashboard action group details removed."
+}
+
+$badReviewerWorkflowDashboardMissingStopDir = Join-Path $failDir "reviewer-project-template-workflow-dashboard-missing-stop"
+$badReviewerWorkflowDashboardMissingStopPath = Join-Path $badReviewerWorkflowDashboardMissingStopDir "REVIEWER_CHECKLIST.md"
+New-Item -ItemType Directory -Path $badReviewerWorkflowDashboardMissingStopDir -Force | Out-Null
+Set-Content -LiteralPath $badReviewerWorkflowDashboardMissingStopPath -Encoding UTF8 -Value @"
+# REVIEWER_CHECKLIST
+
+- Project template workflow dashboard status: blocked
+- Project template workflow dashboard release ready: False
+- Project template workflow dashboard counts: 2 reports, 2 blockers, 1 warnings
+- Project template workflow dashboard summary: .\output\release-candidate-checks\report\project_template_workflow_dashboard.json
+- Project template workflow dashboard report: .\output\release-candidate-checks\report\project_template_workflow_dashboard.md
+- Project template workflow dashboard next action: review_schema_update_candidate (Project template onboarding schema approval is pending.)
+- Project template workflow dashboard next action groups: 1
+- Project template workflow dashboard action group: source=project_template_onboarding_governance action=review_schema_update_candidate blocker=project_template_onboarding.schema_approval entries=invoice-template
+"@
+
+$badReviewerWorkflowDashboardMissingStopFailedAsExpected = $false
+try {
+    & $auditScript -Path $badReviewerWorkflowDashboardMissingStopPath
+} catch {
+    $badReviewerWorkflowDashboardMissingStopFailedAsExpected = $true
+}
+
+if (-not $badReviewerWorkflowDashboardMissingStopFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed REVIEWER_CHECKLIST.md with blocked workflow dashboard stop condition removed."
+}
+
 $badEntryTableLayoutPdfCoverageMissingDir = Join-Path $failDir "entry-table-layout-pdf-coverage-missing"
 $badEntryTableLayoutPdfCoverageMissingPath = Join-Path $badEntryTableLayoutPdfCoverageMissingDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryTableLayoutPdfCoverageMissingDir -Force | Out-Null

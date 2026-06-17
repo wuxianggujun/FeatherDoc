@@ -126,13 +126,16 @@ task 误算进 review scope。
   ``pdf-only`` 时，preflight 会在 ``report/project-template-workflow-dashboard``
   下生成 ``project_template_workflow_dashboard.json`` 与
   ``project_template_workflow_dashboard.md``，并把 ``status``、``release_ready``、
-  ``release_blocker_count``、``warning_count``、``source_report_count`` 与
-  ``next_action`` 写回 ``summary.json``、``steps.project_template_workflow_dashboard``
-  和 ``final_review.md``。发布入口材料也会同步展示
+  ``release_blocker_count``、``warning_count``、``source_report_count``、
+  ``next_action``、``next_action_summary`` 与 ``next_action_group_count`` 写回
+  ``summary.json``、``steps.project_template_workflow_dashboard`` 和
+  ``final_review.md``。发布入口材料也会同步展示
   ``Project template workflow dashboard status``、
   ``Project template workflow dashboard release ready``、
   ``Project template workflow dashboard counts`` 与
-  ``Project template workflow dashboard next action``；其中
+  ``Project template workflow dashboard next action``，并在存在分组时展示
+  ``Project template workflow dashboard next action groups`` 和
+  ``Project template workflow dashboard action group``；其中
   ``REVIEWER_CHECKLIST.md`` 会在 dashboard 未 release-ready 或 blocker 非零时保留
   明确的 stop condition，``START_HERE.md`` 和 ``ARTIFACT_GUIDE.md`` 会给出
   dashboard JSON / Markdown 证据路径，避免 reviewer 只看到 handoff 计数。
@@ -653,6 +656,13 @@ manifest 字段，避免打包阶段只靠日志推断。固定标记：
 ``project_template_readiness_checklist_entrypoints_release_entry_material_safety_trace``；
 ``compact_evidence_source_schema`` 必须固定为
 ``featherdoc.release_candidate_summary``。
+
+同一轮 staged release material safety audit 也会审计 project-template workflow dashboard
+入口材料：只要 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 或
+``REVIEWER_CHECKLIST.md`` 出现 ``Project template workflow dashboard``，就必须保留
+status、release-ready、counts、summary/report 路径、``next action groups`` 和非零
+``action group`` 摘要；``REVIEWER_CHECKLIST.md`` 在 dashboard 未 release-ready 或
+blocked/failed/missing 时必须保留 stop condition。
 这样 release blocker rollup 能直接展示打包入口材料已经过 material-safety 审计，
 不需要 reviewer 从 ``release_assets_manifest.json`` 手工反推。固定标记：
 ``project_template_readiness_checklist_entrypoints_packaged_audit_rollup_trace``。

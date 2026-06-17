@@ -75,6 +75,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntryProjectTemplateWorkflowDashboardTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseMetadataProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations

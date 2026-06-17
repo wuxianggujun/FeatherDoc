@@ -353,6 +353,86 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvi
     }
 }
 
+function Add-ReleaseEntryProjectTemplateWorkflowDashboardTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md")) {
+        return
+    }
+
+    if (-not $Content.Contains("Project template workflow dashboard")) {
+        return
+    }
+
+    $label = "release entry project template workflow dashboard trace"
+    $requiredLineNeedleSets = @(
+        @("Project template workflow dashboard status"),
+        @("Project template workflow dashboard release ready"),
+        @("Project template workflow dashboard counts", "reports", "blockers", "warnings"),
+        @("Project template workflow dashboard summary"),
+        @("Project template workflow dashboard report"),
+        @("Project template workflow dashboard next action"),
+        @("Project template workflow dashboard next action groups")
+    )
+
+    foreach ($needles in $requiredLineNeedleSets) {
+        if (-not (Test-TextLineContainsAll -Text $Content -Needles $needles)) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text ("Release entry must keep project-template workflow dashboard marker line with: {0}." -f (@($needles) -join ", "))
+        }
+    }
+
+    $hasZeroActionGroups = Test-TextLineContainsAll -Text $Content -Needles @(
+        "Project template workflow dashboard next action groups:",
+        "0"
+    )
+    if (-not $hasZeroActionGroups -and -not (Test-TextLineContainsAll -Text $Content -Needles @(
+            "Project template workflow dashboard action group:",
+            "source=",
+            "action=",
+            "blocker=",
+            "entries="
+        ))) {
+        Add-AuditViolation `
+            -Violations $Violations `
+            -File $File `
+            -Label $label `
+            -Text "Release entry must keep non-zero project-template workflow dashboard action groups with source, action, blocker, and entries markers."
+    }
+
+    if ($leafName -eq "reviewer_checklist.md") {
+        $requiresStopCondition = Test-TextContainsAny -Text $Content -Needles @(
+            "Project template workflow dashboard status: blocked",
+            "Project template workflow dashboard status: failed",
+            "Project template workflow dashboard status: missing_summary",
+            "Project template workflow dashboard status: missing_input",
+            "Project template workflow dashboard status: schema_mismatch",
+            "Project template workflow dashboard release ready: False"
+        )
+        if ($requiresStopCondition -and -not (Test-TextLineContainsAll -Text $Content -Needles @(
+                "Stop here until the project template workflow dashboard is release-ready",
+                "status",
+                "release_ready",
+                "blockers",
+                "warnings"
+            ))) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Reviewer checklist must keep the project-template workflow dashboard stop condition when the dashboard is blocked, failed, missing, or not release-ready."
+        }
+    }
+}
+
 function Add-ReleaseEntryWordVisualStandardReviewMetadataEvidenceTraceViolations {
     param(
         [string]$File,
