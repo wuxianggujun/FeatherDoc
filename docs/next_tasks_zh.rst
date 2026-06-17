@@ -1,0 +1,252 @@
+后续任务清单（中文）
+====================
+
+状态日期：2026-06-18
+
+本页是当前长任务的可执行 backlog。它承接
+:doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
+脚本、源码、文档、测试或发布治理材料上。
+
+任务清单维护 marker：``next_tasks_zh``。
+
+
+执行原则
+--------
+
+1. 只在 ``dev`` 分支推进开发；不创建 ``codex/*`` 开发分支。
+2. 每个任务先做最小可验证闭环，再扩展覆盖面。
+3. 代码、脚本、文档和测试要一起推进；不能只补说明不补契约。
+4. 发布治理相关改动必须能进入 reviewer-facing bundle，至少覆盖
+   ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 或 ``REVIEWER_CHECKLIST.md``。
+5. Windows / PowerShell / 中文输出默认按 UTF-8 处理，避免重新引入乱码。
+6. 任何重型 Word、PDF、CMake 或完整 CTest 验证，都必须在工作区干净且改动已推送后执行。
+
+
+P0：当前发布与 CI 守护
+----------------------
+
+这些任务优先级最高，目标是保证 ``dev`` 可持续推进。
+
+1. 跟踪当前 ``dev`` 最新提交的 GitHub Actions：
+
+   * Docs Pages 必须保持绿色。
+   * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
+   * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
+
+2. 保持分支策略：
+
+   * 本地只用 ``dev`` 做开发。
+   * 定期确认本地和远端不存在 ``codex/*`` 分支。
+   * 不做 ``git reset --hard``、强推或整分支回滚。
+
+3. 保持轻量验证基线：
+
+   * ``git status --short --branch``
+   * ``git diff --check``
+   * 与当前改动直接相关的 PowerShell 契约测试
+   * 必要时检查 ``gh run list --branch dev`` 的最新 CI 状态
+
+
+P1：模板契约与项目模板工作流
+----------------------------
+
+目标：让真实业务模板可以被接入、校验、生成、回归和发布。
+
+1. 扩大真实业务模板语料样本：
+
+   * 增加合同、制度文件、发票、报告、通知、标书等典型 ``.docx`` / ``.dotx`` 样本。
+   * 保持样本进入 project-template smoke manifest，而不是散落在本地输出目录。
+   * 继续校准 schema patch、style rename / merge、content-control 修复建议的置信度。
+
+2. 强化 project-template workflow dashboard：
+
+   * 继续把 onboarding governance 与 delivery readiness 的
+     ``release_ready``、blocker、warning、``next_action`` 串到 dashboard。
+   * 在 reviewer-facing bundle 中保持 dashboard status、release_ready、计数、
+     证据路径和下一步命令可见。
+   * 后续可补 ``next_action_summary`` 的分组展示，避免多项 schema approval
+     或多模板阻断只显示第一条 action。
+
+3. 多项目 schema approval 维护体验：
+
+   * 让 schema approval history 更适合多项目、多模板、多轮审批。
+   * 增强 pending / rejected / approved 状态的人工复核入口。
+   * 把审批历史趋势继续接入 release blocker rollup 和 checklist。
+
+4. schema migration 人工复核入口：
+
+   * 为 schema patch / migration 输出更明确的修复建议。
+   * 区分自动可修复、需人工确认、必须阻断发布三类动作。
+   * 保持 ``source_schema``、``source_report_display``、``source_json_display`` 和
+     ``open_command`` 一路透传到发布材料。
+
+
+P1：Release governance 与发布材料一致性
+----------------------------------------
+
+目标：让发布面板从机器证据到人工 checklist 都能直接定位阻断来源。
+
+1. 继续补齐 release blocker rollup 周边的人工作业分流：
+
+   * blocker / warning / action item 必须带 source 和 command。
+   * final review、handoff、bundle 和 reviewer checklist 应显示同一组治理明细。
+   * 避免只保留汇总计数，丢失具体阻断项。
+
+2. 加强发布资产 contract：
+
+   * ``release_assets_manifest.json`` 继续保留 project-template governance contracts。
+   * GitHub Release refresh / publish 前必须能从 manifest 复核 release readiness。
+   * 资产上传、release notes 同步和正式发布保持分步可控。
+
+3. 维护 release material safety：
+
+   * 新增发布材料字段时同步补 ``assert_release_material_safety`` 覆盖。
+   * 如果字段只出现在 detached notes 而没有进入入口材料，应视为不完整。
+   * 重点保护 ``START_HERE.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``。
+
+
+P2：样式与编号治理
+------------------
+
+目标：让下游可以稳定控制文档骨架，而不是生成后手工修标题和列表。
+
+1. 完善 merge restore 冲突处理：
+
+   * 补齐同名样式、缺失 source style、节点序号漂移、部分恢复失败的审计路径。
+   * 保持 dry-run、plan-only、正式 restore 三种模式输出一致的 review handoff。
+   * 让 release governance 能直接展示 restore issue 的最小风险动作。
+
+2. 基于真实语料校准样式建议置信度：
+
+   * 对 style merge / rename suggestion 增加更多真实文档验证。
+   * 继续收敛 ``recommended``、``strict``、``review``、``exploratory`` profile。
+   * 对低置信度建议输出人工复核原因，而不是直接进入自动修复。
+
+3. 面向 heading / list / theme 的稳定重构入口：
+
+   * 把标题层级、列表体系、主题字体和语言继承纳入更明确的 mutation API。
+   * 继续保护 builtin/default style、basedOn、next、link 依赖。
+   * 保持 numbering catalog 与 style numbering 的双向衔接。
+
+4. 强化 document skeleton governance：
+
+   * exemplar catalog 冲突审计。
+   * numbering catalog patch 衔接。
+   * 多文档 rollup 中保留 per-document source 与 action。
+
+
+P2：表格与版式交付能力
+----------------------
+
+目标：让正式文档中的表格和页面布局可被稳定交付。
+
+1. table layout delivery governance：
+
+   * 继续保留 ``ready_document_percent``、``unresolved_item_count``、
+     ``table_position_review_count`` 等 release-facing 指标。
+   * 对 ``tblLook``、表格样式和固定布局差异输出更直接的修复建议。
+
+2. floating table 与 PDF-sensitive 布局：
+
+   * 继续区分 metadata-only 支持与真实 Word-compatible 布局支持。
+   * 对 leftFromText、rightFromText、topFromText、tblOverlap 等字段保留 reviewer focus。
+   * 不把 PDF 视觉 baseline 大量搬回主线；先做受控小样本验证。
+
+3. section / page setup / page number fields：
+
+   * 保持 Word visual review task 可打开、可复核、可同步 verdict。
+   * 涉及页面方向、页边距、页码字段和 header/footer 的变更必须有轻量 gate。
+
+
+P2：Word 视觉验证与 DOCX smoke
+------------------------------
+
+目标：在不强制每次跑重型 Word gate 的前提下，保留可复现的视觉质量证据。
+
+1. 继续维护 ``check_docx_functional_smoke_readiness.ps1``：
+
+   * 只读确认样本 DOCX 包完整性。
+   * 覆盖段落、表格、图片、section、header/footer、content-control、字段和模板渲染证据。
+   * 复用 Word visual smoke PNG 非空证据。
+
+2. Word release gate 前置检查：
+
+   * 继续用 ``check_word_visual_release_gate_preflight.ps1`` 保护静态脚本、
+     helper、CMake 注册和文档入口。
+   * 只有在资源稳定、工作区干净、源码已推送时再跑完整 Word visual gate。
+
+3. review task 维护：
+
+   * stale task audit 保持可运行。
+   * latest task pointer 与 generated release materials 保持一致。
+   * curated visual regression bundle 必须能从发布材料直接打开。
+
+
+P3：PDF 保守维护
+----------------
+
+目标：保持 PDF import/export 当前能力可验证，不把 PDF 扩成当前主线。
+
+1. PDF CJK 与 copy/search：
+
+   * 保留 CJK manifest、copy/search 和 missing text 计数。
+   * 不引入大批旧分支 PDF 样例或 baseline。
+
+2. PDF visual gate：
+
+   * 优先维护 preflight、bounded CTest 和小样本 visual evidence。
+   * 完整 PDF visual gate 继续后置，只在 release readiness 需要时运行。
+
+3. PDF build options：
+
+   * 继续明确 ``FEATHERDOC_BUILD_PDF`` 与 ``FEATHERDOC_BUILD_PDF_IMPORT`` 状态。
+   * 缺依赖时给出可操作修复命令，而不是让 reviewer 猜 CMake 选项。
+
+
+P3：文档、测试与索引治理
+------------------------
+
+目标：让新增能力不会脱离文档和脚本索引。
+
+1. 文档入口：
+
+   * ``docs/current_direction_zh.rst`` 负责产品主线。
+   * ``docs/next_tasks_zh.rst`` 负责可执行 backlog。
+   * ``docs/documentation_maintenance_zh.rst`` 负责维护边界。
+   * ``docs/script_task_index_zh.rst`` 负责脚本入口。
+
+2. 契约测试：
+
+   * 新增脚本时同步更新 script task index 和对应契约测试。
+   * 新增发布材料字段时同步更新 release note bundle 测试。
+   * 新增路线任务时同步更新当前任务文档或维护文档契约。
+
+3. 变更节奏：
+
+   * 小步提交，小步推送。
+   * CI 失败先修失败，不继续堆叠大改动。
+   * 每次阶段收口后更新本页任务状态。
+
+
+暂不优先事项
+------------
+
+以下事项不是当前长任务优先方向：
+
+1. 整分支合并旧 ``codex/*`` 参考分支。
+2. 大规模引入 PDF visual baseline 或历史样例。
+3. 为了覆盖 WordprocessingML 表面而新增低频 API。
+4. 未接入 governance / smoke / checklist 的孤立 CLI。
+5. 未经证据支撑的性能优化。
+
+
+当前下一步
+----------
+
+最小下一步按下面顺序执行：
+
+1. 等待当前 ``dev`` 最新 CI 全部完成；失败则先修 CI。
+2. 若 CI 全绿，继续推进 project-template workflow dashboard 的
+   ``next_action_summary`` 分组展示。
+3. 随后补一轮 release material safety 覆盖，确保 dashboard 入口不能被后续改动移除。
+4. 再进入真实业务模板语料扩展和样式建议置信度校准。

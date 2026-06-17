@@ -63,6 +63,7 @@ $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
+$nextTasksDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\next_tasks_zh.rst"
 $maintenanceDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\documentation_maintenance_zh.rst"
 $scriptTaskIndexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\script_task_index_zh.rst"
 $cmakeLists = @(
@@ -105,6 +106,7 @@ Assert-RepoFileMissing -Root $resolvedRepoRoot -RelativePath "docs\libreoffice_p
 foreach ($marker in @(
         "WordprocessingML",
         "project_identity_zh",
+        "next_tasks_zh",
         "v1_7_roadmap_zh",
         "open()",
         "create_empty()",
@@ -143,6 +145,7 @@ foreach ($marker in @(
 
 foreach ($marker in @(
         "docs/current_direction_zh.rst",
+        "docs/next_tasks_zh.rst",
         "docs/document_governance_acceptance_zh.rst",
         "docs/release_metadata_pipeline_zh.rst",
         "docs/release_metadata_maintenance_checklist_zh.rst",
@@ -171,6 +174,29 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $maintenanceDoc -ExpectedText $marker `
         -Message "Documentation maintenance guide should preserve low-resource governance marker '$marker'."
+}
+
+foreach ($marker in @(
+        "next_tasks_zh",
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "dev",
+        "codex/*",
+        "Release governance",
+        "DOCX smoke",
+        "PDF",
+        "project-template workflow dashboard",
+        "next_action_summary",
+        "release material safety",
+        "schema approval",
+        "release blocker rollup",
+        "Word visual gate",
+        "git diff --check"
+    )) {
+    Assert-ContainsText -Text $nextTasksDoc -ExpectedText $marker `
+        -Message "Next tasks document should preserve actionable backlog marker '$marker'."
 }
 
 foreach ($marker in @(

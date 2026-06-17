@@ -14,15 +14,16 @@
 当前应优先维护这些文档入口：
 
 1. ``docs/current_direction_zh.rst``：当前产品主线和功能准入标准。
-2. ``docs/document_governance_acceptance_zh.rst``：文档治理阶段验收边界。
-3. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
+2. ``docs/next_tasks_zh.rst``：当前长任务 backlog、优先级和下一步最小动作。
+3. ``docs/document_governance_acceptance_zh.rst``：文档治理阶段验收边界。
+4. ``docs/release_metadata_pipeline_zh.rst``：发布治理、handoff、rollup 和
    reviewer-facing bundle 的元数据链路。
-4. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
-5. ``docs/pdf_release_readiness_checklist_zh.rst``：PDF 发布准入检查入口。
-6. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
-7. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
+5. ``docs/release_metadata_maintenance_checklist_zh.rst``：release metadata 修改流程。
+6. ``docs/pdf_release_readiness_checklist_zh.rst``：PDF 发布准入检查入口。
+7. ``docs/automation/word_visual_workflow_zh.rst``：Word 视觉验证流程。
+8. ``BUILDING_PDF.md`` 与 ``design/04-pdf-execution-plan.md``：PDF 保守维护和
    后续验证入口。
-8. ``docs/script_task_index_zh.rst``：脚本任务索引，固定 ``scripts`` 目录里
+9. ``docs/script_task_index_zh.rst``：脚本任务索引，固定 ``scripts`` 目录里
    当前应优先维护的轻量检查、治理报告、视觉复核和发布材料入口；配套
    ``scripts/check_script_task_index.ps1`` 做只读路径一致性检查。当前索引
    检查结果显示 ``repository_script_count=164``、``script_reference_count=164``、
