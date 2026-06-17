@@ -127,6 +127,12 @@
   只读入口，统一确认样本 DOCX 包完整性、段落/表格/图片/section/header/footer/
   content-control/字段/模板渲染证据，以及复用 Word visual smoke PNG 非空证据
 - ``run_project_template_smoke.ps1``
+- project-template workflow dashboard 会把 onboarding governance 与 delivery readiness
+  的 ``release_ready``、blocker、warning、``source_report_count`` 与
+  ``next_action`` 固定成 ``featherdoc.project_template_workflow_dashboard.v1``，
+  并在 release candidate preflight 中通过
+  ``project_template_workflow_dashboard_report`` 进入 ``summary.json``、
+  ``final_review.md`` 和发布面板
 
 接下来更值得补的是：
 

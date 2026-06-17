@@ -375,6 +375,7 @@ $pipelineExpectedMarkers = @(
     "word_visual_smoke.pending_manual_review",
     "release_blocker_count",
     "review_task_summary",
+    "project_template_workflow_dashboard_report",
     "release_note_bundle",
     "entrypoint_count",
     "required_entrypoint_count",

@@ -45,6 +45,7 @@ $defaultPipelineText = @(
     '- word_visual_smoke.pending_manual_review',
     '- release_blocker_count',
     '- review_task_summary',
+    '- project_template_workflow_dashboard_report',
     '- release_note_bundle',
     '- entrypoint_count',
     '- required_entrypoint_count',
@@ -578,6 +579,26 @@ Assert-SummaryFailure `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
     -ExpectedFailureExpectedText "Word visual standard review metadata evidence"
+
+$missingPipelineWorkflowDashboardText = $defaultPipelineText.Replace(
+    "project_template_workflow_dashboard_report",
+    "project_template_workflow_dashboard_removed"
+)
+$missingPipelineWorkflowDashboardCaseRoot = New-DocsCase `
+    -Name "missing-pipeline-workflow-dashboard" `
+    -PipelineText $missingPipelineWorkflowDashboardText
+$missingPipelineWorkflowDashboardSummaryJsonPath = Join-Path $missingPipelineWorkflowDashboardCaseRoot "docs-check-summary.json"
+Invoke-DocsCheck `
+    -CaseRoot $missingPipelineWorkflowDashboardCaseRoot `
+    -ShouldFail `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: project_template_workflow_dashboard_report" `
+    -SummaryJson $missingPipelineWorkflowDashboardSummaryJsonPath
+Assert-SummaryFailure `
+    -Path $missingPipelineWorkflowDashboardSummaryJsonPath `
+    -ExpectedMessage "release metadata pipeline doc is missing expected text: project_template_workflow_dashboard_report" `
+    -ExpectedFailureKind "missing_text" `
+    -ExpectedFailureRelativePath 'docs/release_metadata_pipeline_zh.rst' `
+    -ExpectedFailureExpectedText "project_template_workflow_dashboard_report"
 
 $missingPipelineReleaseManifestText = $defaultPipelineText.Replace(
     "release_assets_manifest.json",

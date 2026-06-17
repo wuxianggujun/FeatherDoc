@@ -114,6 +114,8 @@ foreach ($marker in @(
         "template_schema_patch",
         "project-template onboarding governance",
         "featherdoc.project_template_onboarding_governance_report.v1",
+        "featherdoc.project_template_workflow_dashboard.v1",
+        "project_template_workflow_dashboard_report",
         "schema-patch-confidence-calibration/summary.json",
         "release blocker rollup",
         "content-control data-binding governance",

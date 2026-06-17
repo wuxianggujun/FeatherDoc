@@ -20,8 +20,8 @@ function Assert-PassingReleaseMetadataDocsSummary {
     if ($summary.checked_document_count -ne 7) {
         throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
     }
-    if ($summary.required_pipeline_marker_count -ne 134) {
-        throw "Expected JSON summary pipeline marker count 134, got: $($summary.required_pipeline_marker_count)"
+    if ($summary.required_pipeline_marker_count -ne 135) {
+        throw "Expected JSON summary pipeline marker count 135, got: $($summary.required_pipeline_marker_count)"
     }
     if ($summary.required_checklist_marker_count -ne 137) {
         throw "Expected JSON summary checklist marker count 137, got: $($summary.required_checklist_marker_count)"
@@ -35,8 +35,8 @@ function Assert-PassingReleaseMetadataDocsSummary {
     if ($summary.required_entrypoint_marker_count -ne 3) {
         throw "Expected JSON summary entrypoint marker count 3, got: $($summary.required_entrypoint_marker_count)"
     }
-    if ($summary.required_marker_count -ne 321) {
-        throw "Expected JSON summary total marker count 321, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 322) {
+        throw "Expected JSON summary total marker count 322, got: $($summary.required_marker_count)"
     }
     if ($summary.checked_documents.Count -ne 7) {
         throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -145,6 +145,10 @@ function Assert-PassingReleaseMetadataDocsSummary {
         -Values @($summary.required_pipeline_markers) `
         -ExpectedValue "docx_functional_smoke_readiness" `
         -Message "JSON summary should list DOCX functional smoke readiness marker."
+    Assert-ArrayContains `
+        -Values @($summary.required_pipeline_markers) `
+        -ExpectedValue "project_template_workflow_dashboard_report" `
+        -Message "JSON summary should list project-template workflow dashboard marker."
     Assert-ArrayContains `
         -Values @($summary.required_pipeline_markers) `
         -ExpectedValue '``featherdoc.docx_functional_smoke_readiness.v1``' `

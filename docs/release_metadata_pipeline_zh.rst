@@ -122,6 +122,13 @@ task 误算进 review scope。
 - ``release_note_bundle``：结构化列出六个 release note bundle 产物的
   ``id``、``path``、``path_display``、``location`` 与 ``required`` 标记，
   其中 ``START_HERE.md`` 位于 summary 输出根目录，其余文件位于 ``report``。
+- ``project_template_workflow_dashboard_report``：当 ``ReleaseEvidenceScope`` 不是
+  ``pdf-only`` 时，preflight 会在 ``report/project-template-workflow-dashboard``
+  下生成 ``project_template_workflow_dashboard.json`` 与
+  ``project_template_workflow_dashboard.md``，并把 ``status``、``release_ready``、
+  ``release_blocker_count``、``warning_count``、``source_report_count`` 与
+  ``next_action`` 写回 ``summary.json``、``steps.project_template_workflow_dashboard``
+  和 ``final_review.md``。
 
 当视觉 gate 完成后，preflight 会把 ``gate_summary.json`` 中的
 ``visual_verdict``、各 flow 的 review verdict、review status、review note、
@@ -140,6 +147,16 @@ passed 趋势。若 gate 被阻断，顶层 ``release_blockers`` 会同步追加
 ``project_template_smoke.schema_approval`` 的 blocker，并写入 ``release_blocker_count``，
 CI、发布面板或自动化通知可以直接读取阻断条目、issue keys、审批明细与修复动作，
 无需再解析 ``final_review.md``。
+
+项目模板 workflow dashboard 会优先消费 release summary 顶层
+``project_template_onboarding_governance`` 与 ``project_template_delivery_readiness``；
+当这些字段不存在时，会从 ``release_governance_handoff`` 或
+``steps.release_governance_handoff`` 下的
+``project_template_onboarding_governance_contract`` 与
+``project_template_delivery_readiness_contract`` 读取 ``source_json``、
+``source_json_display``、``source_report`` 或 ``source_report_display``。这样
+release candidate 可以直接从 handoff contract 串起 onboarding governance 与
+delivery readiness 证据，发布面板无需再猜测项目模板工作流的源报告路径。
 
 如果 ``review_task_summary`` 不完整，preflight 不应把它写入 release summary，
 也不应在 ``final_review.md`` 中渲染空计数行。
