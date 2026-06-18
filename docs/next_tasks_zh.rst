@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-06-18
+状态日期：2026-06-19
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -72,7 +72,8 @@ P1：模板契约与项目模板工作流
    * 仓库真实 ``samples/project_template_smoke.manifest.json`` 的业务语料覆盖已由
      ``check_project_template_smoke_manifest_test.ps1`` 直接锁定：必须保留 invoice、
      contract、policy、report、notice、tender 6 类 document type，以及 1 个
-     registered / 5 个 planned corpus 入口。
+     registered / 5 个 planned corpus 入口；planned 入口现在还必须暴露
+     ``registration_blocker`` 与 ``next_action``，避免语料扩展停留在不可执行说明。
 
 2. 强化 project-template workflow dashboard：
 

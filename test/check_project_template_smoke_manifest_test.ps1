@@ -165,6 +165,8 @@ Write-JsonFile -Path $validManifestPath -Value ([ordered]@{
             document_type = "contract"
             status = "planned"
             smoke_contract = @("schema_validation", "schema_baseline")
+            registration_blocker = "No committed contract template fixture is registered yet."
+            next_action = "Add a contract template manifest entry with schema baseline coverage."
             coverage_goal = "Track planned contract coverage without adding a binary fixture."
         }
     )
@@ -335,6 +337,14 @@ Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
     -ExpectedPath "business_template_corpus[1].smoke_contract[0]" `
     -ExpectedMessage "must be one of: template_validations, schema_validation, schema_baseline, render_data, visual_smoke" `
     -Message "Business corpus smoke contracts should use known smoke checks."
+Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
+    -ExpectedPath "business_template_corpus[1].registration_blocker" `
+    -ExpectedMessage "is required when status is planned" `
+    -Message "Planned business corpus entries should explain why they are not registered."
+Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
+    -ExpectedPath "business_template_corpus[1].next_action" `
+    -ExpectedMessage "is required when status is planned" `
+    -Message "Planned business corpus entries should expose the next registration action."
 
 $invalidSelectionManifestPath = Join-Path $fixtureRoot "invalid-selection.manifest.json"
 Write-JsonFile -Path $invalidSelectionManifestPath -Value ([ordered]@{

@@ -304,6 +304,14 @@
           "type": "string",
           "minLength": 1
         },
+        "registration_blocker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        },
         "smoke_contract": {
           "type": "array",
           "minItems": 1,

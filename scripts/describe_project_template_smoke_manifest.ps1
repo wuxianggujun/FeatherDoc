@@ -180,6 +180,8 @@ foreach ($item in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Nam
         document_type = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "document_type"
         status = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "status"
         source_entry = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "source_entry"
+        registration_blocker = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "registration_blocker"
+        next_action = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "next_action"
         smoke_contract = @(Get-ProjectTemplateSmokeArrayProperty -Object $item -Name "smoke_contract")
         coverage_goal = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "coverage_goal"
         notes = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "notes"
@@ -431,6 +433,12 @@ if ($businessTemplateCorpus.Count -gt 0) {
         [void]$lines.Add("  status: $($item.status)")
         if (-not [string]::IsNullOrWhiteSpace($item.source_entry)) {
             [void]$lines.Add("  source_entry: $($item.source_entry)")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($item.registration_blocker)) {
+            [void]$lines.Add("  registration_blocker: $($item.registration_blocker)")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($item.next_action)) {
+            [void]$lines.Add("  next_action: $($item.next_action)")
         }
         [void]$lines.Add("  smoke_contract: $((@($item.smoke_contract) -join ', '))")
         [void]$lines.Add("  coverage_goal: $($item.coverage_goal)")

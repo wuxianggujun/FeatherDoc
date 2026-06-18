@@ -239,6 +239,8 @@ function Test-ProjectTemplateSmokeBusinessCorpus {
         if (-not [string]::IsNullOrWhiteSpace($status) -and $status -notin $allowedStatuses) {
             Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.status" -Message "must be one of: registered, planned"
         }
+        $registrationBlocker = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "registration_blocker"
+        $nextAction = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "next_action"
 
         $contracts = @(Get-ProjectTemplateSmokeArrayProperty -Object $item -Name "smoke_contract")
         if ($contracts.Count -eq 0) {
@@ -259,6 +261,13 @@ function Test-ProjectTemplateSmokeBusinessCorpus {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "is required when status is registered"
             } elseif (-not $EntryNames.ContainsKey($sourceEntry)) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry"
+            }
+        } elseif ($status -eq "planned") {
+            if ([string]::IsNullOrWhiteSpace($registrationBlocker)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.registration_blocker" -Message "is required when status is planned"
+            }
+            if ([string]::IsNullOrWhiteSpace($nextAction)) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.next_action" -Message "is required when status is planned"
             }
         } elseif (-not [string]::IsNullOrWhiteSpace($sourceEntry) -and -not $EntryNames.ContainsKey($sourceEntry)) {
             Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry when provided"

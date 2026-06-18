@@ -100,6 +100,8 @@ Write-JsonFile -Path $manifestPath -Value ([ordered]@{
             document_type = "contract"
             status = "planned"
             smoke_contract = @("schema_validation", "schema_baseline", "render_data")
+            registration_blocker = "No committed contract template fixture is registered yet."
+            next_action = "Add a contract template manifest entry with schema baseline and render-data coverage."
             coverage_goal = "Track planned contract template coverage without adding a binary fixture."
         }
     )
@@ -205,6 +207,10 @@ Assert-Equal -Actual ([string]$report.business_document_type_summary[0].document
     -Message "Description JSON should expose document-type summary entries."
 Assert-Equal -Actual ([string]$report.business_template_corpus[0].source_entry) -Expected "invoice-template" `
     -Message "Description JSON should preserve registered source entry."
+Assert-Equal -Actual ([string]$report.business_template_corpus[1].registration_blocker) -Expected "No committed contract template fixture is registered yet." `
+    -Message "Description JSON should preserve planned corpus registration blockers."
+Assert-Equal -Actual ([string]$report.business_template_corpus[1].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+    -Message "Description JSON should preserve planned corpus next actions."
 Assert-Equal -Actual ([int]$report.latest_available_entry_count) -Expected 1 `
     -Message "Description JSON should count entries joined with latest summary data."
 Assert-Equal -Actual ([int]$report.latest_missing_entry_count) -Expected 0 `
@@ -279,6 +285,10 @@ Assert-ContainsText -Text $textReport -ExpectedText "Business template corpus:" 
     -Message "Text report should include business corpus section."
 Assert-ContainsText -Text $textReport -ExpectedText "project-legal-contract-template" `
     -Message "Text report should include planned contract corpus profile."
+Assert-ContainsText -Text $textReport -ExpectedText "registration_blocker: No committed contract template fixture is registered yet." `
+    -Message "Text report should include planned corpus registration blockers."
+Assert-ContainsText -Text $textReport -ExpectedText "next_action: Add a contract template manifest entry with schema baseline and render-data coverage." `
+    -Message "Text report should include planned corpus next actions."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest status: needs_review" `
     -Message "Text report should include latest status."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest visual verdict: needs_review" `

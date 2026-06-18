@@ -28,6 +28,8 @@
                                                                 "schema_baseline",
                                                                 "render_data"
                                                             ],
+                                         "registration_blocker":  "No committed contract DOCX or DOTX fixture has been registered in project-template smoke.",
+                                         "next_action":  "Add a lightweight contract template entry with schema baseline and render-data mapping before using it for confidence thresholds.",
                                          "coverage_goal":  "Register a contract template through project-template smoke before using it for confidence thresholds.",
                                          "notes":  "Planned text contract keeps the corpus requirement visible without adding a binary fixture in this step."
                                      },
@@ -41,6 +43,8 @@
                                                                 "schema_validation",
                                                                 "schema_baseline"
                                                             ],
+                                         "registration_blocker":  "Policy or handbook schema drift fixture is not yet committed.",
+                                         "next_action":  "Register a policy template with schema baseline evidence and approval-history coverage.",
                                          "coverage_goal":  "Register a policy or handbook template with schema drift review and approval evidence.",
                                          "notes":  "Used to calibrate type-update and required-field review paths."
                                      },
@@ -55,6 +59,8 @@
                                                                 "schema_baseline",
                                                                 "visual_smoke"
                                                             ],
+                                         "registration_blocker":  "Report template coverage still lacks a committed section/header/footer visual smoke fixture.",
+                                         "next_action":  "Add a project report template that exercises section setup plus header/footer visual review routing.",
                                          "coverage_goal":  "Register a project report template that exercises section/header/footer and visual review routing.",
                                          "notes":  "Keeps report coverage explicit before adding heavier DOCX samples."
                                      },
@@ -68,6 +74,8 @@
                                                                 "template_validations",
                                                                 "schema_validation"
                                                             ],
+                                         "registration_blocker":  "Notice template slot validation fixture is not registered yet.",
+                                         "next_action":  "Add a lightweight notice template with bookmark/content-control slot validation coverage.",
                                          "coverage_goal":  "Register a notice template for simple bookmark/content-control smoke coverage.",
                                          "notes":  "Low-risk entry for lightweight template validation coverage."
                                      },
@@ -83,6 +91,8 @@
                                                                 "render_data",
                                                                 "visual_smoke"
                                                             ],
+                                         "registration_blocker":  "Tender template requires schema, render-data, and visual-smoke fixtures before registration.",
+                                         "next_action":  "Register the tender template after a small procurement sample and render-data contract are available.",
                                          "coverage_goal":  "Register a tender template after schema and render-data contract are available.",
                                          "notes":  "Tracks the heavier procurement document class without adding a large fixture now."
                                      }
