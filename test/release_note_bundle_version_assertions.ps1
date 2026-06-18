@@ -210,6 +210,58 @@ Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'source_report_display=.\output\project-template-delivery-readiness\summary.json',
     'source_json_display=.\output\project-template-delivery-readiness\summary.json'
 ) -Label 'release_summary.zh-CN.md'
+
+$warningOnlyReviewerActionDir = Join-Path $resolvedWorkingDir "warning-only-project-template-reviewer-action"
+New-Item -ItemType Directory -Path $warningOnlyReviewerActionDir -Force | Out-Null
+$warningOnlySummaryPath = Join-Path $warningOnlyReviewerActionDir "summary.json"
+$warningOnlyBodyPath = Join-Path $warningOnlyReviewerActionDir "release_body.zh-CN.md"
+$warningOnlyShortPath = Join-Path $warningOnlyReviewerActionDir "release_summary.zh-CN.md"
+$warningOnlySummary = $summary | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+$warningOnlySummary.release_governance_handoff.release_blockers = @(
+    $warningOnlySummary.release_governance_handoff.release_blockers |
+        Where-Object { [string]$_.report_id -ne "project_template_delivery_readiness" }
+)
+$warningOnlySummary.release_governance_handoff.action_items = @(
+    $warningOnlySummary.release_governance_handoff.action_items |
+        Where-Object { [string]$_.report_id -ne "project_template_delivery_readiness" }
+)
+$warningOnlySummary.release_blocker_rollup.warnings = @($warningOnlySummary.release_blocker_rollup.warnings) + [pscustomobject]@{
+    report_id = "project_template_delivery_readiness"
+    id = "project_template_delivery_readiness.warning_only_reviewer_action"
+    action = "review_warning_only_schema_metadata"
+    message = "Project template readiness reviewer action is available only from a warning item."
+    source_schema = "featherdoc.project_template_delivery_readiness_report.v1"
+    source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+    source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+    requires_reviewer_action = $true
+    reviewer_action_summary = "review_warning_only_schema_metadata"
+    reviewer_action_reason = "latest_review_state=warning_only; issue_keys=(none)"
+    reviewer_actions = @("review_warning_only_schema_metadata")
+}
+($warningOnlySummary | ConvertTo-Json -Depth 30) | Set-Content -LiteralPath $warningOnlySummaryPath -Encoding UTF8
+& (Join-Path $resolvedRepoRoot "scripts\write_release_body_zh.ps1") `
+    -SummaryJson $warningOnlySummaryPath `
+    -OutputPath $warningOnlyBodyPath `
+    -ShortOutputPath $warningOnlyShortPath | Out-Null
+Assert-LineContainsAll -Path $warningOnlyBodyPath -ExpectedFragments @(
+    'Project template readiness:',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_warning_only_schema_metadata',
+    'reviewer_action_reason=latest_review_state=warning_only; issue_keys=(none)',
+    'reviewer_actions=review_warning_only_schema_metadata',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'warning-only release_body.zh-CN.md'
+Assert-LineContainsAll -Path $warningOnlyShortPath -ExpectedFragments @(
+    'project-template readiness governance contract',
+    'requires_reviewer_action=True',
+    'reviewer_action_summary=review_warning_only_schema_metadata',
+    'reviewer_action_reason=latest_review_state=warning_only; issue_keys=(none)',
+    'reviewer_actions=review_warning_only_schema_metadata',
+    'source_report_display=.\output\project-template-delivery-readiness\summary.json',
+    'source_json_display=.\output\project-template-delivery-readiness\summary.json'
+) -Label 'warning-only release_summary.zh-CN.md'
+
 Assert-Contains -Path $shortPath -ExpectedText 'project-template onboarding governance contract' -Label 'release_summary.zh-CN.md'
 Assert-LineContainsAll -Path $shortPath -ExpectedFragments @(
     'project-template onboarding governance contract',

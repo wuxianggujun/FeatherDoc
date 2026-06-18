@@ -33,7 +33,7 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 截至本次任务清单刷新，最新提交
+   * 截至本次任务清单刷新，上轮跟踪提交
      ``157735eb9cc5ac53c04a5d91d8e0ce228ec9bcc0`` 已推送到 ``origin/dev``。
      Docs Pages 已通过；Linux CMake CI、macOS CMake CI 和 Windows MSVC CI
      仍在运行中，暂未观察到失败。上一提交 ``1621a049f4148ca5d6603e6e033d49f678f52dc2``
@@ -196,6 +196,11 @@ P1：Release governance 与发布材料一致性
    * reviewer action 聚合路径还会被源级契约约束为同时扫描 blocker、action item
      和 warning，并按 ``report_id`` / ``source_schema`` 关联证据，避免只从某个
      偶然存在的 blocker 取值。
+   * release note bundle 回归已补 warning-only 变体：当 delivery readiness 的
+     reviewer action 只存在于 warning 时，``release_body.zh-CN.md`` 和
+     ``release_summary.zh-CN.md`` 仍必须输出 ``requires_reviewer_action``、
+     ``reviewer_action_summary``、``reviewer_action_reason`` 和
+     ``reviewer_actions``。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及
@@ -384,8 +389,7 @@ P3：文档、测试与索引治理
    report、notice、tender，且真实 manifest 的 6 类 document type 已由
    ``check_project_template_smoke_manifest_test.ps1`` 守护。``P1-APPROVAL-01`` 的
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
-   和 reviewer bundle；下一步按
-   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续守护
-   ``upload.remote_assets`` 静态 contract 的 CI，并复核 release note bundle、
-   release material safety、release asset manifest 三条链路中 reviewer action、
-   content-control action/class/source/command 字段是否还有薄弱断言。
+   和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
+   reviewer action 回归。下一步继续守护最新 ``dev`` CI，并复核 release material
+   safety、release asset manifest 与 reviewer bundle 中 content-control
+   action/class/source/command 字段是否还有薄弱断言。
