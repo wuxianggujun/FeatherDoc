@@ -33,11 +33,10 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 截至本次任务清单刷新，``origin/dev`` 最新提交
-     ``9bb8fbaf9697c619373ee71f1d04c4bb48703459`` 的 Docs Pages 已通过；
-     Linux CMake CI、macOS CMake CI 和 Windows MSVC CI 仍在运行中，暂未观察到失败。
-     上一提交 ``7f29e781d3915ad76c2a9442419381d0fd892ed2`` 的 Docs Pages、
-     Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI 仍需继续跟踪。
+   * 截至本次任务清单刷新，本轮基线提交
+     ``9bb8fbaf9697c619373ee71f1d04c4bb48703459`` 的 Docs Pages、Linux CMake CI
+     和 macOS CMake CI 已通过，Windows MSVC CI 仍在运行中，暂未观察到失败。
+     本轮新增提交推送后，以最新 ``dev`` head 的四个 workflow 结果为 P0 跟踪对象。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
