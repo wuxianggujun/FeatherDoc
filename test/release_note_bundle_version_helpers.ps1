@@ -162,6 +162,41 @@ function Assert-ContentControlGovernanceTrace {
     foreach ($expectedFragment in $expectedFragments) {
         Assert-Contains -Path $Path -ExpectedText $expectedFragment -Label $Label
     }
+
+    Assert-MarkdownListBlockContainsAll -Path $Path `
+        -Anchor 'content_control_data_binding.bound_placeholder: action=sync_or_fill_bound_content_control' `
+        -ExpectedFragments @(
+            'source_schema=featherdoc.content_control_data_binding_governance_report.v1',
+            'source_report_display: .\output\content-control-data-binding-governance\summary.json',
+            'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
+            'input_docx_display: .\samples\invoice.docx',
+            'input_docx: samples/invoice.docx',
+            'template_name=invoice-template',
+            'schema_target: invoice',
+            'target_mode: resolved-section-targets',
+            'repair_action_classes: release_blocking, auto_repair_candidate, manual_confirmation_required',
+            'repair_strategy: sync_bound_content_control',
+            'repair_hint: Rerun Custom XML sync or explicitly fill the bound content control before release.',
+            $contentControlCommandTemplateMarker
+        ) -Label $Label
+
+    Assert-MarkdownListBlockContainsAll -Path $Path `
+        -Anchor 'review_duplicate_content_control_binding: action=review_duplicate_content_control_binding' `
+        -ExpectedFragments @(
+            'source_schema=featherdoc.content_control_data_binding_governance_report.v1',
+            'source_report_display: .\output\content-control-data-binding-governance\summary.json',
+            'source_json_display: .\output\content-control-data-binding\inspect-content-controls.json',
+            'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\build_content_control_data_binding_governance_report.ps1',
+            'input_docx_display: .\samples\invoice.docx',
+            'input_docx: samples/invoice.docx',
+            'template_name=invoice-template',
+            'schema_target: invoice',
+            'target_mode: resolved-section-targets',
+            'repair_action_classes: manual_confirmation_required',
+            'repair_strategy: deduplicate_or_confirm_shared_binding',
+            'repair_hint: Confirm the repeated binding is intentional, or split the controls across distinct Custom XML paths.',
+            $contentControlDuplicateActionCommandTemplateMarker
+        ) -Label $Label
 }
 
 function New-NumberingGovernanceMetricFixture {

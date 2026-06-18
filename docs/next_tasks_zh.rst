@@ -201,6 +201,10 @@ P1：Release governance 与发布材料一致性
      ``release_summary.zh-CN.md`` 仍必须输出 ``requires_reviewer_action``、
      ``reviewer_action_summary``、``reviewer_action_reason`` 和
      ``reviewer_actions``。
+   * content-control blocker 与 duplicate-binding action item 的 release note
+     bundle 回归已改为同一 Markdown list block 断言：``source_report_display``、
+     ``source_json_display``、``repair_action_classes``、``repair_strategy``、
+     ``repair_hint`` 和 ``command_template`` 必须和对应 action 出现在同一治理项内。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及
@@ -390,6 +394,6 @@ P3：文档、测试与索引治理
    ``check_project_template_smoke_manifest_test.ps1`` 守护。``P1-APPROVAL-01`` 的
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
-   reviewer action 回归。下一步继续守护最新 ``dev`` CI，并复核 release material
-   safety、release asset manifest 与 reviewer bundle 中 content-control
-   action/class/source/command 字段是否还有薄弱断言。
+   reviewer action 回归，并把 content-control source/action/class/command 收紧为
+   同块断言。下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
+   release asset manifest 是否还存在发布材料字段盲区。
