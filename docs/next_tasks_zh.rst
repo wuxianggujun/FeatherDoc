@@ -35,7 +35,8 @@ P0：当前发布与 CI 守护
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
    * 截至本次任务清单刷新，本轮基线提交
      ``9bb8fbaf9697c619373ee71f1d04c4bb48703459`` 的 Docs Pages、Linux CMake CI
-     和 macOS CMake CI 已通过，Windows MSVC CI 仍在运行中，暂未观察到失败。
+     和 macOS CMake CI 已通过；当前 live 状态请以 ``gh run list --branch dev``
+     为准。
      本轮新增提交推送后，以最新 ``dev`` head 的四个 workflow 结果为 P0 跟踪对象。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
@@ -252,8 +253,8 @@ P1：Release governance 与发布材料一致性
      ``next_action_summary``，并断言三份入口材料与 reviewer checklist action item
      同时展示两组 source / action / blocker / entries，避免 release governance
      回归到只展示第一条人工处理动作。
-   * 当前 ``dev`` 最新 CI 已全绿；下一步继续推进 release blocker rollup 与
-     reviewer bundle 的治理证据一致性。若后续 CI 失败，则先修 CI。
+   * 当前 ``dev`` 最新 CI 仍有 workflow 运行中；下一步继续守护 release blocker
+     rollup 与 reviewer bundle 的治理证据一致性。若后续 CI 失败，则先修 CI。
 
 
 P2：样式与编号治理
