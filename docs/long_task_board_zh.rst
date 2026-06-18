@@ -80,17 +80,19 @@
 
 1. ``P0-CI-01``：dev CI 守护
 
-   * 状态：``DOING``。
+   * 状态：``GUARDED``。
    * 目标：确认最新 ``dev`` 的 Linux、Windows、macOS 和 Docs Pages 均绿色。
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
-   * 当前阻断：``effaac2ff2c38e19663d3542323441a7e3208ef8`` 的 Docs Pages、
-     Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI 失败。
-     失败点集中在 ``release_candidate_visual_verdict`` 和
-     ``release_candidate_visual_verdict_reports``；日志显示
-     ``assert-release-material-safety`` 在 ``ARTIFACT_GUIDE.md`` 中发现
-     ``project_template_delivery_readiness`` 入口材料缺少完整 contract marker。
-   * 下一步：先本地复现 Windows 失败场景，再最小修复 release material safety
-     或入口材料生成逻辑，验证通过后提交并推送 ``dev``。
+   * 当前结果：``8372d7fa6aef860cf487ee563bdfd2ece7c95638`` 的 Linux CMake CI、
+     macOS CMake CI 和 Windows MSVC CI 均已通过；最新相关 Docs Pages run
+     也保持绿色。
+   * 已修复：上一轮 Windows MSVC 在 ``release_candidate_visual_verdict`` 和
+     ``release_candidate_visual_verdict_reports`` 中暴露的 release entry material
+     safety 误判已解除。修复点包括让 material-safety helper 在同一 anchor 的
+     任一 Markdown list block 中匹配完整 contract，并让 project-template workflow
+     dashboard action group 在 ready 场景也保留 ``blocker=`` 与 ``entries=``
+     marker。
+   * 下一步：继续守护 CI；若后续 ``dev`` 出现失败，优先回到本项抓日志修复。
    * 备注：这项优先级高于继续堆叠功能。
 
 2. ``P1-SCHEMA-01``：schema patch confidence 的真实业务语料来源追踪
