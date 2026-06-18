@@ -184,6 +184,9 @@
      GitHub Release refresh / publish workflow 已补维护契约，固定
      ``RELEASE_OUTPUT_ROOT``、发布脚本入口、``release-refresh-output`` /
      ``release-publish-output`` 以及 ``output/release-assets/**`` 上传路径。
+     refresh / publish workflow 现在会在调用发布脚本前只清理 workspace 内的
+     ``RELEASE_OUTPUT_ROOT``，避免 self-hosted runner 的旧
+     ``output/release-assets`` 残留被重新上传到本轮 release artifact。
      release asset manifest 的 material safety 负例已分别覆盖
      ``reviewer_action_reason`` 和 ``reviewer_actions``，不再只依赖
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。
@@ -253,7 +256,8 @@
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
 2. 继续推进 ``P1-RELEASE-01``，小步复核 GitHub Release refresh / publish
-   workflow artifact 输出是否与 ``release_assets_manifest.json`` 保持一致。
+   workflow artifact 输出是否只包含本轮 ``RELEASE_OUTPUT_ROOT`` 重新生成的材料，
+   并继续与 ``release_assets_manifest.json`` 保持一致。
 3. 复核 release note bundle、release material safety、release asset
    manifest 三条链路对 reviewer action、content-control action/class/source/command
    字段的断言是否存在重复盲区；优先补薄弱测试，不做大重构。

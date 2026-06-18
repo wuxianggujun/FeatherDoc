@@ -68,6 +68,29 @@ function Assert-NotContainsText {
     }
 }
 
+function Assert-ReleaseOutputRootCleanupContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WorkflowText,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkflowName
+    )
+
+    foreach ($marker in @(
+            '$workspaceRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)',
+            '$resolvedReleaseOutputRoot = [System.IO.Path]::GetFullPath($env:RELEASE_OUTPUT_ROOT)',
+            'StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)',
+            'Refusing to clean release output outside the workspace',
+            'Test-Path -LiteralPath $resolvedReleaseOutputRoot',
+            'Remove-Item -LiteralPath $resolvedReleaseOutputRoot -Recurse -Force',
+            'New-Item -ItemType Directory -Path $resolvedReleaseOutputRoot -Force'
+        )) {
+        Assert-ContainsText -Text $WorkflowText -ExpectedText $marker `
+            -Message "$WorkflowName should clean RELEASE_OUTPUT_ROOT inside the workspace before uploading release artifacts. Missing marker '$marker'."
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $workflowRelativePaths = @(
     ".github\workflows\windows-msvc.yml",
@@ -152,6 +175,7 @@ foreach ($marker in @(
     Assert-ContainsText -Text $releasePublishWorkflow -ExpectedText $marker `
         -Message "Release Publish workflow should keep the CI artifact boundary marker '$marker'."
 }
+Assert-ReleaseOutputRootCleanupContract -WorkflowText $releasePublishWorkflow -WorkflowName "Release Publish workflow"
 
 $releaseRefreshWorkflow = $workflowTexts[".github\workflows\release-refresh.yml"]
 foreach ($marker in @(
@@ -166,5 +190,6 @@ foreach ($marker in @(
     Assert-ContainsText -Text $releaseRefreshWorkflow -ExpectedText $marker `
         -Message "Release Refresh workflow should keep the release output artifact marker '$marker'."
 }
+Assert-ReleaseOutputRootCleanupContract -WorkflowText $releaseRefreshWorkflow -WorkflowName "Release Refresh workflow"
 
 Write-Host "GitHub Actions workflow maintenance contract passed."

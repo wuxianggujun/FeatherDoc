@@ -47,6 +47,16 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
 
+          $workspaceRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)
+          $resolvedReleaseOutputRoot = [System.IO.Path]::GetFullPath($env:RELEASE_OUTPUT_ROOT)
+          if (-not $resolvedReleaseOutputRoot.StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+              throw "Refusing to clean release output outside the workspace: $resolvedReleaseOutputRoot"
+          }
+          if (Test-Path -LiteralPath $resolvedReleaseOutputRoot) {
+              Remove-Item -LiteralPath $resolvedReleaseOutputRoot -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $resolvedReleaseOutputRoot -Force | Out-Null
+
           & pwsh `
               -ExecutionPolicy Bypass `
               -File .\scripts\publish_github_release.ps1 `

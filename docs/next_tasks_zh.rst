@@ -177,6 +177,9 @@ P1：Release governance 与发布材料一致性
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及
      ``output/release-assets/**`` 上传路径。
+   * GitHub Release refresh / publish workflow 现在会在调用发布脚本前只清理
+     workspace 内的 ``RELEASE_OUTPUT_ROOT``，避免 self-hosted runner 旧
+     ``output/release-assets`` 残留混入本轮 release artifact。
    * 下一步等待当前 ``dev`` 最新 CI 全绿；若失败则先修 CI，否则继续推进
      release blocker rollup 与 reviewer bundle 的治理证据一致性。
 
@@ -334,4 +337,5 @@ P3：文档、测试与索引治理
    report、notice、tender。``P1-APPROVAL-01`` 的 approval matrix reviewer action
    字段已经进入 release blocker rollup、handoff 和 reviewer bundle；下一步按
    ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续复核 GitHub Release
-   refresh / publish workflow artifact 输出与 ``release_assets_manifest.json`` 的一致性。
+   refresh / publish workflow artifact 输出是否只来自本轮重新生成的
+   ``RELEASE_OUTPUT_ROOT``，并继续与 ``release_assets_manifest.json`` 保持一致。
