@@ -33,16 +33,15 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 截至本次任务清单刷新，本轮基线提交
-     ``9bb8fbaf9697c619373ee71f1d04c4bb48703459`` 的 Docs Pages、Linux CMake CI
-     和 macOS CMake CI 已通过；当前 live 状态请以 ``gh run list --branch dev``
-     为准。
-     本轮新增提交推送后，以最新 ``dev`` head 的四个 workflow 结果为 P0 跟踪对象。
+   * 截至本次任务清单刷新，最新 ``dev`` head
+     ``be2af9a541c92f4f859b5efdd9a0a7ccdc157f01`` 的 Docs Pages 已通过；
+     Linux CMake CI、Windows MSVC CI 和 macOS CMake CI 仍在运行中。当前 live
+     状态请以 ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
      dashboard action group 也固定输出 ``blocker=`` / ``entries=`` marker。
-   * 下一步可以继续推进 P1；若后续 CI 失败，仍先回到本项抓日志定位。
+   * 下一步先等待最新 CI 完成；若后续 CI 失败，仍先回到本项抓日志定位。
 
 2. 保持分支策略：
 
@@ -253,8 +252,10 @@ P1：Release governance 与发布材料一致性
      ``next_action_summary``，并断言三份入口材料与 reviewer checklist action item
      同时展示两组 source / action / blocker / entries，避免 release governance
      回归到只展示第一条人工处理动作。
-   * 当前 ``dev`` 最新 CI 仍有 workflow 运行中；下一步继续守护 release blocker
-     rollup 与 reviewer bundle 的治理证据一致性。若后续 CI 失败，则先修 CI。
+   * release blocker rollup / release governance handoff Markdown 对
+     ``reviewer_actions`` 的透传已由最新提交补齐；当前 ``dev`` 最新 CI 仍有
+     workflow 运行中。下一步继续守护 release material safety 与 release asset
+     manifest 的发布字段 contract；若后续 CI 失败，则先修 CI。
 
 
 P2：样式与编号治理
@@ -402,12 +403,11 @@ P3：文档、测试与索引治理
 2. project-template workflow dashboard 的 ``next_action_summary`` 分组展示已进入
    release materials 和版本契约测试；后续保持该展示不被删减。
 3. release material safety 已覆盖 dashboard 入口、分组摘要、reviewer stop
-   condition 和 content-control ``repair_action_classes``；当前继续补齐
-   release blocker rollup / release governance handoff Markdown 对
-   ``reviewer_actions`` 的透传，并用对应测试锁住
-   ``reviewer_action_summary``、``reviewer_action_reason`` 和
-   ``reviewer_actions`` 同块出现；后续保持
-   ``assert_release_material_safety.ps1`` 默认参与正式发布路径。
+   condition 和 content-control ``repair_action_classes``；release blocker rollup /
+   release governance handoff Markdown 对 ``reviewer_actions`` 的透传也已补齐，
+   并用对应测试锁住 ``reviewer_action_summary``、``reviewer_action_reason`` 和
+   ``reviewer_actions`` 同块出现；后续保持 ``assert_release_material_safety.ps1``
+   默认参与正式发布路径。
 4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
@@ -416,10 +416,7 @@ P3：文档、测试与索引治理
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
-   同块断言。当前继续补齐 release blocker rollup / release governance handoff
-   Markdown 的 ``reviewer_actions`` 透传与测试锁定，再继续收紧
-   ``upload.remote_assets`` 的远端 URL release download path、文件名（zip 后缀）、
-   tag、精确 release download path、userinfo、query / fragment、scheme、host 和
-   release path prefix 绑定，并把 ``upload.release_url`` 收紧到无 userinfo、
-   query / fragment 的 release tag path。下一步继续守护最新 ``dev`` CI，
-   并复核 release material safety 与 release asset manifest 是否还存在发布材料字段盲区。
+   同块断言。release blocker rollup / release governance handoff Markdown 的
+   ``reviewer_actions`` 透传与测试锁定已完成；下一步继续守护最新 ``dev`` CI，
+   并复核 release material safety 与 release asset manifest 是否还存在发布材料
+   字段盲区。
