@@ -28,13 +28,11 @@ function Add-ContentControlRepairContractViolations {
             if ($null -eq $countValue) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing content_control_repair_contract_count."
             } else {
-                try {
-                    $declaredCount = [int]$countValue
-                    if ($declaredCount -ne $contracts.Count) {
-                        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "content_control_repair_contract_count does not match content_control_repair_contracts length."
-                    }
-                } catch {
+                $declaredCount = $null
+                if (-not (Test-StrictJsonInt64Value -Value $countValue -ParsedValue ([ref]$declaredCount))) {
                     Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "content_control_repair_contract_count must be an integer."
+                } elseif ($declaredCount -ne $contracts.Count) {
+                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "content_control_repair_contract_count does not match content_control_repair_contracts length."
                 }
             }
         }
@@ -225,11 +223,11 @@ function Test-ReleaseGovernanceSummaryContainerActive {
             continue
         }
 
-        try {
-            if ([int]$countValue -gt 0) {
+        $parsedCount = $null
+        if (Test-StrictJsonInt64Value -Value $countValue -ParsedValue ([ref]$parsedCount)) {
+            if ($parsedCount -gt 0) {
                 return $true
             }
-        } catch {
         }
     }
 
@@ -324,13 +322,11 @@ function Add-GovernanceMetricContractViolations {
     if ($null -eq $countValue) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing governance_metric_count."
     } else {
-        try {
-            $declaredCount = [int]$countValue
-            if ($declaredCount -ne $metrics.Count) {
-                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "governance_metric_count does not match governance_metrics length."
-            }
-        } catch {
+        $declaredCount = $null
+        if (-not (Test-StrictJsonInt64Value -Value $countValue -ParsedValue ([ref]$declaredCount))) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "governance_metric_count must be an integer."
+        } elseif ($declaredCount -ne $metrics.Count) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "governance_metric_count does not match governance_metrics length."
         }
     }
 
@@ -630,9 +626,10 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
             continue
         }
 
-        try {
-            $integerValues[$fieldName] = [int]$fieldValue
-        } catch {
+        $parsedInteger = $null
+        if (Test-StrictJsonInt64Value -Value $fieldValue -ParsedValue ([ref]$parsedInteger)) {
+            $integerValues[$fieldName] = $parsedInteger
+        } else {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.$fieldName must be an integer."
         }
     }

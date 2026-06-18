@@ -61,6 +61,46 @@ if (-not $wrongSummaryRealCorpusContractFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release summary without numbering_catalog_governance.real_corpus_confidence."
 }
 
+$badSummaryDecimalGovernanceMetricCountDir = Join-Path $failDir "summary-governance-metric-count-decimal"
+$badSummaryDecimalGovernanceMetricCountPath = Join-Path $badSummaryDecimalGovernanceMetricCountDir "summary.json"
+New-Item -ItemType Directory -Path $badSummaryDecimalGovernanceMetricCountDir -Force | Out-Null
+$badSummaryDecimalGovernanceMetricCount = [ordered]@{
+    release_version = "1.6.4"
+    execution_status = "pass"
+    release_handoff = ".\output\release-candidate-checks\report\release_handoff.md"
+    governance_metric_count = 1.5
+    governance_metrics = @(
+        [ordered]@{
+            id = "style_catalog_governance.real_corpus_confidence"
+            metric = "real_corpus_confidence"
+            report_id = "style_catalog_governance"
+            source_schema = "featherdoc.style_catalog_governance_report.v1"
+            score = 12
+            level = "experimental"
+        },
+        [ordered]@{
+            id = "table_layout_delivery_governance.delivery_quality"
+            metric = "delivery_quality"
+            report_id = "table_layout_delivery_governance"
+            source_schema = "featherdoc.table_layout_delivery_governance_report.v1"
+            score = 100
+            level = "release_ready"
+        }
+    )
+}
+($badSummaryDecimalGovernanceMetricCount | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $badSummaryDecimalGovernanceMetricCountPath -Encoding UTF8
+
+$badSummaryDecimalGovernanceMetricCountFailedAsExpected = $false
+try {
+    & $auditScript -Path $badSummaryDecimalGovernanceMetricCountPath
+} catch {
+    $badSummaryDecimalGovernanceMetricCountFailedAsExpected = $true
+}
+
+if (-not $badSummaryDecimalGovernanceMetricCountFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release summary with decimal governance_metric_count."
+}
+
 $badManifestPath = Join-Path $failDir "release_assets_manifest.json"
 $badManifest = [ordered]@{
     release_version = "1.6.4"
@@ -92,6 +132,67 @@ try {
 
 if (-not $missingManifestMetricFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without delivery_quality."
+}
+
+$badManifestDecimalOnboardingCountDir = Join-Path $failDir "manifest-project-template-onboarding-count-decimal"
+$badManifestDecimalOnboardingCountPath = Join-Path $badManifestDecimalOnboardingCountDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestDecimalOnboardingCountDir -Force | Out-Null
+$badManifestDecimalOnboardingCount = [ordered]@{
+    release_version = "1.6.4"
+    execution_status = "pass"
+    governance_metric_count = $governanceMetricCount
+    governance_metrics = $governanceMetrics
+    numbering_catalog_real_corpus_confidence = (New-NumberingCatalogRealCorpusConfidenceMirror -GovernanceMetrics $governanceMetrics)
+    table_layout_delivery_quality = (New-TableLayoutDeliveryQualityMirror -GovernanceMetrics $governanceMetrics)
+    content_control_repair_contract_count = 1
+    content_control_repair_contracts = @(
+        [ordered]@{
+            id = "content_control_data_binding.bound_placeholder"
+            source_schema = "featherdoc.content_control_data_binding_governance_report.v1"
+            source_json_display = ".\output\release-candidate-checks\report\content_control_data_binding_governance_summary.json"
+            repair_strategy = "sync_bound_content_control"
+            repair_hint = "Rerun Custom XML sync or explicitly fill the bound content control before release."
+            command_template = "featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
+        }
+    )
+    project_template_delivery_readiness_contract = $projectTemplateDeliveryReadinessContract
+    project_template_onboarding_governance_contract = [ordered]@{
+        schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        source_schema = "featherdoc.project_template_onboarding_governance_report.v1"
+        status = "ready"
+        release_ready = $true
+        source_file_count = 3
+        source_failure_count = 0
+        entry_count = 3.5
+        schema_approval_status_summary = @(
+            [ordered]@{
+                status = "approved"
+                count = 2
+            }
+        )
+        blocked_entry_count = 0
+        pending_review_entry_count = 0
+        not_evaluated_entry_count = 0
+        approved_entry_count = 3
+        not_required_entry_count = 1
+        release_blocker_count = 0
+        action_item_count = 0
+        manual_review_recommendation_count = 1
+        source_report_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
+        source_json_display = ".\output\release-candidate-checks\report\project_template_onboarding_governance_summary.json"
+    }
+}
+($badManifestDecimalOnboardingCount | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $badManifestDecimalOnboardingCountPath -Encoding UTF8
+
+$badManifestDecimalOnboardingCountFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestDecimalOnboardingCountPath
+} catch {
+    $badManifestDecimalOnboardingCountFailedAsExpected = $true
+}
+
+if (-not $badManifestDecimalOnboardingCountFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with decimal project_template_onboarding_governance_contract.entry_count."
 }
 
 $badManifestMissingContentControlContractDir = Join-Path $failDir "manifest-missing-content-control-contract"

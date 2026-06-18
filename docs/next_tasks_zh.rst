@@ -261,6 +261,13 @@ P1：Release governance 与发布材料一致性
      manifest 的发布字段 contract；若后续 CI 失败，则先修 CI。
 
 
+5. 本轮收口 strict integer contract：release material safety 的 core、json、manifest
+   contract 已统一改用严格整数解析 helper，测试样例同步补齐小数、字符串整数、
+   布尔值和空值负例，避免 PowerShell ``[int]`` 软转换误放行。下一步先跑
+   ``test/assert_release_material_safety_test.ps1``，再做 ``git diff --check`` 和
+   ``git status --short --branch``；通过后提交并推送 ``dev``，然后继续看最新
+   ``gh run list --branch dev``。
+
 P2：样式与编号治理
 ------------------
 

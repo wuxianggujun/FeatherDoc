@@ -331,6 +331,48 @@ function Test-TextLineContainsAll {
     return $false
 }
 
+function Test-StrictJsonInt64Value {
+    param(
+        $Value,
+        [ref]$ParsedValue
+    )
+
+    $ParsedValue.Value = $null
+    if ($null -eq $Value -or $Value -is [bool]) {
+        return $false
+    }
+
+    if ($Value -is [byte] -or
+        $Value -is [sbyte] -or
+        $Value -is [int16] -or
+        $Value -is [uint16] -or
+        $Value -is [int] -or
+        $Value -is [uint32] -or
+        $Value -is [long]) {
+        $ParsedValue.Value = [int64]$Value
+        return $true
+    }
+
+    if ($Value -is [string]) {
+        $trimmedValue = ([string]$Value).Trim()
+        if ($trimmedValue -notmatch '^[+-]?\d+$') {
+            return $false
+        }
+
+        $parsedInteger = [int64]0
+        if ([int64]::TryParse(
+                $trimmedValue,
+                [System.Globalization.NumberStyles]::Integer,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [ref]$parsedInteger)) {
+            $ParsedValue.Value = $parsedInteger
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Test-ReleaseNoteProjectTemplateTraceLineContainsAll {
     param(
         [string]$Text,

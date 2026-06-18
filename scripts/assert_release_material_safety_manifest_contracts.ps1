@@ -146,9 +146,10 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
             continue
         }
 
-        try {
-            $integerValues[$fieldName] = [int]$fieldValue
-        } catch {
+        $parsedInteger = $null
+        if (Test-StrictJsonInt64Value -Value $fieldValue -ParsedValue ([ref]$parsedInteger)) {
+            $integerValues[$fieldName] = $parsedInteger
+        } else {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.$fieldName must be an integer."
         }
     }
@@ -240,12 +241,11 @@ function Add-ManifestSignoffEntrypointsContractViolations {
     }
 
     $requiredEntrypointCount = Get-JsonPropertyValue -Object $signoff -Name "required_entrypoint_count"
-    try {
-        if ([int]$requiredEntrypointCount -ne 3) {
-            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_entrypoint_count must be 3."
-        }
-    } catch {
+    $parsedRequiredEntrypointCount = $null
+    if (-not (Test-StrictJsonInt64Value -Value $requiredEntrypointCount -ParsedValue ([ref]$parsedRequiredEntrypointCount))) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_entrypoint_count must be an integer."
+    } elseif ($parsedRequiredEntrypointCount -ne 3) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "manifest_signoff_entrypoints.required_entrypoint_count must be 3."
     }
 
     $entrypoints = @(Get-JsonArray -Object $signoff -Name "entrypoints")
@@ -352,12 +352,11 @@ function Add-ProjectTemplateReadinessChecklistEntrypointsContractViolations {
     }
 
     $requiredEntrypointCount = Get-JsonPropertyValue -Object $entrypointsContract -Name "required_entrypoint_count"
-    try {
-        if ([int]$requiredEntrypointCount -ne 3) {
-            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.required_entrypoint_count must be 3."
-        }
-    } catch {
+    $parsedRequiredEntrypointCount = $null
+    if (-not (Test-StrictJsonInt64Value -Value $requiredEntrypointCount -ParsedValue ([ref]$parsedRequiredEntrypointCount))) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.required_entrypoint_count must be an integer."
+    } elseif ($parsedRequiredEntrypointCount -ne 3) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_readiness_checklist_entrypoints.required_entrypoint_count must be 3."
     }
 
     $entrypoints = @(Get-JsonArray -Object $entrypointsContract -Name "entrypoints")
@@ -426,12 +425,11 @@ function Add-ReleaseNoteBundleContractViolations {
 
     foreach ($countField in @("entrypoint_count", "required_entrypoint_count")) {
         $countValue = Get-JsonPropertyValue -Object $bundle -Name $countField
-        try {
-            if ([int]$countValue -ne 6) {
-                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$countField must be 6."
-            }
-        } catch {
+        $parsedCount = $null
+        if (-not (Test-StrictJsonInt64Value -Value $countValue -ParsedValue ([ref]$parsedCount))) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$countField must be an integer."
+        } elseif ($parsedCount -ne 6) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_note_bundle.$countField must be 6."
         }
     }
 
@@ -529,12 +527,11 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditCon
     }
 
     $auditedEntrypointCount = Get-JsonPropertyValue -Object $audit -Name "audited_entrypoint_count"
-    try {
-        if ([int]$auditedEntrypointCount -ne 3) {
-            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be 3."
-        }
-    } catch {
+    $parsedAuditedEntrypointCount = $null
+    if (-not (Test-StrictJsonInt64Value -Value $auditedEntrypointCount -ParsedValue ([ref]$parsedAuditedEntrypointCount))) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be an integer."
+    } elseif ($parsedAuditedEntrypointCount -ne 3) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be 3."
     }
 
     $auditedEntrypoints = @(Get-JsonArray -Object $audit -Name "audited_entrypoints" | ForEach-Object { [string]$_ })
@@ -664,13 +661,13 @@ function Add-PdfVisualGateManifestContractViolations {
             continue
         }
 
-        try {
-            $integerValue = [int]$fieldValue
+        $integerValue = $null
+        if (Test-StrictJsonInt64Value -Value $fieldValue -ParsedValue ([ref]$integerValue)) {
             $manifestCountValues[$fieldName] = $integerValue
-            if ($integerValue -lt [int]$countContract.Minimum) {
+            if ($integerValue -lt $countContract.Minimum) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be at least $($countContract.Minimum)."
             }
-        } catch {
+        } else {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "pdf_visual_gate_evidence.$fieldName must be an integer."
         }
     }
@@ -718,13 +715,11 @@ function Add-WordVisualStandardReviewManifestContractViolations {
     if ($null -eq $countValue) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count is missing."
     } else {
-        try {
-            $declaredCount = [int]$countValue
-            if ($declaredCount -ne 4 -or $declaredCount -ne $metadata.Count) {
-                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count must match four standard review metadata entries."
-            }
-        } catch {
+        $declaredCount = $null
+        if (-not (Test-StrictJsonInt64Value -Value $countValue -ParsedValue ([ref]$declaredCount))) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count must be an integer."
+        } elseif ($declaredCount -ne 4 -or $declaredCount -ne $metadata.Count) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "word_visual_standard_review_metadata_count must match four standard review metadata entries."
         }
     }
 
