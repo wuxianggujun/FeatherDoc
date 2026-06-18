@@ -19,6 +19,9 @@
 
 ``持续推进 FeatherDoc 后续开发任务：维护后续任务文档，按优先级在 dev 分支实现、验证、提交、推送，并保持 CI 绿色。``
 
+Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第二个 goal，
+只围绕本台账和 ``docs/next_tasks_zh.rst`` 逐轮推进。
+
 执行边界：
 
 1. 只在 ``dev`` 分支开发，不新建 ``codex/*`` 分支。
@@ -83,9 +86,12 @@
    * 状态：``GUARDED``。
    * 目标：确认最新 ``dev`` 的 Linux、Windows、macOS 和 Docs Pages 均绿色。
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
-   * 当前结果：``8372d7fa6aef860cf487ee563bdfd2ece7c95638`` 的 Linux CMake CI、
-     macOS CMake CI 和 Windows MSVC CI 均已通过；最新相关 Docs Pages run
-     也保持绿色。
+   * 当前结果：截至本次台账刷新，最新 ``dev`` 提交
+     ``15491c350505bf149a754d95e3e91badd56d10bd`` 已推送到 ``origin/dev``。
+     Docs Pages 和 macOS CMake CI 已通过；Linux CMake CI 和 Windows MSVC CI
+     仍在运行中，暂未观察到失败。上一提交 ``f067235fa4fa140fadde92c8ef4280c70d7f7f61``
+     的 Docs Pages、Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI
+     仍需继续跟踪。
    * 已修复：上一轮 Windows MSVC 在 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 中暴露的 release entry material
      safety 误判已解除。修复点包括让 material-safety helper 在同一 anchor 的
@@ -209,6 +215,10 @@
      ``package_release_assets.ps1 -UploadReleaseTag`` 的直接上传路径也已用 fake gh
      fixture 锁住同一规则：远端存在 manifest 和 unrelated asset 时，manifest 的
      ``upload.remote_assets`` 仍只保留三份正式 ZIP 及其 URL、大小和下载计数。
+     下一步要把这条规则下沉到 ``assert_release_material_safety.ps1`` 的
+     manifest 静态 contract：上传成功时 ``upload.remote_assets`` 只能包含三份
+     正式 ZIP，且每项必须保留 URL、大小和下载计数；manifest 自身或 unrelated
+     asset 混入时必须失败。
      staged material safety 的路径断言也已兼容 ``<windows-absolute-path>`` 占位和
      repo-relative public display，避免 CMake build dir 位于仓库内时误判安全公开路径。
      GitHub Release refresh / publish workflow 已补维护契约，固定
@@ -296,10 +306,10 @@
 下一轮按这个顺序执行：
 
 1. 复查最新 ``dev`` CI；失败就先修失败。
-2. 继续推进 ``P1-RELEASE-01``，小步复核 GitHub Release refresh / publish
-   workflow artifact 输出是否只包含本轮 ``RELEASE_OUTPUT_ROOT`` 重新生成的材料。
-   当前 upload-artifact path 和递归清理边界都已补契约；后续继续与
-   ``release_assets_manifest.json`` 保持一致。
+2. 继续推进 ``P1-RELEASE-01`` 的最小可验证动作：为
+   ``assert_release_material_safety.ps1`` 补 ``upload.remote_assets`` 静态 contract，
+   明确上传成功时只能出现三份正式 ZIP，并拒绝 ``release_assets_manifest.json``
+   或 unrelated asset 混入远端资产清单。
 3. 复核 release note bundle、release material safety、release asset
    manifest 三条链路对 reviewer action、content-control action/class/source/command
    字段的断言是否存在重复盲区；优先补薄弱测试，不做大重构。

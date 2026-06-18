@@ -33,9 +33,12 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 当前最新提交 ``8372d7fa6aef860cf487ee563bdfd2ece7c95638`` 的 Linux
-     CMake CI、macOS CMake CI 和 Windows MSVC CI 已通过；最新相关 Docs Pages
-     run 也保持绿色。
+   * 截至本次任务清单刷新，最新提交
+     ``15491c350505bf149a754d95e3e91badd56d10bd`` 已推送到 ``origin/dev``。
+     Docs Pages 和 macOS CMake CI 已通过；Linux CMake CI 和 Windows MSVC CI
+     仍在运行中，暂未观察到失败。上一提交 ``f067235fa4fa140fadde92c8ef4280c70d7f7f61``
+     的 Docs Pages、Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI
+     仍需继续跟踪。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -209,6 +212,10 @@ P1：Release governance 与发布材料一致性
    * ``package_release_assets.ps1 -UploadReleaseTag`` 的直接上传路径也由 fake gh
      safety fixture 覆盖：远端同时存在 manifest 和 unrelated asset 时，生成的
      ``release_assets_manifest.json`` 只记录三份正式 ZIP 的 URL、大小和下载计数。
+   * 下一步需要把 ``upload.remote_assets`` 规则补进
+     ``assert_release_material_safety.ps1`` 的 manifest 静态 contract：上传成功时
+     只允许三份正式 ZIP，且必须带 URL、大小和下载计数；manifest 自身或 unrelated
+     asset 混入远端资产清单时必须触发失败。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -378,6 +385,7 @@ P3：文档、测试与索引治理
    ``check_project_template_smoke_manifest_test.ps1`` 守护。``P1-APPROVAL-01`` 的
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；下一步按
-   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续复核 GitHub Release
-   refresh / publish workflow artifact 输出是否只来自本轮重新生成的
-   ``RELEASE_OUTPUT_ROOT``，并继续与 ``release_assets_manifest.json`` 保持一致。
+   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 为
+   ``assert_release_material_safety.ps1`` 补 ``upload.remote_assets`` 静态 contract，
+   让 GitHub Release 上传后的远端资产清单继续与 ``release_assets_manifest.json``
+   保持一致。
