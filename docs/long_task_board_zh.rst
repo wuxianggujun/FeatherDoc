@@ -203,6 +203,9 @@
      写入，离线 fake gh 回归会验证 ``upload.remote_assets`` 只包含
      ``release_assets_manifest.json`` 里列出的正式 ZIP，并保留远端 URL、大小和
      下载计数。
+     该回归现在还显式覆盖 GitHub Release 远端资产中同时存在
+     ``release_assets_manifest.json`` 的场景，要求 ``upload.remote_assets`` 不把
+     manifest 自身当作正式 ZIP 资产。
      GitHub Release refresh / publish workflow 已补维护契约，固定
      ``RELEASE_OUTPUT_ROOT``、发布脚本入口、``release-refresh-output`` /
      ``release-publish-output``，并要求上传路径直接引用

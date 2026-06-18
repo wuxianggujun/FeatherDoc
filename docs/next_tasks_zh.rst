@@ -203,6 +203,9 @@ P1：Release governance 与发布材料一致性
      ``output/release-assets`` 残留混入本轮 release artifact；递归清理前的边界判断
      已改为 ``GetRelativePath`` containment contract，避免简单字符串前缀误判相邻
      workspace 路径。
+   * ``publish_github_release.ps1`` 的离线 fake gh 回归现在显式覆盖 GitHub Release
+     同时返回 ``release_assets_manifest.json`` 的场景，要求 ``upload.remote_assets``
+     仍只记录 manifest 中列出的三份正式 ZIP。
    * release candidate visual verdict 现在会断言 ready project-template workflow
      dashboard action group 的 ``source``、``action``、``blocker=(none)`` 和
      ``entries=(none)`` 同行进入三份入口材料，避免 P1 dashboard 和 release

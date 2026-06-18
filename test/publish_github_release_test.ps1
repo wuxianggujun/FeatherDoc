@@ -304,6 +304,12 @@ function global:gh {
                 downloadCount = 4
             },
             [ordered]@{
+                name = "release_assets_manifest.json"
+                url = "https://github.example/assets/release-assets-manifest"
+                size = 4321
+                downloadCount = 5
+            },
+            [ordered]@{
                 name = "unrelated.zip"
                 url = "https://github.example/assets/unrelated"
                 size = 1
@@ -373,6 +379,9 @@ foreach ($expectedAsset in @(
 
 if ($remoteAssetsByName.ContainsKey("unrelated.zip")) {
     throw "Updated manifest included a remote asset that is not listed in manifest.assets."
+}
+if ($remoteAssetsByName.ContainsKey("release_assets_manifest.json")) {
+    throw "Updated manifest should not list release_assets_manifest.json as a packaged remote asset."
 }
 
 Write-Host "Publish GitHub release wrapper regression passed."
