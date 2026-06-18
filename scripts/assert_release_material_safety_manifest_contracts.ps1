@@ -914,6 +914,10 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 $assetPathLeaf -ne $assetName) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the same asset file."
             }
+            if (-not [string]::IsNullOrWhiteSpace($assetName) -and
+                -not $assetName.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.name must end with .zip."
+            }
             $requestedTagPathSegment = "/releases/download/$requestedTag/"
             $assetTagPathIndex = -1
             if (-not [string]::IsNullOrWhiteSpace($requestedTag)) {

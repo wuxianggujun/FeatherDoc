@@ -241,6 +241,14 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-name-does-not-end-with-zip" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].name = "FeatherDoc-v1.6.4-msvc-install.tar"
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.tar"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-remote-assets-url-uses-different-scheme" `
     -Mutate {
         param($Manifest)

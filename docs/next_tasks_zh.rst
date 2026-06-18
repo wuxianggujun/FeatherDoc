@@ -228,8 +228,8 @@ P1：Release governance 与发布材料一致性
      ``/releases/download/<tag>/<asset>.zip``；完整 path 必须精确等于同名资产文件的
      release download 路径，release download 路径必须包含请求发布 tag。material safety 负例已覆盖
      wrong-file URL、wrong-tag URL、userinfo 泄漏、query / fragment 参数污染、
-     文件名只在 query 中出现、nested release download path，以及 tag 出现在非
-     release download 路径中的场景。
+     文件名只在 query 中出现、nested release download path、非 zip 文件名，以及
+     tag 出现在非 release download 路径中的场景。
    * ``upload.release_url`` 也已纳入 path 级 release tag contract：必须是有效
      HTTP(S) absolute URL，不能带 userinfo、query 或 fragment，并且 URL path 必须指向
      ``/releases/tag/<tag>``；wrong-tag、query-only tag、userinfo 泄漏、
@@ -412,7 +412,7 @@ P3：文档、测试与索引治理
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
    同块断言。当前继续收紧 ``upload.remote_assets`` 的远端 URL release download
-   path、文件名、tag、精确 release download path、userinfo、query / fragment、scheme、host 和 release path prefix 绑定，并把
+   path、文件名（zip 后缀）、tag、精确 release download path、userinfo、query / fragment、scheme、host 和 release path prefix 绑定，并把
    ``upload.release_url`` 收紧到无 userinfo、query / fragment 的 release tag path。下一步继续守护最新 ``dev`` CI，
    并复核 release material safety 与
    release asset manifest 是否还存在发布材料字段盲区。
