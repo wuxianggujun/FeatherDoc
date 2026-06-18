@@ -21,6 +21,8 @@
         -Message "Handoff Markdown should expose the DOCX readiness marker."
     Assert-ContainsText -Text $markdown -ExpectedText "docx_functional_smoke_readiness.md" `
         -Message "Handoff Markdown should expose the DOCX readiness report markdown display."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_actions: ``review_schema_update_candidate``" `
+        -Message "Handoff Markdown should include reviewer action lists."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the PDF visual gate evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
@@ -109,6 +111,11 @@
     ) -Message "Handoff Markdown should keep manifest signoff evidence and release-candidate source identity in one source_report block."
     Assert-ContainsText -Text $markdown -ExpectedText "Project-template readiness checklist entrypoints evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the project-template readiness checklist evidence count."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "reviewer_action:" -ExpectedFragments @(
+        "reviewer_action:",
+        "reviewer_action_reason:",
+        "reviewer_actions:"
+    ) -Message "Handoff Markdown should keep reviewer action fields together."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_status: ``declared``" `
         -Message "Handoff Markdown should expose the project-template readiness checklist status."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_readiness_checklist_entrypoints_checklist_label: ``Project template release readiness checklist``" `

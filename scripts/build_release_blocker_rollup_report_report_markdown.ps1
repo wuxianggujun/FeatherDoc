@@ -296,6 +296,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
                 $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $blocker
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $blocker
         }
     }
@@ -332,6 +333,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
                 $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $item
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }
     }
@@ -369,6 +371,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace($reviewerActionReason)) {
                 $lines.Add("  - reviewer_action_reason: $reviewerActionReason") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $item
             Add-ReadinessActionEvidenceMarkdownLines -Lines $lines -Item $item
         }
     }

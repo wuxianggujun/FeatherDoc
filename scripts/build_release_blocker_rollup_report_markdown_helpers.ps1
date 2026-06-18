@@ -63,6 +63,22 @@ function Add-TraceabilityMarkdownLines {
     }
 }
 
+function Add-ReviewerActionsMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    $reviewerActions = @(
+        Get-JsonArray -Object $Item -Name "reviewer_actions" |
+            Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } |
+            ForEach-Object { [string]$_ }
+    )
+    if ($reviewerActions.Count -gt 0) {
+        $Lines.Add("  - reviewer_actions: ``$($reviewerActions -join ', ')``") | Out-Null
+    }
+}
+
 function Add-ReadinessActionEvidenceMarkdownLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,

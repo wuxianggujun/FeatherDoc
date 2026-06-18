@@ -305,6 +305,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include project-template schema approval status summary."
     Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action: ``review_schema_update_candidate``" `
         -Message "Markdown should include project-template reviewer action summaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_actions: ``review_schema_update_candidate``" `
+        -Message "Markdown should include project-template reviewer action lists."
     Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor '`project_template_delivery_readiness`' -ExpectedFragments @(
         'status=',
         'ready=',
@@ -331,6 +333,9 @@ if (Test-Scenario -Name "aggregate") {
         'source_json_display:',
         'readiness_status:',
         'readiness_release_ready:',
+        'reviewer_action:',
+        'reviewer_action_reason:',
+        'reviewer_actions:',
         'project_template_onboarding_governance_contract:',
         'status: `pending_review`',
         'release_ready: `False`',

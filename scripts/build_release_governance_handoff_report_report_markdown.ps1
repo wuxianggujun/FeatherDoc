@@ -15,6 +15,22 @@ function New-ReportMarkdown {
         }
     }
 
+    function Add-ReviewerActionsMarkdownLines {
+        param(
+            [System.Collections.Generic.List[string]]$Lines,
+            [object]$Item
+        )
+
+        $reviewerActions = @(
+            Get-JsonArray -Object $Item -Name "reviewer_actions" |
+                Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } |
+                ForEach-Object { [string]$_ }
+        )
+        if ($reviewerActions.Count -gt 0) {
+            $Lines.Add("  - reviewer_actions: ``$($reviewerActions -join ', ')``") | Out-Null
+        }
+    }
+
     function Add-RepairActionClassMarkdownLines {
         param(
             [System.Collections.Generic.List[string]]$Lines,
@@ -518,6 +534,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.reviewer_action_reason)) {
                 $lines.Add("  - reviewer_action_reason: $($blocker.reviewer_action_reason)") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $blocker
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $blocker
         }
     }
@@ -558,6 +575,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_reason)) {
                 $lines.Add("  - reviewer_action_reason: $($item.reviewer_action_reason)") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $item
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
         }
     }
@@ -598,6 +616,7 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.reviewer_action_reason)) {
                 $lines.Add("  - reviewer_action_reason: $($item.reviewer_action_reason)") | Out-Null
             }
+            Add-ReviewerActionsMarkdownLines -Lines $lines -Item $item
             Add-ProjectTemplateOnboardingContractMarkdownLines -Lines $lines -Item $item
         }
     }

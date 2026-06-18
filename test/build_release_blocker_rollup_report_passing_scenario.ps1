@@ -663,6 +663,8 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include origin source report display paths for traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "reviewer_action: ``review_schema_update_candidate``" `
         -Message "Markdown should include project-template reviewer action summaries."
+    Assert-ContainsText -Text $markdown -ExpectedText "reviewer_actions: ``review_schema_update_candidate``" `
+        -Message "Markdown should include project-template reviewer action lists."
     Assert-ContainsText -Text $markdown -ExpectedText "Governance Metrics" `
         -Message "Markdown should include governance metrics."
     Assert-ContainsText -Text $markdown -ExpectedText "Source Report Contracts" `
@@ -675,6 +677,11 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should include project-template schema approval status summary."
     Assert-ContainsText -Text $markdown -ExpectedText "full_visual_gate_status" `
         -Message "Markdown should include PDF full visual gate status from source report contracts."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor "reviewer_action: ``review_schema_update_candidate``" -ExpectedFragments @(
+        'reviewer_action:',
+        'reviewer_action_reason:',
+        'reviewer_actions:'
+    ) -Message "Markdown should keep reviewer action fields together for project-template readiness."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
