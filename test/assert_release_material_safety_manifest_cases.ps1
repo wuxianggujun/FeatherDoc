@@ -192,6 +192,20 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-query-string" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip?download=1"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-fragment" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip#asset"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-remote-assets-url-uses-non-release-download-path" `
     -Mutate {
         param($Manifest)
@@ -238,6 +252,20 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     -Mutate {
         param($Manifest)
         $Manifest.upload.release_url = "https://github.example/releases/tag/v1.6.3?tag=v1.6.4"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-release-url-uses-query-string" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.release_url = "https://github.example/releases/tag/v1.6.4?expanded_assets=true"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-release-url-uses-fragment" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.release_url = "https://github.example/releases/tag/v1.6.4#assets"
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
