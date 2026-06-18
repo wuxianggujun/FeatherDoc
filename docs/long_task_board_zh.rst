@@ -80,9 +80,17 @@
 
 1. ``P0-CI-01``：dev CI 守护
 
-   * 状态：``GUARDED``。
+   * 状态：``DOING``。
    * 目标：确认最新 ``dev`` 的 Linux、Windows、macOS 和 Docs Pages 均绿色。
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
+   * 当前阻断：``effaac2ff2c38e19663d3542323441a7e3208ef8`` 的 Docs Pages、
+     Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI 失败。
+     失败点集中在 ``release_candidate_visual_verdict`` 和
+     ``release_candidate_visual_verdict_reports``；日志显示
+     ``assert-release-material-safety`` 在 ``ARTIFACT_GUIDE.md`` 中发现
+     ``project_template_delivery_readiness`` 入口材料缺少完整 contract marker。
+   * 下一步：先本地复现 Windows 失败场景，再最小修复 release material safety
+     或入口材料生成逻辑，验证通过后提交并推送 ``dev``。
    * 备注：这项优先级高于继续堆叠功能。
 
 2. ``P1-SCHEMA-01``：schema patch confidence 的真实业务语料来源追踪

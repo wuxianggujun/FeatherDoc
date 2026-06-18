@@ -33,6 +33,13 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
+   * 当前最新提交 ``effaac2ff2c38e19663d3542323441a7e3208ef8`` 的 Docs Pages、
+     Linux CMake CI 和 macOS CMake CI 已通过；Windows MSVC CI 失败。
+   * 当前失败测试为 ``release_candidate_visual_verdict`` 和
+     ``release_candidate_visual_verdict_reports``。日志显示
+     ``assert-release-material-safety`` 检查 ``ARTIFACT_GUIDE.md`` 时，命中
+     ``project_template_delivery_readiness`` 入口材料 marker 不完整。
+   * 下一步必须先复现并修复该 Windows CI 失败，再继续推进 P1 功能。
 
 2. 保持分支策略：
 
