@@ -767,3 +767,130 @@ function Add-WordVisualStandardReviewManifestContractViolations {
         }
     }
 }
+
+function Add-ReleaseUploadRemoteAssetsContractViolations {
+    param(
+        [string]$File,
+        $Json,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+
+    $upload = Get-JsonPropertyValue -Object $Json -Name "upload"
+    if ($null -eq $upload) {
+        return
+    }
+
+    $uploadedValue = Get-JsonPropertyValue -Object $upload -Name "uploaded"
+    $uploaded = $false
+    if ($uploadedValue -is [bool]) {
+        $uploaded = $uploadedValue
+    } elseif ($null -ne $uploadedValue) {
+        $uploaded = ([string]$uploadedValue).Trim().ToLowerInvariant() -eq "true"
+    }
+
+    if (-not $uploaded) {
+        return
+    }
+
+    $label = "release upload remote assets contract"
+    $releaseVersion = [string](Get-JsonPropertyValue -Object $Json -Name "release_version")
+    if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_version is required when upload.uploaded is true."
+    }
+
+    $requestedTag = [string](Get-JsonPropertyValue -Object $upload -Name "requested_tag")
+    if ([string]::IsNullOrWhiteSpace($requestedTag)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.requested_tag is required when upload.uploaded is true."
+    } elseif (-not [string]::IsNullOrWhiteSpace($releaseVersion) -and $requestedTag -ne "v$releaseVersion") {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.requested_tag must match release_version."
+    }
+
+    $releaseUrl = [string](Get-JsonPropertyValue -Object $upload -Name "release_url")
+    if ([string]::IsNullOrWhiteSpace($releaseUrl)) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url is required when upload.uploaded is true."
+    }
+
+    $remoteAssetsProperty = $upload.PSObject.Properties["remote_assets"]
+    if ($null -eq $remoteAssetsProperty) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets is required when upload.uploaded is true."
+        return
+    }
+
+    $remoteAssets = @(Get-JsonArray -Object $upload -Name "remote_assets")
+    if ($remoteAssets.Count -ne 3) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets must contain exactly three official ZIP assets."
+    }
+
+    $expectedAssetNames = @()
+    if (-not [string]::IsNullOrWhiteSpace($releaseVersion)) {
+        $expectedAssetNames = @(
+            "FeatherDoc-v$releaseVersion-msvc-install.zip",
+            "FeatherDoc-v$releaseVersion-visual-validation-gallery.zip",
+            "FeatherDoc-v$releaseVersion-release-evidence.zip"
+        )
+    }
+
+    $expectedAssetNameSet = @{}
+    foreach ($expectedAssetName in $expectedAssetNames) {
+        $expectedAssetNameSet[$expectedAssetName] = $true
+    }
+
+    $remoteAssetsByName = @{}
+    foreach ($remoteAsset in $remoteAssets) {
+        $assetName = [string](Get-JsonPropertyValue -Object $remoteAsset -Name "name")
+        if ([string]::IsNullOrWhiteSpace($assetName)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets entries must include name."
+        } else {
+            if ($remoteAssetsByName.ContainsKey($assetName)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets contains duplicate asset '$assetName'."
+            }
+            $remoteAssetsByName[$assetName] = $remoteAsset
+
+            if ($expectedAssetNameSet.Count -gt 0 -and -not $expectedAssetNameSet.ContainsKey($assetName)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets contains unexpected asset '$assetName'."
+            }
+        }
+
+        $assetUrl = [string](Get-JsonPropertyValue -Object $remoteAsset -Name "url")
+        if ([string]::IsNullOrWhiteSpace($assetUrl) -or -not ($assetUrl -match '^https?://')) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must be an HTTP URL."
+        }
+
+        $assetSize = Get-JsonPropertyValue -Object $remoteAsset -Name "size_bytes"
+        if ($null -eq $assetSize) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes is missing."
+        } else {
+            try {
+                if ([int64]$assetSize -le 0) {
+                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes must be greater than zero."
+                }
+            } catch {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes must be an integer."
+            }
+        }
+
+        $downloadCount = Get-JsonPropertyValue -Object $remoteAsset -Name "download_count"
+        if ($null -eq $downloadCount) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count is missing."
+        } else {
+            try {
+                if ([int64]$downloadCount -lt 0) {
+                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count must be zero or greater."
+                }
+            } catch {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count must be an integer."
+            }
+        }
+    }
+
+    foreach ($expectedAssetName in $expectedAssetNames) {
+        if (-not $remoteAssetsByName.ContainsKey($expectedAssetName)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets is missing official asset '$expectedAssetName'."
+        }
+    }
+}

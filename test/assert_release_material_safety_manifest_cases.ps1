@@ -33,6 +33,31 @@ $passManifest = [ordered]@{
     project_template_readiness_checklist_entrypoints = $projectTemplateReadinessChecklistEntrypoints
     release_note_bundle = $releaseNoteBundle
     release_entry_project_template_readiness_checklist_material_safety_audit = $releaseEntryProjectTemplateChecklistMaterialSafetyAudit
+    upload = [ordered]@{
+        requested_tag = "v1.6.4"
+        uploaded = $true
+        release_url = "https://github.example/releases/tag/v1.6.4"
+        remote_assets = @(
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-msvc-install.zip"
+                url = "https://github.example/assets/msvc-install"
+                size_bytes = 1234
+                download_count = 2
+            }
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"
+                url = "https://github.example/assets/visual-gallery"
+                size_bytes = 5678
+                download_count = 3
+            }
+            [ordered]@{
+                name = "FeatherDoc-v1.6.4-release-evidence.zip"
+                url = "https://github.example/assets/release-evidence"
+                size_bytes = 9012
+                download_count = 4
+            }
+        )
+    }
 }
 ($passManifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $passManifestPath -Encoding UTF8
 
@@ -80,6 +105,70 @@ function Assert-ManifestContractFieldRequired {
         throw "assert_release_material_safety.ps1 unexpectedly passed release manifest missing $ContractName.$FieldName."
     }
 }
+
+function Assert-ReleaseUploadRemoteAssetsCaseFails {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CaseSlug,
+
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Mutate
+    )
+
+    $caseDir = Join-Path $failDir $CaseSlug
+    $casePath = Join-Path $caseDir "release_assets_manifest.json"
+    New-Item -ItemType Directory -Path $caseDir -Force | Out-Null
+    $caseManifest = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+    & $Mutate $caseManifest
+    ($caseManifest | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $casePath -Encoding UTF8
+
+    $failedAsExpected = $false
+    try {
+        & $auditScript -Path $casePath
+    } catch {
+        $failedAsExpected = $true
+    }
+
+    if (-not $failedAsExpected) {
+        throw "assert_release_material_safety.ps1 unexpectedly passed release manifest upload remote-assets case '$CaseSlug'."
+    }
+}
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-includes-manifest" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets += [pscustomobject]@{
+            name = "release_assets_manifest.json"
+            url = "https://github.example/assets/release-assets-manifest"
+            size_bytes = 345
+            download_count = 1
+        }
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-missing-official-zip" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets = @(
+            $Manifest.upload.remote_assets |
+                Where-Object { [string]$_.name -ne "FeatherDoc-v1.6.4-release-evidence.zip" }
+        )
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-missing-download-count" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].PSObject.Properties.Remove("download_count")
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-invalid-size" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].size_bytes = 0
+    }
 
 $badManifestMissingDeliveryReadinessNextActionDir = Join-Path $failDir "manifest-missing-project-template-delivery-readiness-next-action"
 $badManifestMissingDeliveryReadinessNextActionPath = Join-Path $badManifestMissingDeliveryReadinessNextActionDir "release_assets_manifest.json"

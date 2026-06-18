@@ -121,6 +121,7 @@ foreach ($file in $scanFiles) {
             Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditContractViolations -File $file -Json $json -Violations $violations
             Add-PdfVisualGateManifestContractViolations -File $file -Json $json -Violations $violations
             Add-WordVisualStandardReviewManifestContractViolations -File $file -Json $json -Violations $violations
+            Add-ReleaseUploadRemoteAssetsContractViolations -File $file -Json $json -Violations $violations
         } catch {
             if ($leafName -eq "summary.json" -or $leafName -eq "release_assets_manifest.json") {
                 Add-AuditViolation `

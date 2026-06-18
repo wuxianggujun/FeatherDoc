@@ -212,10 +212,10 @@ P1：Release governance 与发布材料一致性
    * ``package_release_assets.ps1 -UploadReleaseTag`` 的直接上传路径也由 fake gh
      safety fixture 覆盖：远端同时存在 manifest 和 unrelated asset 时，生成的
      ``release_assets_manifest.json`` 只记录三份正式 ZIP 的 URL、大小和下载计数。
-   * 下一步需要把 ``upload.remote_assets`` 规则补进
-     ``assert_release_material_safety.ps1`` 的 manifest 静态 contract：上传成功时
-     只允许三份正式 ZIP，且必须带 URL、大小和下载计数；manifest 自身或 unrelated
-     asset 混入远端资产清单时必须触发失败。
+   * ``upload.remote_assets`` 规则已补进 ``assert_release_material_safety.ps1``
+     的 manifest 静态 contract：上传成功时只允许三份正式 ZIP，且必须带 URL、
+     大小和下载计数；manifest 自身或 unrelated asset 混入远端资产清单时必须
+     触发失败。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -385,7 +385,7 @@ P3：文档、测试与索引治理
    ``check_project_template_smoke_manifest_test.ps1`` 守护。``P1-APPROVAL-01`` 的
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；下一步按
-   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 为
-   ``assert_release_material_safety.ps1`` 补 ``upload.remote_assets`` 静态 contract，
-   让 GitHub Release 上传后的远端资产清单继续与 ``release_assets_manifest.json``
-   保持一致。
+   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续守护
+   ``upload.remote_assets`` 静态 contract 的 CI，并复核 release note bundle、
+   release material safety、release asset manifest 三条链路中 reviewer action、
+   content-control action/class/source/command 字段是否还有薄弱断言。
