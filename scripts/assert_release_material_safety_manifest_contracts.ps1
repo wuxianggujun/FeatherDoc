@@ -810,6 +810,7 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.requested_tag must match release_version."
     }
 
+    $releaseScheme = ""
     $releaseHost = ""
     $releasePathPrefix = ""
     $releasePathPrefixKnown = $false
@@ -836,6 +837,7 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                     $releasePathPrefixKnown = $true
                 }
             }
+            $releaseScheme = $releaseUri.Scheme
             $releaseHost = $releaseUri.Authority
         }
     }
@@ -911,6 +913,10 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 if ($assetPathPrefix -ne $releasePathPrefix) {
                     Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the same release path prefix as upload.release_url."
                 }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($releaseScheme) -and
+                $assetUri.Scheme -ne $releaseScheme) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the same scheme as upload.release_url."
             }
             if (-not [string]::IsNullOrWhiteSpace($releaseHost) -and
                 $assetUri.Authority -ne $releaseHost) {
