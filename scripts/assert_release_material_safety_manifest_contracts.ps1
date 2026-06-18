@@ -860,15 +860,22 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         if ([string]::IsNullOrWhiteSpace($assetUrl) -or -not ($assetUrl -match '^https?://')) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must be an HTTP URL."
         } else {
-            $decodedAssetUrl = [System.Uri]::UnescapeDataString($assetUrl)
+            $assetUri = $null
+            $assetUriIsValid = [System.Uri]::TryCreate($assetUrl, [System.UriKind]::Absolute, [ref]$assetUri)
+            if (-not $assetUriIsValid) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must be a valid absolute URL."
+                continue
+            }
+
+            $decodedAssetPath = [System.Uri]::UnescapeDataString($assetUri.AbsolutePath) -replace '\\', '/'
+            $assetPathLeaf = ($decodedAssetPath -split '/')[-1]
             if (-not [string]::IsNullOrWhiteSpace($assetName) -and
-                $decodedAssetUrl.IndexOf($assetName, [System.StringComparison]::Ordinal) -lt 0) {
+                $assetPathLeaf -ne $assetName) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the same asset file."
             }
-            $normalizedAssetUrlPath = $decodedAssetUrl -replace '\\', '/'
-            $requestedTagPathSegment = "/$requestedTag/"
+            $requestedTagPathSegment = "/releases/download/$requestedTag/"
             if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
-                $normalizedAssetUrlPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal) -lt 0) {
+                $decodedAssetPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal) -lt 0) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the requested release tag."
             }
         }

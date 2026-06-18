@@ -224,9 +224,10 @@ P1：Release governance 与发布材料一致性
      大小和下载计数；manifest 自身或 unrelated asset 混入远端资产清单时必须
      触发失败。
    * ``upload.remote_assets`` 的 URL contract 继续收紧：三份正式 ZIP 的 URL
-     必须同时指向同名资产文件，并包含请求发布 tag 的路径片段，避免
-     ``gh release view`` 返回的远端资产元数据被错文件或错版本 URL 污染。
-     material safety 负例已覆盖 wrong-file URL 和 wrong-tag URL。
+     必须通过 URL path 指向 ``/releases/download/<tag>/<asset>.zip``，其中 path
+     basename 必须等于同名资产文件，release download 路径必须包含请求发布 tag。
+     material safety 负例已覆盖 wrong-file URL、wrong-tag URL、文件名只在 query
+     中出现，以及 tag 出现在非 release download 路径中的场景。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -397,6 +398,6 @@ P3：文档、测试与索引治理
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
-   同块断言。当前继续收紧 ``upload.remote_assets`` 的远端 URL 文件名和 tag
-   绑定。下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
+   同块断言。当前继续收紧 ``upload.remote_assets`` 的远端 URL release download
+   path、文件名和 tag 绑定。下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
    release asset manifest 是否还存在发布材料字段盲区。

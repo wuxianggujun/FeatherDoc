@@ -184,6 +184,20 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
         $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.3/FeatherDoc-v1.6.4-msvc-install.zip"
     }
 
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-file-name-only-in-query" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-release-evidence.zip?asset=FeatherDoc-v1.6.4-msvc-install.zip"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-non-release-download-path" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/assets/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"
+    }
+
 $badManifestMissingDeliveryReadinessNextActionDir = Join-Path $failDir "manifest-missing-project-template-delivery-readiness-next-action"
 $badManifestMissingDeliveryReadinessNextActionPath = Join-Path $badManifestMissingDeliveryReadinessNextActionDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingDeliveryReadinessNextActionDir -Force | Out-Null
