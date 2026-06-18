@@ -80,7 +80,6 @@ function Assert-ReleaseOutputRootCleanupContract {
     foreach ($marker in @(
             '$workspaceRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)',
             '$resolvedReleaseOutputRoot = [System.IO.Path]::GetFullPath($env:RELEASE_OUTPUT_ROOT)',
-            'StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)',
             'Refusing to clean release output outside the workspace',
             'Test-Path -LiteralPath $resolvedReleaseOutputRoot',
             'Remove-Item -LiteralPath $resolvedReleaseOutputRoot -Recurse -Force',
@@ -89,6 +88,24 @@ function Assert-ReleaseOutputRootCleanupContract {
         Assert-ContainsText -Text $WorkflowText -ExpectedText $marker `
             -Message "$WorkflowName should clean RELEASE_OUTPUT_ROOT inside the workspace before uploading release artifacts. Missing marker '$marker'."
     }
+
+    foreach ($marker in @(
+            '$releaseOutputRelativePath = [System.IO.Path]::GetRelativePath($workspaceRoot, $resolvedReleaseOutputRoot)',
+            '$parentDirectoryPrefix = ".." + [System.IO.Path]::DirectorySeparatorChar',
+            '$parentAltDirectoryPrefix = ".." + [System.IO.Path]::AltDirectorySeparatorChar',
+            '$releaseOutputOutsideWorkspace = (',
+            '[System.IO.Path]::IsPathRooted($releaseOutputRelativePath)',
+            '$releaseOutputRelativePath -eq ".."',
+            '$releaseOutputRelativePath.StartsWith($parentDirectoryPrefix, [System.StringComparison]::Ordinal)',
+            '$releaseOutputRelativePath.StartsWith($parentAltDirectoryPrefix, [System.StringComparison]::Ordinal)',
+            '$releaseOutputRelativePath -eq "." -or $releaseOutputOutsideWorkspace'
+        )) {
+        Assert-ContainsText -Text $WorkflowText -ExpectedText $marker `
+            -Message "$WorkflowName should use relative-path containment checks before recursive cleanup. Missing marker '$marker'."
+    }
+
+    Assert-NotContainsText -Text $WorkflowText -UnexpectedText 'StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)' `
+        -Message "$WorkflowName should not rely on string-prefix workspace checks before recursive cleanup."
 }
 
 function Assert-ReleaseOutputArtifactPathContract {
