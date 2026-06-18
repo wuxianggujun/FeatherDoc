@@ -103,5 +103,5 @@ jobs:
         with:
           name: release-publish-output
           path: |
-            output/release-assets/**
+            ${{ env.RELEASE_OUTPUT_ROOT }}/**
           if-no-files-found: warn

@@ -196,7 +196,8 @@ P1：Release governance 与发布材料一致性
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及
-     ``output/release-assets/**`` 上传路径。
+     ``${{ env.RELEASE_OUTPUT_ROOT }}/**`` 上传路径，避免 artifact path 和实际输出根
+     漂移。
    * GitHub Release refresh / publish workflow 现在会在调用发布脚本前只清理
      workspace 内的 ``RELEASE_OUTPUT_ROOT``，避免 self-hosted runner 旧
      ``output/release-assets`` 残留混入本轮 release artifact。

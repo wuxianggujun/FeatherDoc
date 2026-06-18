@@ -91,6 +91,37 @@ function Assert-ReleaseOutputRootCleanupContract {
     }
 }
 
+function Assert-ReleaseOutputArtifactPathContract {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WorkflowText,
+
+        [Parameter(Mandatory = $true)]
+        [string]$WorkflowName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ArtifactName
+    )
+
+    foreach ($marker in @(
+            "RELEASE_OUTPUT_ROOT: output/release-assets",
+            "name: $ArtifactName",
+            '${{ env.RELEASE_OUTPUT_ROOT }}/**',
+            "if-no-files-found: warn"
+        )) {
+        Assert-ContainsText -Text $WorkflowText -ExpectedText $marker `
+            -Message "$WorkflowName should upload the generated RELEASE_OUTPUT_ROOT artifact. Missing marker '$marker'."
+    }
+
+    foreach ($unexpected in @(
+            "output/release-assets/**",
+            "output/release-assets-ci"
+        )) {
+        Assert-NotContainsText -Text $WorkflowText -UnexpectedText $unexpected `
+            -Message "$WorkflowName should not upload a hard-coded or CI-preview release artifact path '$unexpected'."
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $workflowRelativePaths = @(
     ".github\workflows\windows-msvc.yml",
@@ -170,12 +201,13 @@ foreach ($marker in @(
         '"-Publish"',
         "-AllowCiArtifactPublish",
         "name: release-publish-output",
-        "output/release-assets/**"
+        '${{ env.RELEASE_OUTPUT_ROOT }}/**'
     )) {
     Assert-ContainsText -Text $releasePublishWorkflow -ExpectedText $marker `
         -Message "Release Publish workflow should keep the CI artifact boundary marker '$marker'."
 }
 Assert-ReleaseOutputRootCleanupContract -WorkflowText $releasePublishWorkflow -WorkflowName "Release Publish workflow"
+Assert-ReleaseOutputArtifactPathContract -WorkflowText $releasePublishWorkflow -WorkflowName "Release Publish workflow" -ArtifactName "release-publish-output"
 
 $releaseRefreshWorkflow = $workflowTexts[".github\workflows\release-refresh.yml"]
 foreach ($marker in @(
@@ -185,11 +217,12 @@ foreach ($marker in @(
         "-File .\scripts\publish_github_release.ps1",
         '-OutputRoot $env:RELEASE_OUTPUT_ROOT',
         "name: release-refresh-output",
-        "output/release-assets/**"
+        '${{ env.RELEASE_OUTPUT_ROOT }}/**'
     )) {
     Assert-ContainsText -Text $releaseRefreshWorkflow -ExpectedText $marker `
         -Message "Release Refresh workflow should keep the release output artifact marker '$marker'."
 }
 Assert-ReleaseOutputRootCleanupContract -WorkflowText $releaseRefreshWorkflow -WorkflowName "Release Refresh workflow"
+Assert-ReleaseOutputArtifactPathContract -WorkflowText $releaseRefreshWorkflow -WorkflowName "Release Refresh workflow" -ArtifactName "release-refresh-output"
 
 Write-Host "GitHub Actions workflow maintenance contract passed."

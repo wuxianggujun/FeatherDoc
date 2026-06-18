@@ -69,5 +69,5 @@ jobs:
         with:
           name: release-refresh-output
           path: |
-            output/release-assets/**
+            ${{ env.RELEASE_OUTPUT_ROOT }}/**
           if-no-files-found: warn
