@@ -859,6 +859,18 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         $assetUrl = [string](Get-JsonPropertyValue -Object $remoteAsset -Name "url")
         if ([string]::IsNullOrWhiteSpace($assetUrl) -or -not ($assetUrl -match '^https?://')) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must be an HTTP URL."
+        } else {
+            $decodedAssetUrl = [System.Uri]::UnescapeDataString($assetUrl)
+            if (-not [string]::IsNullOrWhiteSpace($assetName) -and
+                $decodedAssetUrl.IndexOf($assetName, [System.StringComparison]::Ordinal) -lt 0) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the same asset file."
+            }
+            $normalizedAssetUrlPath = $decodedAssetUrl -replace '\\', '/'
+            $requestedTagPathSegment = "/$requestedTag/"
+            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
+                $normalizedAssetUrlPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal) -lt 0) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the requested release tag."
+            }
         }
 
         $assetSize = Get-JsonPropertyValue -Object $remoteAsset -Name "size_bytes"

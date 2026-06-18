@@ -33,12 +33,11 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 截至本次任务清单刷新，上轮跟踪提交
-     ``157735eb9cc5ac53c04a5d91d8e0ce228ec9bcc0`` 已推送到 ``origin/dev``。
-     Docs Pages 已通过；Linux CMake CI、macOS CMake CI 和 Windows MSVC CI
-     仍在运行中，暂未观察到失败。上一提交 ``1621a049f4148ca5d6603e6e033d49f678f52dc2``
-     的 Docs Pages、Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI
-     仍需继续跟踪。
+   * 截至本次任务清单刷新，``origin/dev`` 最新提交
+     ``9bb8fbaf9697c619373ee71f1d04c4bb48703459`` 的 Docs Pages 已通过；
+     Linux CMake CI、macOS CMake CI 和 Windows MSVC CI 仍在运行中，暂未观察到失败。
+     上一提交 ``7f29e781d3915ad76c2a9442419381d0fd892ed2`` 的 Docs Pages、
+     Linux CMake CI 和 macOS CMake CI 已通过，Windows MSVC CI 仍需继续跟踪。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -225,6 +224,10 @@ P1：Release governance 与发布材料一致性
      的 manifest 静态 contract：上传成功时只允许三份正式 ZIP，且必须带 URL、
      大小和下载计数；manifest 自身或 unrelated asset 混入远端资产清单时必须
      触发失败。
+   * ``upload.remote_assets`` 的 URL contract 继续收紧：三份正式 ZIP 的 URL
+     必须同时指向同名资产文件，并包含请求发布 tag 的路径片段，避免
+     ``gh release view`` 返回的远端资产元数据被错文件或错版本 URL 污染。
+     material safety 负例已覆盖 wrong-file URL 和 wrong-tag URL。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -395,5 +398,6 @@ P3：文档、测试与索引治理
    approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
-   同块断言。下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
+   同块断言。当前继续收紧 ``upload.remote_assets`` 的远端 URL 文件名和 tag
+   绑定。下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
    release asset manifest 是否还存在发布材料字段盲区。

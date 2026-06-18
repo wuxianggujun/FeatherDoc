@@ -40,19 +40,19 @@ $passManifest = [ordered]@{
         remote_assets = @(
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-msvc-install.zip"
-                url = "https://github.example/assets/msvc-install"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"
                 size_bytes = 1234
                 download_count = 2
             }
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"
-                url = "https://github.example/assets/visual-gallery"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-visual-validation-gallery.zip"
                 size_bytes = 5678
                 download_count = 3
             }
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-release-evidence.zip"
-                url = "https://github.example/assets/release-evidence"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-release-evidence.zip"
                 size_bytes = 9012
                 download_count = 4
             }
@@ -168,6 +168,20 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     -Mutate {
         param($Manifest)
         $Manifest.upload.remote_assets[0].size_bytes = 0
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-points-to-wrong-file" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-release-evidence.zip"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-points-to-wrong-tag" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.3/FeatherDoc-v1.6.4-msvc-install.zip"
     }
 
 $badManifestMissingDeliveryReadinessNextActionDir = Join-Path $failDir "manifest-missing-project-template-delivery-readiness-next-action"

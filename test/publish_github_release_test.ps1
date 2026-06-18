@@ -287,19 +287,19 @@ function global:gh {
         assets = @(
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-msvc-install.zip"
-                url = "https://github.example/assets/msvc-install"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"
                 size = 1234
                 downloadCount = 2
             },
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"
-                url = "https://github.example/assets/visual-gallery"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-visual-validation-gallery.zip"
                 size = 5678
                 downloadCount = 3
             },
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-release-evidence.zip"
-                url = "https://github.example/assets/release-evidence"
+                url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-release-evidence.zip"
                 size = 9012
                 downloadCount = 4
             },
@@ -358,9 +358,9 @@ foreach ($asset in $remoteAssets) {
 }
 
 foreach ($expectedAsset in @(
-        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-msvc-install.zip"; Url = "https://github.example/assets/msvc-install"; Size = 1234; Downloads = 2 },
-        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"; Url = "https://github.example/assets/visual-gallery"; Size = 5678; Downloads = 3 },
-        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-release-evidence.zip"; Url = "https://github.example/assets/release-evidence"; Size = 9012; Downloads = 4 }
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-msvc-install.zip"; Url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"; Size = 1234; Downloads = 2 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"; Url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-visual-validation-gallery.zip"; Size = 5678; Downloads = 3 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-release-evidence.zip"; Url = "https://github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-release-evidence.zip"; Size = 9012; Downloads = 4 }
     )) {
     if (-not $remoteAssetsByName.ContainsKey($expectedAsset.Name)) {
         throw "Updated manifest lost remote asset '$($expectedAsset.Name)'."
