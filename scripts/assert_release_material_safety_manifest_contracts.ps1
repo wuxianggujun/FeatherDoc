@@ -828,6 +828,9 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 -not [string]::IsNullOrEmpty($releaseUri.Fragment)) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must not include query or fragment."
             }
+            if (-not [string]::IsNullOrEmpty($releaseUri.UserInfo)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must not include user information."
+            }
             $decodedReleasePath = [System.Uri]::UnescapeDataString($releaseUri.AbsolutePath) -replace '\\', '/'
             $normalizedReleasePath = $decodedReleasePath.TrimEnd('/')
             $requestedReleaseTagPathSuffix = "/releases/tag/$requestedTag"
@@ -901,6 +904,9 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             if (-not [string]::IsNullOrEmpty($assetUri.Query) -or
                 -not [string]::IsNullOrEmpty($assetUri.Fragment)) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must not include query or fragment."
+            }
+            if (-not [string]::IsNullOrEmpty($assetUri.UserInfo)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must not include user information."
             }
             $decodedAssetPath = [System.Uri]::UnescapeDataString($assetUri.AbsolutePath) -replace '\\', '/'
             $assetPathLeaf = ($decodedAssetPath -split '/')[-1]

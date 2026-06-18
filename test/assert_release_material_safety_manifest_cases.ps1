@@ -206,6 +206,13 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-user-info" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://publisher:token@github.example/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-remote-assets-url-uses-non-release-download-path" `
     -Mutate {
         param($Manifest)
@@ -266,6 +273,13 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     -Mutate {
         param($Manifest)
         $Manifest.upload.release_url = "https://github.example/releases/tag/v1.6.4#assets"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-release-url-uses-user-info" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.release_url = "https://publisher:token@github.example/releases/tag/v1.6.4"
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
