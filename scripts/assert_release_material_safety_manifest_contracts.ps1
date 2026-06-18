@@ -811,6 +811,8 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
     }
 
     $releaseHost = ""
+    $releasePathPrefix = ""
+    $releasePathPrefixKnown = $false
     $releaseUrl = [string](Get-JsonPropertyValue -Object $upload -Name "release_url")
     if ([string]::IsNullOrWhiteSpace($releaseUrl)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url is required when upload.uploaded is true."
@@ -827,6 +829,12 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
                 -not $normalizedReleasePath.EndsWith($requestedReleaseTagPathSuffix, [System.StringComparison]::Ordinal)) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must identify the requested release tag."
+            } elseif (-not [string]::IsNullOrWhiteSpace($requestedTag)) {
+                $releaseTagPathIndex = $normalizedReleasePath.LastIndexOf($requestedReleaseTagPathSuffix, [System.StringComparison]::Ordinal)
+                if ($releaseTagPathIndex -ge 0) {
+                    $releasePathPrefix = $normalizedReleasePath.Substring(0, $releaseTagPathIndex)
+                    $releasePathPrefixKnown = $true
+                }
             }
             $releaseHost = $releaseUri.Authority
         }
@@ -891,9 +899,18 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the same asset file."
             }
             $requestedTagPathSegment = "/releases/download/$requestedTag/"
-            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
-                $decodedAssetPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal) -lt 0) {
+            $assetTagPathIndex = -1
+            if (-not [string]::IsNullOrWhiteSpace($requestedTag)) {
+                $assetTagPathIndex = $decodedAssetPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and $assetTagPathIndex -lt 0) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the requested release tag."
+            }
+            if ($releasePathPrefixKnown -and $assetTagPathIndex -ge 0) {
+                $assetPathPrefix = $decodedAssetPath.Substring(0, $assetTagPathIndex)
+                if ($assetPathPrefix -ne $releasePathPrefix) {
+                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the same release path prefix as upload.release_url."
+                }
             }
             if (-not [string]::IsNullOrWhiteSpace($releaseHost) -and
                 $assetUri.Authority -ne $releaseHost) {

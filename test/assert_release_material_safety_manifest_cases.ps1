@@ -206,6 +206,13 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-different-release-path-prefix" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/other-project/releases/download/v1.6.4/FeatherDoc-v1.6.4-msvc-install.zip"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-release-url-uses-non-http-url" `
     -Mutate {
         param($Manifest)
