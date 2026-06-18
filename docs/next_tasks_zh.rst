@@ -38,6 +38,8 @@ P0：当前发布与 CI 守护
 
    * 本地只用 ``dev`` 做开发。
    * 定期确认本地和远端不存在 ``codex/*`` 分支。
+   * 固定用 ``git branch --list "codex/*"`` 和
+     ``git branch -r --list "origin/codex/*"`` 复查临时开发分支。
    * 不做 ``git reset --hard``、强推或整分支回滚。
 
 3. 保持轻量验证基线：
@@ -329,6 +331,7 @@ P3：文档、测试与索引治理
 4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
-   report、notice、tender。下一步先按 ``docs/long_task_board_zh.rst`` 的
-   ``P1-APPROVAL-01`` 已开始补 approval matrix 的 reviewer action 字段；
-   下一步继续确认这些字段进入 release blocker rollup 和 reviewer bundle。
+   report、notice、tender。``P1-APPROVAL-01`` 的 approval matrix reviewer action
+   字段已经进入 release blocker rollup、handoff 和 reviewer bundle；下一步按
+   ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续复核 GitHub Release
+   refresh / publish workflow artifact 输出与 ``release_assets_manifest.json`` 的一致性。

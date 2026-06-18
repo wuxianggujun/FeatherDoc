@@ -55,7 +55,8 @@
 .. code-block:: powershell
 
    git status --short --branch
-   git branch --list
+   git branch --list "codex/*"
+   git branch -r --list "origin/codex/*"
    gh run list --branch dev --limit 8 --json databaseId,workflowName,status,conclusion,headSha,createdAt,url
 
 每轮结束至少执行：
@@ -130,7 +131,7 @@
      字段透传到模板 ``schema_history`` 和历史 blocker；release blocker rollup 与
      release governance handoff 会继续保留同名字段并在 Markdown 中展示。
      release note bundle 的入口材料也会从统一 source contract 输出
-     ``requires_reviewer_action``、``reviewer_action``、
+     ``requires_reviewer_action``、``reviewer_action_summary``、
      ``reviewer_action_reason`` 和 ``reviewer_actions``。
    * 验收：approval history 能被 release blocker rollup、checklist 和 reviewer bundle
      同步解释；后续入口材料重构不能丢失 ``reviewer_action_*`` 字段。
