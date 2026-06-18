@@ -813,6 +813,21 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
     $releaseUrl = [string](Get-JsonPropertyValue -Object $upload -Name "release_url")
     if ([string]::IsNullOrWhiteSpace($releaseUrl)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url is required when upload.uploaded is true."
+    } else {
+        $releaseUri = $null
+        $releaseUriIsValid = [System.Uri]::TryCreate($releaseUrl, [System.UriKind]::Absolute, [ref]$releaseUri)
+        if (-not $releaseUriIsValid -or
+            ($releaseUri.Scheme -ne [System.Uri]::UriSchemeHttp -and $releaseUri.Scheme -ne [System.Uri]::UriSchemeHttps)) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must be an HTTP URL."
+        } else {
+            $decodedReleasePath = [System.Uri]::UnescapeDataString($releaseUri.AbsolutePath) -replace '\\', '/'
+            $normalizedReleasePath = $decodedReleasePath.TrimEnd('/')
+            $requestedReleaseTagPathSuffix = "/releases/tag/$requestedTag"
+            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
+                -not $normalizedReleasePath.EndsWith($requestedReleaseTagPathSuffix, [System.StringComparison]::Ordinal)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must identify the requested release tag."
+            }
+        }
     }
 
     $remoteAssetsProperty = $upload.PSObject.Properties["remote_assets"]
