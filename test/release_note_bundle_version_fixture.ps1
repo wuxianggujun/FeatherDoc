@@ -854,9 +854,19 @@ $summary = [ordered]@{
                 entry_names = @("invoice-template")
                 source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                 source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+            },
+            [ordered]@{
+                source_report_id = "project_template_delivery_readiness"
+                action = "collect_project_template_onboarding_governance_evidence"
+                reason = "Delivery readiness depends on onboarding governance evidence."
+                blocker_id = "project_template_delivery_readiness.onboarding_governance"
+                command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+                entry_names = @("policy-template")
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-delivery-readiness\summary.json"
             }
         )
-        next_action_group_count = 1
+        next_action_group_count = 2
     }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
@@ -916,9 +926,19 @@ $summary = [ordered]@{
                     entry_names = @("invoice-template")
                     source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                     source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                },
+                [ordered]@{
+                    source_report_id = "project_template_delivery_readiness"
+                    action = "collect_project_template_onboarding_governance_evidence"
+                    reason = "Delivery readiness depends on onboarding governance evidence."
+                    blocker_id = "project_template_delivery_readiness.onboarding_governance"
+                    command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_workflow_dashboard.ps1"
+                    entry_names = @("policy-template")
+                    source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                    source_json_display = ".\output\project-template-delivery-readiness\summary.json"
                 }
             )
-            next_action_group_count = 1
+            next_action_group_count = 2
         }
     }
     project_template_smoke = [ordered]@{

@@ -129,6 +129,10 @@
      ``START_HERE.md`` 中同时保留 ``source``、``action``、``blocker=(none)``
      和 ``entries=(none)`` marker，避免 ready 场景因为没有 blocker / entries
      而丢失 reviewer-facing 字段。
+     release note bundle 的 blocked dashboard fixture 也已扩展为两组 action group，
+     断言入口材料必须同时展示 onboarding governance 与 delivery readiness 的
+     ``source``、``action``、``blocker`` 和 ``entries``，避免多项阻断时只显示第一组
+     ``next_action_summary``。
    * 验收：``assert_release_material_safety.ps1`` 覆盖 dashboard 入口材料。
 
 5. ``P1-APPROVAL-01``：多项目 schema approval 维护体验
@@ -227,6 +231,10 @@
      dashboard 的 ready action group 输出，要求入口材料在无 blocker / entries
      时仍保留 ``blocker=(none)`` 和 ``entries=(none)``，避免 material safety
      与 reviewer bundle 对 ready 场景的字段解释发生分歧。
+     release note bundle fixture 现在还锁住 blocked dashboard 的两组 action group，
+     要求 ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md``
+     同时保留 onboarding governance 与 delivery readiness 的 source / action /
+     blocker / entries，防止 release reviewer bundle 只展示第一条 dashboard action。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准

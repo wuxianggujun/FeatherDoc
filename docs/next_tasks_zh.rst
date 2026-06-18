@@ -81,6 +81,10 @@ P1：模板契约与项目模板工作流
      即使没有 blocker / entries，``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``
      和 ``START_HERE.md`` 也必须保留 ``blocker=(none)`` 与 ``entries=(none)``
      marker，方便 reviewer 和 material-safety 使用同一字段解释。
+   * blocked dashboard 的多 action group 已由 release note bundle fixture 回归锁定：
+     ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md`` 必须同时
+     展示 onboarding governance 与 delivery readiness 两组 action，避免只显示第一组
+     ``next_action_summary``。
 
 3. 多项目 schema approval 维护体验：
 
@@ -196,6 +200,10 @@ P1：Release governance 与发布材料一致性
      dashboard action group 的 ``source``、``action``、``blocker=(none)`` 和
      ``entries=(none)`` 同行进入三份入口材料，避免 P1 dashboard 和 release
      governance 对空 blocker / empty entries 的解释不一致。
+   * release note bundle 的 blocked dashboard fixture 已扩展为两组
+     ``next_action_summary``，并断言三份入口材料与 reviewer checklist action item
+     同时展示两组 source / action / blocker / entries，避免 release governance
+     回归到只展示第一条人工处理动作。
    * 当前 ``dev`` 最新 CI 已全绿；下一步继续推进 release blocker rollup 与
      reviewer bundle 的治理证据一致性。若后续 CI 失败，则先修 CI。
 
