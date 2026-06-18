@@ -8,6 +8,47 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added project-template workflow dashboard evidence to release candidate
+  summaries and release-facing materials so reviewers can see readiness status,
+  blocker and warning counts, grouped next actions, and source report paths
+  without reopening intermediate JSON files.
+- Added project-template business corpus metadata to schema confidence and
+  smoke-manifest flows, including registered/planned corpus profiles for
+  invoice, contract, policy, report, notice, and tender template categories.
+- Added schema approval reviewer-action metadata across approval history,
+  delivery readiness, release blocker rollups, governance handoff, release
+  notes, reviewer checklists, and release asset manifests.
+- Added content-control repair action classification for release-blocking,
+  auto-repair candidate, and manual-confirmation-required actions, with the
+  same action identifiers preserved in release materials.
+- Added stricter release asset manifest and GitHub Release upload evidence
+  checks for ZIP asset selection, remote asset URLs, release URLs, upload host
+  consistency, release path prefixes, and integer metrics.
+- Added bilingual Word workflow entrypoint documentation and a long-running
+  task board/backlog for continuing release governance work on the `dev`
+  branch.
+
+### Changed
+
+- Hardened release refresh and publish workflows so generated release artifacts
+  are written under a fixed output root and stale workspace-local output is
+  cleaned safely before upload.
+- Strengthened release material safety tests so `START_HERE.md`,
+  `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`, `release_handoff.md`, release
+  body, and release summary keep the same machine-readable governance fields.
+
+### Fixed
+
+- Fixed release entry material safety regressions where ready or blocked
+  project-template dashboard action groups could lose `blocker`, `entries`,
+  source, or action markers in reviewer-facing materials.
+- Fixed release asset manifest validation so `upload.remote_assets` cannot
+  include the manifest itself, unrelated assets, malformed remote URLs,
+  mismatched release tags, query or fragment polluted URLs, or non-integer size
+  and download-count metrics.
+
 ## [1.12.2] - 2026-06-16
 
 ### Added
