@@ -927,6 +927,12 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 if ($assetPathPrefix -ne $releasePathPrefix) {
                     Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the same release path prefix as upload.release_url."
                 }
+                if (-not [string]::IsNullOrWhiteSpace($assetName)) {
+                    $expectedAssetPath = "$releasePathPrefix/releases/download/$requestedTag/$assetName"
+                    if (-not [string]::Equals($decodedAssetPath, $expectedAssetPath, [System.StringComparison]::Ordinal)) {
+                        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the exact release download path."
+                    }
+                }
             }
             if (-not [string]::IsNullOrWhiteSpace($releaseScheme) -and
                 $assetUri.Scheme -ne $releaseScheme) {

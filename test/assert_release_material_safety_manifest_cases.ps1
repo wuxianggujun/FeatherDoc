@@ -220,6 +220,13 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-url-uses-nested-release-download-path" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].url = "https://github.example/releases/download/v1.6.4/nested/FeatherDoc-v1.6.4-msvc-install.zip"
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-remote-assets-url-uses-different-host" `
     -Mutate {
         param($Manifest)
