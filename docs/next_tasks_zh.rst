@@ -232,6 +232,9 @@ P1：Release governance 与发布材料一致性
      HTTP(S) absolute URL，并且 URL path 必须指向 ``/releases/tag/<tag>``；
      wrong-tag、query-only tag、非 release tag path 和非 HTTP URL 均会触发
      material safety 失败。
+   * ``upload.remote_assets`` 的每个远端资产 URL 还必须与
+     ``upload.release_url`` 使用同一 host，避免发布页证据与 ZIP 下载证据来自
+     不同远端。material safety 负例已覆盖跨 host 资产 URL。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -403,6 +406,6 @@ P3：文档、测试与索引治理
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
    同块断言。当前继续收紧 ``upload.remote_assets`` 的远端 URL release download
-   path、文件名和 tag 绑定，并把 ``upload.release_url`` 收紧到 release tag path。
+   path、文件名、tag 和 host 绑定，并把 ``upload.release_url`` 收紧到 release tag path。
    下一步继续守护最新 ``dev`` CI，并复核 release material safety 与
    release asset manifest 是否还存在发布材料字段盲区。

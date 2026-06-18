@@ -810,6 +810,7 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.requested_tag must match release_version."
     }
 
+    $releaseHost = ""
     $releaseUrl = [string](Get-JsonPropertyValue -Object $upload -Name "release_url")
     if ([string]::IsNullOrWhiteSpace($releaseUrl)) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url is required when upload.uploaded is true."
@@ -827,6 +828,7 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
                 -not $normalizedReleasePath.EndsWith($requestedReleaseTagPathSuffix, [System.StringComparison]::Ordinal)) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must identify the requested release tag."
             }
+            $releaseHost = $releaseUri.Authority
         }
     }
 
@@ -892,6 +894,10 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
                 $decodedAssetPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal) -lt 0) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the requested release tag."
+            }
+            if (-not [string]::IsNullOrWhiteSpace($releaseHost) -and
+                $assetUri.Authority -ne $releaseHost) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must use the same host as upload.release_url."
             }
         }
 
