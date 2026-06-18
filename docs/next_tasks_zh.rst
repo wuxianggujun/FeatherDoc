@@ -77,6 +77,10 @@ P1：模板契约与项目模板工作流
      证据路径和下一步命令可见。
    * 后续可补 ``next_action_summary`` 的分组展示，避免多项 schema approval
      或多模板阻断只显示第一条 action。
+   * ready dashboard 的 action group 已由 release candidate visual verdict 回归锁定：
+     即使没有 blocker / entries，``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``
+     和 ``START_HERE.md`` 也必须保留 ``blocker=(none)`` 与 ``entries=(none)``
+     marker，方便 reviewer 和 material-safety 使用同一字段解释。
 
 3. 多项目 schema approval 维护体验：
 
@@ -188,8 +192,12 @@ P1：Release governance 与发布材料一致性
    * GitHub Release refresh / publish workflow 现在会在调用发布脚本前只清理
      workspace 内的 ``RELEASE_OUTPUT_ROOT``，避免 self-hosted runner 旧
      ``output/release-assets`` 残留混入本轮 release artifact。
-   * 下一步等待当前 ``dev`` 最新 CI 全绿；若失败则先修 CI，否则继续推进
-     release blocker rollup 与 reviewer bundle 的治理证据一致性。
+   * release candidate visual verdict 现在会断言 ready project-template workflow
+     dashboard action group 的 ``source``、``action``、``blocker=(none)`` 和
+     ``entries=(none)`` 同行进入三份入口材料，避免 P1 dashboard 和 release
+     governance 对空 blocker / empty entries 的解释不一致。
+   * 当前 ``dev`` 最新 CI 已全绿；下一步继续推进 release blocker rollup 与
+     reviewer bundle 的治理证据一致性。若后续 CI 失败，则先修 CI。
 
 
 P2：样式与编号治理

@@ -124,6 +124,11 @@
    * 状态：``GUARDED``。
    * 目标：保持 dashboard 的 status、release_ready、blocker、warning、
      ``next_action_summary`` 和证据路径进入 release materials。
+   * 当前产物：release candidate visual verdict 回归会断言 ready dashboard 的
+     action group 在 ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和
+     ``START_HERE.md`` 中同时保留 ``source``、``action``、``blocker=(none)``
+     和 ``entries=(none)`` marker，避免 ready 场景因为没有 blocker / entries
+     而丢失 reviewer-facing 字段。
    * 验收：``assert_release_material_safety.ps1`` 覆盖 dashboard 入口材料。
 
 5. ``P1-APPROVAL-01``：多项目 schema approval 维护体验
@@ -218,6 +223,10 @@
      reviewer action 聚合路径还会被源级契约约束为同时扫描 blocker、action item
      和 warning，并按 ``report_id`` / ``source_schema`` 关联证据，避免只从某个
      偶然存在的 blocker 取值。
+     release candidate visual verdict 回归也会锁住 project-template workflow
+     dashboard 的 ready action group 输出，要求入口材料在无 blocker / entries
+     时仍保留 ``blocker=(none)`` 和 ``entries=(none)``，避免 material safety
+     与 reviewer bundle 对 ready 场景的字段解释发生分歧。
    * 验收：新增 release 字段时同步补 release material safety 或 release note bundle 测试。
 
 8. ``P2-STYLE-01``：样式建议置信度校准
