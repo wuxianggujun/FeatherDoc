@@ -403,20 +403,21 @@ function Test-MarkdownListBlockContainsAll {
         [string[]]$Needles
     )
 
-    $block = Get-MarkdownListBlockText -Text $Text -Anchor $Anchor
-    if ($null -eq $block) {
-        return $false
-    }
+    foreach ($block in @(Get-MarkdownListBlockTexts -Text $Text -Anchor $Anchor)) {
+        $containsAllNeedles = $true
+        foreach ($needle in $Needles) {
+            if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
+                $containsAllNeedles = $false
+                break
+            }
+        }
 
-    $containsAllNeedles = $true
-    foreach ($needle in $Needles) {
-        if ([string]::IsNullOrWhiteSpace($needle) -or -not $block.Contains($needle)) {
-            $containsAllNeedles = $false
-            break
+        if ($containsAllNeedles) {
+            return $true
         }
     }
 
-    return $containsAllNeedles
+    return $false
 }
 
 function Get-MarkdownListBlockText {
@@ -591,22 +592,31 @@ function Test-MarkdownListBlockFieldValuesIdentify {
         [string[]]$ForbiddenNeedles = @()
     )
 
-    $values = @(Get-MarkdownListBlockFieldValues -Text $Text -Anchor $Anchor -FieldName $FieldName)
-    if ($values.Count -eq 0) {
-        return $false
-    }
-
-    foreach ($value in $values) {
-        if (-not (Test-TextContainsAny -Text ([string]$value) -Needles $Needles)) {
-            return $false
+    foreach ($block in @(Get-MarkdownListBlockTexts -Text $Text -Anchor $Anchor)) {
+        $values = @(Get-MarkdownListBlockFieldValuesFromText -Block $block -FieldName $FieldName)
+        if ($values.Count -eq 0) {
+            continue
         }
 
-        if ($ForbiddenNeedles.Count -gt 0 -and (Test-TextContainsAny -Text ([string]$value) -Needles $ForbiddenNeedles)) {
-            return $false
+        $valuesIdentifyNeedles = $true
+        foreach ($value in $values) {
+            if (-not (Test-TextContainsAny -Text ([string]$value) -Needles $Needles)) {
+                $valuesIdentifyNeedles = $false
+                break
+            }
+
+            if ($ForbiddenNeedles.Count -gt 0 -and (Test-TextContainsAny -Text ([string]$value) -Needles $ForbiddenNeedles)) {
+                $valuesIdentifyNeedles = $false
+                break
+            }
+        }
+
+        if ($valuesIdentifyNeedles) {
+            return $true
         }
     }
 
-    return $true
+    return $false
 }
 
 function Test-MarkdownListBlockFieldValuesInSet {
@@ -617,11 +627,6 @@ function Test-MarkdownListBlockFieldValuesInSet {
         [string[]]$AllowedValues
     )
 
-    $values = @(Get-MarkdownListBlockFieldValues -Text $Text -Anchor $Anchor -FieldName $FieldName)
-    if ($values.Count -eq 0) {
-        return $false
-    }
-
     $allowed = @{}
     foreach ($allowedValue in @($AllowedValues)) {
         if (-not [string]::IsNullOrWhiteSpace($allowedValue)) {
@@ -629,14 +634,27 @@ function Test-MarkdownListBlockFieldValuesInSet {
         }
     }
 
-    foreach ($value in $values) {
-        $normalized = ([string]$value).Trim().ToLowerInvariant()
-        if (-not $allowed.ContainsKey($normalized)) {
-            return $false
+    foreach ($block in @(Get-MarkdownListBlockTexts -Text $Text -Anchor $Anchor)) {
+        $values = @(Get-MarkdownListBlockFieldValuesFromText -Block $block -FieldName $FieldName)
+        if ($values.Count -eq 0) {
+            continue
+        }
+
+        $valuesAreAllowed = $true
+        foreach ($value in $values) {
+            $normalized = ([string]$value).Trim().ToLowerInvariant()
+            if (-not $allowed.ContainsKey($normalized)) {
+                $valuesAreAllowed = $false
+                break
+            }
+        }
+
+        if ($valuesAreAllowed) {
+            return $true
         }
     }
 
-    return $true
+    return $false
 }
 
 function Test-MarkdownListRunContainsAll {

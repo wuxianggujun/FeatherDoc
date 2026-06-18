@@ -183,12 +183,10 @@ function Get-WorkflowDashboardActionSummaryText {
     if (-not [string]::IsNullOrWhiteSpace($action)) {
         $parts += "action=$action"
     }
-    if (-not [string]::IsNullOrWhiteSpace($blockerId)) {
-        $parts += "blocker=$blockerId"
-    }
-    if (@($entryNames).Count -gt 0) {
-        $parts += "entries=$(@($entryNames) -join ',')"
-    }
+    $blockerText = if (-not [string]::IsNullOrWhiteSpace($blockerId)) { [string]$blockerId } else { "(none)" }
+    $entryNamesText = if (@($entryNames).Count -gt 0) { @($entryNames) -join "," } else { "(none)" }
+    $parts += "blocker=$blockerText"
+    $parts += "entries=$entryNamesText"
 
     return ($parts -join " ")
 }
