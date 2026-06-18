@@ -241,6 +241,9 @@ P1：Release governance 与发布材料一致性
    * 同一组远端资产 URL 还必须与 ``upload.release_url`` 共享 ``/releases/...``
      前的 release path prefix，避免同 host 下其他仓库或路径的资产混入本轮发布证据。
      material safety 负例已覆盖跨 release path prefix 的资产 URL。
+   * ``upload.remote_assets`` 的 ``size_bytes`` / ``download_count`` 现已改为严格整数
+     校验，避免 PowerShell 把小数四舍五入后误判为合法值；对应负例已补入
+     ``assert_release_material_safety_manifest_cases.ps1``。
    * package release assets safety 的 staged path 断言现在同时接受
      ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
      build dir 位于仓库内时把安全公开路径误判为失败。
@@ -417,6 +420,7 @@ P3：文档、测试与索引治理
    和 reviewer bundle；``P1-RELEASE-01`` 已补 release notes 的 warning-only
    reviewer action 回归，并把 content-control source/action/class/command 收紧为
    同块断言。release blocker rollup / release governance handoff Markdown 的
-   ``reviewer_actions`` 透传与测试锁定已完成；下一步继续守护最新 ``dev`` CI，
-   并复核 release material safety 与 release asset manifest 是否还存在发布材料
-   字段盲区。
+   ``reviewer_actions`` 透传与测试锁定已完成，``upload.remote_assets`` 的
+   ``size_bytes`` / ``download_count`` 也已改为严格整数校验并补齐负例；下一步
+   继续守护最新 ``dev`` CI，并复核 release material safety 与 release asset
+   manifest 是否还存在发布材料字段盲区。

@@ -171,6 +171,20 @@ Assert-ReleaseUploadRemoteAssetsCaseFails `
     }
 
 Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-size-is-decimal" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].size_bytes = 1.5
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
+    -CaseSlug "manifest-upload-remote-assets-download-count-is-decimal" `
+    -Mutate {
+        param($Manifest)
+        $Manifest.upload.remote_assets[0].download_count = 2.5
+    }
+
+Assert-ReleaseUploadRemoteAssetsCaseFails `
     -CaseSlug "manifest-upload-remote-assets-url-points-to-wrong-file" `
     -Mutate {
         param($Manifest)

@@ -952,12 +952,11 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         if ($null -eq $assetSize) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes is missing."
         } else {
-            try {
-                if ([int64]$assetSize -le 0) {
-                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes must be greater than zero."
-                }
-            } catch {
+            $parsedAssetSize = $null
+            if (-not (Test-StrictJsonInt64 -Value $assetSize -ParsedValue ([ref]$parsedAssetSize))) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes must be an integer."
+            } elseif ($parsedAssetSize -le 0) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.size_bytes must be greater than zero."
             }
         }
 
@@ -965,12 +964,11 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         if ($null -eq $downloadCount) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count is missing."
         } else {
-            try {
-                if ([int64]$downloadCount -lt 0) {
-                    Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count must be zero or greater."
-                }
-            } catch {
+            $parsedDownloadCount = $null
+            if (-not (Test-StrictJsonInt64 -Value $downloadCount -ParsedValue ([ref]$parsedDownloadCount))) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count must be an integer."
+            } elseif ($parsedDownloadCount -lt 0) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.download_count must be zero or greater."
             }
         }
     }
@@ -980,4 +978,46 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets is missing official asset '$expectedAssetName'."
         }
     }
+}
+
+function Test-StrictJsonInt64 {
+    param(
+        $Value,
+        [ref]$ParsedValue
+    )
+
+    $ParsedValue.Value = $null
+    if ($null -eq $Value -or $Value -is [bool]) {
+        return $false
+    }
+
+    if ($Value -is [byte] -or
+        $Value -is [sbyte] -or
+        $Value -is [int16] -or
+        $Value -is [uint16] -or
+        $Value -is [int] -or
+        $Value -is [uint32] -or
+        $Value -is [long]) {
+        $ParsedValue.Value = [int64]$Value
+        return $true
+    }
+
+    if ($Value -is [string]) {
+        $trimmedValue = ([string]$Value).Trim()
+        if ($trimmedValue -notmatch '^[+-]?\d+$') {
+            return $false
+        }
+
+        $parsedInteger = [int64]0
+        if ([int64]::TryParse(
+                $trimmedValue,
+                [System.Globalization.NumberStyles]::Integer,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [ref]$parsedInteger)) {
+            $ParsedValue.Value = $parsedInteger
+            return $true
+        }
+    }
+
+    return $false
 }
