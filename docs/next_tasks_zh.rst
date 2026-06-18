@@ -73,7 +73,8 @@ P1：模板契约与项目模板工作流
      ``check_project_template_smoke_manifest_test.ps1`` 直接锁定：必须保留 invoice、
      contract、policy、report、notice、tender 6 类 document type，以及 1 个
      registered / 5 个 planned corpus 入口；planned 入口现在还必须暴露
-     ``registration_blocker`` 与 ``next_action``，避免语料扩展停留在不可执行说明。
+     ``registration_blocker`` 与 ``next_action``，并由 manifest description 汇总为
+     ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
 
 2. 强化 project-template workflow dashboard：
 

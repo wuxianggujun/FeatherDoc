@@ -187,6 +187,19 @@ foreach ($item in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Nam
         notes = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "notes"
     }) | Out-Null
 }
+$plannedBusinessTemplateRegistrationActions = @(
+    foreach ($item in @($businessTemplateCorpus.ToArray() | Where-Object { [string]$_.status -eq "planned" })) {
+        [pscustomobject]@{
+            id = [string]$item.id
+            project_id = [string]$item.project_id
+            template_name = [string]$item.template_name
+            document_type = [string]$item.document_type
+            registration_blocker = [string]$item.registration_blocker
+            next_action = [string]$item.next_action
+            smoke_contract = @($item.smoke_contract)
+        }
+    }
+)
 
 $entries = New-Object 'System.Collections.Generic.List[object]'
 foreach ($entry in @(Get-ProjectTemplateSmokeArrayProperty -Object $manifest -Name "entries")) {
@@ -265,6 +278,8 @@ $report = [ordered]@{
     business_template_corpus_count = $businessTemplateCorpus.Count
     registered_business_template_corpus_count = @($businessTemplateCorpus.ToArray() | Where-Object { [string]$_.status -eq "registered" }).Count
     planned_business_template_corpus_count = @($businessTemplateCorpus.ToArray() | Where-Object { [string]$_.status -eq "planned" }).Count
+    planned_business_template_registration_action_count = $plannedBusinessTemplateRegistrationActions.Count
+    planned_business_template_registration_actions = @($plannedBusinessTemplateRegistrationActions)
     business_document_type_summary = @(New-ManifestDescriptionGroupSummary -Items $businessTemplateCorpus.ToArray() -PropertyName "document_type" -OutputName "document_type")
     business_template_corpus = @($businessTemplateCorpus.ToArray())
     schema_validation_entry_count = @($entries.ToArray() | Where-Object { [bool]$_.schema_validation_enabled }).Count
@@ -312,6 +327,7 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Business template corpus: $($report.business_template_corpus_count)")
 [void]$lines.Add("Registered business templates: $($report.registered_business_template_corpus_count)")
 [void]$lines.Add("Planned business templates: $($report.planned_business_template_corpus_count)")
+[void]$lines.Add("Planned registration actions: $($report.planned_business_template_registration_action_count)")
 if ($summary) {
     [void]$lines.Add("Latest summary: $(Get-RepoRelativeDisplayPath -RepoRoot $repoRoot -Path $resolvedSummaryPath)")
     [void]$lines.Add("Latest status: $($report.latest_overall_status)")
@@ -442,6 +458,19 @@ if ($businessTemplateCorpus.Count -gt 0) {
         }
         [void]$lines.Add("  smoke_contract: $((@($item.smoke_contract) -join ', '))")
         [void]$lines.Add("  coverage_goal: $($item.coverage_goal)")
+    }
+    [void]$lines.Add("")
+}
+
+if ($plannedBusinessTemplateRegistrationActions.Count -gt 0) {
+    [void]$lines.Add("Planned business template registration actions:")
+    foreach ($action in $plannedBusinessTemplateRegistrationActions) {
+        [void]$lines.Add("- $($action.id)")
+        [void]$lines.Add("  project_id: $($action.project_id)")
+        [void]$lines.Add("  template_name: $($action.template_name)")
+        [void]$lines.Add("  document_type: $($action.document_type)")
+        [void]$lines.Add("  registration_blocker: $($action.registration_blocker)")
+        [void]$lines.Add("  next_action: $($action.next_action)")
     }
     [void]$lines.Add("")
 }
