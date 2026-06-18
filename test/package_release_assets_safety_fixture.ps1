@@ -820,6 +820,146 @@ $packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1
     -OutputRoot $outputRoot `
     -KeepStaging
 
+$uploadOutputRoot = Join-Path $resolvedWorkingDir "release-assets-upload"
+function global:gh {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+
+    $global:LASTEXITCODE = 0
+    if ($Arguments.Count -lt 3 -or $Arguments[0] -ne "release") {
+        throw "Unexpected gh invocation: $($Arguments -join ' ')"
+    }
+
+    if ($Arguments[1] -eq "view") {
+        if ($Arguments[2] -ne "v1.6.4") {
+            throw "Unexpected gh release view tag: $($Arguments[2])"
+        }
+
+        $argumentText = $Arguments -join " "
+        if (($Arguments -contains "tagName,url,assets") -or
+            ($argumentText -match "\btagName\b" -and
+                $argumentText -match "\burl\b" -and
+                $argumentText -match "\bassets\b")) {
+            [ordered]@{
+                tagName = "v1.6.4"
+                url = "https://github.example/releases/tag/v1.6.4"
+                assets = @(
+                    [ordered]@{
+                        name = "FeatherDoc-v1.6.4-msvc-install.zip"
+                        url = "https://github.example/assets/msvc-install"
+                        size = 1234
+                        downloadCount = 2
+                    },
+                    [ordered]@{
+                        name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"
+                        url = "https://github.example/assets/visual-gallery"
+                        size = 5678
+                        downloadCount = 3
+                    },
+                    [ordered]@{
+                        name = "FeatherDoc-v1.6.4-release-evidence.zip"
+                        url = "https://github.example/assets/release-evidence"
+                        size = 9012
+                        downloadCount = 4
+                    },
+                    [ordered]@{
+                        name = "release_assets_manifest.json"
+                        url = "https://github.example/assets/release-assets-manifest"
+                        size = 4321
+                        downloadCount = 5
+                    },
+                    [ordered]@{
+                        name = "unrelated.zip"
+                        url = "https://github.example/assets/unrelated"
+                        size = 1
+                        downloadCount = 99
+                    }
+                )
+            } | ConvertTo-Json -Depth 8
+            return
+        }
+
+        [ordered]@{
+            assets = @(
+                [ordered]@{
+                    name = "release_assets_manifest.json"
+                    url = "https://github.example/assets/release-assets-manifest"
+                    size = 4321
+                    downloadCount = 5
+                },
+                [ordered]@{
+                    name = "unrelated.zip"
+                    url = "https://github.example/assets/unrelated"
+                    size = 1
+                    downloadCount = 99
+                }
+            )
+        } | ConvertTo-Json -Depth 8
+        return
+    }
+
+    if ($Arguments[1] -eq "upload") {
+        if ($Arguments[2] -ne "v1.6.4" -or $Arguments.Count -lt 4) {
+            throw "Unexpected gh release upload invocation: $($Arguments -join ' ')"
+        }
+        return
+    }
+
+    throw "Unexpected gh release command: $($Arguments -join ' ')"
+}
+
+try {
+    & $packageScript `
+        -SummaryJson $summaryPath `
+        -OutputRoot $uploadOutputRoot `
+        -UploadReleaseTag v1.6.4
+} finally {
+    Remove-Item Function:\gh -ErrorAction SilentlyContinue
+}
+
+$uploadManifestPath = Join-Path $uploadOutputRoot "v1.6.4\release_assets_manifest.json"
+$uploadManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $uploadManifestPath | ConvertFrom-Json
+if ([string]$uploadManifest.upload.requested_tag -ne "v1.6.4") {
+    throw "release_assets_manifest.json upload evidence lost requested_tag."
+}
+if (-not [bool]$uploadManifest.upload.uploaded) {
+    throw "release_assets_manifest.json upload evidence lost uploaded=true."
+}
+if ([string]$uploadManifest.upload.release_url -ne "https://github.example/releases/tag/v1.6.4") {
+    throw "release_assets_manifest.json upload evidence lost release_url."
+}
+$uploadRemoteAssets = @($uploadManifest.upload.remote_assets)
+if ($uploadRemoteAssets.Count -ne 3) {
+    throw "release_assets_manifest.json upload evidence should list exactly three packaged remote ZIP assets, found $($uploadRemoteAssets.Count)."
+}
+$uploadRemoteAssetsByName = @{}
+foreach ($remoteAsset in $uploadRemoteAssets) {
+    $uploadRemoteAssetsByName[[string]$remoteAsset.name] = $remoteAsset
+}
+foreach ($expectedRemoteAsset in @(
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-msvc-install.zip"; Url = "https://github.example/assets/msvc-install"; Size = 1234; Downloads = 2 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-visual-validation-gallery.zip"; Url = "https://github.example/assets/visual-gallery"; Size = 5678; Downloads = 3 },
+        [pscustomobject]@{ Name = "FeatherDoc-v1.6.4-release-evidence.zip"; Url = "https://github.example/assets/release-evidence"; Size = 9012; Downloads = 4 }
+    )) {
+    if (-not $uploadRemoteAssetsByName.ContainsKey($expectedRemoteAsset.Name)) {
+        throw "release_assets_manifest.json upload evidence lost remote asset '$($expectedRemoteAsset.Name)'."
+    }
+    $actualRemoteAsset = $uploadRemoteAssetsByName[$expectedRemoteAsset.Name]
+    if ([string]$actualRemoteAsset.url -ne $expectedRemoteAsset.Url) {
+        throw "release_assets_manifest.json upload evidence recorded the wrong URL for '$($expectedRemoteAsset.Name)'."
+    }
+    if ([int]$actualRemoteAsset.size_bytes -ne $expectedRemoteAsset.Size) {
+        throw "release_assets_manifest.json upload evidence recorded the wrong size for '$($expectedRemoteAsset.Name)'."
+    }
+    if ([int]$actualRemoteAsset.download_count -ne $expectedRemoteAsset.Downloads) {
+        throw "release_assets_manifest.json upload evidence recorded the wrong download count for '$($expectedRemoteAsset.Name)'."
+    }
+}
+foreach ($unexpectedRemoteAssetName in @("release_assets_manifest.json", "unrelated.zip")) {
+    if ($uploadRemoteAssetsByName.ContainsKey($unexpectedRemoteAssetName)) {
+        throw "release_assets_manifest.json upload evidence should not include '$unexpectedRemoteAssetName' as a packaged remote asset."
+    }
+}
+
 $fontPolicyOutputRoot = Join-Path $resolvedWorkingDir "release-assets-font-policy"
 $dummyBundledFontPath = Join-Path $installPrefix "share\FeatherDoc\fonts\NotoSansSC-Regular.ttf"
 New-Item -ItemType Directory -Path (Split-Path -Parent $dummyBundledFontPath) -Force | Out-Null

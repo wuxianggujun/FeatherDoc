@@ -206,6 +206,12 @@ P1：Release governance 与发布材料一致性
    * ``publish_github_release.ps1`` 的离线 fake gh 回归现在显式覆盖 GitHub Release
      同时返回 ``release_assets_manifest.json`` 的场景，要求 ``upload.remote_assets``
      仍只记录 manifest 中列出的三份正式 ZIP。
+   * ``package_release_assets.ps1 -UploadReleaseTag`` 的直接上传路径也由 fake gh
+     safety fixture 覆盖：远端同时存在 manifest 和 unrelated asset 时，生成的
+     ``release_assets_manifest.json`` 只记录三份正式 ZIP 的 URL、大小和下载计数。
+   * package release assets safety 的 staged path 断言现在同时接受
+     ``<windows-absolute-path>`` 占位和 repo-relative public display，避免 CMake
+     build dir 位于仓库内时把安全公开路径误判为失败。
    * release candidate visual verdict 现在会断言 ready project-template workflow
      dashboard action group 的 ``source``、``action``、``blocker=(none)`` 和
      ``entries=(none)`` 同行进入三份入口材料，避免 P1 dashboard 和 release

@@ -299,22 +299,31 @@ Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -Expect
 Assert-Contains -Path $stagedProjectTemplateDeliveryReadinessSummaryPath -ExpectedText 'latest_schema_approval_gate_status' -Label 'staged project-template readiness summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'featherdoc.project_template_onboarding_governance_report.v1' -Label 'staged project-template onboarding governance summary'
 Assert-Contains -Path $stagedProjectTemplateOnboardingGovernanceSummaryPath -ExpectedText 'schema_approval_status_summary' -Label 'staged project-template onboarding governance summary'
-if ((Convert-TestComparablePathValue -Value $stagedSummary.release_handoff) -ne
-    (Convert-TestComparablePathValue -Value $expectedSanitizedAbsolutePath)) {
-    throw "staged summary.json did not sanitize release_handoff absolute path to the expected placeholder."
+function Assert-StagedPathIsPublic {
+    param(
+        $Actual,
+        [string]$OriginalPath,
+        [string]$Label
+    )
+
+    $actualComparable = Convert-TestComparablePathValue -Value $Actual
+    $placeholderComparable = Convert-TestComparablePathValue -Value $expectedSanitizedAbsolutePath
+    $publicDisplayComparable = Convert-TestComparablePathValue -Value (Convert-TestEvidencePathToPublicDisplay `
+            -Path $OriginalPath `
+            -RepoRoot $resolvedRepoRoot)
+    $repoRelativeComparable = Convert-TestComparablePathValue -Value (Convert-TestPathToRepoRelativeDisplay `
+            -Path $OriginalPath `
+            -RepoRoot $resolvedRepoRoot)
+    if ($actualComparable -ne $placeholderComparable -and
+        $actualComparable -ne $publicDisplayComparable -and
+        $actualComparable -ne $repoRelativeComparable) {
+        throw "$Label did not sanitize path. Expected '$expectedSanitizedAbsolutePath' or a public display path, got '$Actual'."
+    }
 }
-if ((Convert-TestComparablePathValue -Value $stagedGateSummary.report_dir) -ne
-    (Convert-TestComparablePathValue -Value $expectedSanitizedAbsolutePath)) {
-    throw "staged gate_summary.json did not sanitize report_dir absolute path to the expected placeholder."
-}
-if ((Convert-TestComparablePathValue -Value $stagedSummary.pdf_visual_gate_summary_json) -ne
-    (Convert-TestComparablePathValue -Value $expectedSanitizedAbsolutePath)) {
-    throw "staged summary.json did not sanitize pdf_visual_gate_summary_json absolute path to the expected placeholder."
-}
-if ((Convert-TestComparablePathValue -Value $stagedPdfGateSummary.output_dir) -ne
-    (Convert-TestComparablePathValue -Value $expectedSanitizedAbsolutePath)) {
-    throw "staged PDF visual gate summary.json did not sanitize output_dir absolute path to the expected placeholder."
-}
+Assert-StagedPathIsPublic -Actual $stagedSummary.release_handoff -OriginalPath $releaseHandoffPath -Label "staged summary.json release_handoff"
+Assert-StagedPathIsPublic -Actual $stagedGateSummary.report_dir -OriginalPath $gateReportDir -Label "staged gate_summary.json report_dir"
+Assert-StagedPathIsPublic -Actual $stagedSummary.pdf_visual_gate_summary_json -OriginalPath $pdfGateSummaryPath -Label "staged summary.json pdf_visual_gate_summary_json"
+Assert-StagedPathIsPublic -Actual $stagedPdfGateSummary.output_dir -OriginalPath $pdfGateOutputDir -Label "staged PDF visual gate summary.json output_dir"
 if ($stagedPdfGateSummary.cjk_copy_search.Count -ne 2) {
     throw "staged PDF visual gate summary.json lost CJK copy/search entries."
 }
