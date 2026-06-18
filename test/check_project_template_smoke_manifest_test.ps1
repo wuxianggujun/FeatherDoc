@@ -31,6 +31,15 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-CollectionContains {
+    param($Items, [string]$ExpectedText, [string]$Message)
+
+    if (-not (@($Items) -contains $ExpectedText)) {
+        $actualText = (@($Items) -join ", ")
+        throw "$Message Expected='$ExpectedText' Actual='$actualText'."
+    }
+}
+
 function Assert-ReportContainsIssue {
     param($Report, [string]$ExpectedPath, [string]$ExpectedMessage, [string]$Message)
 
@@ -202,6 +211,38 @@ Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "
 Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
     -ExpectedText "visual_smoke" `
     -Message "Valid report should include visual smoke checks."
+
+$repoManifestReportPath = Join-Path $resolvedWorkingDir "reports\repo_manifest_check.json"
+$repoManifestResult = Invoke-ManifestCheck -Arguments @(
+    "-ManifestPath", (Join-Path $resolvedRepoRoot "samples\project_template_smoke.manifest.json"),
+    "-OutputPath", $repoManifestReportPath,
+    "-Json"
+)
+Assert-Equal -Actual $repoManifestResult.ExitCode -Expected 0 `
+    -Message "Repository project-template smoke manifest should pass. Output: $($repoManifestResult.Text)"
+$repoManifestReport = Get-Content -Raw -Encoding UTF8 -LiteralPath $repoManifestReportPath | ConvertFrom-Json
+Assert-Equal -Actual ([int]$repoManifestReport.business_template_corpus_count) -Expected 6 `
+    -Message "Repository manifest should keep the full business template corpus backlog."
+Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corpus_count) -Expected 1 `
+    -Message "Repository manifest should keep one registered business template corpus entry."
+Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 5 `
+    -Message "Repository manifest should keep five planned business template corpus entries."
+$repoManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $resolvedRepoRoot "samples\project_template_smoke.manifest.json") | ConvertFrom-Json
+$repoBusinessDocumentTypes = @($repoManifest.business_template_corpus | ForEach-Object { [string]$_.document_type })
+foreach ($expectedDocumentType in @("invoice", "contract", "policy", "report", "notice", "tender")) {
+    Assert-CollectionContains -Items $repoBusinessDocumentTypes -ExpectedText $expectedDocumentType `
+        -Message "Repository manifest should preserve planned business document type coverage."
+}
+$registeredInvoiceCorpus = @($repoManifest.business_template_corpus | Where-Object {
+        [string]$_.document_type -eq "invoice" -and [string]$_.status -eq "registered"
+    })
+Assert-Equal -Actual $registeredInvoiceCorpus.Count -Expected 1 `
+    -Message "Repository manifest should keep exactly one registered invoice corpus anchor."
+Assert-Equal -Actual ([string]$registeredInvoiceCorpus[0].source_entry) -Expected "chinese-invoice-template" `
+    -Message "Registered invoice corpus should point at the committed manifest entry."
+$repoEntryNames = @($repoManifest.entries | ForEach-Object { [string]$_.name })
+Assert-CollectionContains -Items $repoEntryNames -ExpectedText "chinese-invoice-template" `
+    -Message "Repository manifest should keep the registered invoice manifest entry."
 
 $emptyManifestPath = Join-Path $fixtureRoot "empty.manifest.json"
 Write-JsonFile -Path $emptyManifestPath -Value ([ordered]@{ entries = @() })

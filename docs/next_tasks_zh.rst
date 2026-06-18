@@ -68,6 +68,10 @@ P1：模板契约与项目模板工作流
    * 增加合同、制度文件、发票、报告、通知、标书等典型 ``.docx`` / ``.dotx`` 样本。
    * 保持样本进入 project-template smoke manifest，而不是散落在本地输出目录。
    * 继续校准 schema patch、style rename / merge、content-control 修复建议的置信度。
+   * 仓库真实 ``samples/project_template_smoke.manifest.json`` 的业务语料覆盖已由
+     ``check_project_template_smoke_manifest_test.ps1`` 直接锁定：必须保留 invoice、
+     contract、policy、report、notice、tender 6 类 document type，以及 1 个
+     registered / 5 个 planned corpus 入口。
 
 2. 强化 project-template workflow dashboard：
 
@@ -358,8 +362,10 @@ P3：文档、测试与索引治理
 4. ``P1-SCHEMA-01`` 已先补 schema patch confidence calibration 的业务模板来源摘要和
    缺失来源 warning/action；``P1-TEMPLATE-01`` 已补 manifest / 描述 / smoke contract
    级别的 ``business_template_corpus``，当前注册 invoice 并规划 contract、policy、
-   report、notice、tender。``P1-APPROVAL-01`` 的 approval matrix reviewer action
-   字段已经进入 release blocker rollup、handoff 和 reviewer bundle；下一步按
+   report、notice、tender，且真实 manifest 的 6 类 document type 已由
+   ``check_project_template_smoke_manifest_test.ps1`` 守护。``P1-APPROVAL-01`` 的
+   approval matrix reviewer action 字段已经进入 release blocker rollup、handoff
+   和 reviewer bundle；下一步按
    ``docs/long_task_board_zh.rst`` 的 ``P1-RELEASE-01`` 继续复核 GitHub Release
    refresh / publish workflow artifact 输出是否只来自本轮重新生成的
    ``RELEASE_OUTPUT_ROOT``，并继续与 ``release_assets_manifest.json`` 保持一致。

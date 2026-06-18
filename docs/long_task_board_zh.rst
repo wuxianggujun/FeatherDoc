@@ -117,6 +117,9 @@
      ``business_template_corpus``，注册 invoice，规划 contract、policy、report、
      notice、tender；``describe_project_template_smoke_manifest.ps1`` 和 delivery
      readiness warning 已暴露 registered / planned corpus 计数。
+     ``check_project_template_smoke_manifest_test.ps1`` 现在还会直接校验仓库真实
+     manifest，锁住 invoice、contract、policy、report、notice、tender 6 类
+     document type，以及 1 个 registered / 5 个 planned corpus 入口。
    * 验收：project-template smoke manifest 可解释新增样本来源、用途和验证边界。
 
 4. ``P1-DASHBOARD-01``：project-template workflow dashboard 持续治理
