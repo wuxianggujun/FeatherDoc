@@ -104,7 +104,8 @@ jobs:
 
       - name: Build
         shell: pwsh
-        run: cmake --build build-msvc-nmake
+        timeout-minutes: 75
+        run: cmake --build build-msvc-nmake --verbose
 
       - name: Run tests
         shell: pwsh
