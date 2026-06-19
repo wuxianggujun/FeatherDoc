@@ -150,6 +150,19 @@ function New-DeliveryReadinessReport {
         $nextActionSummary = @()
         $nextActionGroupCount = 0
     }
+    $plannedRegistrationActions = @()
+    if (-not $ReleaseReady) {
+        $plannedRegistrationActions = @(
+            [ordered]@{
+                id = "project-legal-contract-template"
+                project_id = "project-legal"
+                template_name = "contract-template"
+                document_type = "contract"
+                registration_blocker = "No committed contract template fixture is registered yet."
+                next_action = "Add a contract template manifest entry with schema baseline and render-data coverage."
+            }
+        )
+    }
 
     return [ordered]@{
         schema = "featherdoc.project_template_delivery_readiness_report.v1"
@@ -163,6 +176,8 @@ function New-DeliveryReadinessReport {
         onboarding_governance_next_action = $nextAction
         onboarding_governance_next_action_summary = $nextActionSummary
         onboarding_governance_next_action_group_count = $nextActionGroupCount
+        planned_business_template_registration_action_count = $plannedRegistrationActions.Count
+        planned_business_template_registration_actions = $plannedRegistrationActions
         source_report_display = ".\output\project-template-delivery-readiness\summary.json"
         source_json_display = ".\output\project-template-delivery-readiness\summary.json"
     }
@@ -246,6 +261,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard next action summary should include onboarding governance."
     Assert-ContainsText -Text $nextActionSourceIds -ExpectedText "project_template_delivery_readiness" `
         -Message "Workflow dashboard next action summary should include delivery readiness."
+    Assert-Equal -Actual ([int]$summary.planned_business_template_registration_action_count) -Expected 1 `
+        -Message "Workflow dashboard should aggregate planned business template registration action count."
+    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].source_report_id) -Expected "project_template_delivery_readiness" `
+        -Message "Workflow dashboard planned registration actions should keep their source report."
+    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].id) -Expected "project-legal-contract-template" `
+        -Message "Workflow dashboard planned registration actions should keep their ids."
+    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+        -Message "Workflow dashboard planned registration actions should keep next actions."
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Workflow Dashboard" `
         -Message "Workflow dashboard Markdown should have a title."
     Assert-ContainsText -Text $markdown -ExpectedText "Next action groups" `
@@ -254,6 +277,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard Markdown should include onboarding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
         -Message "Workflow dashboard Markdown should include delivery readiness."
+    Assert-ContainsText -Text $markdown -ExpectedText "Planned business template registration actions" `
+        -Message "Workflow dashboard Markdown should include planned business template registration actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "project-legal-contract-template" `
+        -Message "Workflow dashboard Markdown should include planned registration action ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "Add a contract template manifest entry with schema baseline and render-data coverage." `
+        -Message "Workflow dashboard Markdown should include planned registration next actions."
 }
 
 if (Test-Scenario -Name "release_candidate_summary") {

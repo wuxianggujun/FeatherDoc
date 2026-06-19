@@ -88,6 +88,10 @@ P1：模板契约与项目模板工作流
      ``release_ready``、blocker、warning、``next_action`` 串到 dashboard。
    * 在 reviewer-facing bundle 中保持 dashboard status、release_ready、计数、
      证据路径和下一步命令可见。
+   * dashboard 现在会从 delivery readiness 汇总
+     ``planned_business_template_registration_actions``，并在 JSON / Markdown 中展示
+     planned corpus 的来源、``id``、``registration_blocker`` 与 ``next_action``，
+     让工作流总览不只显示阻断组，也能直接看到待注册业务模板动作。
    * 后续可补 ``next_action_summary`` 的分组展示，避免多项 schema approval
      或多模板阻断只显示第一条 action。
    * ready dashboard 的 action group 已由 release candidate visual verdict 回归锁定：

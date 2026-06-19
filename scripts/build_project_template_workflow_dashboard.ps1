@@ -104,6 +104,10 @@ function Get-JsonProperty {
         return $null
     }
 
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) {
+        return $Object[$Name]
+    }
+
     $property = $Object.PSObject.Properties[$Name]
     if ($null -eq $property) {
         return $null
@@ -411,6 +415,8 @@ function Read-WorkflowReport {
     $nextActionGroupCount = Get-JsonInt -Object $json -Name "next_action_group_count" -DefaultValue $nextActionSummary.Count
     $schemaApprovalStatusSummary = Get-JsonString -Object $json -Name "schema_approval_status_summary"
     $latestSchemaApprovalGateStatus = Get-JsonString -Object $json -Name "latest_schema_approval_gate_status"
+    $plannedRegistrationActions = @(Get-JsonArray -Object $json -Name "planned_business_template_registration_actions")
+    $plannedRegistrationActionCount = Get-JsonInt -Object $json -Name "planned_business_template_registration_action_count" -DefaultValue $plannedRegistrationActions.Count
 
     if ($Id -eq "project_template_delivery_readiness") {
         $onboardingNextAction = Get-JsonProperty -Object $json -Name "onboarding_governance_next_action"
@@ -458,6 +464,8 @@ function Read-WorkflowReport {
         next_action = $nextAction
         next_action_summary = $nextActionSummary
         next_action_group_count = $nextActionGroupCount
+        planned_business_template_registration_action_count = $plannedRegistrationActionCount
+        planned_business_template_registration_actions = $plannedRegistrationActions
         issue = ""
     }
 }
@@ -490,6 +498,10 @@ function New-DashboardMarkdown {
             [void]$lines.Add("  - next_action: ``$($report.next_action.action)``")
             [void]$lines.Add("  - blocker_id: ``$($report.next_action.blocker_id)``")
         }
+        $reportPlannedRegistrationActionCount = Get-JsonInt -Object $report -Name "planned_business_template_registration_action_count"
+        if ($reportPlannedRegistrationActionCount -gt 0) {
+            [void]$lines.Add("  - planned_business_template_registration_action_count: ``$reportPlannedRegistrationActionCount``")
+        }
     }
     [void]$lines.Add("")
     [void]$lines.Add("## Next action groups")
@@ -505,6 +517,22 @@ function New-DashboardMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.command)) {
                 [void]$lines.Add("  - command: ``$($actionGroup.command)``")
+            }
+        }
+    }
+    [void]$lines.Add("")
+    [void]$lines.Add("## Planned business template registration actions")
+    [void]$lines.Add("")
+    if ([int]$Summary.planned_business_template_registration_action_count -eq 0) {
+        [void]$lines.Add("- none")
+    } else {
+        foreach ($registrationAction in @($Summary.planned_business_template_registration_actions)) {
+            [void]$lines.Add("- source=``$($registrationAction.source_report_id)`` id=``$($registrationAction.id)`` project=``$($registrationAction.project_id)`` template=``$($registrationAction.template_name)`` document_type=``$($registrationAction.document_type)``")
+            if (-not [string]::IsNullOrWhiteSpace([string]$registrationAction.registration_blocker)) {
+                [void]$lines.Add("  - registration_blocker: $($registrationAction.registration_blocker)")
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$registrationAction.next_action)) {
+                [void]$lines.Add("  - next_action: $($registrationAction.next_action)")
             }
         }
     }
@@ -635,6 +663,24 @@ foreach ($report in $sourceReports) {
 }
 $nextActionGroupCount = $nextActionSummary.Count
 
+$plannedRegistrationActions = @()
+foreach ($report in $sourceReports) {
+    foreach ($registrationAction in @(Get-JsonArray -Object $report -Name "planned_business_template_registration_actions")) {
+        $plannedRegistrationActions += [ordered]@{
+            source_report_id = [string]$report.id
+            id = Get-JsonString -Object $registrationAction -Name "id"
+            project_id = Get-JsonString -Object $registrationAction -Name "project_id"
+            template_name = Get-JsonString -Object $registrationAction -Name "template_name"
+            document_type = Get-JsonString -Object $registrationAction -Name "document_type"
+            registration_blocker = Get-JsonString -Object $registrationAction -Name "registration_blocker"
+            next_action = Get-JsonString -Object $registrationAction -Name "next_action"
+            source_report_display = [string]$report.source_report_display
+            source_json_display = [string]$report.source_json_display
+        }
+    }
+}
+$plannedRegistrationActionCount = $plannedRegistrationActions.Count
+
 $summary = [ordered]@{
     schema = $dashboardSchema
     summary_schema_version = 1
@@ -651,6 +697,8 @@ $summary = [ordered]@{
     next_action = $nextAction
     next_action_summary = $nextActionSummary
     next_action_group_count = $nextActionGroupCount
+    planned_business_template_registration_action_count = $plannedRegistrationActionCount
+    planned_business_template_registration_actions = $plannedRegistrationActions
     source_reports = $sourceReports
     source_schema_summary = @(
         [ordered]@{
