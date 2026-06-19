@@ -509,14 +509,17 @@ function New-DashboardMarkdown {
     if ([int]$Summary.next_action_group_count -eq 0) {
         [void]$lines.Add("- none")
     } else {
-        foreach ($actionGroup in @($Summary.next_action_summary)) {
-            $entryNameText = (@($actionGroup.entry_names) -join ", ")
-            [void]$lines.Add("- source=``$($actionGroup.source_report_id)`` action=``$($actionGroup.action)`` blocker_id=``$($actionGroup.blocker_id)`` entries=``$entryNameText``")
-            if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.reason)) {
-                [void]$lines.Add("  - reason: $($actionGroup.reason)")
-            }
-            if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.command)) {
-                [void]$lines.Add("  - command: ``$($actionGroup.command)``")
+        foreach ($sourceGroup in @($Summary.next_action_summary_by_source)) {
+            [void]$lines.Add("- source=``$($sourceGroup.source_report_id)`` action_group_count=``$($sourceGroup.action_group_count)`` source_json=``$($sourceGroup.source_json_display)``")
+            foreach ($actionGroup in @($sourceGroup.action_groups)) {
+                $entryNameText = (@($actionGroup.entry_names) -join ", ")
+                [void]$lines.Add("  - action=``$($actionGroup.action)`` blocker_id=``$($actionGroup.blocker_id)`` entries=``$entryNameText``")
+                if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.reason)) {
+                    [void]$lines.Add("    - reason: $($actionGroup.reason)")
+                }
+                if (-not [string]::IsNullOrWhiteSpace([string]$actionGroup.command)) {
+                    [void]$lines.Add("    - command: ``$($actionGroup.command)``")
+                }
             }
         }
     }
@@ -663,6 +666,23 @@ foreach ($report in $sourceReports) {
 }
 $nextActionGroupCount = $nextActionSummary.Count
 
+$nextActionSummaryBySource = @()
+foreach ($report in $sourceReports) {
+    $sourceActionGroups = @(
+        $nextActionSummary |
+            Where-Object { [string]$_.source_report_id -eq [string]$report.id }
+    )
+    if ($sourceActionGroups.Count -gt 0) {
+        $nextActionSummaryBySource += [ordered]@{
+            source_report_id = [string]$report.id
+            source_report_display = [string]$report.source_report_display
+            source_json_display = [string]$report.source_json_display
+            action_group_count = $sourceActionGroups.Count
+            action_groups = $sourceActionGroups
+        }
+    }
+}
+
 $plannedRegistrationActions = @()
 foreach ($report in $sourceReports) {
     foreach ($registrationAction in @(Get-JsonArray -Object $report -Name "planned_business_template_registration_actions")) {
@@ -697,6 +717,7 @@ $summary = [ordered]@{
     next_action = $nextAction
     next_action_summary = $nextActionSummary
     next_action_group_count = $nextActionGroupCount
+    next_action_summary_by_source = $nextActionSummaryBySource
     planned_business_template_registration_action_count = $plannedRegistrationActionCount
     planned_business_template_registration_actions = $plannedRegistrationActions
     source_reports = $sourceReports

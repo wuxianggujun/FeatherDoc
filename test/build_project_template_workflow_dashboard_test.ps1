@@ -261,6 +261,14 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard next action summary should include onboarding governance."
     Assert-ContainsText -Text $nextActionSourceIds -ExpectedText "project_template_delivery_readiness" `
         -Message "Workflow dashboard next action summary should include delivery readiness."
+    Assert-Equal -Actual (@($summary.next_action_summary_by_source).Count) -Expected 2 `
+        -Message "Workflow dashboard should group next action summaries by source report."
+    Assert-Equal -Actual ([string]$summary.next_action_summary_by_source[0].source_report_id) -Expected "project_template_onboarding_governance" `
+        -Message "Workflow dashboard grouped next actions should keep onboarding source ids."
+    Assert-Equal -Actual ([int]$summary.next_action_summary_by_source[0].action_group_count) -Expected 1 `
+        -Message "Workflow dashboard grouped next actions should expose per-source action counts."
+    Assert-Equal -Actual ([string]$summary.next_action_summary_by_source[0].action_groups[0].action) -Expected "review_schema_update_candidate" `
+        -Message "Workflow dashboard grouped next actions should keep action details."
     Assert-Equal -Actual ([int]$summary.planned_business_template_registration_action_count) -Expected 1 `
         -Message "Workflow dashboard should aggregate planned business template registration action count."
     Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].source_report_id) -Expected "project_template_delivery_readiness" `
@@ -277,6 +285,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard Markdown should include onboarding governance."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_delivery_readiness" `
         -Message "Workflow dashboard Markdown should include delivery readiness."
+    Assert-ContainsText -Text $markdown -ExpectedText "action_group_count=``1``" `
+        -Message "Workflow dashboard Markdown should include grouped action counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_json=``.\output\project-template-onboarding-governance\summary.json``" `
+        -Message "Workflow dashboard Markdown should include grouped source JSON paths."
     Assert-ContainsText -Text $markdown -ExpectedText "Planned business template registration actions" `
         -Message "Workflow dashboard Markdown should include planned business template registration actions."
     Assert-ContainsText -Text $markdown -ExpectedText "project-legal-contract-template" `

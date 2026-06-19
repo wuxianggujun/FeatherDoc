@@ -92,8 +92,10 @@ P1：模板契约与项目模板工作流
      ``planned_business_template_registration_actions``，并在 JSON / Markdown 中展示
      planned corpus 的来源、``id``、``registration_blocker`` 与 ``next_action``，
      让工作流总览不只显示阻断组，也能直接看到待注册业务模板动作。
-   * 后续可补 ``next_action_summary`` 的分组展示，避免多项 schema approval
-     或多模板阻断只显示第一条 action。
+   * dashboard 已补 ``next_action_summary_by_source``，按来源 report 分组展示
+     ``next_action_summary``，Markdown 中同步展示每个 source 的
+     ``action_group_count`` 与源 JSON，避免多项 schema approval 或多模板阻断
+     只显示第一条 action。
    * ready dashboard 的 action group 已由 release candidate visual verdict 回归锁定：
      即使没有 blocker / entries，``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md``
      和 ``START_HERE.md`` 也必须保留 ``blocker=(none)`` 与 ``entries=(none)``
