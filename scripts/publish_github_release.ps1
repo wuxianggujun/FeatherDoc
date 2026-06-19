@@ -250,7 +250,7 @@ function Update-UploadedAssetManifest {
         return
     }
 
-    $releaseViewJson = & gh release view $ReleaseTag --json url,assets
+    $releaseViewJson = & gh release view $ReleaseTag --json url,isDraft,assets
     if ($LASTEXITCODE -ne 0) {
         throw "gh release view failed while refreshing release asset manifest."
     }
@@ -263,6 +263,7 @@ function Update-UploadedAssetManifest {
     Set-JsonObjectProperty -Object $manifest.upload -Name "requested_tag" -Value $ReleaseTag
     Set-JsonObjectProperty -Object $manifest.upload -Name "uploaded" -Value $true
     Set-JsonObjectProperty -Object $manifest.upload -Name "release_url" -Value (Get-OptionalPropertyValue -Object $releaseView -Name "url")
+    Set-JsonObjectProperty -Object $manifest.upload -Name "is_draft" -Value ([bool](Get-OptionalPropertyObject -Object $releaseView -Name "isDraft"))
 
     $remoteAssets = @()
     foreach ($asset in @($manifest.assets)) {

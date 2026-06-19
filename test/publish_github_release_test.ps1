@@ -284,6 +284,7 @@ function global:gh {
 
     [ordered]@{
         url = "https://github.example/releases/tag/v1.6.4"
+        isDraft = $false
         assets = @(
             [ordered]@{
                 name = "FeatherDoc-v1.6.4-msvc-install.zip"
@@ -345,6 +346,9 @@ if (-not [bool]$manifest.upload.uploaded) {
 }
 if ([string]$manifest.upload.release_url -ne "https://github.example/releases/tag/v1.6.4") {
     throw "Updated manifest did not record the GitHub Release URL."
+}
+if ([bool]$manifest.upload.is_draft) {
+    throw "Updated manifest should record the published release as non-draft."
 }
 
 $remoteAssets = @($manifest.upload.remote_assets)
