@@ -104,6 +104,9 @@ P1：模板契约与项目模板工作流
      ``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md`` 必须同时
      展示 onboarding governance 与 delivery readiness 两组 action，避免只显示第一组
      ``next_action_summary``。
+   * release note bundle 的三份入口材料现在也会输出
+     ``next_action_summary_by_source``，按 source 显示 ``action_group_count`` 与
+     ``source_json``，让 reviewer 不必只依赖 flat action group 文本判断来源。
 
 3. 多项目 schema approval 维护体验：
 
@@ -217,6 +220,10 @@ P1：Release governance 与发布材料一致性
      bundle 回归已改为同一 Markdown list block 断言：``source_report_display``、
      ``source_json_display``、``repair_action_classes``、``repair_strategy``、
      ``repair_hint`` 和 ``command_template`` 必须和对应 action 出现在同一治理项内。
+   * project-template workflow dashboard 的 ``next_action_summary_by_source`` 已继续
+     进入 release candidate summary，并在 ``ARTIFACT_GUIDE.md``、
+     ``REVIEWER_CHECKLIST.md`` 和 ``START_HERE.md`` 输出每个 source 的
+     ``action_group_count`` 与 ``source_json``。
    * GitHub Release refresh / publish workflow artifact 输出已补契约检查，
      锁定 ``RELEASE_OUTPUT_ROOT``、``publish_github_release.ps1`` 调用、
      ``release-refresh-output`` / ``release-publish-output`` 以及

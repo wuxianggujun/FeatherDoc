@@ -867,6 +867,20 @@ $summary = [ordered]@{
             }
         )
         next_action_group_count = 2
+        next_action_summary_by_source = @(
+            [ordered]@{
+                source_report_id = "project_template_onboarding_governance"
+                source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                action_group_count = 1
+            },
+            [ordered]@{
+                source_report_id = "project_template_delivery_readiness"
+                source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+                action_group_count = 1
+            }
+        )
     }
     task_output_root = $taskOutputRoot
     superseded_review_tasks_report = $supersededReviewTasksReportPath
@@ -939,6 +953,20 @@ $summary = [ordered]@{
                 }
             )
             next_action_group_count = 2
+            next_action_summary_by_source = @(
+                [ordered]@{
+                    source_report_id = "project_template_onboarding_governance"
+                    source_report_display = ".\output\project-template-onboarding-governance\summary.json"
+                    source_json_display = ".\output\project-template-onboarding-governance\summary.json"
+                    action_group_count = 1
+                },
+                [ordered]@{
+                    source_report_id = "project_template_delivery_readiness"
+                    source_report_display = ".\output\project-template-delivery-readiness\summary.json"
+                    source_json_display = ".\output\project-template-delivery-readiness\summary.json"
+                    action_group_count = 1
+                }
+            )
         }
     }
     project_template_smoke = [ordered]@{

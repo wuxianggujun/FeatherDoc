@@ -191,6 +191,35 @@ function Get-WorkflowDashboardActionSummaryText {
     return ($parts -join " ")
 }
 
+function Get-WorkflowDashboardActionSourceSummaryText {
+    param($SourceGroup)
+
+    if ($null -eq $SourceGroup) {
+        return ""
+    }
+
+    if ($SourceGroup -is [string]) {
+        return [string]$SourceGroup
+    }
+
+    $sourceReportId = Get-OptionalPropertyValue -Object $SourceGroup -Name "source_report_id"
+    $actionGroupCount = Get-OptionalPropertyValue -Object $SourceGroup -Name "action_group_count"
+    $sourceJsonDisplay = Get-OptionalPropertyValue -Object $SourceGroup -Name "source_json_display"
+
+    [string[]]$parts = @()
+    if (-not [string]::IsNullOrWhiteSpace($sourceReportId)) {
+        $parts += "source=$sourceReportId"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($actionGroupCount)) {
+        $parts += "action_group_count=$actionGroupCount"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+        $parts += "source_json=$sourceJsonDisplay"
+    }
+
+    return ($parts -join " ")
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -485,6 +514,13 @@ if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionGrou
 $projectTemplateWorkflowDashboardActionSummaryLines = @($projectTemplateWorkflowDashboardNextActionSummary |
     ForEach-Object { Get-WorkflowDashboardActionSummaryText -ActionGroup $_ } |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$projectTemplateWorkflowDashboardNextActionSummaryBySource = @(Get-WorkflowDashboardObjectArray `
+        -Step $projectTemplateWorkflowDashboardStep `
+        -Report $projectTemplateWorkflowDashboardReport `
+        -Name "next_action_summary_by_source")
+$projectTemplateWorkflowDashboardActionSourceSummaryLines = @($projectTemplateWorkflowDashboardNextActionSummaryBySource |
+    ForEach-Object { Get-WorkflowDashboardActionSourceSummaryText -SourceGroup $_ } |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 $projectTemplateWorkflowDashboardHasEvidence = $projectTemplateWorkflowDashboardRequested -eq "True" -or `
     $projectTemplateWorkflowDashboardStatus -ne "not_requested"
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
@@ -645,6 +681,9 @@ if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActio
 [void]$lines.Add("- Project template workflow dashboard next action groups: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardNextActionGroupCount)")
 foreach ($actionSummaryLine in @($projectTemplateWorkflowDashboardActionSummaryLines)) {
     [void]$lines.Add("- Project template workflow dashboard action group: $actionSummaryLine")
+}
+foreach ($sourceSummaryLine in @($projectTemplateWorkflowDashboardActionSourceSummaryLines)) {
+    [void]$lines.Add("- Project template workflow dashboard action source: $sourceSummaryLine")
 }
 if ($requiresProjectTemplateGovernanceSignoff -or $hasProjectTemplateReleaseEntryEvidence) {
     [void]$lines.Add('- Project template release readiness checklist: `docs/project_template_release_readiness_checklist_zh.rst`')
