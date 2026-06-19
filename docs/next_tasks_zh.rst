@@ -107,6 +107,9 @@ P1：模板契约与项目模板工作流
    * release note bundle 的三份入口材料现在也会输出
      ``next_action_summary_by_source``，按 source 显示 ``action_group_count`` 与
      ``source_json``，让 reviewer 不必只依赖 flat action group 文本判断来源。
+   * ``release_handoff.md`` 与 ``final_review.md`` 也应保持同一组 dashboard
+     action group / action source 证据，避免发布交接和最终审查只显示 dashboard
+     counts 而丢失来源分组。
 
 3. 多项目 schema approval 维护体验：
 
@@ -145,6 +148,11 @@ P1：Release governance 与发布材料一致性
    * content-control ``repair_action_classes`` 必须保持从 governance report 到
      release blocker rollup、handoff、bundle、reviewer checklist 的同名透传。
    * final review、handoff、bundle 和 reviewer checklist 应显示同一组治理明细。
+   * project-template workflow dashboard 的 ``next_action_summary`` 与
+     ``next_action_summary_by_source`` 必须同时进入 ``final_review.md``、
+     ``release_handoff.md``、``ARTIFACT_GUIDE.md``、``REVIEWER_CHECKLIST.md`` 和
+     ``START_HERE.md``，并保留 ``blocker=(none)`` / ``entries=(none)`` 这类空值
+     marker。
    * 避免只保留汇总计数，丢失具体阻断项。
    * schema approval history 的 ``reviewer_action_summary``、
      ``reviewer_action_reason`` 和 ``reviewer_actions`` 已进入 rollup 与 handoff；

@@ -69,7 +69,6 @@ $pdfImportDiagnosticsBodyListFragments = @(
 )
 
 foreach ($assertion in @(
-        @{ Path = $candidateFinalReviewPath; Label = "final_review.md" },
         @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
         @{ Path = $candidateArtifactGuidePath; Label = "ARTIFACT_GUIDE.md" },
         @{ Path = $candidateReviewerChecklistPath; Label = "REVIEWER_CHECKLIST.md" },
@@ -251,6 +250,7 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_t
 ) -Message "final_review.md should keep project-template readiness and onboarding governance contracts in one material-safety block."
 
 foreach ($assertion in @(
+        @{ Path = $candidateFinalReviewPath; Label = "final_review.md" },
         @{ Path = $candidateReleaseHandoffPath; Label = "release_handoff.md" },
         @{ Path = $candidateArtifactGuidePath; Label = "ARTIFACT_GUIDE.md" },
         @{ Path = $candidateReviewerChecklistPath; Label = "REVIEWER_CHECKLIST.md" },
@@ -282,19 +282,23 @@ foreach ($assertion in @(
         "source_json_display:",
         "project-template-onboarding-governance"
     ) -Message ("{0} should keep project-template onboarding governance contract evidence in one list block." -f $assertion.Label)
-    if ($assertion.Label -in @("ARTIFACT_GUIDE.md", "REVIEWER_CHECKLIST.md", "START_HERE.md")) {
-        foreach ($sourceReportId in @(
-                "project_template_onboarding_governance",
-                "project_template_delivery_readiness"
-            )) {
-            Assert-LineContainsAll -Text $content -Fragments @(
-                "Project template workflow dashboard action group:",
-                ("source={0}" -f $sourceReportId),
-                "action=publish_project_template",
-                "blocker=(none)",
-                "entries=(none)"
-            ) -Message ("{0} should keep ready project-template workflow dashboard action group source, action, empty blocker, and empty entries markers together for {1}." -f $assertion.Label, $sourceReportId)
-        }
+    foreach ($sourceReportId in @(
+            "project_template_onboarding_governance",
+            "project_template_delivery_readiness"
+        )) {
+        Assert-LineContainsAll -Text $content -Fragments @(
+            "Project template workflow dashboard action group:",
+            ("source={0}" -f $sourceReportId),
+            "action=publish_project_template",
+            "blocker=(none)",
+            "entries=(none)"
+        ) -Message ("{0} should keep ready project-template workflow dashboard action group source, action, empty blocker, and empty entries markers together for {1}." -f $assertion.Label, $sourceReportId)
+        Assert-LineContainsAll -Text $content -Fragments @(
+            "Project template workflow dashboard action source:",
+            ("source={0}" -f $sourceReportId),
+            "action_group_count=1",
+            "source_json="
+        ) -Message ("{0} should keep ready project-template workflow dashboard action source and source JSON together for {1}." -f $assertion.Label, $sourceReportId)
     }
 }
 

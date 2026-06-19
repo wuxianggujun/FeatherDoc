@@ -1,3 +1,130 @@
+    function Get-FinalReviewWorkflowDashboardValue {
+        param(
+            $Step,
+            $Report,
+            [string]$Name
+        )
+
+        $value = Get-OptionalPropertyValue -Object $Step -Name $Name
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            $value = Get-OptionalPropertyValue -Object $Report -Name $Name
+        }
+
+        return $value
+    }
+
+    function Get-FinalReviewWorkflowDashboardObject {
+        param(
+            $Step,
+            $Report,
+            [string]$Name
+        )
+
+        $value = Get-OptionalPropertyValue -Object $Step -Name $Name
+        if ($null -eq $value) {
+            $value = Get-OptionalPropertyValue -Object $Report -Name $Name
+        }
+
+        return $value
+    }
+
+    function Get-FinalReviewWorkflowDashboardObjectArray {
+        param(
+            $Step,
+            $Report,
+            [string]$Name
+        )
+
+        $value = Get-FinalReviewWorkflowDashboardObject -Step $Step -Report $Report -Name $Name
+        if ($null -eq $value) {
+            return @()
+        }
+
+        if ($value -is [string]) {
+            if ([string]::IsNullOrWhiteSpace($value)) {
+                return @()
+            }
+
+            return @($value)
+        }
+
+        if ($value -is [System.Collections.IEnumerable] -and -not ($value -is [System.Collections.IDictionary])) {
+            return @($value | Where-Object { $null -ne $_ })
+        }
+
+        return @($value)
+    }
+
+    function Get-FinalReviewWorkflowDashboardActionSummaryText {
+        param($ActionGroup)
+
+        if ($null -eq $ActionGroup) {
+            return ""
+        }
+
+        if ($ActionGroup -is [string]) {
+            return [string]$ActionGroup
+        }
+
+        $sourceReportId = Get-OptionalPropertyValue -Object $ActionGroup -Name "source_report_id"
+        $action = Get-OptionalPropertyValue -Object $ActionGroup -Name "action"
+        $blockerId = Get-OptionalPropertyValue -Object $ActionGroup -Name "blocker_id"
+        $entryNameValues = Get-OptionalPropertyValue -Object $ActionGroup -Name "entry_names"
+        [string[]]$entryNames = @()
+        if ($entryNameValues -is [string]) {
+            if (-not [string]::IsNullOrWhiteSpace($entryNameValues)) {
+                $entryNames = @($entryNameValues)
+            }
+        } elseif ($entryNameValues -is [System.Collections.IEnumerable]) {
+            $entryNames = @($entryNameValues | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+        } elseif ($null -ne $entryNameValues) {
+            $entryNames = @([string]$entryNameValues)
+        }
+
+        [string[]]$parts = @()
+        if (-not [string]::IsNullOrWhiteSpace($sourceReportId)) {
+            $parts += "source=$sourceReportId"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($action)) {
+            $parts += "action=$action"
+        }
+        $blockerText = if (-not [string]::IsNullOrWhiteSpace($blockerId)) { [string]$blockerId } else { "(none)" }
+        $entryNamesText = if (@($entryNames).Count -gt 0) { @($entryNames) -join "," } else { "(none)" }
+        $parts += "blocker=$blockerText"
+        $parts += "entries=$entryNamesText"
+
+        return ($parts -join " ")
+    }
+
+    function Get-FinalReviewWorkflowDashboardActionSourceSummaryText {
+        param($SourceGroup)
+
+        if ($null -eq $SourceGroup) {
+            return ""
+        }
+
+        if ($SourceGroup -is [string]) {
+            return [string]$SourceGroup
+        }
+
+        $sourceReportId = Get-OptionalPropertyValue -Object $SourceGroup -Name "source_report_id"
+        $actionGroupCount = Get-OptionalPropertyValue -Object $SourceGroup -Name "action_group_count"
+        $sourceJsonDisplay = Get-OptionalPropertyValue -Object $SourceGroup -Name "source_json_display"
+
+        [string[]]$parts = @()
+        if (-not [string]::IsNullOrWhiteSpace($sourceReportId)) {
+            $parts += "source=$sourceReportId"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($actionGroupCount)) {
+            $parts += "action_group_count=$actionGroupCount"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) {
+            $parts += "source_json=$sourceJsonDisplay"
+        }
+
+        return ($parts -join " ")
+    }
+
     ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
 
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
@@ -18,6 +145,31 @@
     $projectTemplateSmokeCandidateDiscoveryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_smoke.candidate_discovery_json
     $projectTemplateWorkflowDashboardSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_workflow_dashboard_report.summary_json
     $projectTemplateWorkflowDashboardReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.project_template_workflow_dashboard_report.report_markdown
+    $projectTemplateWorkflowDashboardStep = Get-OptionalPropertyValue -Object $summary.steps -Name "project_template_workflow_dashboard"
+    $projectTemplateWorkflowDashboardReport = Get-OptionalPropertyValue -Object $summary -Name "project_template_workflow_dashboard_report"
+    $projectTemplateWorkflowDashboardNextActionSummary = @(Get-FinalReviewWorkflowDashboardObjectArray `
+            -Step $projectTemplateWorkflowDashboardStep `
+            -Report $projectTemplateWorkflowDashboardReport `
+            -Name "next_action_summary")
+    $projectTemplateWorkflowDashboardNextActionGroupCount = Get-FinalReviewWorkflowDashboardValue `
+        -Step $projectTemplateWorkflowDashboardStep `
+        -Report $projectTemplateWorkflowDashboardReport `
+        -Name "next_action_group_count"
+    if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionGroupCount)) {
+        $projectTemplateWorkflowDashboardNextActionGroupCount = @($projectTemplateWorkflowDashboardNextActionSummary).Count
+    }
+    $projectTemplateWorkflowDashboardActionSummaryMarkdown = @($projectTemplateWorkflowDashboardNextActionSummary |
+        ForEach-Object { Get-FinalReviewWorkflowDashboardActionSummaryText -ActionGroup $_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { "- Project template workflow dashboard action group: $_" }) -join [Environment]::NewLine
+    $projectTemplateWorkflowDashboardNextActionSummaryBySource = @(Get-FinalReviewWorkflowDashboardObjectArray `
+            -Step $projectTemplateWorkflowDashboardStep `
+            -Report $projectTemplateWorkflowDashboardReport `
+            -Name "next_action_summary_by_source")
+    $projectTemplateWorkflowDashboardActionSourceSummaryMarkdown = @($projectTemplateWorkflowDashboardNextActionSummaryBySource |
+        ForEach-Object { Get-FinalReviewWorkflowDashboardActionSourceSummaryText -SourceGroup $_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { "- Project template workflow dashboard action source: $_" }) -join [Environment]::NewLine
     $releaseGovernanceHandoffSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.summary_json
     $releaseGovernanceHandoffReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.report_markdown
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
@@ -192,6 +344,9 @@
 - Release blocker rollup: $($summary.steps.release_blocker_rollup.status)
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 - Project template workflow dashboard: $($summary.steps.project_template_workflow_dashboard.status)
+- Project template workflow dashboard next action groups: $projectTemplateWorkflowDashboardNextActionGroupCount
+$projectTemplateWorkflowDashboardActionSummaryMarkdown
+$projectTemplateWorkflowDashboardActionSourceSummaryMarkdown
 $visualGateReviewTaskSummaryLine
 $readmeGalleryStatusLine
 $visualGateReviewSummary
