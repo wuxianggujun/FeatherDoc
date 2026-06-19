@@ -792,6 +792,14 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
         return
     }
 
+    $isDraftValue = Get-JsonPropertyValue -Object $upload -Name "is_draft"
+    $isDraft = $false
+    if ($isDraftValue -is [bool]) {
+        $isDraft = $isDraftValue
+    } elseif ($null -ne $isDraftValue) {
+        $isDraft = ([string]$isDraftValue).Trim().ToLowerInvariant() -eq "true"
+    }
+
     $label = "release upload remote assets contract"
     $releaseVersion = [string](Get-JsonPropertyValue -Object $Json -Name "release_version")
     if ([string]::IsNullOrWhiteSpace($releaseVersion)) {
@@ -830,6 +838,7 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             $normalizedReleasePath = $decodedReleasePath.TrimEnd('/')
             $requestedReleaseTagPathSuffix = "/releases/tag/$requestedTag"
             if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
+                -not $isDraft -and
                 -not $normalizedReleasePath.EndsWith($requestedReleaseTagPathSuffix, [System.StringComparison]::Ordinal)) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.release_url must identify the requested release tag."
             } elseif (-not [string]::IsNullOrWhiteSpace($requestedTag)) {
@@ -918,7 +927,9 @@ function Add-ReleaseUploadRemoteAssetsContractViolations {
             if (-not [string]::IsNullOrWhiteSpace($requestedTag)) {
                 $assetTagPathIndex = $decodedAssetPath.IndexOf($requestedTagPathSegment, [System.StringComparison]::Ordinal)
             }
-            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and $assetTagPathIndex -lt 0) {
+            if (-not [string]::IsNullOrWhiteSpace($requestedTag) -and
+                -not $isDraft -and
+                $assetTagPathIndex -lt 0) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "upload.remote_assets.$assetName.url must identify the requested release tag."
             }
             if ($releasePathPrefixKnown -and $assetTagPathIndex -ge 0) {

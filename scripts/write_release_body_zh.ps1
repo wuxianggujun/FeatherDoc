@@ -278,6 +278,7 @@ Add-ChangelogSummaryLines -Lines $lines -Sections $changelogSections -SourceLabe
 [void]$lines.Add("- Word visual release gate：$($summary.steps.visual_gate.status)")
 [void]$lines.Add("- Visual verdict：$(if ($visualVerdict) { $visualVerdict } else { 'pending_manual_review' })")
 if (-not [string]::IsNullOrWhiteSpace($pdfVisualGateEvidence.status)) {
+    [void]$lines.Add("- PDF visual gate verdict：verdict=$(Get-DisplayValue -Value $pdfVisualGateEvidence.verdict) summary=$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.summary_json)) aggregate_contact_sheet=$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.aggregate_contact_sheet)) cjk_manifest_count=$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_manifest_count) cjk_copy_search_count=$(Get-DisplayValue -Value $pdfVisualGateEvidence.cjk_copy_search_count) visual_baseline_manifest_count=$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_manifest_count) visual_baseline_count=$(Get-DisplayValue -Value $pdfVisualGateEvidence.visual_baseline_count)")
     [void]$lines.Add("- PDF visual gate summary：$(Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $repoRoot -Value $pdfVisualGateEvidence.summary_json))")
     [void]$lines.Add("- PDF visual gate evidence status：$(Get-DisplayValue -Value $pdfVisualGateEvidence.status)")
     if ($pdfVisualGateEvidence.status -eq "loaded") {

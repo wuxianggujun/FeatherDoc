@@ -25,6 +25,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$PSDefaultParameterValues["Get-Content:Encoding"] = "utf8"
+$PSDefaultParameterValues["Select-String:Encoding"] = "utf8"
 
 . (Join-Path $PSScriptRoot "assert_release_material_safety_core.ps1")
 . (Join-Path $PSScriptRoot "assert_release_material_safety_release_entry_traces.ps1")
@@ -128,7 +130,7 @@ foreach ($file in $scanFiles) {
                     -Violations $violations `
                     -File $file `
                     -Label "governance metrics contract" `
-                    -Text "Release governance JSON could not be parsed."
+                    -Text "Release governance JSON could not be parsed: $($_.Exception.Message)"
             }
         }
     }

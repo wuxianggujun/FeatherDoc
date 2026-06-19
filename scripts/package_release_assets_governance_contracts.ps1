@@ -71,6 +71,37 @@ function Resolve-PdfVisualGateRoot {
     return Split-Path -Parent (Split-Path -Parent $SummaryJson)
 }
 
+function Resolve-ReleaseEvidencePath {
+    param(
+        [string]$RepoRoot,
+        [string]$EvidenceRoot,
+        [string]$InputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($InputPath)) {
+        return ""
+    }
+
+    $repoCandidate = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $InputPath
+    if (Test-Path -LiteralPath $repoCandidate) {
+        return $repoCandidate
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
+        $evidenceCandidate = if ([System.IO.Path]::IsPathRooted($InputPath)) {
+            $InputPath
+        } else {
+            Join-Path $EvidenceRoot $InputPath
+        }
+        $evidenceCandidate = [System.IO.Path]::GetFullPath($evidenceCandidate)
+        if (Test-Path -LiteralPath $evidenceCandidate) {
+            return $evidenceCandidate
+        }
+    }
+
+    return $repoCandidate
+}
+
 function Get-GalleryFileNames {
     return @(
         "visual-smoke-contact-sheet.png",
@@ -203,7 +234,26 @@ function Get-GovernanceMetrics {
         return @()
     }
 
-    return @($metrics)
+    $enrichedMetrics = [System.Collections.Generic.List[object]]::new()
+    foreach ($metric in @($metrics)) {
+        $details = Get-OptionalPropertyObject -Object $metric -Name "details"
+        if ($null -eq $details) {
+            [void]$enrichedMetrics.Add($metric)
+            continue
+        }
+
+        $metricCopy = [ordered]@{}
+        foreach ($property in $metric.PSObject.Properties) {
+            $metricCopy[$property.Name] = $property.Value
+        }
+        $metricCopy["details"] = Copy-GovernanceMetricDetailsWithScore `
+            -Details $details `
+            -Score (Get-OptionalPropertyObject -Object $metric -Name "score") `
+            -Level (Get-OptionalPropertyValue -Object $metric -Name "level")
+        [void]$enrichedMetrics.Add([pscustomobject]$metricCopy)
+    }
+
+    return @($enrichedMetrics.ToArray())
 }
 
 function Get-GovernanceMetricByContract {
@@ -223,6 +273,38 @@ function Get-GovernanceMetricByContract {
     }) | Select-Object -First 1
 }
 
+function Copy-GovernanceMetricDetailsWithScore {
+    param(
+        $Details,
+        $Score,
+        [string]$Level
+    )
+
+    if ($null -eq $Details) {
+        return $null
+    }
+
+    $result = [ordered]@{}
+    if ($Details -is [System.Collections.IDictionary]) {
+        foreach ($key in $Details.Keys) {
+            $result[$key] = $Details[$key]
+        }
+    } else {
+        foreach ($property in $Details.PSObject.Properties) {
+            $result[$property.Name] = $property.Value
+        }
+    }
+
+    if (-not $result.Contains("score")) {
+        $result["score"] = $Score
+    }
+    if (-not $result.Contains("level")) {
+        $result["level"] = $Level
+    }
+
+    return $result
+}
+
 function Get-TableLayoutDeliveryQuality {
     param($GovernanceMetrics)
 
@@ -237,6 +319,8 @@ function Get-TableLayoutDeliveryQuality {
         return [ordered]@{}
     }
 
+    $score = Get-OptionalPropertyObject -Object $deliveryMetric -Name "score"
+    $level = Get-OptionalPropertyValue -Object $deliveryMetric -Name "level"
     return [ordered]@{
         id = Get-OptionalPropertyValue -Object $deliveryMetric -Name "id"
         metric = Get-OptionalPropertyValue -Object $deliveryMetric -Name "metric"
@@ -246,9 +330,12 @@ function Get-TableLayoutDeliveryQuality {
         source_report_display = Get-OptionalPropertyValue -Object $deliveryMetric -Name "source_report_display"
         source_json = Get-OptionalPropertyValue -Object $deliveryMetric -Name "source_json"
         source_json_display = Get-OptionalPropertyValue -Object $deliveryMetric -Name "source_json_display"
-        score = Get-OptionalPropertyObject -Object $deliveryMetric -Name "score"
-        level = Get-OptionalPropertyValue -Object $deliveryMetric -Name "level"
-        details = Get-OptionalPropertyObject -Object $deliveryMetric -Name "details"
+        score = $score
+        level = $level
+        details = Copy-GovernanceMetricDetailsWithScore `
+            -Details (Get-OptionalPropertyObject -Object $deliveryMetric -Name "details") `
+            -Score $score `
+            -Level $level
     }
 }
 
@@ -266,6 +353,8 @@ function Get-NumberingCatalogRealCorpusConfidence {
         return [ordered]@{}
     }
 
+    $score = Get-OptionalPropertyObject -Object $confidenceMetric -Name "score"
+    $level = Get-OptionalPropertyValue -Object $confidenceMetric -Name "level"
     return [ordered]@{
         id = Get-OptionalPropertyValue -Object $confidenceMetric -Name "id"
         metric = Get-OptionalPropertyValue -Object $confidenceMetric -Name "metric"
@@ -275,24 +364,36 @@ function Get-NumberingCatalogRealCorpusConfidence {
         source_report_display = Get-OptionalPropertyValue -Object $confidenceMetric -Name "source_report_display"
         source_json = Get-OptionalPropertyValue -Object $confidenceMetric -Name "source_json"
         source_json_display = Get-OptionalPropertyValue -Object $confidenceMetric -Name "source_json_display"
-        score = Get-OptionalPropertyObject -Object $confidenceMetric -Name "score"
-        level = Get-OptionalPropertyValue -Object $confidenceMetric -Name "level"
-        details = Get-OptionalPropertyObject -Object $confidenceMetric -Name "details"
+        score = $score
+        level = $level
+        details = Copy-GovernanceMetricDetailsWithScore `
+            -Details (Get-OptionalPropertyObject -Object $confidenceMetric -Name "details") `
+            -Score $score `
+            -Level $level
     }
 }
 
 function Get-ContentControlRepairContracts {
     param(
         [string]$RepoRoot,
+        [string]$EvidenceRoot = "",
         $Summary
     )
 
     $contentControlSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "content_control_data_binding_governance"
     if ([string]::IsNullOrWhiteSpace($contentControlSummaryPath)) {
-        return @()
+        $handoff = Get-OptionalPropertyObject -Object $Summary -Name "release_governance_handoff"
+        $contract = Get-OptionalPropertyObject -Object $handoff -Name "content_control_data_binding_governance_contract"
+        $contentControlSummaryPath = Get-OptionalPropertyValue -Object $contract -Name "source_report"
+        if ([string]::IsNullOrWhiteSpace($contentControlSummaryPath)) {
+            return @()
+        }
     }
 
-    $resolvedContentControlSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $contentControlSummaryPath
+    $resolvedContentControlSummaryPath = Resolve-ReleaseEvidencePath `
+        -RepoRoot $RepoRoot `
+        -EvidenceRoot $EvidenceRoot `
+        -InputPath $contentControlSummaryPath
     Assert-PathExists -Path $resolvedContentControlSummaryPath -Label "content-control data-binding governance summary"
 
     $contentControlSummary = Get-Content -Raw -LiteralPath $resolvedContentControlSummaryPath | ConvertFrom-Json
@@ -332,19 +433,52 @@ function Get-ContentControlRepairContracts {
 function Get-ProjectTemplateDeliveryReadinessContract {
     param(
         [string]$RepoRoot,
+        [string]$EvidenceRoot = "",
         $Summary
     )
 
     $readinessSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "project_template_delivery_readiness"
     if ([string]::IsNullOrWhiteSpace($readinessSummaryPath)) {
-        return [ordered]@{}
+        $handoff = Get-OptionalPropertyObject -Object $Summary -Name "release_governance_handoff"
+        $contract = Get-OptionalPropertyObject -Object $handoff -Name "project_template_delivery_readiness_contract"
+        $readinessSummaryPath = Get-OptionalPropertyValue -Object $contract -Name "source_report"
+        if ([string]::IsNullOrWhiteSpace($readinessSummaryPath)) {
+            return [ordered]@{}
+        }
     }
 
-    $resolvedReadinessSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $readinessSummaryPath
+    $resolvedReadinessSummaryPath = Resolve-ReleaseEvidencePath `
+        -RepoRoot $RepoRoot `
+        -EvidenceRoot $EvidenceRoot `
+        -InputPath $readinessSummaryPath
     Assert-PathExists -Path $resolvedReadinessSummaryPath -Label "project template delivery readiness summary"
 
     $readinessSummary = Get-Content -Raw -LiteralPath $resolvedReadinessSummaryPath | ConvertFrom-Json
     $readinessSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedReadinessSummaryPath -RepoRoot $RepoRoot
+    $requiresReviewerAction = Get-OptionalPropertyObject -Object $readinessSummary -Name "requires_reviewer_action"
+    if ($null -eq $requiresReviewerAction) {
+        $requiresReviewerAction = $false
+    }
+    $reviewerActionSummary = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_summary"
+    if ([string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+        $reviewerActionSummary = "none"
+    }
+    $reviewerActionReason = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_reason"
+    if ([string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+        $reviewerActionReason = "release_ready"
+    }
+    $schemaHistoryBlockedRunCount = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
+    if ($null -eq $schemaHistoryBlockedRunCount) {
+        $schemaHistoryBlockedRunCount = 0
+    }
+    $schemaHistoryPendingRunCount = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
+    if ($null -eq $schemaHistoryPendingRunCount) {
+        $schemaHistoryPendingRunCount = 0
+    }
+    $schemaHistoryPassedRunCount = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"
+    if ($null -eq $schemaHistoryPassedRunCount) {
+        $schemaHistoryPassedRunCount = 0
+    }
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $readinessSummary -Name "schema"
@@ -355,13 +489,13 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         onboarding_governance_next_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action"
         onboarding_governance_next_action_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_summary"
         onboarding_governance_next_action_group_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_group_count"
-        requires_reviewer_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "requires_reviewer_action"
-        reviewer_action_summary = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_summary"
-        reviewer_action_reason = Get-OptionalPropertyValue -Object $readinessSummary -Name "reviewer_action_reason"
+        requires_reviewer_action = $requiresReviewerAction
+        reviewer_action_summary = $reviewerActionSummary
+        reviewer_action_reason = $reviewerActionReason
         reviewer_actions = @(Get-OptionalArrayProperty -Object $readinessSummary -Name "reviewer_actions")
-        schema_history_blocked_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_blocked_run_count"
-        schema_history_pending_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_pending_run_count"
-        schema_history_passed_run_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_history_passed_run_count"
+        schema_history_blocked_run_count = $schemaHistoryBlockedRunCount
+        schema_history_pending_run_count = $schemaHistoryPendingRunCount
+        schema_history_passed_run_count = $schemaHistoryPassedRunCount
         template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "template_count"
         ready_template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "ready_template_count"
         blocked_template_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "blocked_template_count"
@@ -376,34 +510,64 @@ function Get-ProjectTemplateDeliveryReadinessContract {
 function Get-ProjectTemplateOnboardingGovernanceContract {
     param(
         [string]$RepoRoot,
+        [string]$EvidenceRoot = "",
         $Summary
     )
 
     $onboardingSummaryPath = Get-OptionalPropertyValue -Object $Summary -Name "project_template_onboarding_governance"
     if ([string]::IsNullOrWhiteSpace($onboardingSummaryPath)) {
-        return [ordered]@{}
+        $handoff = Get-OptionalPropertyObject -Object $Summary -Name "release_governance_handoff"
+        $contract = Get-OptionalPropertyObject -Object $handoff -Name "project_template_onboarding_governance_contract"
+        $onboardingSummaryPath = Get-OptionalPropertyValue -Object $contract -Name "source_report"
+        if ([string]::IsNullOrWhiteSpace($onboardingSummaryPath)) {
+            return [ordered]@{}
+        }
     }
 
-    $resolvedOnboardingSummaryPath = Resolve-FullPath -RepoRoot $RepoRoot -InputPath $onboardingSummaryPath
+    $resolvedOnboardingSummaryPath = Resolve-ReleaseEvidencePath `
+        -RepoRoot $RepoRoot `
+        -EvidenceRoot $EvidenceRoot `
+        -InputPath $onboardingSummaryPath
     Assert-PathExists -Path $resolvedOnboardingSummaryPath -Label "project template onboarding governance summary"
 
     $onboardingSummary = Get-Content -Raw -LiteralPath $resolvedOnboardingSummaryPath | ConvertFrom-Json
     $onboardingSummaryDisplay = Convert-EvidencePathToPublicDisplay -Value $resolvedOnboardingSummaryPath -RepoRoot $RepoRoot
+    $requiresReviewerAction = Get-OptionalPropertyObject -Object $onboardingSummary -Name "requires_reviewer_action"
+    if ($null -eq $requiresReviewerAction) {
+        $requiresReviewerAction = $false
+    }
+    $reviewerActionSummary = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_summary"
+    if ([string]::IsNullOrWhiteSpace($reviewerActionSummary)) {
+        $reviewerActionSummary = "none"
+    }
+    $reviewerActionReason = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_reason"
+    if ([string]::IsNullOrWhiteSpace($reviewerActionReason)) {
+        $reviewerActionReason = "release_ready"
+    }
+    $entryCount = Get-OptionalPropertyObject -Object $onboardingSummary -Name "entry_count"
+    $sourceFileCount = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_file_count"
+    if ($null -eq $sourceFileCount) {
+        $sourceFileCount = $entryCount
+    }
+    $manualReviewRecommendationCount = Get-OptionalPropertyObject -Object $onboardingSummary -Name "manual_review_recommendation_count"
+    if ($null -eq $manualReviewRecommendationCount) {
+        $manualReviewRecommendationCount = 0
+    }
     return [ordered]@{
         schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
         source_schema = Get-OptionalPropertyValue -Object $onboardingSummary -Name "schema"
         status = Get-OptionalPropertyValue -Object $onboardingSummary -Name "status"
         release_ready = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_ready"
-        source_file_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_file_count"
+        source_file_count = $sourceFileCount
         source_failure_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_failure_count"
-        entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "entry_count"
+        entry_count = $entryCount
         schema_approval_status_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "schema_approval_status_summary"
         next_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action"
         next_action_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_summary"
         next_action_group_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_group_count"
-        requires_reviewer_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "requires_reviewer_action"
-        reviewer_action_summary = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_summary"
-        reviewer_action_reason = Get-OptionalPropertyValue -Object $onboardingSummary -Name "reviewer_action_reason"
+        requires_reviewer_action = $requiresReviewerAction
+        reviewer_action_summary = $reviewerActionSummary
+        reviewer_action_reason = $reviewerActionReason
         reviewer_actions = @(Get-OptionalArrayProperty -Object $onboardingSummary -Name "reviewer_actions")
         blocked_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "blocked_entry_count"
         pending_review_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "pending_review_entry_count"
@@ -412,7 +576,7 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
         not_required_entry_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "not_required_entry_count"
         release_blocker_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "release_blocker_count"
         action_item_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "action_item_count"
-        manual_review_recommendation_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "manual_review_recommendation_count"
+        manual_review_recommendation_count = $manualReviewRecommendationCount
         source_report_display = $onboardingSummaryDisplay
         source_json_display = $onboardingSummaryDisplay
     }

@@ -344,15 +344,34 @@ function Add-PdfVisualGateEvidenceShortSummaryBullets {
         return
     }
 
+    $verdict = Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "verdict")
+    $summaryPath = Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "summary_json"))
+    $aggregateContactSheet = Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "aggregate_contact_sheet"))
+    $cjkManifestCount = Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_manifest_count")
+    $cjkCopySearchCount = Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_copy_search_count")
+    $visualBaselineManifestCount = Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_manifest_count")
+    $visualBaselineCount = Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_count")
+
+    Add-UniqueLine -Lines $Lines -Line (
+        'PDF visual gate summary：verdict={0} summary={1} aggregate_contact_sheet={2} cjk_manifest_count={3} cjk_copy_search_count={4} visual_baseline_manifest_count={5} visual_baseline_count={6}。' -f `
+            $verdict,
+            $summaryPath,
+            $aggregateContactSheet,
+            $cjkManifestCount,
+            $cjkCopySearchCount,
+            $visualBaselineManifestCount,
+            $visualBaselineCount
+    )
+
     Add-UniqueLine -Lines $Lines -Line (
         'PDF visual gate 已进入短摘要：verdict={0} summary={1} aggregate_contact_sheet={2} cjk_manifest_count={3} cjk_copy_search_count={4} visual_baseline_manifest_count={5} visual_baseline_count={6}。' -f `
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "verdict")),
-            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "summary_json"))),
-            (Get-DisplayValue -Value (Get-PublicArtifactPath -RepoRoot $RepoRoot -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "aggregate_contact_sheet"))),
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_manifest_count")),
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "cjk_copy_search_count")),
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_manifest_count")),
-            (Get-DisplayValue -Value (Get-OptionalPropertyValue -Object $PdfVisualGateEvidence -Name "visual_baseline_count"))
+            $verdict,
+            $summaryPath,
+            $aggregateContactSheet,
+            $cjkManifestCount,
+            $cjkCopySearchCount,
+            $visualBaselineManifestCount,
+            $visualBaselineCount
     )
 }
 

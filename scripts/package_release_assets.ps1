@@ -60,6 +60,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$PSDefaultParameterValues["Get-Content:Encoding"] = "utf8"
+$PSDefaultParameterValues["Set-Content:Encoding"] = "utf8"
 
 . (Join-Path $PSScriptRoot "release_visual_metadata_helpers.ps1")
 
@@ -71,6 +73,8 @@ $repoRoot = Resolve-RepoRoot
 $releaseMaterialAuditScript = Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
 $resolvedSummaryPath = Resolve-FullPath -RepoRoot $repoRoot -InputPath $SummaryJson
 $resolvedOutputRoot = Resolve-FullPath -RepoRoot $repoRoot -InputPath $OutputRoot
+$releaseCandidateRoot = Split-Path -Parent (Split-Path -Parent $resolvedSummaryPath)
+$releaseEvidenceRoot = Split-Path -Parent $releaseCandidateRoot
 
 Assert-PathExists -Path $resolvedSummaryPath -Label "release summary JSON"
 
@@ -122,9 +126,9 @@ $releaseGovernanceHandoff = Get-OptionalPropertyObject -Object $summary -Name "r
 $releaseGovernanceHandoffStatus = Get-OptionalPropertyValue -Object $releaseGovernanceHandoff -Name "status"
 $numberingCatalogRealCorpusConfidence = Get-NumberingCatalogRealCorpusConfidence -GovernanceMetrics $governanceMetrics
 $tableLayoutDeliveryQuality = Get-TableLayoutDeliveryQuality -GovernanceMetrics $governanceMetrics
-$contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -Summary $summary)
-$projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadinessContract -RepoRoot $repoRoot -Summary $summary
-$projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -Summary $summary
+$contentControlRepairContracts = @(Get-ContentControlRepairContracts -RepoRoot $repoRoot -EvidenceRoot $releaseEvidenceRoot -Summary $summary)
+$projectTemplateDeliveryReadinessContract = Get-ProjectTemplateDeliveryReadinessContract -RepoRoot $repoRoot -EvidenceRoot $releaseEvidenceRoot -Summary $summary
+$projectTemplateOnboardingGovernanceContract = Get-ProjectTemplateOnboardingGovernanceContract -RepoRoot $repoRoot -EvidenceRoot $releaseEvidenceRoot -Summary $summary
 $manifestSignoffEntrypoints = Get-OptionalPropertyObject -Object $summary -Name "manifest_signoff_entrypoints"
 $manifestSignoffEntrypointsPublic = Convert-StructuredValueToPublic `
     -Value $manifestSignoffEntrypoints `
@@ -405,7 +409,7 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
         }
     }
 
-    $releaseViewJson = & gh release view $UploadReleaseTag --json tagName,url,assets
+    $releaseViewJson = & gh release view $UploadReleaseTag --json tagName,url,isDraft,assets
     if ($LASTEXITCODE -ne 0) {
         throw "gh release view failed after upload."
     }
@@ -476,6 +480,7 @@ $manifest = [ordered]@{
         requested_tag = $UploadReleaseTag
         uploaded = ($null -ne $releaseView)
         release_url = if ($null -ne $releaseView) { Get-OptionalPropertyValue -Object $releaseView -Name "url" } else { "" }
+        is_draft = if ($null -ne $releaseView) { [bool](Get-OptionalPropertyObject -Object $releaseView -Name "isDraft") } else { $false }
     }
 }
 
@@ -500,6 +505,11 @@ $publicManifest = Convert-StructuredValueToPublic `
     -Value $manifest `
     -RepoRoot $repoRoot `
     -PreferEvidenceAnchor
+
+if ($contentControlRepairContracts.Count -eq 0 -and
+    $publicManifest -is [System.Collections.IDictionary]) {
+    $publicManifest["content_control_repair_contracts"] = [object[]]@()
+}
 
 foreach ($contractName in @(
         "project_template_delivery_readiness_contract",

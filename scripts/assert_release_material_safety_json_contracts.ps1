@@ -19,11 +19,15 @@ function Add-ContentControlRepairContractViolations {
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
 
     if ($leafName -eq "release_assets_manifest.json") {
+        $contractsProperty = $Json.PSObject.Properties["content_control_repair_contracts"]
         $contractsValue = Get-JsonPropertyValue -Object $Json -Name "content_control_repair_contracts"
-        if ($null -eq $contractsValue) {
+        if ($null -eq $contractsValue -and $null -eq $contractsProperty) {
             Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing content_control_repair_contracts."
         } else {
-            $contracts = @($contractsValue)
+            [object[]]$contracts = @()
+            if ($null -ne $contractsValue) {
+                $contracts = @($contractsValue)
+            }
             $countValue = Get-JsonPropertyValue -Object $Json -Name "content_control_repair_contract_count"
             if ($null -eq $countValue) {
                 Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "Missing content_control_repair_contract_count."
