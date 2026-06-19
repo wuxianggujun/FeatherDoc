@@ -34,9 +34,11 @@ P0：当前发布与 CI 守护
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
    * 截至本次任务清单刷新，最新 ``dev`` head
-     ``9ec939b855e2ed3d9d9404dc201d5f4bea1859c3`` 的 Docs Pages、Linux CMake CI 和
-     macOS CMake CI 已通过；Windows MSVC CI 仍在运行中。当前 live 状态请以
-     ``gh run list --branch dev`` 为准。
+     ``cf417144f5778adc12d3531940d21d793c310297`` 的 Linux CMake CI、
+     macOS CMake CI 与 Windows MSVC CI 仍在运行中；上一轮
+     ``4a9b80c6ba8ac34787c3c7017dafe630e1abf72f`` 的 Docs Pages、
+     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
+     状态请以 ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -75,6 +77,10 @@ P1：模板契约与项目模板工作流
      registered / 5 个 planned corpus 入口；planned 入口现在还必须暴露
      ``registration_blocker`` 与 ``next_action``，并由 manifest description 汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
+   * ``build_project_template_delivery_readiness_report.ps1`` 的 manifest-only warning
+     现在会把 ``planned_business_template_registration_actions`` 同步写入 JSON 与
+     Markdown，包含每个 planned corpus 的 ``id``、``registration_blocker`` 和
+     ``next_action``，方便 reviewer 直接按阻断原因继续注册真实业务模板。
 
 2. 强化 project-template workflow dashboard：
 
