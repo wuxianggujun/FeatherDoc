@@ -43,6 +43,10 @@ P0：当前发布与 CI 守护
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
      dashboard action group 也固定输出 ``blocker=`` / ``entries=`` marker。
+   * 最新 ``dev`` head ``ec098480b4b9259afdc0b5964c74ccff5b11751d`` 暴露出
+     Linux、macOS 与 Windows 均长时间停在 Build step；Linux/macOS Build step
+     需要和 Windows 一样保留 step timeout 与 verbose 日志，避免后续 CI 卡住时
+     缺少可定位输出。
    * 下一步继续守护最新 ``dev`` CI；若后续 CI 失败，仍先回到本项抓日志定位。
 
 2. 保持分支策略：
