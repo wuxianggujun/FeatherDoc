@@ -753,6 +753,18 @@ if (Test-Scenario -Name "manifest_description") {
         business_template_corpus_count = 6
         registered_business_template_corpus_count = 1
         planned_business_template_corpus_count = 5
+        planned_business_template_registration_action_count = 1
+        planned_business_template_registration_actions = @(
+            [ordered]@{
+                id = "project-legal-contract-template"
+                project_id = "project-legal"
+                template_name = "contract-template"
+                document_type = "contract"
+                registration_blocker = "No committed contract template fixture is registered yet."
+                next_action = "Add a contract template manifest entry with schema baseline and render-data coverage."
+                smoke_contract = @("schema_validation", "schema_baseline", "render_data")
+            }
+        )
         schema_validation_entry_count = 2
         schema_baseline_entry_count = 2
         visual_smoke_entry_count = 2
@@ -804,6 +816,14 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only warning should preserve registered business corpus count."
     Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_corpus_count) -Expected 5 `
         -Message "Manifest-only warning should preserve planned business corpus count."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_registration_action_count) -Expected 1 `
+        -Message "Manifest-only warning should preserve planned business corpus registration action count."
+    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].id) -Expected "project-legal-contract-template" `
+        -Message "Manifest-only warning should preserve planned business corpus registration action ids."
+    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].registration_blocker) -Expected "No committed contract template fixture is registered yet." `
+        -Message "Manifest-only warning should preserve planned business corpus registration blockers."
+    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+        -Message "Manifest-only warning should preserve planned business corpus next actions."
     Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 3 `
         -Message "Manifest-only warning should preserve missing latest summary count."
     Assert-ContainsText -Text ([string]$missingSmokeWarning.command_template) -ExpectedText "run_project_template_smoke.ps1" `
@@ -815,6 +835,10 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only Markdown should surface the specific smoke summary warning."
     Assert-ContainsText -Text $markdown -ExpectedText "run_project_template_smoke.ps1" `
         -Message "Manifest-only Markdown should surface the smoke command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "planned_business_template_registration_actions" `
+        -Message "Manifest-only Markdown should surface planned business corpus registration actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "Add a contract template manifest entry with schema baseline and render-data coverage." `
+        -Message "Manifest-only Markdown should surface planned business corpus next actions."
 }
 
 if (Test-Scenario -Name "smoke_summary") {

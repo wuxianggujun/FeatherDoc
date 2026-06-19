@@ -204,6 +204,7 @@ function New-ProjectTemplateSmokeSummaryMissingWarning {
 
     $registeredTemplateCount = Get-JsonInt -Object $latestDescription -Name "registered_entry_count" -DefaultValue (Get-JsonInt -Object $latestDescription -Name "entry_count")
     $latestMissingEntryCount = Get-JsonInt -Object $latestDescription -Name "latest_missing_entry_count" -DefaultValue $registeredTemplateCount
+    $plannedRegistrationActions = @(Get-JsonArray -Object $latestDescription -Name "planned_business_template_registration_actions")
 
     return [ordered]@{
         id = "project_template_smoke_summary_missing"
@@ -222,6 +223,8 @@ function New-ProjectTemplateSmokeSummaryMissingWarning {
         business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "business_template_corpus_count"
         registered_business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "registered_business_template_corpus_count"
         planned_business_template_corpus_count = Get-JsonInt -Object $latestDescription -Name "planned_business_template_corpus_count"
+        planned_business_template_registration_action_count = Get-JsonInt -Object $latestDescription -Name "planned_business_template_registration_action_count" -DefaultValue $plannedRegistrationActions.Count
+        planned_business_template_registration_actions = @($plannedRegistrationActions)
         schema_validation_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_validation_entry_count"
         schema_baseline_entry_count = Get-JsonInt -Object $latestDescription -Name "schema_baseline_entry_count"
         visual_smoke_entry_count = Get-JsonInt -Object $latestDescription -Name "visual_smoke_entry_count"
@@ -914,6 +917,24 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace($commandTemplate)) {
                 $lines.Add("  - command_template: ``$commandTemplate``") | Out-Null
+            }
+            $plannedRegistrationActions = @(Get-JsonArray -Object $warning -Name "planned_business_template_registration_actions")
+            if ($plannedRegistrationActions.Count -gt 0) {
+                $plannedRegistrationActionCount = Get-JsonInt -Object $warning -Name "planned_business_template_registration_action_count" -DefaultValue $plannedRegistrationActions.Count
+                $lines.Add("  - planned_business_template_registration_action_count: ``$plannedRegistrationActionCount``") | Out-Null
+                $lines.Add("  - planned_business_template_registration_actions:") | Out-Null
+                foreach ($registrationAction in $plannedRegistrationActions) {
+                    $registrationActionId = Get-JsonString -Object $registrationAction -Name "id"
+                    $registrationBlocker = Get-JsonString -Object $registrationAction -Name "registration_blocker"
+                    $nextAction = Get-JsonString -Object $registrationAction -Name "next_action"
+                    $lines.Add("    - id: ``$registrationActionId``") | Out-Null
+                    if (-not [string]::IsNullOrWhiteSpace($registrationBlocker)) {
+                        $lines.Add("      registration_blocker: $registrationBlocker") | Out-Null
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($nextAction)) {
+                        $lines.Add("      next_action: $nextAction") | Out-Null
+                    }
+                }
             }
         }
     }
