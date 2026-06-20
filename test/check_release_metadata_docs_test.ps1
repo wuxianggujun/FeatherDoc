@@ -126,6 +126,8 @@ $defaultPipelineText = @(
     '- ``message``',
     '- ``source_schema``',
     '- ``source_report_display``',
+    '- business_document_type_summary',
+    '- corpus_role_summary',
     '- blocker_source_schema_summary',
     '- action_item_source_schema_summary',
     '- informational_action_item_source_schema_summary',

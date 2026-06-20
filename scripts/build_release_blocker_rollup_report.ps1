@@ -71,6 +71,8 @@ foreach ($path in @($inputPaths)) {
     $sourceReportReleaseReady = ""
     $latestSchemaApprovalGateStatus = ""
     $schemaApprovalStatusSummary = @()
+    $businessDocumentTypeSummary = @()
+    $corpusRoleSummary = @()
     $summaryObject = $null
     try {
         $summaryObject = Get-Content -Raw -Encoding UTF8 -LiteralPath $path | ConvertFrom-Json
@@ -82,6 +84,8 @@ foreach ($path in @($inputPaths)) {
         }
         $latestSchemaApprovalGateStatus = Get-JsonString -Object $summaryObject -Name "latest_schema_approval_gate_status"
         $schemaApprovalStatusSummary = @(Get-JsonArray -Object $summaryObject -Name "schema_approval_status_summary")
+        $businessDocumentTypeSummary = @(Get-JsonArray -Object $summaryObject -Name "business_document_type_summary")
+        $corpusRoleSummary = @(Get-JsonArray -Object $summaryObject -Name "corpus_role_summary")
         $sourceMetrics = @(New-GovernanceMetrics `
             -Summary $summaryObject `
             -SourceSchema $kind `
@@ -418,6 +422,8 @@ foreach ($path in @($inputPaths)) {
         payload_preview = $payloadPreview
         latest_schema_approval_gate_status = $latestSchemaApprovalGateStatus
         schema_approval_status_summary = @($schemaApprovalStatusSummary)
+        business_document_type_summary = @($businessDocumentTypeSummary)
+        corpus_role_summary = @($corpusRoleSummary)
         governance_metric_count = @($sourceMetrics).Count
         governance_metrics = @($sourceMetrics)
     }

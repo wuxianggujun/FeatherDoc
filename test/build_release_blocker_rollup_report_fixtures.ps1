@@ -231,6 +231,26 @@ Write-JsonFile -Path $projectTemplateReadinessPath -Value ([ordered]@{
             count = 1
         }
     )
+    business_document_type_summary = @(
+        [ordered]@{
+            document_type = "invoice"
+            count = 1
+        },
+        [ordered]@{
+            document_type = "policy"
+            count = 1
+        }
+    )
+    corpus_role_summary = @(
+        [ordered]@{
+            corpus_role = "planned-business-template"
+            count = 1
+        },
+        [ordered]@{
+            corpus_role = "registered-business-template"
+            count = 1
+        }
+    )
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{

@@ -20,8 +20,8 @@ function Assert-PassingReleaseMetadataDocsSummary {
     if ($summary.checked_document_count -ne 7) {
         throw "Expected JSON summary checked document count 7, got: $($summary.checked_document_count)"
     }
-    if ($summary.required_pipeline_marker_count -ne 141) {
-        throw "Expected JSON summary pipeline marker count 141, got: $($summary.required_pipeline_marker_count)"
+    if ($summary.required_pipeline_marker_count -ne 143) {
+        throw "Expected JSON summary pipeline marker count 143, got: $($summary.required_pipeline_marker_count)"
     }
     if ($summary.required_checklist_marker_count -ne 137) {
         throw "Expected JSON summary checklist marker count 137, got: $($summary.required_checklist_marker_count)"
@@ -35,8 +35,8 @@ function Assert-PassingReleaseMetadataDocsSummary {
     if ($summary.required_entrypoint_marker_count -ne 3) {
         throw "Expected JSON summary entrypoint marker count 3, got: $($summary.required_entrypoint_marker_count)"
     }
-    if ($summary.required_marker_count -ne 328) {
-        throw "Expected JSON summary total marker count 328, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 330) {
+        throw "Expected JSON summary total marker count 330, got: $($summary.required_marker_count)"
     }
     if ($summary.checked_documents.Count -ne 7) {
         throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"

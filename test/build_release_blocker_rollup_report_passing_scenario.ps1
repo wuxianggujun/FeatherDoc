@@ -33,6 +33,21 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should aggregate warning items."
     Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
+    $projectTemplateReadinessSourceReport = ($summary.source_reports |
+        Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+        Select-Object -First 1)
+    Assert-True -Condition ($null -ne $projectTemplateReadinessSourceReport) `
+        -Message "Rollup should keep project-template delivery readiness as a source report."
+    Assert-Equal -Actual ([string]$projectTemplateReadinessSourceReport.business_document_type_summary[0].document_type) -Expected "invoice" `
+        -Message "Rollup source report should preserve project-template business document type summary."
+    Assert-Equal -Actual ([int]$projectTemplateReadinessSourceReport.business_document_type_summary[0].count) -Expected 1 `
+        -Message "Rollup source report should preserve project-template business document type counts."
+    Assert-Equal -Actual ([string]$projectTemplateReadinessSourceReport.business_document_type_summary[1].document_type) -Expected "policy" `
+        -Message "Rollup source report should preserve all project-template business document types."
+    Assert-Equal -Actual ([string]$projectTemplateReadinessSourceReport.corpus_role_summary[0].corpus_role) -Expected "planned-business-template" `
+        -Message "Rollup source report should preserve project-template corpus role summary."
+    Assert-Equal -Actual ([string]$projectTemplateReadinessSourceReport.corpus_role_summary[1].corpus_role) -Expected "registered-business-template" `
+        -Message "Rollup source report should preserve all project-template corpus roles."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Rollup should aggregate report-level governance metrics."
     Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"

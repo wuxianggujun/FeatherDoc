@@ -319,6 +319,9 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 ``warning_source_schema_summary``。发布面板和 reviewer 可以先按 ``source_schema``
 把 blocker、warning、action item 与 informational action item 分流，再打开对应
 ``source_report_display`` / ``source_json_display`` 定位证据。
+当 source report 是项目模板治理报告时，rollup 的 ``source_reports[]`` 还必须保留
+``business_document_type_summary`` 与 ``corpus_role_summary``，避免发布面板只能从
+入口 Markdown 中反推业务文档类型和语料角色。
 同一轮 release governance 还会保留 ``release_governance_handoff.md`` 与
 ``release_governance_pipeline.md``，确保 handoff 和 pipeline 两个视角都能追溯到
 相同的 blocker / warning / action item 来源。
