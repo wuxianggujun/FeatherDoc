@@ -206,6 +206,28 @@ foreach ($marker in @(
         -Message "Windows workflow should keep the Ninja parallel build marker '$marker'."
 }
 
+$releaseMetadataStepStart = $windowsWorkflow.IndexOf("Generate release metadata bundle")
+if ($releaseMetadataStepStart -lt 0) {
+    throw "Windows workflow should keep the release metadata bundle step."
+}
+
+$releaseMetadataNextStep = $windowsWorkflow.IndexOf("Generate artifact root start-here note", $releaseMetadataStepStart)
+if ($releaseMetadataNextStep -lt 0) {
+    throw "Windows workflow should keep the artifact root start-here step after release metadata generation."
+}
+
+$releaseMetadataStep = $windowsWorkflow.Substring($releaseMetadataStepStart, $releaseMetadataNextStep - $releaseMetadataStepStart)
+foreach ($marker in @(
+        "run_release_candidate_checks.ps1",
+        "-BuildDir build-msvc-ninja",
+        "-InstallDir build-msvc-install",
+        "-ConsumerBuildDir build-msvc-install-consumer",
+        '-Generator "Ninja"'
+    )) {
+    Assert-ContainsText -Text $releaseMetadataStep -ExpectedText $marker `
+        -Message "Windows release metadata step should keep the Ninja-compatible marker '$marker'."
+}
+
 foreach ($unexpected in @(
         "NMake Makefiles",
         "build-msvc-nmake"

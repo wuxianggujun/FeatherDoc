@@ -202,6 +202,7 @@ jobs:
           -BuildDir build-msvc-ninja
           -InstallDir build-msvc-install
           -ConsumerBuildDir build-msvc-install-consumer
+          -Generator "Ninja"
           -SummaryOutputDir output/release-candidate-checks-ci
           -SkipConfigure
           -SkipBuild
