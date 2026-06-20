@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-06-19
+状态日期：2026-06-20
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -34,11 +34,9 @@ P0：当前发布与 CI 守护
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
    * 截至本次任务清单刷新，最新 ``dev`` head
-     ``cf417144f5778adc12d3531940d21d793c310297`` 的 Linux CMake CI、
-     macOS CMake CI 与 Windows MSVC CI 仍在运行中；上一轮
-     ``4a9b80c6ba8ac34787c3c7017dafe630e1abf72f`` 的 Docs Pages、
-     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
-     状态请以 ``gh run list --branch dev`` 为准。
+     ``c72407e2eb908f42eae523c2a65ea1402852c474`` 的 Linux CMake CI、
+     macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live 状态请以
+     ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
