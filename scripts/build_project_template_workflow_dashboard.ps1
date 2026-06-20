@@ -417,6 +417,8 @@ function Read-WorkflowReport {
     $latestSchemaApprovalGateStatus = Get-JsonString -Object $json -Name "latest_schema_approval_gate_status"
     $plannedRegistrationActions = @(Get-JsonArray -Object $json -Name "planned_business_template_registration_actions")
     $plannedRegistrationActionCount = Get-JsonInt -Object $json -Name "planned_business_template_registration_action_count" -DefaultValue $plannedRegistrationActions.Count
+    $businessDocumentTypeSummary = @(Get-JsonArray -Object $json -Name "business_document_type_summary")
+    $corpusRoleSummary = @(Get-JsonArray -Object $json -Name "corpus_role_summary")
 
     if ($Id -eq "project_template_delivery_readiness") {
         $onboardingNextAction = Get-JsonProperty -Object $json -Name "onboarding_governance_next_action"
@@ -466,8 +468,48 @@ function Read-WorkflowReport {
         next_action_group_count = $nextActionGroupCount
         planned_business_template_registration_action_count = $plannedRegistrationActionCount
         planned_business_template_registration_actions = $plannedRegistrationActions
+        business_document_type_summary = $businessDocumentTypeSummary
+        corpus_role_summary = $corpusRoleSummary
         issue = ""
     }
+}
+
+function Add-GroupedSummaryEntries {
+    param(
+        [System.Collections.Generic.Dictionary[string,int]]$Counts,
+        [object[]]$Items,
+        [string]$PropertyName
+    )
+
+    foreach ($item in @($Items)) {
+        $value = Get-JsonString -Object $item -Name $PropertyName
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            continue
+        }
+
+        $count = Get-JsonInt -Object $item -Name "count" -DefaultValue 1
+        if ($Counts.ContainsKey($value)) {
+            $Counts[$value] += $count
+        } else {
+            $Counts[$value] = $count
+        }
+    }
+}
+
+function Convert-GroupedSummaryMapToArray {
+    param(
+        [System.Collections.Generic.Dictionary[string,int]]$Counts,
+        [string]$OutputName
+    )
+
+    return @(
+        foreach ($entry in @($Counts.GetEnumerator() | Sort-Object -Property @{ Expression = "Value"; Descending = $true }, @{ Expression = "Key"; Ascending = $true })) {
+            $summary = [ordered]@{}
+            $summary[$OutputName] = [string]$entry.Key
+            $summary["count"] = [int]$entry.Value
+            $summary
+        }
+    )
 }
 
 function New-DashboardMarkdown {
@@ -484,12 +526,38 @@ function New-DashboardMarkdown {
     [void]$lines.Add("- next_action: ``$($Summary.next_action.action)``")
     [void]$lines.Add("- next_action_reason: $($Summary.next_action.reason)")
     [void]$lines.Add("")
+    [void]$lines.Add("## Business document types")
+    [void]$lines.Add("")
+    if (@($Summary.business_document_type_summary).Count -eq 0) {
+        [void]$lines.Add("- none")
+    } else {
+        foreach ($item in @($Summary.business_document_type_summary)) {
+            [void]$lines.Add("- ``$($item.document_type)``: ``$($item.count)``")
+        }
+    }
+    [void]$lines.Add("")
+    [void]$lines.Add("## Corpus roles")
+    [void]$lines.Add("")
+    if (@($Summary.corpus_role_summary).Count -eq 0) {
+        [void]$lines.Add("- none")
+    } else {
+        foreach ($item in @($Summary.corpus_role_summary)) {
+            [void]$lines.Add("- ``$($item.corpus_role)``: ``$($item.count)``")
+        }
+    }
+    [void]$lines.Add("")
     [void]$lines.Add("## Source reports")
     [void]$lines.Add("")
     foreach ($report in @($Summary.source_reports)) {
         [void]$lines.Add("- ``$($report.id)``: status=``$($report.status)`` release_ready=``$($report.release_ready)`` blockers=``$($report.release_blocker_count)`` warnings=``$($report.warning_count)`` source=``$($report.source_json_display)``")
         if (-not [string]::IsNullOrWhiteSpace([string]$report.schema_approval_status_summary)) {
             [void]$lines.Add("  - schema_approval_status_summary: ``$($report.schema_approval_status_summary)``")
+        }
+        foreach ($item in @(Get-JsonArray -Object $report -Name "business_document_type_summary")) {
+            [void]$lines.Add("  - business_document_type: ``$((Get-JsonString -Object $item -Name "document_type"))`` count=``$((Get-JsonInt -Object $item -Name "count" -DefaultValue 0))``")
+        }
+        foreach ($item in @(Get-JsonArray -Object $report -Name "corpus_role_summary")) {
+            [void]$lines.Add("  - corpus_role: ``$((Get-JsonString -Object $item -Name "corpus_role"))`` count=``$((Get-JsonInt -Object $item -Name "count" -DefaultValue 0))``")
         }
         if (-not [string]::IsNullOrWhiteSpace([string]$report.latest_schema_approval_gate_status)) {
             [void]$lines.Add("  - latest_schema_approval_gate_status: ``$($report.latest_schema_approval_gate_status)``")
@@ -701,6 +769,15 @@ foreach ($report in $sourceReports) {
 }
 $plannedRegistrationActionCount = $plannedRegistrationActions.Count
 
+$businessDocumentTypeCounts = New-Object 'System.Collections.Generic.Dictionary[string,int]' ([System.StringComparer]::OrdinalIgnoreCase)
+$corpusRoleCounts = New-Object 'System.Collections.Generic.Dictionary[string,int]' ([System.StringComparer]::OrdinalIgnoreCase)
+foreach ($report in $sourceReports) {
+    Add-GroupedSummaryEntries -Counts $businessDocumentTypeCounts -Items (Get-JsonArray -Object $report -Name "business_document_type_summary") -PropertyName "document_type"
+    Add-GroupedSummaryEntries -Counts $corpusRoleCounts -Items (Get-JsonArray -Object $report -Name "corpus_role_summary") -PropertyName "corpus_role"
+}
+$businessDocumentTypeSummary = @(Convert-GroupedSummaryMapToArray -Counts $businessDocumentTypeCounts -OutputName "document_type")
+$corpusRoleSummary = @(Convert-GroupedSummaryMapToArray -Counts $corpusRoleCounts -OutputName "corpus_role")
+
 $summary = [ordered]@{
     schema = $dashboardSchema
     summary_schema_version = 1
@@ -718,6 +795,8 @@ $summary = [ordered]@{
     next_action_summary = $nextActionSummary
     next_action_group_count = $nextActionGroupCount
     next_action_summary_by_source = $nextActionSummaryBySource
+    business_document_type_summary = $businessDocumentTypeSummary
+    corpus_role_summary = $corpusRoleSummary
     planned_business_template_registration_action_count = $plannedRegistrationActionCount
     planned_business_template_registration_actions = $plannedRegistrationActions
     source_reports = $sourceReports

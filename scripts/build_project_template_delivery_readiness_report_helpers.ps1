@@ -375,6 +375,8 @@ function New-ReadinessTemplate {
         [string]$InputDocx,
         [string]$SourceKind,
         [string]$SourceJson,
+        [string]$BusinessDocumentType = "",
+        [string]$CorpusRole = "",
         $SchemaApprovalState,
         [string]$OnboardingStatus = "",
         [object[]]$ReleaseBlockers = @(),
@@ -412,6 +414,8 @@ function New-ReadinessTemplate {
         template_name = $TemplateName
         input_docx = $InputDocx
         input_docx_display = if ([string]::IsNullOrWhiteSpace($InputDocx)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path (Resolve-RepoPath -RepoRoot $RepoRoot -Path $InputDocx -AllowMissing) }
+        business_document_type = $BusinessDocumentType
+        corpus_role = $CorpusRole
         onboarding_status = $OnboardingStatus
         schema_approval_status = $schemaStatus
         gate_status = $gateStatus
@@ -478,6 +482,8 @@ function Convert-OnboardingGovernanceToTemplates {
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SourceKind "onboarding_governance_report" `
                 -SourceJson $Path `
+                -BusinessDocumentType (Get-JsonString -Object $entry -Name "business_document_type") `
+                -CorpusRole (Get-JsonString -Object $entry -Name "corpus_role") `
                 -SchemaApprovalState $state `
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
                 -ActionItems (Get-JsonArray -Object $entry -Name "action_items") `
@@ -512,6 +518,8 @@ function Convert-OnboardingSummaryToTemplates {
             -InputDocx (Get-JsonString -Object $Json -Name "input_docx") `
             -SourceKind "onboarding_summary" `
             -SourceJson $Path `
+            -BusinessDocumentType (Get-JsonString -Object $Json -Name "business_document_type") `
+            -CorpusRole (Get-JsonString -Object $Json -Name "corpus_role") `
             -SchemaApprovalState (Get-JsonProperty -Object $Json -Name "schema_approval_state") `
             -OnboardingStatus (Get-JsonString -Object $Json -Name "status") `
             -ReleaseBlockers (Get-JsonArray -Object $Json -Name "release_blockers") `
@@ -531,6 +539,8 @@ function Convert-OnboardingPlanToTemplates {
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SourceKind "onboarding_plan" `
                 -SourceJson $Path `
+                -BusinessDocumentType (Get-JsonString -Object $entry -Name "business_document_type") `
+                -CorpusRole (Get-JsonString -Object $entry -Name "corpus_role") `
                 -SchemaApprovalState (Get-JsonProperty -Object $entry -Name "schema_approval_state") `
                 -OnboardingStatus (Get-JsonString -Object $entry -Name "status") `
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
@@ -652,9 +662,36 @@ function Convert-ProjectTemplateSmokeSummaryToTemplates {
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
                 -SourceKind "project_template_smoke_summary" `
                 -SourceJson $Path `
+                -BusinessDocumentType (Get-JsonString -Object $entry -Name "business_document_type") `
+                -CorpusRole (Get-JsonString -Object $entry -Name "corpus_role") `
                 -SchemaApprovalState $schemaApprovalState `
                 -OnboardingStatus (Get-JsonString -Object $entry -Name "status" -DefaultValue $defaultOnboardingStatus) `
                 -ReleaseBlockers $releaseBlockers
+        }
+    )
+}
+
+function Add-SummaryGroup {
+    param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
+
+    $groupItems = @(
+        foreach ($item in @($Items)) {
+            $value = Get-JsonString -Object $item -Name $PropertyName
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                [pscustomobject]@{
+                    Value = $value
+                }
+            }
+        }
+    )
+
+    return @(
+        foreach ($group in @($groupItems | Group-Object Value |
+            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
+            $summary = [ordered]@{}
+            $summary[$OutputName] = [string]$group.Name
+            $summary["count"] = [int]$group.Count
+            $summary
         }
     )
 }
@@ -812,6 +849,26 @@ function New-ReportMarkdown {
         $lines.Add("- Onboarding governance next action groups: ``$($Summary.onboarding_governance_next_action_group_count)``") | Out-Null
     }
     $lines.Add("") | Out-Null
+    $lines.Add("## Business Document Types") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.business_document_type_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.business_document_type_summary)) {
+            $lines.Add("- ``$($item.document_type)``: ``$($item.count)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Corpus Roles") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.corpus_role_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($item in @($Summary.corpus_role_summary)) {
+            $lines.Add("- ``$($item.corpus_role)``: ``$($item.count)``") | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
     $lines.Add("## Schema Approval History") | Out-Null
     $lines.Add("") | Out-Null
     if ($Summary.schema_history_count -eq 0) {
@@ -853,6 +910,12 @@ function New-ReportMarkdown {
                 $reviewerActionSummary,
                 $template.release_blocker_count,
                 $template.source_kind)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$template.business_document_type)) {
+                $lines.Add("  - business_document_type: $($template.business_document_type)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$template.corpus_role)) {
+                $lines.Add("  - corpus_role: $($template.corpus_role)") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null

@@ -155,6 +155,8 @@ function New-BlockedEvidence {
             [ordered]@{
                 name = "invoice-template"
                 input_docx = "samples/invoice.docx"
+                business_document_type = "invoice"
+                corpus_role = "registered-business-template"
                 source_kind = "onboarding_summary"
                 schema_approval_state = [ordered]@{
                     status = "pending_review"
@@ -194,6 +196,8 @@ function New-BlockedEvidence {
             [ordered]@{
                 name = "statement-template"
                 input_docx = "samples/statement.docx"
+                business_document_type = "statement"
+                corpus_role = "planned-business-template"
                 source_kind = "onboarding_summary"
                 schema_approval_state = [ordered]@{
                     status = "approved"
@@ -305,6 +309,8 @@ function New-ReadyEvidence {
             [ordered]@{
                 name = "invoice-template"
                 input_docx = "samples/invoice.docx"
+                business_document_type = "invoice"
+                corpus_role = "registered-business-template"
                 schema_approval_state = [ordered]@{
                     status = "approved"
                     gate_status = "passed"
@@ -403,6 +409,20 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose onboarding governance next-action group count."
     Assert-Equal -Actual ([string]$summary.onboarding_governance_next_action.action) -Expected "review_schema_update_candidate" `
         -Message "Summary should preserve the onboarding governance next action."
+    Assert-Equal -Actual ([string]$summary.templates[0].business_document_type) -Expected "invoice" `
+        -Message "Readiness templates should preserve business document type."
+    Assert-Equal -Actual ([string]$summary.templates[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Readiness templates should preserve corpus role."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "invoice" `
+        -Message "Readiness summary should aggregate business document types."
+    Assert-Equal -Actual ([int]$summary.business_document_type_summary[0].count) -Expected 1 `
+        -Message "Readiness summary should count business document types."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[1].document_type) -Expected "statement" `
+        -Message "Readiness summary should keep secondary business document types."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[0].corpus_role) -Expected "planned-business-template" `
+        -Message "Readiness summary should aggregate corpus roles."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[1].corpus_role) -Expected "registered-business-template" `
+        -Message "Readiness summary should keep all corpus roles."
 
     $onboardingBlockers = @($summary.release_blockers | Where-Object { [string]$_.id -eq "project_template_onboarding.schema_approval" })
     Assert-Equal -Actual $onboardingBlockers.Count -Expected 1 `
@@ -490,10 +510,18 @@ if (Test-Scenario -Name "aggregate") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Delivery Readiness Report" `
         -Message "Markdown should include a title."
+    Assert-ContainsText -Text $markdown -ExpectedText "Business Document Types" `
+        -Message "Markdown should include business document type summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Corpus Roles" `
+        -Message "Markdown should include corpus role summary."
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Approval History" `
         -Message "Markdown should include schema approval history."
     Assert-ContainsText -Text $markdown -ExpectedText "invoice-template" `
         -Message "Markdown should include blocked template names."
+    Assert-ContainsText -Text $markdown -ExpectedText "business_document_type: invoice" `
+        -Message "Markdown should surface template business document type."
+    Assert-ContainsText -Text $markdown -ExpectedText "corpus_role: registered-business-template" `
+        -Message "Markdown should surface template corpus role."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
@@ -555,6 +583,8 @@ function New-SmokeSummaryEvidence {
             [ordered]@{
                 name = "invoice-template"
                 input_docx = "samples/invoice.docx"
+                business_document_type = "invoice"
+                corpus_role = "registered-business-template"
                 artifact_dir = "output/project-template-smoke/entries/01-invoice-template"
                 status = "passed"
                 passed = $true
@@ -627,6 +657,8 @@ function New-DirectOnboardingEvidence {
         summary_schema_version = 1
         template_name = "invoice-template"
         input_docx = "samples/invoice.docx"
+        business_document_type = "invoice"
+        corpus_role = "registered-business-template"
         status = "blocked"
         schema_approval_state = [ordered]@{
             status = "pending_review"
@@ -663,6 +695,8 @@ function New-DirectOnboardingEvidence {
             [ordered]@{
                 name = "statement-template"
                 input_docx = "samples/statement.docx"
+                business_document_type = "statement"
+                corpus_role = "planned-business-template"
                 status = "planned"
                 schema_approval_state = [ordered]@{
                     status = "not_evaluated"
@@ -876,12 +910,22 @@ if (Test-Scenario -Name "smoke_summary") {
         -Message "Template readiness entry should retain smoke summary provenance."
     Assert-Equal -Actual ([string]$summary.templates[0].schema_approval_status) -Expected "approved" `
         -Message "Template readiness entry should preserve approved schema patch state."
+    Assert-Equal -Actual ([string]$summary.templates[0].business_document_type) -Expected "invoice" `
+        -Message "Smoke summary readiness should preserve business document type."
+    Assert-Equal -Actual ([string]$summary.templates[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Smoke summary readiness should preserve corpus role."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "invoice" `
+        -Message "Smoke summary readiness should aggregate business document type."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Smoke summary readiness should aggregate corpus role."
     Assert-ContainsText -Text (($summary.schema_approval_status_summary | ForEach-Object { [string]$_.status }) -join "`n") -ExpectedText "approved" `
         -Message "Readiness status summary should include approved schema state."
     Assert-ContainsText -Text ([string]$summary.templates[0].source_json_display) -ExpectedText "project-template-smoke\summary.json" `
         -Message "Template readiness entry should point back to the smoke summary."
     Assert-ContainsText -Text $markdown -ExpectedText "project_template_smoke_summary" `
         -Message "Markdown should surface smoke summary provenance."
+    Assert-ContainsText -Text $markdown -ExpectedText "business_document_type: invoice" `
+        -Message "Smoke summary Markdown should surface business document type."
 }
 
 if (Test-Scenario -Name "direct_onboarding_evidence") {
@@ -907,6 +951,14 @@ if (Test-Scenario -Name "direct_onboarding_evidence") {
     Assert-ContainsText -Text (($summary.source_files | ForEach-Object { [string]$_.kind }) -join "`n") `
         -ExpectedText "onboarding_plan" `
         -Message "Direct onboarding plan input should be loaded as a known evidence kind."
+    Assert-Equal -Actual ([string]$summary.templates[0].business_document_type) -Expected "invoice" `
+        -Message "Direct onboarding summary should preserve business document type."
+    Assert-Equal -Actual ([string]$summary.templates[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Direct onboarding summary should preserve corpus role."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "invoice" `
+        -Message "Direct onboarding readiness should aggregate business document types."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[0].corpus_role) -Expected "planned-business-template" `
+        -Message "Direct onboarding readiness should aggregate corpus roles."
 
     $summaryBlocker = @($summary.release_blockers | Where-Object { [string]$_.id -eq "direct_summary_schema_review" })[0]
     Assert-Equal -Actual ([string]$summaryBlocker.source_schema) -Expected "featherdoc.project_template_onboarding_summary.v1" `

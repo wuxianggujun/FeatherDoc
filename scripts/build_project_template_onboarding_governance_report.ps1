@@ -505,6 +505,8 @@ function New-GovernanceEntry {
         [string]$SourceKind,
         [string]$SourceJson,
         [string]$InputDocx,
+        [string]$BusinessDocumentType = "",
+        [string]$CorpusRole = "",
         $SchemaApprovalState,
         $NextAction = $null,
         [object[]]$ReleaseBlockers = @(),
@@ -549,6 +551,8 @@ function New-GovernanceEntry {
         source_kind = $SourceKind
         source_json = $SourceJson
         input_docx = $InputDocx
+        business_document_type = $BusinessDocumentType
+        corpus_role = $CorpusRole
         schema_approval_state = $SchemaApprovalState
         schema_approval_status = $stateStatus
         schema_approval_action = $stateAction
@@ -579,6 +583,8 @@ function Convert-OnboardingSummaryToEntries {
             -SourceKind "onboarding_summary" `
             -SourceJson $Path `
             -InputDocx (Get-JsonString -Object $Json -Name "input_docx") `
+            -BusinessDocumentType (Get-JsonString -Object $Json -Name "business_document_type") `
+            -CorpusRole (Get-JsonString -Object $Json -Name "corpus_role") `
             -SchemaApprovalState (Get-JsonProperty -Object $Json -Name "schema_approval_state") `
             -NextAction (Get-JsonProperty -Object $Json -Name "next_action") `
             -ReleaseBlockers (Get-JsonArray -Object $Json -Name "release_blockers") `
@@ -601,6 +607,8 @@ function Convert-OnboardingPlanToEntries {
                 -SourceKind "onboarding_plan" `
                 -SourceJson $Path `
                 -InputDocx (Get-JsonString -Object $entry -Name "input_docx") `
+                -BusinessDocumentType (Get-JsonString -Object $entry -Name "business_document_type") `
+                -CorpusRole (Get-JsonString -Object $entry -Name "corpus_role") `
                 -SchemaApprovalState (Get-JsonProperty -Object $entry -Name "schema_approval_state") `
                 -NextAction (Get-JsonProperty -Object $entry -Name "next_action") `
                 -ReleaseBlockers (Get-JsonArray -Object $entry -Name "release_blockers") `
@@ -615,6 +623,19 @@ function Convert-SmokeSummaryToEntries {
         [string]$Path,
         $Json
     )
+
+    $sourceEntriesByName = @{}
+    foreach ($sourceEntry in @(Get-JsonArray -Object $Json -Name "entries")) {
+        $sourceEntryName = Get-JsonString -Object $sourceEntry -Name "name"
+        if ([string]::IsNullOrWhiteSpace($sourceEntryName)) {
+            continue
+        }
+
+        $sourceEntryKey = $sourceEntryName.ToLowerInvariant()
+        if (-not $sourceEntriesByName.ContainsKey($sourceEntryKey)) {
+            $sourceEntriesByName[$sourceEntryKey] = $sourceEntry
+        }
+    }
 
     $approvalItems = @(Get-JsonArray -Object $Json -Name "schema_patch_approval_items")
     if ($approvalItems.Count -eq 0) {
@@ -632,11 +653,20 @@ function Convert-SmokeSummaryToEntries {
     return @(
         foreach ($approval in $approvalItems) {
             $name = Get-JsonString -Object $approval -Name "name" -DefaultValue "schema_patch_approval_item"
+            $sourceEntry = $null
+            if (-not [string]::IsNullOrWhiteSpace($name)) {
+                $sourceEntryKey = $name.ToLowerInvariant()
+                if ($sourceEntriesByName.ContainsKey($sourceEntryKey)) {
+                    $sourceEntry = $sourceEntriesByName[$sourceEntryKey]
+                }
+            }
             New-GovernanceEntry `
                 -Name $name `
                 -SourceKind "project_template_smoke_summary" `
                 -SourceJson $Path `
                 -InputDocx "" `
+                -BusinessDocumentType (Get-JsonString -Object $approval -Name "business_document_type" -DefaultValue (Get-JsonString -Object $sourceEntry -Name "business_document_type")) `
+                -CorpusRole (Get-JsonString -Object $approval -Name "corpus_role" -DefaultValue (Get-JsonString -Object $sourceEntry -Name "corpus_role")) `
                 -SchemaApprovalState (New-SchemaApprovalStateFromSmoke -SmokeSummary $Json -ApprovalItem $approval) `
                 -SchemaPatchApprovalItems @($approval)
         }
@@ -652,6 +682,35 @@ function New-StatusSummary {
                 status = [string]$group.Name
                 count = [int]$group.Count
             }
+        }
+    )
+}
+
+function New-StringPropertySummary {
+    param(
+        [object[]]$Entries,
+        [string]$PropertyName,
+        [string]$OutputName
+    )
+
+    $items = @(
+        foreach ($entry in @($Entries)) {
+            $value = Get-JsonString -Object $entry -Name $PropertyName
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                [pscustomobject]@{
+                    value = $value
+                }
+            }
+        }
+    )
+
+    return @(
+        foreach ($group in @($items | Group-Object value |
+            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
+            $summary = [ordered]@{}
+            $summary[$OutputName] = [string]$group.Name
+            $summary["count"] = [int]$group.Count
+            $summary
         }
     )
 }
@@ -723,6 +782,24 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     }
     $lines.Add("") | Out-Null
+    $lines.Add("## Business Document Types") | Out-Null
+    $lines.Add("") | Out-Null
+    foreach ($item in @($Summary.business_document_type_summary)) {
+        $lines.Add("- ``$($item.document_type)``: $($item.count)") | Out-Null
+    }
+    if (@($Summary.business_document_type_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Corpus Roles") | Out-Null
+    $lines.Add("") | Out-Null
+    foreach ($item in @($Summary.corpus_role_summary)) {
+        $lines.Add("- ``$($item.corpus_role)``: $($item.count)") | Out-Null
+    }
+    if (@($Summary.corpus_role_summary).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    }
+    $lines.Add("") | Out-Null
     $lines.Add("## Next Action Summary") | Out-Null
     $lines.Add("") | Out-Null
     foreach ($item in @($Summary.next_action_summary)) {
@@ -737,6 +814,12 @@ function New-ReportMarkdown {
     $lines.Add("") | Out-Null
     foreach ($entry in @($Summary.entries)) {
         $lines.Add("- ``$($entry.name)``: status=``$($entry.schema_approval_status)`` blockers=``$($entry.release_blocker_count)`` source=``$($entry.source_kind)`` next_action=``$($entry.next_action.id)`` next_action_blocker=``$($entry.next_action.blocker_id)``") | Out-Null
+        if (-not [string]::IsNullOrWhiteSpace([string]$entry.business_document_type)) {
+            $lines.Add("  - business_document_type: $($entry.business_document_type)") | Out-Null
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$entry.corpus_role)) {
+            $lines.Add("  - corpus_role: $($entry.corpus_role)") | Out-Null
+        }
         if (-not [string]::IsNullOrWhiteSpace([string]$entry.next_action.reason)) {
             $lines.Add("  - next_action_reason: $($entry.next_action.reason)") | Out-Null
         }
@@ -936,6 +1019,8 @@ $summary = [ordered]@{
     entries = @($entries.ToArray())
     next_action = $summaryNextAction
     schema_approval_status_summary = @(New-StatusSummary -Entries $entries.ToArray())
+    business_document_type_summary = @(New-StringPropertySummary -Entries $entries.ToArray() -PropertyName "business_document_type" -OutputName "document_type")
+    corpus_role_summary = @(New-StringPropertySummary -Entries $entries.ToArray() -PropertyName "corpus_role" -OutputName "corpus_role")
     next_action_summary = @($nextActionSummary)
     next_action_group_count = $nextActionSummary.Count
     blocked_entry_count = @($entries.ToArray() | Where-Object { $_.schema_approval_status -eq "blocked" }).Count

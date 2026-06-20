@@ -89,6 +89,8 @@ Write-JsonFile -Path $onboardingSummaryPath -Value ([ordered]@{
     summary_schema_version = 1
     template_name = "invoice-template"
     input_docx = "samples/invoice.docx"
+    business_document_type = "invoice"
+    corpus_role = "registered-business-template"
     schema_approval_state = [ordered]@{
         status = "not_evaluated"
         gate_status = "not_evaluated"
@@ -149,6 +151,8 @@ Write-JsonFile -Path $onboardingPlanPath -Value ([ordered]@{
         [ordered]@{
             name = "contract-template"
             input_docx = "samples/contract.docx"
+            business_document_type = "contract"
+            corpus_role = "planned-business-template"
             schema_approval_state = [ordered]@{
                 status = "not_evaluated"
                 gate_status = "not_evaluated"
@@ -210,6 +214,8 @@ Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_approval_items = @(
         [ordered]@{
             name = "smoke-template"
+            business_document_type = "invoice"
+            corpus_role = "registered-business-template"
             required = $true
             pending = $true
             approved = $false
@@ -261,6 +267,26 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should aggregate onboarding action items."
     Assert-Equal -Actual ([int]$summary.manual_review_recommendation_count) -Expected 2 `
         -Message "Summary should aggregate manual review recommendations."
+    Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "invoice" `
+        -Message "Governance entries should preserve business document type from onboarding evidence."
+    Assert-Equal -Actual ([string]$summary.entries[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Governance entries should preserve corpus role from onboarding evidence."
+    Assert-Equal -Actual ([string](@($summary.entries | Where-Object { $_.name -eq "contract-template" })[0].business_document_type)) -Expected "contract" `
+        -Message "Governance entries should preserve onboarding-plan business document type."
+    Assert-Equal -Actual ([string](@($summary.entries | Where-Object { $_.name -eq "smoke-template" })[0].corpus_role)) -Expected "registered-business-template" `
+        -Message "Governance smoke entries should preserve corpus role metadata."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "invoice" `
+        -Message "Governance summary should aggregate business document types."
+    Assert-Equal -Actual ([int]$summary.business_document_type_summary[0].count) -Expected 2 `
+        -Message "Governance summary should count repeated business document types."
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[1].document_type) -Expected "contract" `
+        -Message "Governance summary should keep secondary business document types."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[0].corpus_role) -Expected "registered-business-template" `
+        -Message "Governance summary should aggregate corpus roles."
+    Assert-Equal -Actual ([int]$summary.corpus_role_summary[0].count) -Expected 2 `
+        -Message "Governance summary should count repeated corpus roles."
+    Assert-Equal -Actual ([string]$summary.corpus_role_summary[1].corpus_role) -Expected "planned-business-template" `
+        -Message "Governance summary should keep planned corpus roles."
     Assert-Equal -Actual ([string]$summary.next_action.id) -Expected "run_project_template_smoke" `
         -Message "Summary should expose the first global next action."
     Assert-Equal -Actual ([string]$summary.next_action.entry_name) -Expected "invoice-template" `
@@ -320,6 +346,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include a title."
     Assert-ContainsText -Text $markdown -ExpectedText "Schema Approval Status" `
         -Message "Markdown should expose status summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Business Document Types" `
+        -Message "Markdown should expose business document type summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "Corpus Roles" `
+        -Message "Markdown should expose corpus role summary."
     Assert-ContainsText -Text $markdown -ExpectedText "Next action: ``run_project_template_smoke``" `
         -Message "Markdown should expose the global next action."
     Assert-ContainsText -Text $markdown -ExpectedText "Next action reason" `
@@ -330,6 +360,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include onboarding plan entries."
     Assert-ContainsText -Text $markdown -ExpectedText "smoke-template" `
         -Message "Markdown should include smoke approval items."
+    Assert-ContainsText -Text $markdown -ExpectedText "business_document_type: invoice" `
+        -Message "Markdown should expose entry-level business document type."
+    Assert-ContainsText -Text $markdown -ExpectedText "corpus_role: registered-business-template" `
+        -Message "Markdown should expose entry-level corpus role."
     Assert-ContainsText -Text $markdown -ExpectedText "Release Blockers" `
         -Message "Markdown should include release blockers."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display=" `
