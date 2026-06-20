@@ -238,6 +238,7 @@ foreach ($unexpected in @(
 
 $linuxWorkflow = $workflowTexts[".github\workflows\linux-cmake.yml"]
 foreach ($marker in @(
+        'cmake --build build-linux-${{ matrix.compiler }} --parallel 4 --verbose',
         'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60',
         'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60 -L cli_smoke',
         'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60 -L release_smoke'
@@ -248,6 +249,7 @@ foreach ($marker in @(
 
 $macosWorkflow = $workflowTexts[".github\workflows\macos-cmake.yml"]
 foreach ($marker in @(
+        "cmake --build build-macos --parallel 4 --verbose",
         "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60",
         "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L cli_smoke",
         "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L release_smoke"
