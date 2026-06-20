@@ -110,6 +110,15 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.schema_approval_status_summary is missing."
     }
 
+    foreach ($summaryFieldName in @("business_document_type_summary", "corpus_role_summary")) {
+        $summaryValue = Get-JsonPropertyValue -Object $contract -Name $summaryFieldName
+        if ($null -eq $summaryValue -or
+            ($summaryValue -is [string] -and [string]::IsNullOrWhiteSpace($summaryValue)) -or
+            @($summaryValue).Count -eq 0) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_onboarding_governance_contract.$summaryFieldName is missing."
+        }
+    }
+
     $nextAction = Get-JsonPropertyValue -Object $contract -Name "next_action"
     if ($null -eq $nextAction -or
         ($nextAction -is [string] -and [string]::IsNullOrWhiteSpace($nextAction)) -or
@@ -302,6 +311,8 @@ function Add-ManifestSignoffEntrypointsContractViolations {
         "reviewer_action_summary",
         "reviewer_action_reason",
         "reviewer_actions",
+        "business_document_type_summary",
+        "corpus_role_summary",
         "source_report_display",
         "source_json_display"
     )) {

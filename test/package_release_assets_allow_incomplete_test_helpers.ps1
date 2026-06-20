@@ -318,6 +318,26 @@ $projectTemplateDeliveryReadinessSummary = [ordered]@{
             count = 4
         }
     )
+    business_document_type_summary = @(
+        [ordered]@{
+            document_type = "invoice"
+            count = 1
+        },
+        [ordered]@{
+            document_type = "policy"
+            count = 1
+        }
+    )
+    corpus_role_summary = @(
+        [ordered]@{
+            corpus_role = "planned-business-template"
+            count = 1
+        },
+        [ordered]@{
+            corpus_role = "registered-business-template"
+            count = 1
+        }
+    )
     schema_history_blocked_run_count = 0
     schema_history_pending_run_count = 0
     schema_history_passed_run_count = 3
@@ -363,6 +383,26 @@ $projectTemplateOnboardingGovernanceSummary = [ordered]@{
         },
         [ordered]@{
             status = "not_required"
+            count = 1
+        }
+    )
+    business_document_type_summary = @(
+        [ordered]@{
+            document_type = "invoice"
+            count = 1
+        },
+        [ordered]@{
+            document_type = "policy"
+            count = 1
+        }
+    )
+    corpus_role_summary = @(
+        [ordered]@{
+            corpus_role = "planned-business-template"
+            count = 1
+        },
+        [ordered]@{
+            corpus_role = "registered-business-template"
             count = 1
         }
     )
@@ -561,6 +601,8 @@ $summary = [ordered]@{
             "reviewer_action_summary",
             "reviewer_action_reason",
             "reviewer_actions",
+            "business_document_type_summary",
+            "corpus_role_summary",
             "source_report_display",
             "source_json_display"
         )

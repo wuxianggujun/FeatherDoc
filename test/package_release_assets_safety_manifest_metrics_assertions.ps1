@@ -307,6 +307,16 @@ if ([string]$manifestProjectTemplateReadiness.schema_approval_status_summary[0].
     [int]$manifestProjectTemplateReadiness.schema_approval_status_summary[0].count -ne 4) {
     throw "release_assets_manifest.json lost project template delivery readiness schema_approval_status_summary values."
 }
+if (@($manifestProjectTemplateReadiness.business_document_type_summary).Count -ne 2 -or
+    [string]$manifestProjectTemplateReadiness.business_document_type_summary[0].document_type -ne "invoice" -or
+    [string]$manifestProjectTemplateReadiness.business_document_type_summary[1].document_type -ne "policy") {
+    throw "release_assets_manifest.json lost project template delivery readiness business_document_type_summary."
+}
+if (@($manifestProjectTemplateReadiness.corpus_role_summary).Count -ne 2 -or
+    [string]$manifestProjectTemplateReadiness.corpus_role_summary[0].corpus_role -ne "planned-business-template" -or
+    [string]$manifestProjectTemplateReadiness.corpus_role_summary[1].corpus_role -ne "registered-business-template") {
+    throw "release_assets_manifest.json lost project template delivery readiness corpus_role_summary."
+}
 if ([int]$manifestProjectTemplateReadiness.template_count -ne 4) {
     throw "release_assets_manifest.json lost project template delivery readiness template_count."
 }
@@ -373,6 +383,16 @@ if ([int]$manifestProjectTemplateOnboarding.release_blocker_count -ne 0) {
 }
 if (@($manifestProjectTemplateOnboarding.schema_approval_status_summary).Count -ne 2) {
     throw "release_assets_manifest.json lost project template onboarding governance schema_approval_status_summary."
+}
+if (@($manifestProjectTemplateOnboarding.business_document_type_summary).Count -ne 2 -or
+    [string]$manifestProjectTemplateOnboarding.business_document_type_summary[0].document_type -ne "invoice" -or
+    [string]$manifestProjectTemplateOnboarding.business_document_type_summary[1].document_type -ne "policy") {
+    throw "release_assets_manifest.json lost project template onboarding governance business_document_type_summary."
+}
+if (@($manifestProjectTemplateOnboarding.corpus_role_summary).Count -ne 2 -or
+    [string]$manifestProjectTemplateOnboarding.corpus_role_summary[0].corpus_role -ne "planned-business-template" -or
+    [string]$manifestProjectTemplateOnboarding.corpus_role_summary[1].corpus_role -ne "registered-business-template") {
+    throw "release_assets_manifest.json lost project template onboarding governance corpus_role_summary."
 }
 $expectedProjectTemplateOnboardingGovernanceDisplay = Convert-TestEvidencePathToPublicDisplay `
     -Path $projectTemplateOnboardingGovernanceSummaryPath `

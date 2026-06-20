@@ -179,6 +179,13 @@ manifest。该字段只覆盖 ``smoke``、``fixed_grid``、``section_page_setup`
 ``page_number_fields`` 四个标准任务，保留 ``review_result_path`` 与
 ``final_review_path`` 等可追溯证据；``review_note`` 仍属于 operator-only 自由文本，
 不得进入 packaged manifest 或公开 release body。
+同一份 packaged manifest 中的
+``project_template_delivery_readiness_contract`` 与
+``project_template_onboarding_governance_contract`` 也必须保留
+``business_document_type_summary`` 和 ``corpus_role_summary``，且
+``manifest_signoff_entrypoints.required_fields`` 会把这两项列入人工签核必检字段。
+``assert_release_material_safety.ps1`` 会直接审计这两条 contract，防止打包层只留下
+readiness / onboarding 状态而丢失业务文档类型和语料角色维度。
 
 后续 ``build_release_blocker_rollup_report.ps1`` 会继续把同一组
 ``word_visual_standard_review_metadata`` 保留在 release candidate source report

@@ -421,8 +421,10 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``schema_approval_status_summary``、``onboarding_governance_next_action``、
      ``onboarding_governance_next_action_summary``、
      ``onboarding_governance_next_action_group_count``、``next_action``、
-     ``next_action_summary``、``next_action_group_count``、``source_report_display``
-     和 ``source_json_display``。这条人工签核入口不能
+     ``next_action_summary``、``next_action_group_count``、``requires_reviewer_action``、
+     ``reviewer_action_summary``、``reviewer_action_reason``、``reviewer_actions``、
+     ``business_document_type_summary``、``corpus_role_summary``、
+     ``source_report_display`` 和 ``source_json_display``。这条人工签核入口不能
      只依赖 manifest 安全审计或缺失数为 0 的间接推断，首屏入口也不能只把核对项
      留在 reviewer checklist 深处。固定标记：
      ``reviewer_manifest_scoped_project_template_trace``。
@@ -436,7 +438,7 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``release_governance_handoff.md`` 中的
      ``manifest_signoff_entrypoints_source_reports`` 必须继续把
      ``status=declared``、打包后的 ``release_assets_manifest.json``、三个必签入口、
-     两条 required contracts、13 required fields 和
+     两条 required contracts、19 required fields 和
      ``reviewer_manifest_scoped_project_template_trace`` 保留在同一个
      ``schema=featherdoc.release_candidate_summary`` 的 ``source_report:`` block 中，
      不能由 detached notes 补齐。固定标记：
@@ -450,7 +452,7 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      保留 ``manifest_signoff_entrypoints``，并由
      ``scripts/assert_release_material_safety.ps1`` 直接审计 ``status=declared``、
      ``required_entrypoint_count=3``、三个人工签核入口的 ``required=true`` /
-     ``path_display``、两条 project-template contract、13 required fields 与
+     ``path_display``、两条 project-template contract、19 required fields 与
      ``reviewer_manifest_scoped_project_template_trace``。这样 packaged asset 层也能
      作为发布准入证据，不能只依赖 release summary。固定标记：
      ``manifest_signoff_entrypoints_manifest_trace``。

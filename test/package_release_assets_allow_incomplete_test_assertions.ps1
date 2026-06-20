@@ -136,6 +136,8 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
             "reviewer_action_summary",
             "reviewer_action_reason",
             "reviewer_actions",
+            "business_document_type_summary",
+            "corpus_role_summary",
             "source_report_display",
             "source_json_display"
         )) {
@@ -466,6 +468,18 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
         [int]$projectTemplateDeliveryReadinessSchemaSummary[0].count -ne 4) {
         throw "Release assets manifest lost project template delivery readiness schema_approval_status_summary in AllowIncomplete mode."
     }
+    $projectTemplateDeliveryReadinessBusinessTypes = @($projectTemplateDeliveryReadinessContract.business_document_type_summary)
+    if ($projectTemplateDeliveryReadinessBusinessTypes.Count -ne 2 -or
+        [string]$projectTemplateDeliveryReadinessBusinessTypes[0].document_type -ne "invoice" -or
+        [string]$projectTemplateDeliveryReadinessBusinessTypes[1].document_type -ne "policy") {
+        throw "Release assets manifest lost project template delivery readiness business_document_type_summary in AllowIncomplete mode."
+    }
+    $projectTemplateDeliveryReadinessCorpusRoles = @($projectTemplateDeliveryReadinessContract.corpus_role_summary)
+    if ($projectTemplateDeliveryReadinessCorpusRoles.Count -ne 2 -or
+        [string]$projectTemplateDeliveryReadinessCorpusRoles[0].corpus_role -ne "planned-business-template" -or
+        [string]$projectTemplateDeliveryReadinessCorpusRoles[1].corpus_role -ne "registered-business-template") {
+        throw "Release assets manifest lost project template delivery readiness corpus_role_summary in AllowIncomplete mode."
+    }
     if ([bool]$projectTemplateDeliveryReadinessContract.requires_reviewer_action) {
         throw "Release assets manifest lost project template delivery readiness requires_reviewer_action=false in AllowIncomplete mode."
     }
@@ -503,6 +517,18 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
     }
     if ([string]$projectTemplateOnboardingGovernanceContract.source_json_display -ne $expectedProjectTemplateOnboardingGovernanceDisplay) {
         throw "Release assets manifest lost project template onboarding governance source_json_display in AllowIncomplete mode."
+    }
+    $projectTemplateOnboardingGovernanceBusinessTypes = @($projectTemplateOnboardingGovernanceContract.business_document_type_summary)
+    if ($projectTemplateOnboardingGovernanceBusinessTypes.Count -ne 2 -or
+        [string]$projectTemplateOnboardingGovernanceBusinessTypes[0].document_type -ne "invoice" -or
+        [string]$projectTemplateOnboardingGovernanceBusinessTypes[1].document_type -ne "policy") {
+        throw "Release assets manifest lost project template onboarding governance business_document_type_summary in AllowIncomplete mode."
+    }
+    $projectTemplateOnboardingGovernanceCorpusRoles = @($projectTemplateOnboardingGovernanceContract.corpus_role_summary)
+    if ($projectTemplateOnboardingGovernanceCorpusRoles.Count -ne 2 -or
+        [string]$projectTemplateOnboardingGovernanceCorpusRoles[0].corpus_role -ne "planned-business-template" -or
+        [string]$projectTemplateOnboardingGovernanceCorpusRoles[1].corpus_role -ne "registered-business-template") {
+        throw "Release assets manifest lost project template onboarding governance corpus_role_summary in AllowIncomplete mode."
     }
     if ([bool]$projectTemplateOnboardingGovernanceContract.requires_reviewer_action) {
         throw "Release assets manifest lost project template onboarding governance requires_reviewer_action=false in AllowIncomplete mode."

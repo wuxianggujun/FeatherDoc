@@ -553,6 +553,15 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.schema_approval_status_summary is missing."
     }
 
+    foreach ($summaryFieldName in @("business_document_type_summary", "corpus_role_summary")) {
+        $summaryValue = Get-JsonPropertyValue -Object $contract -Name $summaryFieldName
+        if ($null -eq $summaryValue -or
+            ($summaryValue -is [string] -and [string]::IsNullOrWhiteSpace($summaryValue)) -or
+            @($summaryValue).Count -eq 0) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "project_template_delivery_readiness_contract.$summaryFieldName is missing."
+        }
+    }
+
     $onboardingNextAction = Get-JsonPropertyValue -Object $contract -Name "onboarding_governance_next_action"
     if ($null -eq $onboardingNextAction -or
         ($onboardingNextAction -is [string] -and [string]::IsNullOrWhiteSpace($onboardingNextAction)) -or

@@ -120,7 +120,7 @@ foreach ($marker in @(
     "docs/project_template_release_readiness_checklist_zh.rst",
     "release_entry_project_template_readiness_checklist_trace",
     "project_template_readiness_checklist_entrypoints",
-    "13 required fields",
+    "19 required fields",
     "project_template_readiness_checklist_entrypoints_manifest_trace",
     "project_template_readiness_checklist_entrypoints_governance_trace",
     "project_template_readiness_checklist_entrypoints_material_safety_trace",
@@ -550,6 +550,8 @@ $manifestSignoffRequiredFields = @(
     "reviewer_action_summary",
     "reviewer_action_reason",
     "reviewer_actions",
+    "business_document_type_summary",
+    "corpus_role_summary",
     "source_report_display",
     "source_json_display"
 )
@@ -775,7 +777,7 @@ Assert-SourceSectionContainsAll -Text $releaseGovernanceHandoffTest `
         '"manifest_signoff_entrypoints_required_entrypoint_count: ``3``"',
         '"manifest_signoff_entrypoints_entrypoint_ids: ``start_here, artifact_guide, reviewer_checklist``"',
         '"manifest_signoff_entrypoints_required_contracts: ``project_template_delivery_readiness_contract, project_template_onboarding_governance_contract``"',
-        '"manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, source_report_display, source_json_display``"',
+        '"manifest_signoff_entrypoints_required_fields: ``status, release_ready, release_blocker_count, warning_count, schema_approval_status_summary, onboarding_governance_next_action, onboarding_governance_next_action_summary, onboarding_governance_next_action_group_count, next_action, next_action_summary, next_action_group_count, requires_reviewer_action, reviewer_action_summary, reviewer_action_reason, reviewer_actions, business_document_type_summary, corpus_role_summary, source_report_display, source_json_display``"',
         '"manifest_signoff_entrypoints_checklist_marker: ``reviewer_manifest_scoped_project_template_trace``"'
     ) `
     -Message "Release governance handoff regression should keep manifest signoff evidence in one release-candidate source_report block."

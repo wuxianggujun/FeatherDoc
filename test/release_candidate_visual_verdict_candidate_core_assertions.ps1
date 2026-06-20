@@ -285,6 +285,12 @@ foreach ($fieldName in @(
         "next_action",
         "next_action_summary",
         "next_action_group_count",
+        "requires_reviewer_action",
+        "reviewer_action_summary",
+        "reviewer_action_reason",
+        "reviewer_actions",
+        "business_document_type_summary",
+        "corpus_role_summary",
         "source_report_display",
         "source_json_display"
     )) {

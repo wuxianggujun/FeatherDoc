@@ -364,6 +364,16 @@ Assert-ManifestContractFieldRequired `
     -FieldName "reviewer_actions" `
     -CaseSlug "manifest-missing-project-template-delivery-readiness-reviewer-actions"
 
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_delivery_readiness_contract" `
+    -FieldName "business_document_type_summary" `
+    -CaseSlug "manifest-missing-project-template-delivery-readiness-business-document-type-summary"
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_delivery_readiness_contract" `
+    -FieldName "corpus_role_summary" `
+    -CaseSlug "manifest-missing-project-template-delivery-readiness-corpus-role-summary"
+
 $badManifestMissingOnboardingGovernanceNextActionSummaryDir = Join-Path $failDir "manifest-missing-project-template-onboarding-governance-next-action-summary"
 $badManifestMissingOnboardingGovernanceNextActionSummaryPath = Join-Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestMissingOnboardingGovernanceNextActionSummaryDir -Force | Out-Null
@@ -409,6 +419,16 @@ Assert-ManifestContractFieldRequired `
     -ContractName "project_template_onboarding_governance_contract" `
     -FieldName "reviewer_actions" `
     -CaseSlug "manifest-missing-project-template-onboarding-governance-reviewer-actions"
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_onboarding_governance_contract" `
+    -FieldName "business_document_type_summary" `
+    -CaseSlug "manifest-missing-project-template-onboarding-governance-business-document-type-summary"
+
+Assert-ManifestContractFieldRequired `
+    -ContractName "project_template_onboarding_governance_contract" `
+    -FieldName "corpus_role_summary" `
+    -CaseSlug "manifest-missing-project-template-onboarding-governance-corpus-role-summary"
 
 $badManifestMissingProjectTemplateChecklistEntrypointsDir = Join-Path $failDir "manifest-missing-project-template-readiness-checklist-entrypoints"
 $badManifestMissingProjectTemplateChecklistEntrypointsPath = Join-Path $badManifestMissingProjectTemplateChecklistEntrypointsDir "release_assets_manifest.json"

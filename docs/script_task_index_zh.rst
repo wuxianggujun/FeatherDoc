@@ -357,8 +357,9 @@ Release governance 与发布材料
   追踪字段。``manifest_signoff_entrypoints`` 必须保留 ``required_contracts``、
   ``required_fields``、``path_display`` 和 ``reviewer_manifest_scoped_project_template_trace``；
   其中 ``required_fields`` 至少覆盖 ``status``、``release_ready``、
-  ``schema_approval_status_summary``、``source_report_display`` 与
-  ``source_json_display``，并要求 ``project_template_delivery_readiness_contract`` 和
+  ``schema_approval_status_summary``、``business_document_type_summary``、
+  ``corpus_role_summary``、``source_report_display`` 与 ``source_json_display``，
+  并要求 ``project_template_delivery_readiness_contract`` 和
   ``project_template_onboarding_governance_contract`` 同时进入 manifest signoff。
 - ``scripts/package_release_assets.ps1``：打包发布资产，并保留
   ``release_assets_manifest.json`` 中的 table-layout release review aliases

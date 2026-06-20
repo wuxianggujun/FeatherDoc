@@ -486,6 +486,8 @@ function Get-ProjectTemplateDeliveryReadinessContract {
         release_ready = Get-OptionalPropertyObject -Object $readinessSummary -Name "release_ready"
         latest_schema_approval_gate_status = Get-OptionalPropertyValue -Object $readinessSummary -Name "latest_schema_approval_gate_status"
         schema_approval_status_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "schema_approval_status_summary"
+        business_document_type_summary = @(Get-OptionalArrayProperty -Object $readinessSummary -Name "business_document_type_summary")
+        corpus_role_summary = @(Get-OptionalArrayProperty -Object $readinessSummary -Name "corpus_role_summary")
         onboarding_governance_next_action = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action"
         onboarding_governance_next_action_summary = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_summary"
         onboarding_governance_next_action_group_count = Get-OptionalPropertyObject -Object $readinessSummary -Name "onboarding_governance_next_action_group_count"
@@ -562,6 +564,8 @@ function Get-ProjectTemplateOnboardingGovernanceContract {
         source_failure_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "source_failure_count"
         entry_count = $entryCount
         schema_approval_status_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "schema_approval_status_summary"
+        business_document_type_summary = @(Get-OptionalArrayProperty -Object $onboardingSummary -Name "business_document_type_summary")
+        corpus_role_summary = @(Get-OptionalArrayProperty -Object $onboardingSummary -Name "corpus_role_summary")
         next_action = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action"
         next_action_summary = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_summary"
         next_action_group_count = Get-OptionalPropertyObject -Object $onboardingSummary -Name "next_action_group_count"

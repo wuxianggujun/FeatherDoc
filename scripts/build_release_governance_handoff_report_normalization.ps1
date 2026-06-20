@@ -49,6 +49,8 @@ function New-ReportEntry {
         source_failure_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "source_failure_count" }
         latest_schema_approval_gate_status = if ($null -eq $Json) { "" } else { Get-JsonString -Object $Json -Name "latest_schema_approval_gate_status" }
         schema_approval_status_summary = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary") }
+        business_document_type_summary = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "business_document_type_summary") }
+        corpus_role_summary = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "corpus_role_summary") }
         onboarding_governance_next_action = if ($null -eq $Json) { $null } else { Get-JsonProperty -Object $Json -Name "onboarding_governance_next_action" }
         onboarding_governance_next_action_summary = if ($null -eq $Json) { @() } else { @(Get-JsonArray -Object $Json -Name "onboarding_governance_next_action_summary") }
         onboarding_governance_next_action_group_count = if ($null -eq $Json) { 0 } else { Get-JsonInt -Object $Json -Name "onboarding_governance_next_action_group_count" }

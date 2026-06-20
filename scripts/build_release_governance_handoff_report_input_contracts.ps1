@@ -61,6 +61,8 @@ function New-ProjectTemplateOnboardingGovernanceContract {
         status = Get-JsonString -Object $Json -Name "status"
         release_ready = if ($null -ne (Get-JsonProperty -Object $Json -Name "release_ready")) { [string](Get-JsonBool -Object $Json -Name "release_ready") } else { "" }
         schema_approval_status_summary = @(Get-JsonArray -Object $Json -Name "schema_approval_status_summary")
+        business_document_type_summary = @(Get-JsonArray -Object $Json -Name "business_document_type_summary")
+        corpus_role_summary = @(Get-JsonArray -Object $Json -Name "corpus_role_summary")
         next_action = Get-JsonProperty -Object $Json -Name "next_action"
         next_action_summary = @(Get-JsonArray -Object $Json -Name "next_action_summary")
         next_action_group_count = Get-JsonInt -Object $Json -Name "next_action_group_count" -DefaultValue (@(Get-JsonArray -Object $Json -Name "next_action_summary").Count)
