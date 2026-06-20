@@ -57,6 +57,10 @@ tooling/tests; defaults to `scripts/package_release_assets.ps1`.
 Optional explicit override for the release-note sync script path. Intended for
 tooling/tests; defaults to `scripts/sync_github_release_notes.ps1`.
 
+.PARAMETER ReleaseMaterialAuditScriptPath
+Optional explicit override for the release material audit script path. Intended
+for tooling/tests; defaults to `scripts/assert_release_material_safety.ps1`.
+
 .EXAMPLE
 pwsh -ExecutionPolicy Bypass -File .\scripts\publish_github_release.ps1 `
     -SummaryJson .\output\release-candidate-checks\report\summary.json
@@ -79,7 +83,8 @@ param(
     [switch]$Publish,
     [switch]$AllowCiArtifactPublish,
     [string]$PackageScriptPath = "",
-    [string]$SyncNotesScriptPath = ""
+    [string]$SyncNotesScriptPath = "",
+    [string]$ReleaseMaterialAuditScriptPath = ""
 )
 
 Set-StrictMode -Version Latest
@@ -281,6 +286,22 @@ function Update-UploadedAssetManifest {
     Set-JsonObjectProperty -Object $manifest.upload -Name "remote_assets" -Value $remoteAssets
     ($manifest | ConvertTo-Json -Depth 8) | Set-Content -LiteralPath $manifestPath -Encoding UTF8
     Write-Step "Refreshed uploaded asset manifest from GitHub release view"
+    return $manifestPath
+}
+
+function Assert-RefreshedAssetManifest {
+    param(
+        [string]$AuditScriptPath,
+        [string]$ManifestPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
+        return
+    }
+
+    Assert-PathExists -Path $ManifestPath -Label "refreshed release asset manifest"
+    Write-Step "Auditing refreshed release asset manifest"
+    & $AuditScriptPath -Path $ManifestPath
 }
 
 $repoRoot = Resolve-RepoRoot
@@ -331,9 +352,15 @@ $resolvedSyncNotesScriptPath = if ([string]::IsNullOrWhiteSpace($SyncNotesScript
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $SyncNotesScriptPath
 }
+$resolvedReleaseMaterialAuditScriptPath = if ([string]::IsNullOrWhiteSpace($ReleaseMaterialAuditScriptPath)) {
+    Join-Path $repoRoot "scripts\assert_release_material_safety.ps1"
+} else {
+    Resolve-FullPath -RepoRoot $repoRoot -InputPath $ReleaseMaterialAuditScriptPath
+}
 
 Assert-PathExists -Path $resolvedPackageScriptPath -Label "package release assets script"
 Assert-PathExists -Path $resolvedSyncNotesScriptPath -Label "sync GitHub release notes script"
+Assert-PathExists -Path $resolvedReleaseMaterialAuditScriptPath -Label "release material audit script"
 
 $packageArgs = @{
     SummaryJson = $resolvedSummaryPath
@@ -380,11 +407,15 @@ Write-Step "Uploading release assets to GitHub release $resolvedReleaseTag"
 Write-Step "Syncing audited GitHub release notes to $resolvedReleaseTag"
 & $resolvedSyncNotesScriptPath @syncArgs
 
-Update-UploadedAssetManifest `
+$updatedManifestPath = Update-UploadedAssetManifest `
     -RepoRoot $repoRoot `
     -OutputRoot $OutputRoot `
     -ReleaseVersion $resolvedReleaseVersion `
     -ReleaseTag $resolvedReleaseTag
+
+Assert-RefreshedAssetManifest `
+    -AuditScriptPath $resolvedReleaseMaterialAuditScriptPath `
+    -ManifestPath $updatedManifestPath
 
 Write-Host "Release tag: $resolvedReleaseTag"
 Write-Host "Release version: $resolvedReleaseVersion"

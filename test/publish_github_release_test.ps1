@@ -20,6 +20,7 @@ $reportDir = Join-Path $resolvedWorkingDir "output\release-candidate-checks\repo
 $summaryPath = Join-Path $reportDir "summary.json"
 $fakePackagePath = Join-Path $resolvedWorkingDir "fake_package_release_assets.ps1"
 $fakeSyncPath = Join-Path $resolvedWorkingDir "fake_sync_github_release_notes.ps1"
+$fakeAuditPath = Join-Path $resolvedWorkingDir "fake_assert_release_material_safety.ps1"
 $callLogPath = Join-Path $resolvedWorkingDir "call-log.jsonl"
 
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
@@ -119,6 +120,31 @@ $payload = [ordered]@{
 Add-Content -LiteralPath $env:FEATHERDOC_PUBLISH_RELEASE_LOG -Value (($payload | ConvertTo-Json -Compress))
 '@
 
+Set-Content -LiteralPath $fakeAuditPath -Encoding UTF8 -Value @'
+param(
+    [string[]]$Path
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$payload = [ordered]@{
+    step = "audit"
+    path = @($Path)
+}
+Add-Content -LiteralPath $env:FEATHERDOC_PUBLISH_RELEASE_LOG -Value (($payload | ConvertTo-Json -Compress))
+
+if (@($Path).Count -ne 1) {
+    throw "Expected exactly one refreshed manifest path, found $(@($Path).Count)."
+}
+if ((Split-Path -Leaf ([string]$Path[0])) -ne "release_assets_manifest.json") {
+    throw "Post-publish audit received the wrong path: $($Path[0])"
+}
+if (-not (Test-Path -LiteralPath ([string]$Path[0]))) {
+    throw "Post-publish audit target was not found: $($Path[0])"
+}
+'@
+
 $bodyPath = Join-Path $reportDir "release_body.zh-CN.md"
 $outputRoot = Join-Path $resolvedWorkingDir "release-assets"
 $installPrefix = Join-Path $resolvedWorkingDir "build-msvc-install"
@@ -138,7 +164,8 @@ try {
         -KeepStaging `
         -Publish `
         -PackageScriptPath $fakePackagePath `
-        -SyncNotesScriptPath $fakeSyncPath
+        -SyncNotesScriptPath $fakeSyncPath `
+        -ReleaseMaterialAuditScriptPath $fakeAuditPath
 } finally {
     Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_LOG -ErrorAction SilentlyContinue
 }
@@ -213,7 +240,8 @@ try {
         -Title $releaseTitle `
         -Publish `
         -PackageScriptPath $fakePackagePath `
-        -SyncNotesScriptPath $fakeSyncPath
+        -SyncNotesScriptPath $fakeSyncPath `
+        -ReleaseMaterialAuditScriptPath $fakeAuditPath
 } catch {
     $errorMessage = $_.Exception.Message
     $failedBeforeUpload = $_.Exception.Message -like "*Refusing to publish GitHub release*"
@@ -244,7 +272,8 @@ try {
         -Publish `
         -AllowCiArtifactPublish `
         -PackageScriptPath $fakePackagePath `
-        -SyncNotesScriptPath $fakeSyncPath
+        -SyncNotesScriptPath $fakeSyncPath `
+        -ReleaseMaterialAuditScriptPath $fakeAuditPath
 } finally {
     Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_LOG -ErrorAction SilentlyContinue
 }
@@ -326,7 +355,8 @@ try {
         -SummaryJson $summaryPath `
         -OutputRoot $manifestOutputRoot `
         -PackageScriptPath $fakePackagePath `
-        -SyncNotesScriptPath $fakeSyncPath
+        -SyncNotesScriptPath $fakeSyncPath `
+        -ReleaseMaterialAuditScriptPath $fakeAuditPath
 } finally {
     Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_LOG -ErrorAction SilentlyContinue
     Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_WRITE_MANIFEST -ErrorAction SilentlyContinue
@@ -335,6 +365,18 @@ try {
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     throw "publish_github_release.ps1 did not leave a release_assets_manifest.json for upload evidence."
+}
+
+$manifestEntries = @(Get-Content -LiteralPath $callLogPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+    $_ | ConvertFrom-Json
+})
+$manifestStepOrder = @($manifestEntries | ForEach-Object { [string]$_.step }) -join ","
+if ($manifestStepOrder -ne "package,sync,audit") {
+    throw "publish_github_release.ps1 should run package -> sync -> post-publish manifest audit, got '$manifestStepOrder'."
+}
+$auditEntry = @($manifestEntries | Where-Object { $_.step -eq "audit" }) | Select-Object -First 1
+if ($null -eq $auditEntry -or @($auditEntry.path).Count -ne 1 -or [string]@($auditEntry.path)[0] -ne $manifestPath) {
+    throw "Post-publish manifest audit did not receive the refreshed manifest path."
 }
 
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
