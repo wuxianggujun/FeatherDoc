@@ -195,7 +195,7 @@ foreach ($marker in @(
 foreach ($marker in @(
         "Verify Ninja",
         'cmake -S . -B build-msvc-ninja -G "Ninja"',
-        "cmake --build build-msvc-ninja --parallel 2 --verbose",
+        "cmake --build build-msvc-ninja --parallel 4 --verbose",
         "ctest --test-dir build-msvc-ninja --output-on-failure --timeout 60",
         '-BuildDir build-msvc-ninja',
         '-Generator "Ninja"',

@@ -109,7 +109,7 @@ jobs:
       - name: Build
         shell: pwsh
         timeout-minutes: 75
-        run: cmake --build build-msvc-ninja --parallel 2 --verbose
+        run: cmake --build build-msvc-ninja --parallel 4 --verbose
 
       - name: Run tests
         shell: pwsh
