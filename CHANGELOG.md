@@ -48,6 +48,9 @@ performance.
   include the manifest itself, unrelated assets, malformed remote URLs,
   mismatched release tags, query or fragment polluted URLs, or non-integer size
   and download-count metrics.
+- Fixed a selector-based CLI test output collision by giving the bookmark
+  template-table patch case a unique JSON filename, so parallel runs no longer
+  race on the same artifact.
 
 ## [1.12.2] - 2026-06-16
 
