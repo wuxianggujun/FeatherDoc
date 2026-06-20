@@ -125,6 +125,41 @@
         return ($parts -join " ")
     }
 
+    function Get-FinalReviewWorkflowDashboardCountSummaryText {
+        param(
+            [object[]]$SummaryItems,
+            [string]$NameProperty
+        )
+
+        [string[]]$parts = @()
+        foreach ($item in @($SummaryItems)) {
+            if ($null -eq $item) {
+                continue
+            }
+
+            if ($item -is [string]) {
+                if (-not [string]::IsNullOrWhiteSpace($item)) {
+                    $parts += [string]$item
+                }
+                continue
+            }
+
+            $name = Get-OptionalPropertyValue -Object $item -Name $NameProperty
+            if ([string]::IsNullOrWhiteSpace($name)) {
+                continue
+            }
+
+            $count = Get-OptionalPropertyValue -Object $item -Name "count"
+            if ([string]::IsNullOrWhiteSpace($count)) {
+                $parts += [string]$name
+            } else {
+                $parts += ("{0}={1}" -f $name, $count)
+            }
+        }
+
+        return ($parts -join ", ")
+    }
+
     ($summary | ConvertTo-Json -Depth 12) | Set-Content -Path $summaryPath -Encoding UTF8
 
     $repoRootDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $repoRoot
@@ -170,6 +205,30 @@
         ForEach-Object { Get-FinalReviewWorkflowDashboardActionSourceSummaryText -SourceGroup $_ } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         ForEach-Object { "- Project template workflow dashboard action source: $_" }) -join [Environment]::NewLine
+    $projectTemplateWorkflowDashboardBusinessDocumentTypeSummary = @(Get-FinalReviewWorkflowDashboardObjectArray `
+            -Step $projectTemplateWorkflowDashboardStep `
+            -Report $projectTemplateWorkflowDashboardReport `
+            -Name "business_document_type_summary")
+    $projectTemplateWorkflowDashboardBusinessDocumentTypesText = Get-FinalReviewWorkflowDashboardCountSummaryText `
+        -SummaryItems $projectTemplateWorkflowDashboardBusinessDocumentTypeSummary `
+        -NameProperty "document_type"
+    $projectTemplateWorkflowDashboardBusinessDocumentTypesMarkdown = if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardBusinessDocumentTypesText)) {
+        ""
+    } else {
+        "- Project template workflow dashboard business document types: $projectTemplateWorkflowDashboardBusinessDocumentTypesText"
+    }
+    $projectTemplateWorkflowDashboardCorpusRoleSummary = @(Get-FinalReviewWorkflowDashboardObjectArray `
+            -Step $projectTemplateWorkflowDashboardStep `
+            -Report $projectTemplateWorkflowDashboardReport `
+            -Name "corpus_role_summary")
+    $projectTemplateWorkflowDashboardCorpusRolesText = Get-FinalReviewWorkflowDashboardCountSummaryText `
+        -SummaryItems $projectTemplateWorkflowDashboardCorpusRoleSummary `
+        -NameProperty "corpus_role"
+    $projectTemplateWorkflowDashboardCorpusRolesMarkdown = if ([string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardCorpusRolesText)) {
+        ""
+    } else {
+        "- Project template workflow dashboard corpus roles: $projectTemplateWorkflowDashboardCorpusRolesText"
+    }
     $releaseGovernanceHandoffSummaryDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.summary_json
     $releaseGovernanceHandoffReportDisplay = Get-RepoRelativePath -RepoRoot $repoRoot -Path $summary.release_governance_handoff.report_markdown
     $releaseHandoffDisplayPath = Get-RepoRelativePath -RepoRoot $repoRoot -Path $releaseHandoffPath
@@ -345,6 +404,8 @@
 - Release governance handoff: $($summary.steps.release_governance_handoff.status)
 - Project template workflow dashboard: $($summary.steps.project_template_workflow_dashboard.status)
 - Project template workflow dashboard next action groups: $projectTemplateWorkflowDashboardNextActionGroupCount
+$projectTemplateWorkflowDashboardBusinessDocumentTypesMarkdown
+$projectTemplateWorkflowDashboardCorpusRolesMarkdown
 $projectTemplateWorkflowDashboardActionSummaryMarkdown
 $projectTemplateWorkflowDashboardActionSourceSummaryMarkdown
 $visualGateReviewTaskSummaryLine
@@ -386,6 +447,8 @@ $wordVisualStandardReviewMetadataEvidenceMarkdown
 - Project template workflow dashboard summary: $projectTemplateWorkflowDashboardSummaryDisplay
 - Project template workflow dashboard report: $projectTemplateWorkflowDashboardReportDisplay
 - Project template workflow dashboard counts: $($summary.project_template_workflow_dashboard_report.source_report_count) reports, $($summary.project_template_workflow_dashboard_report.release_blocker_count) blockers, $($summary.project_template_workflow_dashboard_report.warning_count) warnings
+$projectTemplateWorkflowDashboardBusinessDocumentTypesMarkdown
+$projectTemplateWorkflowDashboardCorpusRolesMarkdown
 - Release handoff: $releaseHandoffDisplayPath
 - Release body: $releaseBodyDisplayPath
 - Release summary: $releaseSummaryDisplayPath

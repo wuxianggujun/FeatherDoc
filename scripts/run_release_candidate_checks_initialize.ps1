@@ -462,8 +462,11 @@ $summary = [ordered]@{
         release_blocker_count = 0
         warning_count = 0
         source_report_count = 0
+        business_document_type_summary = @()
+        corpus_role_summary = @()
         next_action = $null
         next_action_summary = @()
+        next_action_summary_by_source = @()
         next_action_group_count = 0
         error = ""
     }
@@ -696,8 +699,11 @@ $summary = [ordered]@{
             release_blocker_count = 0
             warning_count = 0
             source_report_count = 0
+            business_document_type_summary = @()
+            corpus_role_summary = @()
             next_action = $null
             next_action_summary = @()
+            next_action_summary_by_source = @()
             next_action_group_count = 0
             error = ""
         }

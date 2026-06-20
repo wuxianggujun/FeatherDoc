@@ -320,6 +320,8 @@
             $workflowDashboardNextAction = if ($null -eq $workflowDashboardSummary) { $null } else { Get-OptionalPropertyValue -Object $workflowDashboardSummary -Name "next_action" }
             [object[]]$workflowDashboardNextActionSummary = if ($null -eq $workflowDashboardSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $workflowDashboardSummary -Name "next_action_summary") }
             [object[]]$workflowDashboardNextActionSummaryBySource = if ($null -eq $workflowDashboardSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $workflowDashboardSummary -Name "next_action_summary_by_source") }
+            [object[]]$workflowDashboardBusinessDocumentTypeSummary = if ($null -eq $workflowDashboardSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $workflowDashboardSummary -Name "business_document_type_summary") }
+            [object[]]$workflowDashboardCorpusRoleSummary = if ($null -eq $workflowDashboardSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $workflowDashboardSummary -Name "corpus_role_summary") }
             $workflowDashboardNextActionGroupCount = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "next_action_group_count" -DefaultValue @($workflowDashboardNextActionSummary).Count) }
 
             $summary.project_template_workflow_dashboard_report.status = if ($null -eq $workflowDashboardSummary) { "missing_summary" } else { [string]$workflowDashboardSummary.status }
@@ -327,6 +329,8 @@
             $summary.project_template_workflow_dashboard_report.release_blocker_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "release_blocker_count") }
             $summary.project_template_workflow_dashboard_report.warning_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "warning_count") }
             $summary.project_template_workflow_dashboard_report.source_report_count = if ($null -eq $workflowDashboardSummary) { 0 } else { [int](Get-OptionalIntegerProperty -Object $workflowDashboardSummary -Name "source_report_count") }
+            $summary.project_template_workflow_dashboard_report.business_document_type_summary = @($workflowDashboardBusinessDocumentTypeSummary)
+            $summary.project_template_workflow_dashboard_report.corpus_role_summary = @($workflowDashboardCorpusRoleSummary)
             $summary.project_template_workflow_dashboard_report.next_action = $workflowDashboardNextAction
             $summary.project_template_workflow_dashboard_report.next_action_summary = @($workflowDashboardNextActionSummary)
             $summary.project_template_workflow_dashboard_report.next_action_summary_by_source = @($workflowDashboardNextActionSummaryBySource)
@@ -338,6 +342,8 @@
             $summary.steps.project_template_workflow_dashboard.release_blocker_count = $summary.project_template_workflow_dashboard_report.release_blocker_count
             $summary.steps.project_template_workflow_dashboard.warning_count = $summary.project_template_workflow_dashboard_report.warning_count
             $summary.steps.project_template_workflow_dashboard.source_report_count = $summary.project_template_workflow_dashboard_report.source_report_count
+            $summary.steps.project_template_workflow_dashboard.business_document_type_summary = @($summary.project_template_workflow_dashboard_report.business_document_type_summary)
+            $summary.steps.project_template_workflow_dashboard.corpus_role_summary = @($summary.project_template_workflow_dashboard_report.corpus_role_summary)
             $summary.steps.project_template_workflow_dashboard.next_action = $summary.project_template_workflow_dashboard_report.next_action
             $summary.steps.project_template_workflow_dashboard.next_action_summary = @($summary.project_template_workflow_dashboard_report.next_action_summary)
             $summary.steps.project_template_workflow_dashboard.next_action_summary_by_source = @($summary.project_template_workflow_dashboard_report.next_action_summary_by_source)
@@ -350,6 +356,8 @@
             $summary.project_template_workflow_dashboard_report.next_action = $null
             $summary.project_template_workflow_dashboard_report.next_action_summary = @()
             $summary.project_template_workflow_dashboard_report.next_action_summary_by_source = @()
+            $summary.project_template_workflow_dashboard_report.business_document_type_summary = @()
+            $summary.project_template_workflow_dashboard_report.corpus_role_summary = @()
             $summary.project_template_workflow_dashboard_report.next_action_group_count = 0
             $summary.project_template_workflow_dashboard_report.error = $workflowDashboardError
             $summary.steps.project_template_workflow_dashboard.status = "failed"
@@ -357,6 +365,8 @@
             $summary.steps.project_template_workflow_dashboard.next_action = $null
             $summary.steps.project_template_workflow_dashboard.next_action_summary = @()
             $summary.steps.project_template_workflow_dashboard.next_action_summary_by_source = @()
+            $summary.steps.project_template_workflow_dashboard.business_document_type_summary = @()
+            $summary.steps.project_template_workflow_dashboard.corpus_role_summary = @()
             $summary.steps.project_template_workflow_dashboard.next_action_group_count = 0
             $summary.steps.project_template_workflow_dashboard.error = $workflowDashboardError
             Write-Step "Project-template workflow dashboard failed: $workflowDashboardError"

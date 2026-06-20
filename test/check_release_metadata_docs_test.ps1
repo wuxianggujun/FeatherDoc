@@ -48,6 +48,8 @@ $defaultPipelineText = @(
     '- project_template_workflow_dashboard_report',
     '- Project template workflow dashboard status',
     '- Project template workflow dashboard next action',
+    '- Project template workflow dashboard business document types',
+    '- Project template workflow dashboard corpus roles',
     '- Project template workflow dashboard next action groups',
     '- Project template workflow dashboard action group',
     '- release_note_bundle',

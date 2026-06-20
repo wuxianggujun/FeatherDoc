@@ -133,6 +133,8 @@ task 误算进 review scope。
   ``Project template workflow dashboard status``、
   ``Project template workflow dashboard release ready``、
   ``Project template workflow dashboard counts`` 与
+  ``Project template workflow dashboard business document types``、
+  ``Project template workflow dashboard corpus roles``、
   ``Project template workflow dashboard next action``，并在存在分组时展示
   ``Project template workflow dashboard next action groups`` 和
   ``Project template workflow dashboard action group``；其中

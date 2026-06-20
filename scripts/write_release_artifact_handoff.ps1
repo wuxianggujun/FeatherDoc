@@ -237,6 +237,41 @@ function Get-WorkflowDashboardActionSourceSummaryText {
     return ($parts -join " ")
 }
 
+function Get-WorkflowDashboardCountSummaryText {
+    param(
+        [object[]]$SummaryItems,
+        [string]$NameProperty
+    )
+
+    [string[]]$parts = @()
+    foreach ($item in @($SummaryItems)) {
+        if ($null -eq $item) {
+            continue
+        }
+
+        if ($item -is [string]) {
+            if (-not [string]::IsNullOrWhiteSpace($item)) {
+                $parts += [string]$item
+            }
+            continue
+        }
+
+        $name = Get-OptionalPropertyValue -Object $item -Name $NameProperty
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            continue
+        }
+
+        $count = Get-OptionalPropertyValue -Object $item -Name "count"
+        if ([string]::IsNullOrWhiteSpace($count)) {
+            $parts += [string]$name
+        } else {
+            $parts += ("{0}={1}" -f $name, $count)
+        }
+    }
+
+    return ($parts -join ", ")
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -507,6 +542,20 @@ $projectTemplateWorkflowDashboardNextActionSummaryBySource = @(Get-WorkflowDashb
 $projectTemplateWorkflowDashboardActionSourceSummaryLines = @($projectTemplateWorkflowDashboardNextActionSummaryBySource |
     ForEach-Object { Get-WorkflowDashboardActionSourceSummaryText -SourceGroup $_ } |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$projectTemplateWorkflowDashboardBusinessDocumentTypeSummary = @(Get-WorkflowDashboardObjectArray `
+        -Step $projectTemplateWorkflowDashboardStep `
+        -Report $projectTemplateWorkflowDashboardReport `
+        -Name "business_document_type_summary")
+$projectTemplateWorkflowDashboardBusinessDocumentTypesText = Get-WorkflowDashboardCountSummaryText `
+    -SummaryItems $projectTemplateWorkflowDashboardBusinessDocumentTypeSummary `
+    -NameProperty "document_type"
+$projectTemplateWorkflowDashboardCorpusRoleSummary = @(Get-WorkflowDashboardObjectArray `
+        -Step $projectTemplateWorkflowDashboardStep `
+        -Report $projectTemplateWorkflowDashboardReport `
+        -Name "corpus_role_summary")
+$projectTemplateWorkflowDashboardCorpusRolesText = Get-WorkflowDashboardCountSummaryText `
+    -SummaryItems $projectTemplateWorkflowDashboardCorpusRoleSummary `
+    -NameProperty "corpus_role"
 
 $visualGateStep = Get-OptionalPropertyObject -Object $summary.steps -Name "visual_gate"
 $installPrefix = Get-OptionalPropertyValue -Object $summary.steps.install_smoke -Name "install_prefix"
@@ -670,6 +719,12 @@ $handoffLines = New-Object 'System.Collections.Generic.List[string]'
 [void]$handoffLines.Add("- Project template workflow dashboard counts: $(Get-DisplayValue -Value ('{0} reports, {1} blockers, {2} warnings' -f $projectTemplateWorkflowDashboardSourceReportCount, $projectTemplateWorkflowDashboardReleaseBlockerCount, $projectTemplateWorkflowDashboardWarningCount))")
 [void]$handoffLines.Add("- Project template workflow dashboard summary: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateWorkflowDashboardSummaryJson)")
 [void]$handoffLines.Add("- Project template workflow dashboard report: $(Get-DisplayPath -RepoRoot $repoRoot -Path $projectTemplateWorkflowDashboardReportMarkdown)")
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardBusinessDocumentTypesText)) {
+    [void]$handoffLines.Add("- Project template workflow dashboard business document types: $projectTemplateWorkflowDashboardBusinessDocumentTypesText")
+}
+if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardCorpusRolesText)) {
+    [void]$handoffLines.Add("- Project template workflow dashboard corpus roles: $projectTemplateWorkflowDashboardCorpusRolesText")
+}
 [void]$handoffLines.Add("- Project template workflow dashboard next action: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardNextActionDisplay)")
 if (-not [string]::IsNullOrWhiteSpace($projectTemplateWorkflowDashboardNextActionBlockerId)) {
     [void]$handoffLines.Add("- Project template workflow dashboard next blocker: $(Get-DisplayValue -Value $projectTemplateWorkflowDashboardNextActionBlockerId)")

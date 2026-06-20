@@ -235,12 +235,22 @@ function New-ProjectTemplateSmokeSummaryMissingWarning {
 }
 
 function Add-SummaryGroup {
-    param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
+    param(
+        [object[]]$Items,
+        [string]$PropertyName,
+        [string]$OutputName,
+        [switch]$SkipEmpty
+    )
 
     $groupItems = @(
         foreach ($item in @($Items)) {
+            $value = Get-JsonString -Object $item -Name $PropertyName -DefaultValue "unknown"
+            if ($SkipEmpty -and [string]::IsNullOrWhiteSpace($value)) {
+                continue
+            }
+
             [pscustomobject]@{
-                Value = Get-JsonString -Object $item -Name $PropertyName -DefaultValue "unknown"
+                Value = $value
             }
         }
     )
@@ -667,31 +677,6 @@ function Convert-ProjectTemplateSmokeSummaryToTemplates {
                 -SchemaApprovalState $schemaApprovalState `
                 -OnboardingStatus (Get-JsonString -Object $entry -Name "status" -DefaultValue $defaultOnboardingStatus) `
                 -ReleaseBlockers $releaseBlockers
-        }
-    )
-}
-
-function Add-SummaryGroup {
-    param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
-
-    $groupItems = @(
-        foreach ($item in @($Items)) {
-            $value = Get-JsonString -Object $item -Name $PropertyName
-            if (-not [string]::IsNullOrWhiteSpace($value)) {
-                [pscustomobject]@{
-                    Value = $value
-                }
-            }
-        }
-    )
-
-    return @(
-        foreach ($group in @($groupItems | Group-Object Value |
-            Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
-            $summary = [ordered]@{}
-            $summary[$OutputName] = [string]$group.Name
-            $summary["count"] = [int]$group.Count
-            $summary
         }
     )
 }
