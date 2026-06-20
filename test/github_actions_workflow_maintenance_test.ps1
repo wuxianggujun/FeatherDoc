@@ -236,6 +236,26 @@ foreach ($unexpected in @(
         -Message "Windows workflow should not regress to the serial NMake marker '$unexpected'."
 }
 
+$linuxWorkflow = $workflowTexts[".github\workflows\linux-cmake.yml"]
+foreach ($marker in @(
+        'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60',
+        'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60 -L cli_smoke',
+        'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60 -L release_smoke'
+    )) {
+    Assert-ContainsText -Text $linuxWorkflow -ExpectedText $marker `
+        -Message "Linux workflow should keep the CTest parallel marker '$marker'."
+}
+
+$macosWorkflow = $workflowTexts[".github\workflows\macos-cmake.yml"]
+foreach ($marker in @(
+        "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60",
+        "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L cli_smoke",
+        "ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L release_smoke"
+    )) {
+    Assert-ContainsText -Text $macosWorkflow -ExpectedText $marker `
+        -Message "macOS workflow should keep the CTest parallel marker '$marker'."
+}
+
 foreach ($marker in @(
         "output/release-assets-ci/v*/release_assets_manifest.json",
         "output/release-assets-ci/v*/FeatherDoc-*-msvc-install.zip",

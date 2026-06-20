@@ -33,24 +33,13 @@ jobs:
         run: cmake --build build-macos --parallel 2 --verbose
 
       - name: Run tests
-        run: >
-          ctest --test-dir build-macos
-          --output-on-failure
-          --timeout 60
+        run: ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60
 
       - name: Run split CLI smoke tests
-        run: >
-          ctest --test-dir build-macos
-          --output-on-failure
-          --timeout 60
-          -L cli_smoke
+        run: ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L cli_smoke
 
       - name: Run release governance smoke tests
-        run: >
-          ctest --test-dir build-macos
-          --output-on-failure
-          --timeout 60
-          -L release_smoke
+        run: ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60 -L release_smoke
 
       - name: Upload release governance smoke artifacts
         if: always()
