@@ -88,6 +88,38 @@ function Get-ProjectTemplateReviewerActionSuffix {
     return " " + ($parts -join " ")
 }
 
+function Get-ProjectTemplateBusinessDimensionSummaryText {
+    param(
+        [AllowNull()]$Report,
+        [string]$FieldName,
+        [string]$NameProperty
+    )
+
+    return Get-ReleaseBlockerSummaryGroupDisplay `
+        -Items @(Get-ReleaseBlockerArrayProperty -Object $Report -Name $FieldName) `
+        -NameProperty $NameProperty
+}
+
+function Add-ProjectTemplateBusinessDimensionParts {
+    param(
+        [System.Collections.Generic.List[string]]$Parts,
+        [AllowNull()]$Report
+    )
+
+    [void]$Parts.Add((
+            "business_document_type_summary={0}" -f (Get-ProjectTemplateBusinessDimensionSummaryText `
+                -Report $Report `
+                -FieldName "business_document_type_summary" `
+                -NameProperty "document_type")
+        ))
+    [void]$Parts.Add((
+            "corpus_role_summary={0}" -f (Get-ProjectTemplateBusinessDimensionSummaryText `
+                -Report $Report `
+                -FieldName "corpus_role_summary" `
+                -NameProperty "corpus_role")
+        ))
+}
+
 function Add-ProjectTemplateGovernanceContractSummaryLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -162,6 +194,7 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
         if (-not [string]::IsNullOrWhiteSpace($onboardingGovernanceNextActionSummary)) {
             [void]$readinessParts.Add("onboarding_governance_next_action_summary=$onboardingGovernanceNextActionSummary")
         }
+        Add-ProjectTemplateBusinessDimensionParts -Parts $readinessParts -Report $readinessReport
         Add-ProjectTemplateReviewerActionParts -Parts $readinessParts -Evidence $readinessReviewerActionEvidence
         [void]$readinessParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $readinessReport)")
         [void]$readinessParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $readinessReport)")
@@ -210,6 +243,7 @@ function Add-ProjectTemplateGovernanceContractSummaryLines {
         if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
             [void]$onboardingParts.Add("next_action_group_count=$nextActionGroupCount")
         }
+        Add-ProjectTemplateBusinessDimensionParts -Parts $onboardingParts -Report $onboardingReport
         Add-ProjectTemplateReviewerActionParts -Parts $onboardingParts -Evidence $onboardingReviewerActionEvidence
         [void]$onboardingParts.Add("source_report_display=$(Get-GovernanceSourceReportDisplay -Item $onboardingReport)")
         [void]$onboardingParts.Add("source_json_display=$(Get-GovernanceSourceJsonDisplay -Item $onboardingReport)")
@@ -286,8 +320,16 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "schema_approval_status_summary")
         $onboardingGovernanceNextAction = Format-ProjectTemplateNextActionSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $readinessReport -Name "onboarding_governance_next_action")
+        $businessDocumentTypeSummary = Get-ProjectTemplateBusinessDimensionSummaryText `
+            -Report $readinessReport `
+            -FieldName "business_document_type_summary" `
+            -NameProperty "document_type"
+        $corpusRoleSummary = Get-ProjectTemplateBusinessDimensionSummaryText `
+            -Report $readinessReport `
+            -FieldName "corpus_role_summary" `
+            -NameProperty "corpus_role"
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} onboarding_governance_next_action={4} onboarding_governance_next_action_group_count={5} release_blocker_count={6} warning_count={7}{8} source_report_display={9} source_json_display={10}。' -f `
+            'project-template readiness governance contract 已进入短摘要： status={0} release_ready={1} latest_schema_approval_gate_status={2} schema_approval_status_summary={3} onboarding_governance_next_action={4} onboarding_governance_next_action_group_count={5} release_blocker_count={6} warning_count={7} business_document_type_summary={8} corpus_role_summary={9}{10} source_report_display={11} source_json_display={12}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_ready")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "latest_schema_approval_gate_status")),
@@ -296,6 +338,8 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "onboarding_governance_next_action_group_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "release_blocker_count")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $readinessReport -Name "warning_count")),
+                (Get-DisplayValue -Value $businessDocumentTypeSummary),
+                (Get-DisplayValue -Value $corpusRoleSummary),
                 $readinessReviewerActionSuffix,
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $readinessReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $readinessReport))
@@ -313,14 +357,24 @@ function Add-ProjectTemplateGovernanceContractShortSummaryBullets {
             -Fallback (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")
         $nextAction = Format-ProjectTemplateNextActionSummary `
             -Value (Get-ReleaseBlockerPropertyObject -Object $onboardingReport -Name "next_action")
+        $businessDocumentTypeSummary = Get-ProjectTemplateBusinessDimensionSummaryText `
+            -Report $onboardingReport `
+            -FieldName "business_document_type_summary" `
+            -NameProperty "document_type"
+        $corpusRoleSummary = Get-ProjectTemplateBusinessDimensionSummaryText `
+            -Report $onboardingReport `
+            -FieldName "corpus_role_summary" `
+            -NameProperty "corpus_role"
 
         Add-UniqueLine -Lines $Lines -Line (
-            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} next_action={3} next_action_group_count={4}{5} source_report_display={6} source_json_display={7}。' -f `
+            'project-template onboarding governance contract 已进入短摘要： status={0} release_ready={1} schema_approval_status_summary={2} next_action={3} next_action_group_count={4} business_document_type_summary={5} corpus_role_summary={6}{7} source_report_display={8} source_json_display={9}。' -f `
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "status")),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "release_ready")),
                 (Get-DisplayValue -Value $schemaApprovalSummary),
                 (Get-DisplayValue -Value $nextAction),
                 (Get-DisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $onboardingReport -Name "next_action_group_count")),
+                (Get-DisplayValue -Value $businessDocumentTypeSummary),
+                (Get-DisplayValue -Value $corpusRoleSummary),
                 $onboardingReviewerActionSuffix,
                 (Get-DisplayValue -Value (Get-GovernanceSourceReportDisplay -Item $onboardingReport)),
                 (Get-DisplayValue -Value (Get-GovernanceSourceJsonDisplay -Item $onboardingReport))

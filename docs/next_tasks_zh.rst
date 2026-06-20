@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-06-20
+状态日期：2026-06-21
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -34,17 +34,16 @@ P0：当前发布与 CI 守护
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
    * 截至本次任务清单刷新，最新 ``dev`` head
-     ``c72407e2eb908f42eae523c2a65ea1402852c474`` 的 Linux CMake CI、
-     macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live 状态请以
-     ``gh run list --branch dev`` 为准。
+     ``70fca44c39d0342cf552109a2e2c7dc43c01c1a9`` 的 Docs Pages、
+     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
+     状态请以 ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
      dashboard action group 也固定输出 ``blocker=`` / ``entries=`` marker。
-   * 最新 ``dev`` head ``ec098480b4b9259afdc0b5964c74ccff5b11751d`` 暴露出
-     Linux、macOS 与 Windows 均长时间停在 Build step；Linux/macOS Build step
-     需要和 Windows 一样保留 step timeout 与 verbose 日志，避免后续 CI 卡住时
-     缺少可定位输出。
+   * ``ec098480b4b9259afdc0b5964c74ccff5b11751d`` 暴露出的 Linux、macOS 与
+     Windows Build step 长时间无定位输出问题已通过 step timeout、verbose 日志与
+     后续 CI 守护闭环收口；后续 CI 若再次卡住，仍先抓对应失败或停滞 step。
    * 下一步继续守护最新 ``dev`` CI；若后续 CI 失败，仍先回到本项抓日志定位。
 
 2. 保持分支策略：
@@ -199,6 +198,11 @@ P1：Release governance 与发布材料一致性
      ``publish_github_release.ps1`` 也已补上传后 manifest 刷新回归，确保
      ``upload.remote_assets`` 只记录 manifest assets 中的正式 ZIP，并保留远端
      URL、大小和下载计数。
+   * packaged ``release_assets_manifest.json`` 与 manifest signoff 必备字段现在还会
+     保留项目模板业务维度：``business_document_type_summary`` 与
+     ``corpus_role_summary`` 必须从 delivery readiness / onboarding governance
+     contract 继续进入入口材料、handoff / final review traces 和 release note bundle
+     回归，避免发布面板只剩 readiness 状态而丢失真实业务语料覆盖信息。
    * release asset manifest 的 material safety 负例已补到
      ``reviewer_action_reason`` 和 ``reviewer_actions``，避免只用
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。
@@ -213,11 +217,12 @@ P1：Release governance 与发布材料一致性
    * ``release_body.zh-CN.md`` 和 ``release_summary.zh-CN.md`` 的
      project-template governance contract 摘要已从 blocker/action item 证据聚合
      ``requires_reviewer_action``、``reviewer_action_summary``、
-     ``reviewer_action_reason`` 和 ``reviewer_actions``，避免 release notes
-     只展示 readiness 状态而丢失人工复核动作。
+     ``reviewer_action_reason``、``reviewer_actions``、
+     ``business_document_type_summary`` 和 ``corpus_role_summary``，避免 release notes
+     只展示 readiness 状态而丢失人工复核动作或业务语料覆盖信息。
    * 文档契约测试已锁定 ``write_release_body_zh_summary.ps1`` 的 reviewer action
-     聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续重构只保留
-     release notes 文本而丢失源级聚合路径。
+     与业务维度聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续
+     重构只保留 release notes 文本而丢失源级聚合路径。
    * reviewer action 聚合路径还会被源级契约约束为同时扫描 blocker、action item
      和 warning，并按 ``report_id`` / ``source_schema`` 关联证据，避免只从某个
      偶然存在的 blocker 取值。
@@ -440,8 +445,12 @@ P3：文档、测试与索引治理
 
 最小下一步按下面顺序执行：
 
-1. 继续等待当前 ``dev`` 的 Windows MSVC CI 完成；失败则先抓日志修 CI。
+1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
+   最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
 2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：让 release blocker rollup、
-   release governance handoff、bundle 和 checklist 保持同一来源字段。
+   release governance handoff、final review、bundle、checklist、release body /
+   summary 与 GitHub Release 同步路径保持同一来源字段，尤其守住
+   ``business_document_type_summary`` 与 ``corpus_role_summary``；release body /
+   summary 已有值级回归，下一步优先审计 GitHub Release 同步路径。
 3. 若要新增功能，优先从 ``P1-SCHEMA-01`` 或 ``P1-TEMPLATE-01`` 中挑一个最小闭环，
    并同步补对应 PowerShell 契约测试。

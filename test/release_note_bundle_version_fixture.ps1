@@ -210,6 +210,26 @@ $summary = [ordered]@{
                 release_blocker_count = 1
                 action_item_count = 1
                 warning_count = 0
+                business_document_type_summary = @(
+                    [ordered]@{
+                        document_type = "invoice"
+                        count = 1
+                    },
+                    [ordered]@{
+                        document_type = "policy"
+                        count = 1
+                    }
+                )
+                corpus_role_summary = @(
+                    [ordered]@{
+                        corpus_role = "planned-business-template"
+                        count = 1
+                    },
+                    [ordered]@{
+                        corpus_role = "registered-business-template"
+                        count = 1
+                    }
+                )
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
             },
             [ordered]@{
@@ -248,6 +268,26 @@ $summary = [ordered]@{
                 release_blocker_count = 1
                 action_item_count = 1
                 manual_review_recommendation_count = 1
+                business_document_type_summary = @(
+                    [ordered]@{
+                        document_type = "invoice"
+                        count = 2
+                    },
+                    [ordered]@{
+                        document_type = "policy"
+                        count = 1
+                    }
+                )
+                corpus_role_summary = @(
+                    [ordered]@{
+                        corpus_role = "planned-business-template"
+                        count = 1
+                    },
+                    [ordered]@{
+                        corpus_role = "registered-business-template"
+                        count = 2
+                    }
+                )
             }
         )
         release_blocker_count = 5
@@ -551,6 +591,26 @@ $summary = [ordered]@{
                 release_blocker_count = 1
                 action_item_count = 1
                 warning_count = 0
+                business_document_type_summary = @(
+                    [ordered]@{
+                        document_type = "invoice"
+                        count = 1
+                    },
+                    [ordered]@{
+                        document_type = "policy"
+                        count = 1
+                    }
+                )
+                corpus_role_summary = @(
+                    [ordered]@{
+                        corpus_role = "planned-business-template"
+                        count = 1
+                    },
+                    [ordered]@{
+                        corpus_role = "registered-business-template"
+                        count = 1
+                    }
+                )
                 error = "Failed to parse project template delivery readiness summary."
                 build_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\build_project_template_delivery_readiness_report.ps1"
             },
@@ -590,6 +650,26 @@ $summary = [ordered]@{
                 release_blocker_count = 1
                 action_item_count = 1
                 manual_review_recommendation_count = 1
+                business_document_type_summary = @(
+                    [ordered]@{
+                        document_type = "invoice"
+                        count = 2
+                    },
+                    [ordered]@{
+                        document_type = "policy"
+                        count = 1
+                    }
+                )
+                corpus_role_summary = @(
+                    [ordered]@{
+                        corpus_role = "planned-business-template"
+                        count = 1
+                    },
+                    [ordered]@{
+                        corpus_role = "registered-business-template"
+                        count = 2
+                    }
+                )
             }
         )
         release_blocker_count = 2

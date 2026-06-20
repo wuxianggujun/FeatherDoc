@@ -375,7 +375,9 @@ Release governance 与发布材料
 - ``scripts/sync_github_release_notes.ps1``：同步 GitHub release notes。
 - ``scripts/write_release_metadata_start_here.ps1``：生成发布材料入口
   ``START_HERE.md``。
-- ``scripts/write_release_body_zh.ps1``：生成中文 release body 与短摘要。
+- ``scripts/write_release_body_zh.ps1``：生成中文 release body 与短摘要，并在
+  project-template governance contract 摘要中保留 reviewer action、
+  ``business_document_type_summary`` 与 ``corpus_role_summary``。
 - ``scripts/write_release_artifact_guide.ps1``：生成 artifact guide。
 - ``scripts/write_release_artifact_handoff.ps1``：生成 release handoff 文档。
 - ``scripts/write_release_reviewer_checklist.ps1``：生成 reviewer checklist。

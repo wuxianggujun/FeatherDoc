@@ -756,7 +756,9 @@ governance block。
 
 公开 release 正文应保持简洁，不应泄露 operator-only 的自由文本 note 或内部
 provenance。当前 ``release_body.zh-CN.md`` 和 ``release_summary.zh-CN.md`` 只保留
-面向发布说明有意义的 verdict / status 摘要。
+面向发布说明有意义的 verdict / status 摘要，以及 project-template governance
+contract 中可公开复核的 reviewer action 与业务维度摘要，例如
+``business_document_type_summary`` 和 ``corpus_role_summary``。
 
 ``write_release_note_bundle.ps1`` 默认会运行 ``assert_release_material_safety.ps1``，
 用于防止内部路径、操作员备注或不适合公开发布的内容进入 release material。
