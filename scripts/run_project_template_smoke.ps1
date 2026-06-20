@@ -123,20 +123,31 @@ if (-not $SkipBuild) {
 
 $cliPath = Find-TemplateSchemaCliBinary -SearchRoot $resolvedBuildDir
 if (-not $cliPath) {
-    $cliPath = Find-TemplateSchemaCliBinary -SearchRoot $repoRoot
+    $cliSearch = Find-TemplateSchemaCliBinaryInBuildRoots `
+        -RepoRoot $repoRoot `
+        -PreferredBuildRoot $resolvedBuildDir
+    if ($null -ne $cliSearch) {
+        $cliPath = $cliSearch.BinaryPath
+    }
 }
 if (-not $cliPath) {
-    throw "Could not find featherdoc_cli under $resolvedBuildDir or $repoRoot."
+    throw "Could not find featherdoc_cli under $resolvedBuildDir or any build* directory under $repoRoot."
 }
 
 $sampleTargetExecutables = @{}
 foreach ($sampleTarget in $sampleTargets) {
     $binaryPath = Find-TemplateSchemaTargetBinary -SearchRoot $resolvedBuildDir -TargetName $sampleTarget
     if (-not $binaryPath) {
-        $binaryPath = Find-TemplateSchemaTargetBinary -SearchRoot $repoRoot -TargetName $sampleTarget
+        $targetSearch = Find-TemplateSchemaTargetBinaryInBuildRoots `
+            -RepoRoot $repoRoot `
+            -PreferredBuildRoot $resolvedBuildDir `
+            -TargetName $sampleTarget
+        if ($null -ne $targetSearch) {
+            $binaryPath = $targetSearch.BinaryPath
+        }
     }
     if (-not $binaryPath) {
-        throw "Could not find built sample target '$sampleTarget' under $resolvedBuildDir or $repoRoot."
+        throw "Could not find built sample target '$sampleTarget' under $resolvedBuildDir or any build* directory under $repoRoot."
     }
     $sampleTargetExecutables[$sampleTarget] = $binaryPath
 }
@@ -664,6 +675,8 @@ foreach ($entry in $entries) {
     $results.Add([pscustomobject]@{
         name = $name
         input_docx = $resolvedInputDocx
+        business_document_type = Resolve-OptionalManifestPropertyValue -Entry $entry -Name "business_document_type"
+        corpus_role = Resolve-OptionalManifestPropertyValue -Entry $entry -Name "corpus_role"
         artifact_dir = $entryDir
         status = $status
         passed = $entryPassed

@@ -148,6 +148,24 @@ foreach ($fixtureDir in @($fixtureRoot, (Join-Path $resolvedWorkingDir "missing-
 Write-JsonFile -Path $smokeSummaryPath -Value ([ordered]@{
     schema_patch_review_count = 4
     schema_patch_review_changed_count = 4
+    entries = @(
+        [ordered]@{
+            name = "invoice-template"
+            business_document_type = "invoice"
+        },
+        [ordered]@{
+            name = "contract-template"
+            business_document_type = "contract"
+        },
+        [ordered]@{
+            name = "policy-handbook-template"
+            business_document_type = "policy"
+        },
+        [ordered]@{
+            name = "project-report-template"
+            business_document_type = "report"
+        }
+    )
     schema_patch_reviews = @(
         [ordered]@{
             name = "invoice-template"
@@ -340,6 +358,12 @@ Write-JsonFile -Path $historyPath -Value ([ordered]@{
                 [ordered]@{
                     schema_patch_review_count = 1
                     schema_patch_review_changed_count = 1
+                    entries = @(
+                        [ordered]@{
+                            name = "delivery-status-report-template"
+                            business_document_type = "report"
+                        }
+                    )
                     schema_patch_reviews = @(
                         [ordered]@{
                             name = "delivery-status-report-template"
@@ -463,18 +487,28 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Corpus summary should expose business project coverage."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.template_count) -Expected 5 `
         -Message "Corpus summary should expose business template coverage."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.business_document_type_count) -Expected 4 `
+        -Message "Corpus summary should count distinct business document types."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.corpus_role_count) -Expected 0 `
+        -Message "Corpus summary should tolerate missing corpus roles in calibration entries."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.source_json_count) -Expected 2 `
         -Message "Corpus summary should expose distinct source JSON count."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 0 `
         -Message "Corpus summary should report missing source metadata count."
     Assert-True -Condition (@($summary.business_template_corpus_summary.template_sources | Where-Object { $_.template_scope -eq "project-finance/invoice-template" }).Count -eq 1) `
         -Message "Corpus summary should route invoice fixture back to its project/template scope."
+    Assert-True -Condition (@($summary.business_template_corpus_summary.business_document_types) -contains "invoice") `
+        -Message "Corpus summary should preserve distinct business document types."
+    Assert-Equal -Actual ([string](@($summary.entries | Where-Object { $_.name -eq "delivery-status-report-template" })[0].business_document_type)) -Expected "report" `
+        -Message "History-derived entry should preserve business document type."
 
     $invoiceEntry = @($summary.entries | Where-Object { $_.name -eq "invoice-template" })[0]
     Assert-Equal -Actual ([string]$invoiceEntry.project_id) -Expected "project-finance" `
         -Message "Entries should preserve project id from business-template fixtures."
     Assert-Equal -Actual ([string]$invoiceEntry.template_name) -Expected "invoice-template" `
         -Message "Entries should preserve template name from business-template fixtures."
+    Assert-Equal -Actual ([string]$invoiceEntry.business_document_type) -Expected "invoice" `
+        -Message "Entries should preserve business document type from source entries."
     Assert-Equal -Actual ([string]$invoiceEntry.candidate_type) -Expected "rename" `
         -Message "Entries should preserve explicit candidate type."
     Assert-Equal -Actual ([int]$invoiceEntry.operation_summary.rename_count) -Expected 1 `
@@ -594,6 +628,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "Business Template Corpus" `
         -Message "Markdown should include business template corpus summary."
+    Assert-ContainsText -Text $markdown -ExpectedText "business_document_types=" `
+        -Message "Markdown should include business document type counts."
     Assert-ContainsText -Text $markdown -ExpectedText "source_jsons=2" `
         -Message "Markdown should include source JSON coverage."
     Assert-ContainsText -Text $markdown -ExpectedText "Confidence Buckets" `

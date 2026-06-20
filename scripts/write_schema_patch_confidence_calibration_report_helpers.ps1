@@ -338,7 +338,9 @@ function New-EntryFromReviewAndApproval {
         $Review,
         $Approval,
         [string]$ProjectId = "",
-        [string]$TemplateName = ""
+        [string]$TemplateName = "",
+        [string]$BusinessDocumentType = "",
+        [string]$CorpusRole = ""
     )
 
     $confidence = Get-NullableJsonInt -Object $Approval -Name "confidence"
@@ -384,6 +386,8 @@ function New-EntryFromReviewAndApproval {
         project_id = $resolvedProjectId
         template_name = $resolvedTemplateName
         template_scope = Get-TemplateScope -ProjectId $resolvedProjectId -TemplateName $resolvedTemplateName
+        business_document_type = $BusinessDocumentType
+        corpus_role = $CorpusRole
         candidate_type = $candidateType
         summary_json = $SummaryJson
         schema_update_candidate = Get-JsonString -Object $Approval -Name "schema_update_candidate"
@@ -433,6 +437,14 @@ function Add-EntriesFromSmokeSummary {
 
     $reviews = @(Get-JsonArray -Object $Summary -Name "schema_patch_reviews")
     $approvals = @(Get-JsonArray -Object $Summary -Name "schema_patch_approval_items")
+    $sourceEntriesByName = @{}
+    foreach ($entry in @(Get-JsonArray -Object $Summary -Name "entries")) {
+        $entryName = Get-JsonString -Object $entry -Name "name"
+        if ([string]::IsNullOrWhiteSpace($entryName)) {
+            continue
+        }
+        $sourceEntriesByName[$entryName.ToLowerInvariant()] = $entry
+    }
     $summaryProjectId = Get-JsonString -Object $Summary -Name "project_id" -DefaultValue $ProjectId
     $summaryTemplateName = Get-JsonString -Object $Summary -Name "template_name" -DefaultValue $TemplateName
 
@@ -445,13 +457,30 @@ function Add-EntriesFromSmokeSummary {
             if (-not (Test-SchemaPatchReviewHasCandidateChanges -Review $review)) {
                 continue
             }
-            $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name (Get-JsonString -Object $review -Name "name" -DefaultValue "schema_patch_review") -Review $review -Approval ([ordered]@{ status = "unknown"; decision = "unknown" }) -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
+            $reviewName = Get-JsonString -Object $review -Name "name" -DefaultValue "schema_patch_review"
+            $sourceEntry = $null
+            if ($sourceEntriesByName.ContainsKey($reviewName.ToLowerInvariant())) {
+                $sourceEntry = $sourceEntriesByName[$reviewName.ToLowerInvariant()]
+            }
+            $Entries.Add((New-EntryFromReviewAndApproval `
+                    -SummaryJson $Path `
+                    -Name $reviewName `
+                    -Review $review `
+                    -Approval ([ordered]@{ status = "unknown"; decision = "unknown" }) `
+                    -ProjectId $summaryProjectId `
+                    -TemplateName $summaryTemplateName `
+                    -BusinessDocumentType (Get-JsonString -Object $sourceEntry -Name "business_document_type") `
+                    -CorpusRole (Get-JsonString -Object $sourceEntry -Name "corpus_role"))) | Out-Null
         }
         return
     }
 
     foreach ($approval in $approvals) {
         $name = Get-JsonString -Object $approval -Name "name" -DefaultValue "schema_patch_approval"
+        $sourceEntry = $null
+        if ($sourceEntriesByName.ContainsKey($name.ToLowerInvariant())) {
+            $sourceEntry = $sourceEntriesByName[$name.ToLowerInvariant()]
+        }
         $matchingReview = $null
         foreach ($review in $reviews) {
             if ((Get-JsonString -Object $review -Name "name") -eq $name) {
@@ -468,7 +497,15 @@ function Add-EntriesFromSmokeSummary {
         if (-not (Test-SchemaPatchApprovalRequiresCalibration -Review $matchingReview -Approval $approval)) {
             continue
         }
-        $Entries.Add((New-EntryFromReviewAndApproval -SummaryJson $Path -Name $name -Review $matchingReview -Approval $approval -ProjectId $summaryProjectId -TemplateName $summaryTemplateName)) | Out-Null
+        $Entries.Add((New-EntryFromReviewAndApproval `
+                -SummaryJson $Path `
+                -Name $name `
+                -Review $matchingReview `
+                -Approval $approval `
+                -ProjectId $summaryProjectId `
+                -TemplateName $summaryTemplateName `
+                -BusinessDocumentType (Get-JsonString -Object $sourceEntry -Name "business_document_type") `
+                -CorpusRole (Get-JsonString -Object $sourceEntry -Name "corpus_role"))) | Out-Null
     }
 }
 
@@ -602,11 +639,21 @@ function New-BusinessTemplateCorpusSummary {
                 ForEach-Object { Get-JsonString -Object $_ -Name "summary_json" } |
                 Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
                 Sort-Object -Unique)
+            $scopeBusinessDocumentTypes = @($scopeEntries |
+                ForEach-Object { Get-JsonString -Object $_ -Name "business_document_type" } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                Sort-Object -Unique)
+            $scopeCorpusRoles = @($scopeEntries |
+                ForEach-Object { Get-JsonString -Object $_ -Name "corpus_role" } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                Sort-Object -Unique)
             [ordered]@{
                 project_id = Get-JsonString -Object $scopeEntries[0] -Name "project_id"
                 template_name = Get-JsonString -Object $scopeEntries[0] -Name "template_name"
                 template_scope = $scope
                 candidate_count = $scopeEntries.Count
+                business_document_types = @($scopeBusinessDocumentTypes)
+                corpus_roles = @($scopeCorpusRoles)
                 candidate_types = @($scopeEntries |
                     ForEach-Object { Get-JsonString -Object $_ -Name "candidate_type" } |
                     Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
@@ -617,6 +664,14 @@ function New-BusinessTemplateCorpusSummary {
         }
     )
 
+    $businessDocumentTypes = @($entryArray |
+        ForEach-Object { Get-JsonString -Object $_ -Name "business_document_type" } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+    $corpusRoles = @($entryArray |
+        ForEach-Object { Get-JsonString -Object $_ -Name "corpus_role" } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
     $missingSourceEntries = @(
         foreach ($entry in $missingEntries) {
             $status = New-BusinessTemplateSourceStatus -Entry $entry
@@ -640,6 +695,10 @@ function New-BusinessTemplateCorpusSummary {
         traced_entry_count = ($entryArray.Count - $missingEntries.Count)
         project_count = $projectIds.Count
         template_count = $templateScopes.Count
+        business_document_type_count = $businessDocumentTypes.Count
+        business_document_types = @($businessDocumentTypes)
+        corpus_role_count = $corpusRoles.Count
+        corpus_roles = @($corpusRoles)
         source_json_count = $sourceJsons.Count
         source_json_displays = @($sourceJsonDisplays)
         missing_source_metadata_count = $missingEntries.Count
@@ -941,14 +1000,32 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         $corpus = $Summary.business_template_corpus_summary
-        $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count)") | Out-Null
+        $businessDocumentTypes = @($corpus.business_document_types) -join ","
+        $corpusRoles = @($corpus.corpus_roles) -join ","
+        if ([string]::IsNullOrWhiteSpace($businessDocumentTypes)) {
+            $businessDocumentTypes = "(none)"
+        }
+        if ([string]::IsNullOrWhiteSpace($corpusRoles)) {
+            $corpusRoles = "(none)"
+        }
+        $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count), business_document_types=$($corpus.business_document_type_count), corpus_roles=$($corpus.corpus_role_count)") | Out-Null
+        $lines.Add("- business_document_types: $businessDocumentTypes") | Out-Null
+        $lines.Add("- corpus_roles: $corpusRoles") | Out-Null
         if (@($corpus.template_sources).Count -eq 0) {
             $lines.Add("- template_sources: none") | Out-Null
         } else {
             foreach ($source in @($corpus.template_sources)) {
                 $candidateTypes = (@($source.candidate_types) -join ",")
+                $businessDocumentTypeText = (@($source.business_document_types) -join ",")
+                $corpusRoleText = (@($source.corpus_roles) -join ",")
+                if ([string]::IsNullOrWhiteSpace($businessDocumentTypeText)) {
+                    $businessDocumentTypeText = "(none)"
+                }
+                if ([string]::IsNullOrWhiteSpace($corpusRoleText)) {
+                    $corpusRoleText = "(none)"
+                }
                 $sourceDisplays = (@($source.source_json_displays) -join ",")
-                $lines.Add("- ``$($source.template_scope)``: candidates=$($source.candidate_count), candidate_types=``$candidateTypes``, source_json_displays=``$sourceDisplays``") | Out-Null
+                $lines.Add("- ``$($source.template_scope)``: candidates=$($source.candidate_count), business_document_types=``$businessDocumentTypeText``, corpus_roles=``$corpusRoleText``, candidate_types=``$candidateTypes``, source_json_displays=``$sourceDisplays``") | Out-Null
             }
         }
         if (@($corpus.missing_source_entries).Count -gt 0) {

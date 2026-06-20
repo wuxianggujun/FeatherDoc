@@ -203,6 +203,44 @@ try {
         -TargetName "missing_target"
     Assert-Equal -Actual $missingBinary -Expected $null `
         -Message "Target binary lookup should return null for missing targets."
+
+    $repoLikeRoot = Join-Path $resolvedTempRoot "repo"
+    New-Item -ItemType Directory -Path $repoLikeRoot -Force | Out-Null
+
+    $buildA = Join-Path $repoLikeRoot "build-a"
+    $buildB = Join-Path $repoLikeRoot "build-b"
+    New-TestFile `
+        -Path (Join-Path $buildA "featherdoc_cli.exe") `
+        -LastWriteTimeUtc ([datetime]"2024-01-04T00:00:00Z")
+    New-TestFile `
+        -Path (Join-Path $buildB "featherdoc_sample_prepare.exe") `
+        -LastWriteTimeUtc ([datetime]"2024-01-05T00:00:00Z")
+    (Get-Item -LiteralPath $buildA).LastWriteTimeUtc = [datetime]"2024-01-04T00:00:00Z"
+    (Get-Item -LiteralPath $buildB).LastWriteTimeUtc = [datetime]"2024-01-05T00:00:00Z"
+
+    $buildRoots = @(Get-TemplateSchemaBuildSearchRoots -RepoRoot $repoLikeRoot -PreferredBuildRoot (Join-Path $repoLikeRoot "missing-build"))
+    Assert-Equal -Actual ($buildRoots -join "|") -Expected ((@(
+                [System.IO.Path]::GetFullPath($buildB),
+                [System.IO.Path]::GetFullPath($buildA)
+            ) -join "|")) `
+        -Message "Build search roots should enumerate build* directories by newest first."
+
+    $fallbackCli = Find-TemplateSchemaCliBinaryInBuildRoots `
+        -RepoRoot $repoLikeRoot `
+        -PreferredBuildRoot (Join-Path $repoLikeRoot "missing-build")
+    Assert-Equal -Actual $fallbackCli.BinaryPath -Expected ([System.IO.Path]::GetFullPath((Join-Path $buildA "featherdoc_cli.exe"))) `
+        -Message "CLI build-root fallback should locate the executable without scanning the repo root."
+    Assert-Equal -Actual $fallbackCli.SearchRoot -Expected ([System.IO.Path]::GetFullPath($buildA)) `
+        -Message "CLI build-root fallback should report the matched build root."
+
+    $fallbackTarget = Find-TemplateSchemaTargetBinaryInBuildRoots `
+        -RepoRoot $repoLikeRoot `
+        -PreferredBuildRoot (Join-Path $repoLikeRoot "missing-build") `
+        -TargetName "featherdoc_sample_prepare"
+    Assert-Equal -Actual $fallbackTarget.BinaryPath -Expected ([System.IO.Path]::GetFullPath((Join-Path $buildB "featherdoc_sample_prepare.exe"))) `
+        -Message "Target build-root fallback should locate the executable without scanning the repo root."
+    Assert-Equal -Actual $fallbackTarget.SearchRoot -Expected ([System.IO.Path]::GetFullPath($buildB)) `
+        -Message "Target build-root fallback should report the matched build root."
 } finally {
     if (Test-Path -LiteralPath $resolvedTempRoot) {
         Remove-Item -LiteralPath $resolvedTempRoot -Recurse -Force

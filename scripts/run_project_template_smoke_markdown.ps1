@@ -87,6 +87,14 @@ function Write-SummaryMarkdown {
         $lines.Add("")
         $lines.Add("- Status: $($entry.status)")
         $lines.Add("- Input DOCX: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $entry.input_docx)")
+        $businessDocumentType = Get-OptionalObjectPropertyValue -Object $entry -Name "business_document_type"
+        if (-not [string]::IsNullOrWhiteSpace($businessDocumentType)) {
+            $lines.Add("- Business document type: $businessDocumentType")
+        }
+        $corpusRole = Get-OptionalObjectPropertyValue -Object $entry -Name "corpus_role"
+        if (-not [string]::IsNullOrWhiteSpace($corpusRole)) {
+            $lines.Add("- Corpus role: $corpusRole")
+        }
         $lines.Add("- Entry artifact directory: $(Resolve-RepoRelativePath -RepoRoot $RepoRoot -Path $entry.artifact_dir)")
 
         foreach ($validation in @($entry.checks.template_validations)) {

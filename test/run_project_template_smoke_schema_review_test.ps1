@@ -71,6 +71,8 @@ $manifest = [ordered]@{
         [ordered]@{
             name = "schema-review-drift"
             input_docx = $sampleDocx
+            business_document_type = "invoice"
+            corpus_role = "registered-business-template"
             schema_baseline = [ordered]@{
                 schema_file = $schemaPath
                 generated_output = $generatedOutput
@@ -125,6 +127,10 @@ Assert-Equal -Actual ([string]$summary.schema_patch_approval_gate_status) -Expec
     -Message "Pending schema patch approval should make the approval gate pending."
 Assert-Equal -Actual ([bool]$summary.schema_patch_approval_gate_blocked) -Expected $false `
     -Message "Pending approval should not block on compliance."
+Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "invoice" `
+    -Message "Smoke summary entry should preserve business document type."
+Assert-Equal -Actual ([string]$summary.entries[0].corpus_role) -Expected "registered-business-template" `
+    -Message "Smoke summary entry should preserve corpus role."
 Assert-Equal -Actual ([bool]$summary.schema_patch_approval_items[0].required) -Expected $true `
     -Message "Approval item should require manual review."
 Assert-Equal -Actual ([bool]$summary.schema_patch_approval_items[0].pending) -Expected $true `
@@ -178,6 +184,8 @@ if (Test-Path -LiteralPath $canonicalSchemaPath) {
                 name = "prepared-input-reuse"
                 prepare_sample_target = "missing_sample_target_for_reuse"
                 input_docx = $sampleDocx
+                business_document_type = "invoice"
+                corpus_role = "registered-business-template"
                 schema_validation = [ordered]@{
                     schema_file = $canonicalSchemaPath
                 }
@@ -249,6 +257,10 @@ Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Schema patch approval 
     -Message "Markdown summary should include invalid approval-result count."
 Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Schema patch approval gate status: pending" `
     -Message "Markdown summary should include pending approval gate status."
+Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Business document type: invoice" `
+    -Message "Markdown summary should include business document type."
+Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Corpus role: registered-business-template" `
+    -Message "Markdown summary should include corpus role."
 Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Schema Patch Approvals" `
     -Message "Markdown summary should include approval section."
 Assert-ContainsText -Text $summaryMarkdown -ExpectedText "Schema patch review: changed=True" `

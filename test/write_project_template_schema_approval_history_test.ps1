@@ -147,6 +147,13 @@ $smokeSummary = [ordered]@{
     schema_patch_approval_invalid_result_count = 1
     schema_patch_approval_gate_status = "blocked"
     schema_patch_approval_gate_blocked = $true
+    entries = @(
+        [ordered]@{
+            name = "schema-review-invalid"
+            business_document_type = "invoice"
+            corpus_role = "registered-business-template"
+        }
+    )
     schema_patch_approval_items = @(
         [ordered]@{
             name = "schema-review-invalid"
@@ -183,6 +190,18 @@ $releaseSummary = [ordered]@{
         schema_patch_approval_compliance_issue_count = 0
         schema_patch_approval_invalid_result_count = 0
         schema_patch_approval_gate_blocked = $false
+        entries = @(
+            [ordered]@{
+                name = "schema-review-invalid"
+                business_document_type = "invoice"
+                corpus_role = "registered-business-template"
+            },
+            [ordered]@{
+                name = "schema-review-contract"
+                business_document_type = "contract"
+                corpus_role = "registered-business-template"
+            }
+        )
         schema_patch_approval_items = @(
             [ordered]@{
                 name = "schema-review-invalid"
@@ -265,6 +284,10 @@ Assert-Equal -Actual ([int]$blockedRun.blocked_items.Count) -Expected 1 `
     -Message "Blocked run should list invalid approval items."
 Assert-Equal -Actual ([string]$blockedRun.blocked_items[0].name) -Expected "schema-review-invalid" `
     -Message "Blocked item should preserve its entry name."
+Assert-Equal -Actual ([string]$blockedRun.approval_items[0].business_document_type) -Expected "invoice" `
+    -Message "Blocked run should preserve business document type."
+Assert-Equal -Actual ([string]$blockedRun.approval_items[0].corpus_role) -Expected "registered-business-template" `
+    -Message "Blocked run should preserve corpus role."
 Assert-True -Condition (@($blockedRun.blocked_items[0].compliance_issues) -contains "missing_reviewer") `
     -Message "Blocked item should preserve compliance issues."
 
@@ -296,6 +319,10 @@ Assert-Equal -Actual ([string]$entryHistory.latest_summary_json_display) -Expect
     -Message "Entry history should expose the latest source summary display path."
 Assert-True -Condition (@($entryHistory.issue_keys) -contains "missing_reviewer") `
     -Message "Entry history should preserve historical issue keys."
+Assert-Equal -Actual ([string]$entryHistory.business_document_type) -Expected "invoice" `
+    -Message "Entry history should preserve business document type metadata."
+Assert-Equal -Actual ([string]$entryHistory.corpus_role) -Expected "registered-business-template" `
+    -Message "Entry history should preserve corpus role metadata."
 Assert-Equal -Actual ([string]$entryHistory.project_id) -Expected "project-finance" `
     -Message "Entry history should preserve project id metadata."
 Assert-Equal -Actual ([string]$entryHistory.template_name) -Expected "invoice-template" `
@@ -306,6 +333,8 @@ Assert-Equal -Actual ([string]$entryHistory.template_scope) -Expected "project-f
 $contractEntryHistory = $history.entry_histories | Where-Object { $_.name -eq "schema-review-contract" } | Select-Object -First 1
 Assert-Equal -Actual ([string]$contractEntryHistory.project_id) -Expected "project-legal" `
     -Message "Entry history should preserve project metadata for additional templates."
+Assert-Equal -Actual ([string]$contractEntryHistory.business_document_type) -Expected "contract" `
+    -Message "Entry history should preserve business document type for additional templates."
 Assert-Equal -Actual ([string]$contractEntryHistory.template_scope) -Expected "project-legal/contract-template" `
     -Message "Entry history should expose additional template scopes."
 
@@ -345,6 +374,8 @@ Assert-Equal -Actual ([string]$passedRun.summary_json_display) -Expected $expect
     -Message "Release run should expose the stable source summary display path."
 Assert-Equal -Actual ([string]$passedRun.approval_items[0].name) -Expected "schema-review-invalid" `
     -Message "Release run should preserve approval item snapshots."
+Assert-Equal -Actual ([string]$passedRun.approval_items[0].business_document_type) -Expected "invoice" `
+    -Message "Release run should preserve business document type snapshots."
 
 $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $outputMarkdownPath
 Assert-ContainsText -Text $markdown -ExpectedText "Project Template Schema Approval History" `

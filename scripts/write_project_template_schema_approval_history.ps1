@@ -349,16 +349,24 @@ function New-SchemaApprovalHistoryApprovalItem {
     $name = Get-OptionalStringProperty -Object $Item -Name "name"
     $projectId = Get-OptionalStringProperty -Object $Item -Name "project_id"
     $templateName = Get-OptionalStringProperty -Object $Item -Name "template_name"
+    $businessDocumentType = Get-OptionalStringProperty -Object $Item -Name "business_document_type"
+    $corpusRole = Get-OptionalStringProperty -Object $Item -Name "corpus_role"
 
     return [pscustomobject]@{
         name = $name
         project_id = $projectId
         template_name = $templateName
         template_scope = Get-TemplateScope -ProjectId $projectId -TemplateName $templateName -Fallback $name
+        business_document_type = $businessDocumentType
+        corpus_role = $corpusRole
         candidate_type = Get-OptionalStringProperty -Object $Item -Name "candidate_type"
         status = $status
         decision = Get-OptionalStringProperty -Object $Item -Name "decision"
         action = Get-OptionalStringProperty -Object $Item -Name "action"
+        approved = Get-OptionalBooleanProperty -Object $Item -Name "approved"
+        pending = Get-OptionalBooleanProperty -Object $Item -Name "pending"
+        confidence = Get-OptionalPropertyValue -Object $Item -Name "confidence"
+        reason_code = Get-OptionalStringProperty -Object $Item -Name "reason_code"
         compliance_issue_count = $complianceIssueCount
         compliance_issues = @(Get-OptionalArrayProperty -Object $Item -Name "compliance_issues")
         blocked = ($status -eq "invalid_result" -or $complianceIssueCount -gt 0)
@@ -386,7 +394,9 @@ function New-SchemaApprovalHistoryRun {
         "project_template_smoke_summary"
     }
 
+    $schemaPatchReviews = @(Get-OptionalArrayProperty -Object $projectTemplateSmoke -Name "schema_patch_reviews")
     $approvalItems = @(Get-OptionalArrayProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_items")
+    $sourceEntries = @(Get-OptionalArrayProperty -Object $projectTemplateSmoke -Name "entries")
     $pendingCount = Get-OptionalIntegerProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_pending_count"
     $approvedCount = Get-OptionalIntegerProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_approved_count"
     $rejectedCount = Get-OptionalIntegerProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_rejected_count"
@@ -412,10 +422,47 @@ function New-SchemaApprovalHistoryRun {
     $gateBlocked = Get-OptionalBooleanProperty -Object $projectTemplateSmoke -Name "schema_patch_approval_gate_blocked" `
         -DefaultValue ($gateStatus -eq "blocked")
 
+    $sourceEntriesByName = @{}
+    foreach ($entry in $sourceEntries) {
+        $entryName = Get-OptionalStringProperty -Object $entry -Name "name"
+        if ([string]::IsNullOrWhiteSpace($entryName)) {
+            continue
+        }
+
+        $sourceEntriesByName[$entryName.ToLowerInvariant()] = $entry
+    }
+
     $approvalItemSnapshots = New-Object 'System.Collections.Generic.List[object]'
     $blockedItems = New-Object 'System.Collections.Generic.List[object]'
     foreach ($item in $approvalItems) {
-        $approvalItem = New-SchemaApprovalHistoryApprovalItem -RepoRoot $RepoRoot -Item $item
+        $itemName = Get-OptionalStringProperty -Object $item -Name "name"
+        $sourceEntry = $null
+        if (-not [string]::IsNullOrWhiteSpace($itemName) -and $sourceEntriesByName.ContainsKey($itemName.ToLowerInvariant())) {
+            $sourceEntry = $sourceEntriesByName[$itemName.ToLowerInvariant()]
+        }
+
+        $approvalItem = New-SchemaApprovalHistoryApprovalItem `
+            -RepoRoot $RepoRoot `
+            -Item ([pscustomobject]@{
+                name = $itemName
+                project_id = Get-OptionalStringProperty -Object $item -Name "project_id"
+                template_name = Get-OptionalStringProperty -Object $item -Name "template_name"
+                business_document_type = Get-OptionalStringProperty -Object $item -Name "business_document_type" -DefaultValue (Get-OptionalStringProperty -Object $sourceEntry -Name "business_document_type")
+                corpus_role = Get-OptionalStringProperty -Object $item -Name "corpus_role" -DefaultValue (Get-OptionalStringProperty -Object $sourceEntry -Name "corpus_role")
+                candidate_type = Get-OptionalStringProperty -Object $item -Name "candidate_type"
+                status = Get-OptionalStringProperty -Object $item -Name "status"
+                decision = Get-OptionalStringProperty -Object $item -Name "decision"
+                action = Get-OptionalStringProperty -Object $item -Name "action"
+                approved = Get-OptionalBooleanProperty -Object $item -Name "approved"
+                pending = Get-OptionalBooleanProperty -Object $item -Name "pending"
+                confidence = Get-OptionalPropertyValue -Object $item -Name "confidence"
+                reason_code = Get-OptionalStringProperty -Object $item -Name "reason_code"
+                compliance_issue_count = Get-OptionalIntegerProperty -Object $item -Name "compliance_issue_count"
+                compliance_issues = @(Get-OptionalArrayProperty -Object $item -Name "compliance_issues")
+                approval_result = Get-OptionalStringProperty -Object $item -Name "approval_result"
+                schema_update_candidate = Get-OptionalStringProperty -Object $item -Name "schema_update_candidate"
+                review_json = Get-OptionalStringProperty -Object $item -Name "review_json"
+            })
         [void]$approvalItemSnapshots.Add($approvalItem)
         if ([bool]$approvalItem.blocked) {
             [void]$blockedItems.Add($approvalItem)
@@ -444,8 +491,11 @@ function New-SchemaApprovalHistoryRun {
         schema_patch_approval_item_count = $approvalItemCount
         schema_patch_approval_gate_status = $gateStatus
         schema_patch_approval_gate_blocked = $gateBlocked
+        schema_patch_reviews = $schemaPatchReviews
+        schema_patch_approval_items = $approvalItemSnapshots.ToArray()
         approval_items = $approvalItemSnapshots.ToArray()
         blocked_items = $blockedItems.ToArray()
+        entries = $sourceEntries
     }
 }
 
@@ -506,6 +556,35 @@ function New-SchemaApprovalEntryHistories {
         foreach ($run in $Runs) {
             foreach ($item in @($run.approval_items)) {
                 if ([string]$item.name -eq $entryName) {
+                    $matchingReview = $null
+                    foreach ($review in @(Get-OptionalArrayProperty -Object $run -Name "schema_patch_reviews")) {
+                        if ((Get-OptionalStringProperty -Object $review -Name "name") -eq $entryName) {
+                            $matchingReview = $review
+                            break
+                        }
+                    }
+
+                    $approvalSnapshot = [pscustomobject]@{
+                        name = [string]$item.name
+                        project_id = [string]$item.project_id
+                        template_name = [string]$item.template_name
+                        business_document_type = [string]$item.business_document_type
+                        corpus_role = [string]$item.corpus_role
+                        candidate_type = [string]$item.candidate_type
+                        status = [string]$item.status
+                        decision = [string]$item.decision
+                        action = [string]$item.action
+                        approved = [bool]$item.approved
+                        pending = [bool]$item.pending
+                        confidence = Get-OptionalPropertyValue -Object $item -Name "confidence"
+                        reason_code = [string]$item.reason_code
+                        compliance_issue_count = [int]$item.compliance_issue_count
+                        compliance_issues = @($item.compliance_issues)
+                        approval_result = [string]$item.approval_result
+                        schema_update_candidate = [string]$item.schema_update_candidate
+                        review_json = [string]$item.review_json
+                    }
+
                     [void]$snapshots.Add([pscustomobject]@{
                         generated_at = [string]$run.generated_at
                         summary_json = [string]$run.summary_json
@@ -513,6 +592,8 @@ function New-SchemaApprovalEntryHistories {
                         project_id = [string]$item.project_id
                         template_name = [string]$item.template_name
                         template_scope = [string]$item.template_scope
+                        business_document_type = [string]$item.business_document_type
+                        corpus_role = [string]$item.corpus_role
                         candidate_type = [string]$item.candidate_type
                         status = [string]$item.status
                         decision = [string]$item.decision
@@ -526,6 +607,19 @@ function New-SchemaApprovalEntryHistories {
                         schema_update_candidate_display = [string]$item.schema_update_candidate_display
                         review_json = [string]$item.review_json
                         review_json_display = [string]$item.review_json_display
+                        entries = @([pscustomobject]@{
+                                name = [string]$item.name
+                                project_id = [string]$item.project_id
+                                template_name = [string]$item.template_name
+                                business_document_type = [string]$item.business_document_type
+                                corpus_role = [string]$item.corpus_role
+                            })
+                        schema_patch_reviews = @(
+                            if ($null -ne $matchingReview) {
+                                $matchingReview
+                            }
+                        )
+                        schema_patch_approval_items = @($approvalSnapshot)
                     })
                 }
             }
@@ -550,6 +644,8 @@ function New-SchemaApprovalEntryHistories {
             project_id = $projectId
             template_name = $templateName
             template_scope = $templateScope
+            business_document_type = Get-LatestNonEmptyString -Values @($orderedSnapshots | ForEach-Object { [string]$_.business_document_type })
+            corpus_role = Get-LatestNonEmptyString -Values @($orderedSnapshots | ForEach-Object { [string]$_.corpus_role })
             candidate_type = $candidateType
             run_count = $orderedSnapshots.Count
             blocked_run_count = @($orderedSnapshots | Where-Object { [bool]$_.blocked }).Count

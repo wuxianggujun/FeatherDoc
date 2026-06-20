@@ -228,6 +228,79 @@ function Find-TemplateSchemaTargetBinary {
         -Names @("$TargetName.exe", $TargetName)
 }
 
+function Get-TemplateSchemaBuildSearchRoots {
+    param(
+        [string]$RepoRoot,
+        [string]$PreferredBuildRoot
+    )
+
+    $candidateRoots = New-Object 'System.Collections.Generic.List[string]'
+
+    if (-not [string]::IsNullOrWhiteSpace($PreferredBuildRoot) -and
+        (Test-Path -LiteralPath $PreferredBuildRoot -PathType Container)) {
+        $candidateRoots.Add([System.IO.Path]::GetFullPath($PreferredBuildRoot)) | Out-Null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RepoRoot) -and
+        (Test-Path -LiteralPath $RepoRoot -PathType Container)) {
+        foreach ($directory in @(
+                Get-ChildItem -Path $RepoRoot -Directory -Filter "build*" -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTimeUtc -Descending
+            )) {
+            $candidateRoots.Add($directory.FullName) | Out-Null
+        }
+    }
+
+    return @(
+        $candidateRoots |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Unique
+    )
+}
+
+function Find-TemplateSchemaCliBinaryInBuildRoots {
+    param(
+        [string]$RepoRoot,
+        [string]$PreferredBuildRoot
+    )
+
+    foreach ($root in @(Get-TemplateSchemaBuildSearchRoots -RepoRoot $RepoRoot -PreferredBuildRoot $PreferredBuildRoot)) {
+        $binaryPath = Find-TemplateSchemaCliBinary -SearchRoot $root
+        if ($binaryPath) {
+            return [pscustomobject]@{
+                SearchRoot = [System.IO.Path]::GetFullPath($root)
+                BinaryPath = [System.IO.Path]::GetFullPath($binaryPath)
+            }
+        }
+    }
+
+    return $null
+}
+
+function Find-TemplateSchemaTargetBinaryInBuildRoots {
+    param(
+        [string]$RepoRoot,
+        [string]$PreferredBuildRoot,
+        [string]$TargetName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TargetName)) {
+        return $null
+    }
+
+    foreach ($root in @(Get-TemplateSchemaBuildSearchRoots -RepoRoot $RepoRoot -PreferredBuildRoot $PreferredBuildRoot)) {
+        $binaryPath = Find-TemplateSchemaTargetBinary -SearchRoot $root -TargetName $TargetName
+        if ($binaryPath) {
+            return [pscustomobject]@{
+                SearchRoot = [System.IO.Path]::GetFullPath($root)
+                BinaryPath = [System.IO.Path]::GetFullPath($binaryPath)
+            }
+        }
+    }
+
+    return $null
+}
+
 function Resolve-TemplateSchemaCliPath {
     param(
         [string]$RepoRoot,
@@ -256,12 +329,14 @@ function Resolve-TemplateSchemaCliPath {
         return $binaryPath
     }
 
-    $fallbackBinary = Find-TemplateSchemaCliBinary -SearchRoot $RepoRoot
-    if ($fallbackBinary) {
-        return $fallbackBinary
+    $fallbackBinary = Find-TemplateSchemaCliBinaryInBuildRoots `
+        -RepoRoot $RepoRoot `
+        -PreferredBuildRoot $resolvedBuildDir
+    if ($null -ne $fallbackBinary) {
+        return $fallbackBinary.BinaryPath
     }
 
-    throw "Could not find featherdoc_cli under $resolvedBuildDir or $RepoRoot."
+    throw "Could not find featherdoc_cli under $resolvedBuildDir or any build* directory under $RepoRoot."
 }
 
 function Invoke-TemplateSchemaCli {
