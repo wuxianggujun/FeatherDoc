@@ -93,10 +93,14 @@ jobs:
 
           Write-Host "MSVC x64 environment exported from $vcvars"
 
+      - name: Verify Ninja
+        shell: pwsh
+        run: ninja --version
+
       - name: Configure
         shell: pwsh
         run: >
-          cmake -S . -B build-msvc-nmake -G "NMake Makefiles"
+          cmake -S . -B build-msvc-ninja -G "Ninja"
           -DCMAKE_BUILD_TYPE=Release
           -DBUILD_TESTING=ON
           -DBUILD_SAMPLES=ON
@@ -105,11 +109,11 @@ jobs:
       - name: Build
         shell: pwsh
         timeout-minutes: 75
-        run: cmake --build build-msvc-nmake --verbose
+        run: cmake --build build-msvc-ninja --parallel 2 --verbose
 
       - name: Run tests
         shell: pwsh
-        run: ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
+        run: ctest --test-dir build-msvc-ninja --output-on-failure --timeout 60
 
       - name: Run samples and validate generated DOCX files
         shell: pwsh
@@ -143,7 +147,7 @@ jobs:
               }
           }
 
-          Push-Location build-msvc-nmake
+          Push-Location build-msvc-ninja
           try {
               .\featherdoc_sample1.exe
               .\featherdoc_sample2.exe
@@ -168,10 +172,10 @@ jobs:
         shell: pwsh
         run: >
           pwsh -ExecutionPolicy Bypass -File .\scripts\run_install_find_package_smoke.ps1
-          -BuildDir build-msvc-nmake
+          -BuildDir build-msvc-ninja
           -InstallDir build-msvc-install
           -ConsumerBuildDir build-msvc-install-consumer
-          -Generator "NMake Makefiles"
+          -Generator "Ninja"
           -Config Release
 
       - name: Check committed template schema baselines
@@ -187,7 +191,7 @@ jobs:
 
           pwsh -ExecutionPolicy Bypass -File .\scripts\check_template_schema_manifest.ps1 `
               -ManifestPath .\baselines\template-schema\manifest.json `
-              -BuildDir build-msvc-nmake `
+              -BuildDir build-msvc-ninja `
               -OutputDir output/template-schema-manifest-checks-ci `
               -SkipBuild
 
@@ -195,7 +199,7 @@ jobs:
         shell: pwsh
         run: >
           pwsh -ExecutionPolicy Bypass -File .\scripts\run_release_candidate_checks.ps1
-          -BuildDir build-msvc-nmake
+          -BuildDir build-msvc-ninja
           -InstallDir build-msvc-install
           -ConsumerBuildDir build-msvc-install-consumer
           -SummaryOutputDir output/release-candidate-checks-ci
@@ -227,8 +231,8 @@ jobs:
         with:
           name: windows-msvc-sample-docx
           path: |
-            build-msvc-nmake/my_test.docx
-            build-msvc-nmake/output/**/*.docx
+            build-msvc-ninja/my_test.docx
+            build-msvc-ninja/output/**/*.docx
             build-msvc-install-consumer/**/*.docx
           if-no-files-found: warn
 

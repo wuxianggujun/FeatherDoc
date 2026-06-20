@@ -193,6 +193,28 @@ foreach ($marker in @(
 }
 
 foreach ($marker in @(
+        "Verify Ninja",
+        'cmake -S . -B build-msvc-ninja -G "Ninja"',
+        "cmake --build build-msvc-ninja --parallel 2 --verbose",
+        "ctest --test-dir build-msvc-ninja --output-on-failure --timeout 60",
+        '-BuildDir build-msvc-ninja',
+        '-Generator "Ninja"',
+        "build-msvc-ninja/my_test.docx",
+        "build-msvc-ninja/output/**/*.docx"
+    )) {
+    Assert-ContainsText -Text $windowsWorkflow -ExpectedText $marker `
+        -Message "Windows workflow should keep the Ninja parallel build marker '$marker'."
+}
+
+foreach ($unexpected in @(
+        "NMake Makefiles",
+        "build-msvc-nmake"
+    )) {
+    Assert-NotContainsText -Text $windowsWorkflow -UnexpectedText $unexpected `
+        -Message "Windows workflow should not regress to the serial NMake marker '$unexpected'."
+}
+
+foreach ($marker in @(
         "output/release-assets-ci/v*/release_assets_manifest.json",
         "output/release-assets-ci/v*/FeatherDoc-*-msvc-install.zip",
         "output/release-assets-ci/v*/FeatherDoc-*-visual-validation-gallery.zip",
