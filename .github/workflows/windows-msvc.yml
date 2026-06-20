@@ -113,7 +113,7 @@ jobs:
 
       - name: Run tests
         shell: pwsh
-        run: ctest --test-dir build-msvc-ninja --output-on-failure --timeout 60
+        run: ctest --test-dir build-msvc-ninja --parallel 2 --output-on-failure --timeout 60
 
       - name: Run samples and validate generated DOCX files
         shell: pwsh
