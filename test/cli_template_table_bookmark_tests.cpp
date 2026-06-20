@@ -435,7 +435,8 @@ TEST_CASE("cli set-template-table-from-json applies bookmark-targeted patches") 
     const fs::path mutate_output =
         working_directory / "cli_template_table_mutate_patch_output.json";
     const fs::path selector_parse_output =
-        working_directory / "cli_template_table_selector_patch_output.json";
+        working_directory /
+        "cli_template_table_bookmark_selector_parse_output.json";
 
     remove_if_exists(source);
     remove_if_exists(rows_patch);
