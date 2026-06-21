@@ -8,6 +8,13 @@ performance.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed DOCX functional smoke readiness so default runs can fall back to the
+  current release asset visual gallery and release evidence ZIPs when legacy
+  Word visual smoke directories are missing or stale, while still preserving
+  explicit `-VisualSmokeRoots` behavior.
+
 ## [1.12.4] - 2026-06-21
 
 ### Added

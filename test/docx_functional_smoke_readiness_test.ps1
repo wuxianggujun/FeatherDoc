@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "ready", "fail_on_warning")]
+    [ValidateSet("all", "ready", "fail_on_warning", "release_asset_fallback")]
     [string]$Scenario = "all"
 )
 
@@ -113,6 +113,70 @@ function New-VisualSmokeFixture {
     "%PDF-1.4`n% fixture only`n" | Set-Content -Encoding ASCII -LiteralPath (Join-Path $Root "table_visual_smoke.pdf")
 }
 
+function New-ZipFromDirectory {
+    param([string]$SourceDir, [string]$ZipPath)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    if (Test-Path -LiteralPath $ZipPath) {
+        Remove-Item -LiteralPath $ZipPath -Force
+    }
+    $dir = Split-Path -Parent $ZipPath
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($SourceDir, $ZipPath)
+}
+
+function Get-TestProjectVersion {
+    param([string]$Root)
+
+    $cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root "CMakeLists.txt")
+    $match = [regex]::Match(
+        $cmakeText,
+        'project\s*\([^\)]*?\bVERSION\s+([0-9]+\.[0-9]+\.[0-9]+)',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
+        [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    if (-not $match.Success) {
+        throw "Could not resolve project version from CMakeLists.txt."
+    }
+    return [string]$match.Groups[1].Value
+}
+
+function New-ReleaseAssetVisualFallbackFixture {
+    param(
+        [string]$AssetsRoot,
+        [string]$Version
+    )
+
+    $versionDir = Join-Path $AssetsRoot "v$Version"
+    $stagingRoot = Join-Path $versionDir "staging"
+    $galleryStaging = Join-Path $stagingRoot "gallery"
+    $evidenceStaging = Join-Path $stagingRoot "evidence"
+    New-Item -ItemType Directory -Path (Join-Path $galleryStaging "visual-validation") -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $evidenceStaging "release-candidate-checks\report") -Force | Out-Null
+
+    Write-NonEmptyPng -Path (Join-Path $galleryStaging "visual-validation\visual-smoke-contact-sheet.png")
+    Write-NonEmptyPng -Path (Join-Path $galleryStaging "visual-validation\visual-smoke-page-05.png")
+    Write-JsonFile -Path (Join-Path $evidenceStaging "release-candidate-checks\report\summary.json") -Value ([ordered]@{
+            schema = "featherdoc.release_candidate_summary"
+            release_version = $Version
+            release_governance_handoff = [ordered]@{
+                word_visual_standard_review_status_summary = "reviewed=4"
+                word_visual_standard_review_verdict_summary = "pass=4"
+            }
+        })
+
+    $galleryZip = Join-Path $versionDir "FeatherDoc-v$Version-visual-validation-gallery.zip"
+    $evidenceZip = Join-Path $versionDir "FeatherDoc-v$Version-release-evidence.zip"
+    New-ZipFromDirectory -SourceDir $galleryStaging -ZipPath $galleryZip
+    New-ZipFromDirectory -SourceDir $evidenceStaging -ZipPath $evidenceZip
+
+    return [ordered]@{
+        assets_root = $AssetsRoot
+        version_dir = $versionDir
+        gallery_zip = $galleryZip
+        evidence_zip = $evidenceZip
+    }
+}
+
 function Invoke-ReadinessScript {
     param([string[]]$Arguments)
 
@@ -154,7 +218,9 @@ foreach ($marker in @(
         '$SummaryJson',
         '$ReportMarkdown',
         '$VisualSmokeRoots',
+        '$ReleaseAssetsRoot',
         '$FailOnWarning',
+        "release_asset_visual_gallery_evidence",
         "output_encoding",
         "UTF-8 without BOM",
         "docx_functional_smoke_readiness.md"
@@ -170,7 +236,9 @@ foreach ($marker in @(
         "-SummaryJson",
         "-ReportMarkdown",
         "-VisualSmokeRoots",
+        "-ReleaseAssetsRoot",
         "-FailOnWarning",
+        "release_asset_visual_gallery_evidence",
         "output_encoding",
         "UTF-8 without BOM",
         "docx_functional_smoke_readiness.md"
@@ -292,6 +360,55 @@ if (Test-Scenario -Name "fail_on_warning") {
         -Message "Warning Markdown should include warnings section."
     Assert-ContainsText -Text $warningMarkdown -ExpectedText "word_visual_smoke.pending_manual_review" `
         -Message "Warning Markdown should include the pending manual review warning id."
+}
+
+if (Test-Scenario -Name "release_asset_fallback") {
+    $projectVersion = Get-TestProjectVersion -Root $resolvedRepoRoot
+    $fallbackAssetsRoot = Join-Path $resolvedWorkingDir "release-assets-fallback"
+    $fallbackFixture = New-ReleaseAssetVisualFallbackFixture -AssetsRoot $fallbackAssetsRoot -Version $projectVersion
+
+    $fallbackSummaryPath = Join-Path $resolvedWorkingDir "docx-functional-smoke-readiness.release-assets.summary.json"
+    $fallbackReportMarkdownPath = Join-Path $resolvedWorkingDir "docx_functional_smoke_readiness_release_assets.md"
+    $fallbackResult = Invoke-ReadinessScript -Arguments @(
+        "-RepoRoot", $resolvedRepoRoot,
+        "-SummaryJson", $fallbackSummaryPath,
+        "-ReportMarkdown", $fallbackReportMarkdownPath,
+        "-ReleaseAssetsRoot", $fallbackAssetsRoot
+    )
+    Assert-Equal -Actual $fallbackResult.ExitCode -Expected 0 `
+        -Message "DOCX readiness should fall back to release visual gallery assets when default roots are stale. Output: $($fallbackResult.Text)"
+    Assert-True -Condition (Test-Path -LiteralPath $fallbackSummaryPath) `
+        -Message "Release-asset fallback summary was not written."
+    Assert-True -Condition (Test-Path -LiteralPath $fallbackReportMarkdownPath) `
+        -Message "Release-asset fallback Markdown was not written."
+
+    $fallbackSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $fallbackSummaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$fallbackSummary.status) -Expected "pass" `
+        -Message "Release-asset fallback readiness should pass."
+    Assert-Equal -Actual ([string]$fallbackSummary.verdict) -Expected "pass" `
+        -Message "Release-asset fallback readiness should preserve pass verdict."
+    Assert-Equal -Actual ([string]$fallbackSummary.visual_evidence_mode) -Expected "release_asset_visual_gallery" `
+        -Message "Release-asset fallback should expose the selected visual evidence mode."
+    Assert-Equal -Actual ([int]$fallbackSummary.failed_check_count) -Expected 0 `
+        -Message "Release-asset fallback should not have failed checks."
+    Assert-Equal -Actual ([int]$fallbackSummary.warning_count) -Expected 0 `
+        -Message "Release-asset fallback should not warn when review metadata is pass."
+    Assert-True -Condition (@($fallbackSummary.release_asset_visual_gallery_evidence).Count -ge 1) `
+        -Message "Release-asset fallback should record gallery evidence details."
+    $fallbackGalleryEvidence = @($fallbackSummary.release_asset_visual_gallery_evidence)[0]
+    Assert-Equal -Actual ([string]$fallbackGalleryEvidence.status) -Expected "pass" `
+        -Message "Release gallery evidence should pass."
+    Assert-Equal -Actual ([string]$fallbackGalleryEvidence.review_verdict) -Expected "pass" `
+        -Message "Release gallery evidence should preserve pass review metadata."
+    Assert-ContainsText -Text ([string]$fallbackGalleryEvidence.gallery_zip_display) `
+        -ExpectedText ([System.IO.Path]::GetFileName([string]$fallbackFixture.gallery_zip)) `
+        -Message "Release gallery evidence should identify the gallery ZIP."
+
+    $fallbackMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $fallbackReportMarkdownPath
+    Assert-ContainsText -Text $fallbackMarkdown -ExpectedText "Visual evidence mode: ``release_asset_visual_gallery``" `
+        -Message "Fallback Markdown should expose the selected visual evidence mode."
+    Assert-ContainsText -Text $fallbackMarkdown -ExpectedText "## Release Asset Visual Gallery Evidence" `
+        -Message "Fallback Markdown should include release gallery evidence details."
 }
 
 Write-Host "DOCX functional smoke readiness regression passed."

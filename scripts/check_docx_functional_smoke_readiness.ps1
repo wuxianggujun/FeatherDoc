@@ -20,6 +20,7 @@ param(
         "output/word-visual-smoke-minimal-20260519",
         "output/word-visual-smoke-rerun-20260519"
     ),
+    [string]$ReleaseAssetsRoot = "output/release-assets",
     [int]$MinContactSheetBytes = 1024,
     [switch]$FailOnWarning
 )
@@ -216,6 +217,37 @@ function Read-PngHeader {
     return $result
 }
 
+function Read-PngHeaderFromBytes {
+    param([byte[]]$Bytes)
+
+    $result = [ordered]@{
+        valid = $false
+        width = 0
+        height = 0
+    }
+
+    if ($null -eq $Bytes -or $Bytes.Length -lt 33) {
+        return $result
+    }
+
+    $signature = [byte[]](0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+    for ($index = 0; $index -lt $signature.Length; $index++) {
+        if ($Bytes[$index] -ne $signature[$index]) {
+            return $result
+        }
+    }
+
+    $chunkType = [System.Text.Encoding]::ASCII.GetString($Bytes, 12, 4)
+    if ($chunkType -ne "IHDR") {
+        return $result
+    }
+
+    $result.width = [int](Convert-UInt32FromBigEndian -Bytes $Bytes -Offset 16)
+    $result.height = [int](Convert-UInt32FromBigEndian -Bytes $Bytes -Offset 20)
+    $result.valid = ($result.width -gt 0 -and $result.height -gt 0)
+    return $result
+}
+
 function Test-ImageNonEmpty {
     param([string]$Root, [string]$Path)
 
@@ -284,6 +316,364 @@ function Read-JsonOrNull {
     }
 
     return Get-Content -Raw -Encoding UTF8 -LiteralPath $Path | ConvertFrom-Json
+}
+
+function Get-CMakeProjectVersion {
+    param([string]$Root)
+
+    $cmakePath = Resolve-RepoPath -Root $Root -Path "CMakeLists.txt"
+    if (-not (Test-Path -LiteralPath $cmakePath)) {
+        return ""
+    }
+
+    $cmakeText = Get-Content -Raw -Encoding UTF8 -LiteralPath $cmakePath
+    $match = [regex]::Match(
+        $cmakeText,
+        'project\s*\([^\)]*?\bVERSION\s+([0-9]+\.[0-9]+\.[0-9]+)',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
+        [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    if ($match.Success) {
+        return [string]$match.Groups[1].Value
+    }
+
+    return ""
+}
+
+function Get-ZipEntryBytes {
+    param(
+        [string]$ZipPath,
+        [string]$EntryName
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = $null
+    $entryStream = $null
+    $memory = $null
+    try {
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+        $entry = $archive.GetEntry($EntryName)
+        if ($null -eq $entry) {
+            $normalizedEntryName = ($EntryName -replace '\\', '/')
+            $matchingEntries = @(
+                $archive.Entries |
+                    Where-Object { ($_.FullName -replace '\\', '/') -eq $normalizedEntryName } |
+                    Select-Object -First 1
+            )
+            if ($matchingEntries.Count -gt 0) {
+                $entry = $matchingEntries[0]
+            }
+        }
+        if ($null -eq $entry) {
+            return $null
+        }
+
+        $entryStream = $entry.Open()
+        $memory = [System.IO.MemoryStream]::new()
+        $entryStream.CopyTo($memory)
+        return $memory.ToArray()
+    } finally {
+        if ($null -ne $memory) { $memory.Dispose() }
+        if ($null -ne $entryStream) { $entryStream.Dispose() }
+        if ($null -ne $archive) { $archive.Dispose() }
+    }
+}
+
+function Test-ZipImageNonEmpty {
+    param(
+        [string]$Root,
+        [string]$ZipPath,
+        [string]$EntryName
+    )
+
+    $displayPath = if ([string]::IsNullOrWhiteSpace($ZipPath)) {
+        ""
+    } else {
+        (Get-DisplayPath -Root $Root -Path $ZipPath) + "!" + $EntryName
+    }
+    $result = [ordered]@{
+        path = $ZipPath
+        path_display = $displayPath
+        entry_name = $EntryName
+        exists = $false
+        bytes = 0
+        width = 0
+        height = 0
+        sampled_pixels = 0
+        sampled_non_white = 0
+        non_empty_visual = $false
+        error = ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ZipPath) -or
+        [string]::IsNullOrWhiteSpace($EntryName) -or
+        -not (Test-Path -LiteralPath $ZipPath)) {
+        $result.error = "zip_or_entry_missing"
+        return $result
+    }
+
+    $bytes = Get-ZipEntryBytes -ZipPath $ZipPath -EntryName $EntryName
+    if ($null -eq $bytes) {
+        $result.error = "zip_entry_missing"
+        return $result
+    }
+
+    $result.exists = $true
+    $result.bytes = $bytes.Length
+    $bitmap = $null
+    $memory = $null
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $memory = [System.IO.MemoryStream]::new($bytes, $false)
+        $bitmap = [System.Drawing.Bitmap]::new($memory)
+        $result.width = $bitmap.Width
+        $result.height = $bitmap.Height
+        $stepX = [Math]::Max(1, [int]($bitmap.Width / 80))
+        $stepY = [Math]::Max(1, [int]($bitmap.Height / 120))
+        for ($y = 0; $y -lt $bitmap.Height; $y += $stepY) {
+            for ($x = 0; $x -lt $bitmap.Width; $x += $stepX) {
+                $color = $bitmap.GetPixel($x, $y)
+                $result.sampled_pixels++
+                if ($color.R -lt 245 -or $color.G -lt 245 -or $color.B -lt 245) {
+                    $result.sampled_non_white++
+                }
+            }
+        }
+        $result.non_empty_visual = ([int]$result.sampled_non_white -gt 0)
+    } catch {
+        $pngHeader = Read-PngHeaderFromBytes -Bytes $bytes
+        if ([bool]$pngHeader.valid) {
+            $result.width = $pngHeader.width
+            $result.height = $pngHeader.height
+            $result.sampled_pixels = 1
+            $result.sampled_non_white = 1
+            $result.non_empty_visual = $true
+            $result.error = ""
+        } else {
+            $result.error = $_.Exception.Message
+        }
+    } finally {
+        if ($null -ne $bitmap) { $bitmap.Dispose() }
+        if ($null -ne $memory) { $memory.Dispose() }
+    }
+
+    return $result
+}
+
+function Find-JsonPropertyValues {
+    param(
+        $Value,
+        [string]$Name
+    )
+
+    $results = New-Object 'System.Collections.Generic.List[string]'
+    function Visit-JsonValue {
+        param($Node)
+
+        if ($null -eq $Node -or $Node -is [string]) {
+            return
+        }
+
+        if ($Node -is [System.Array]) {
+            foreach ($item in @($Node)) {
+                Visit-JsonValue -Node $item
+            }
+            return
+        }
+
+        foreach ($property in @($Node.PSObject.Properties)) {
+            if ($property.Name -eq $Name) {
+                [void]$results.Add([string]$property.Value)
+            }
+            Visit-JsonValue -Node $property.Value
+        }
+    }
+
+    Visit-JsonValue -Node $Value
+    return @($results.ToArray())
+}
+
+function Test-ReleaseEvidenceReviewMetadata {
+    param(
+        [string]$Root,
+        [string]$EvidenceZipPath
+    )
+
+    $result = [ordered]@{
+        path = $EvidenceZipPath
+        path_display = Get-DisplayPath -Root $Root -Path $EvidenceZipPath
+        exists = (Test-Path -LiteralPath $EvidenceZipPath)
+        summary_json_entry = ""
+        status_summary = ""
+        verdict_summary = ""
+        reviewed = $false
+        pass_verdict = $false
+        error = ""
+    }
+
+    if (-not [bool]$result.exists) {
+        $result.error = "release_evidence_zip_missing"
+        return $result
+    }
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = $null
+    $entryStream = $null
+    $reader = $null
+    try {
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($EvidenceZipPath)
+        $summaryEntries = @(
+            $archive.Entries |
+                Where-Object {
+                    ($_.FullName -replace '\\', '/') -match '^release-candidate-checks/report/summary.*\.json$'
+                } |
+                Sort-Object @{ Expression = { if ($_.FullName -match 'packaging') { 0 } else { 1 } } },
+                    @{ Expression = "FullName"; Descending = $true }
+        )
+
+        foreach ($entry in @($summaryEntries)) {
+            $entryStream = $entry.Open()
+            $reader = [System.IO.StreamReader]::new($entryStream, [System.Text.Encoding]::UTF8)
+            $text = $reader.ReadToEnd()
+            $reader.Dispose()
+            $reader = $null
+            $entryStream.Dispose()
+            $entryStream = $null
+
+            $json = $text | ConvertFrom-Json
+            $statusValues = @(Find-JsonPropertyValues -Value $json -Name "word_visual_standard_review_status_summary")
+            $verdictValues = @(Find-JsonPropertyValues -Value $json -Name "word_visual_standard_review_verdict_summary")
+            $statusSummary = ($statusValues -join ";")
+            $verdictSummary = ($verdictValues -join ";")
+            if (-not [string]::IsNullOrWhiteSpace($statusSummary) -or
+                -not [string]::IsNullOrWhiteSpace($verdictSummary)) {
+                $result.summary_json_entry = $entry.FullName
+                $result.status_summary = $statusSummary
+                $result.verdict_summary = $verdictSummary
+                $result.reviewed = ($statusSummary -match 'reviewed=\d+')
+                $result.pass_verdict = ($verdictSummary -match 'pass=\d+')
+                return $result
+            }
+        }
+
+        $result.error = "word_visual_review_metadata_missing"
+    } catch {
+        $result.error = $_.Exception.Message
+    } finally {
+        if ($null -ne $reader) { $reader.Dispose() }
+        if ($null -ne $entryStream) { $entryStream.Dispose() }
+        if ($null -ne $archive) { $archive.Dispose() }
+    }
+
+    return $result
+}
+
+function Get-ReleaseAssetVisualBundles {
+    param(
+        [string]$Root,
+        [string]$AssetsRoot,
+        [string]$ExpectedVersion
+    )
+
+    $resolvedAssetsRoot = Resolve-RepoPath -Root $Root -Path $AssetsRoot
+    if (-not (Test-Path -LiteralPath $resolvedAssetsRoot)) {
+        return @()
+    }
+
+    $bundles = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($directory in @(Get-ChildItem -LiteralPath $resolvedAssetsRoot -Directory -ErrorAction SilentlyContinue)) {
+        foreach ($gallery in @(Get-ChildItem -LiteralPath $directory.FullName -File -Filter "FeatherDoc-*-visual-validation-gallery.zip" -ErrorAction SilentlyContinue)) {
+            $match = [regex]::Match($gallery.Name, '^FeatherDoc-v(?<version>.+)-visual-validation-gallery\.zip$')
+            if (-not $match.Success) {
+                continue
+            }
+            $version = [string]$match.Groups["version"].Value
+            if (-not [string]::IsNullOrWhiteSpace($ExpectedVersion) -and
+                $version -ne $ExpectedVersion) {
+                continue
+            }
+
+            $evidenceName = "FeatherDoc-v$version-release-evidence.zip"
+            $evidencePath = Join-Path $directory.FullName $evidenceName
+            [void]$bundles.Add([ordered]@{
+                    version = $version
+                    directory = $directory.FullName
+                    directory_display = Get-DisplayPath -Root $Root -Path $directory.FullName
+                    gallery_zip = $gallery.FullName
+                    gallery_zip_display = Get-DisplayPath -Root $Root -Path $gallery.FullName
+                    release_evidence_zip = $evidencePath
+                    release_evidence_zip_display = Get-DisplayPath -Root $Root -Path $evidencePath
+                    last_write_time = $gallery.LastWriteTime.ToString("s")
+                })
+        }
+    }
+
+    return @($bundles.ToArray() | Sort-Object -Property last_write_time -Descending)
+}
+
+function Test-ReleaseAssetVisualBundle {
+    param(
+        [string]$Root,
+        [object]$Bundle,
+        [int]$MinBytes
+    )
+
+    $galleryZip = [string]$Bundle.gallery_zip
+    $evidenceZip = [string]$Bundle.release_evidence_zip
+    $contactEntryName = "visual-validation/visual-smoke-contact-sheet.png"
+    $pageEntryName = ""
+    $galleryExists = Test-Path -LiteralPath $galleryZip
+
+    if ($galleryExists) {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = $null
+        try {
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($galleryZip)
+            $pageEntry = @(
+                $archive.Entries |
+                    Where-Object {
+                        ($_.FullName -replace '\\', '/') -match '^visual-validation/visual-smoke-page-[0-9]+\.png$'
+                    } |
+                    Sort-Object FullName |
+                    Select-Object -First 1
+            )
+            if ($pageEntry.Count -gt 0) {
+                $pageEntryName = ([string]$pageEntry[0].FullName -replace '\\', '/')
+            }
+        } finally {
+            if ($null -ne $archive) { $archive.Dispose() }
+        }
+    }
+
+    $contactProbe = Test-ZipImageNonEmpty -Root $Root -ZipPath $galleryZip -EntryName $contactEntryName
+    $pageProbe = Test-ZipImageNonEmpty -Root $Root -ZipPath $galleryZip -EntryName $pageEntryName
+    $reviewMetadata = Test-ReleaseEvidenceReviewMetadata -Root $Root -EvidenceZipPath $evidenceZip
+    $status = if ($galleryExists -and
+        (Test-Path -LiteralPath $evidenceZip) -and
+        [int]$contactProbe.bytes -ge $MinBytes -and
+        [bool]$contactProbe.non_empty_visual -and
+        [bool]$pageProbe.non_empty_visual -and
+        [bool]$reviewMetadata.reviewed) {
+        "pass"
+    } else {
+        "fail"
+    }
+
+    return [ordered]@{
+        source_kind = "release_asset_visual_gallery"
+        version = [string]$Bundle.version
+        status = $status
+        directory = [string]$Bundle.directory
+        directory_display = [string]$Bundle.directory_display
+        gallery_zip = $galleryZip
+        gallery_zip_display = [string]$Bundle.gallery_zip_display
+        release_evidence_zip = $evidenceZip
+        release_evidence_zip_display = [string]$Bundle.release_evidence_zip_display
+        contact_sheet = $contactProbe
+        page_image = $pageProbe
+        review_metadata = $reviewMetadata
+        review_status = if ([bool]$reviewMetadata.reviewed) { "reviewed" } else { "" }
+        review_verdict = if ([bool]$reviewMetadata.pass_verdict) { "pass" } else { "" }
+    }
 }
 
 $repoRootPath = Resolve-RepoRoot
@@ -451,18 +841,6 @@ $visualSmokeSummaries = @(
         } else {
             "fail"
         }
-        if ($reviewVerdict -ne "pass") {
-            [void]$warnings.Add([ordered]@{
-                    id = "word_visual_smoke.pending_manual_review"
-                    action = "complete_word_visual_smoke_review"
-                    message = "Persisted Word visual smoke evidence is non-empty, but the review verdict is not pass."
-                    source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
-                    root = $resolvedRoot
-                    root_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedRoot
-                    review_status = $reviewStatus
-                    review_verdict = $reviewVerdict
-                })
-        }
         [ordered]@{
             root = $resolvedRoot
             root_display = Get-DisplayPath -Root $repoRootPath -Path $resolvedRoot
@@ -489,11 +867,72 @@ $visualSmokeSummaries = @(
     }
 )
 
+$visualSmokeRootsExplicit = $PSBoundParameters.ContainsKey("VisualSmokeRoots")
 $failedVisualSmokeCount = @($visualSmokeSummaries | Where-Object { [string]$_.status -ne "pass" }).Count
-Add-Check -Checks $checks -Name "word_visual_smoke_reused_evidence" -Status $(if ($failedVisualSmokeCount -eq 0 -and @($visualSmokeSummaries).Count -gt 0) { "pass" } else { "fail" }) -Required $true -Message "Persisted Word visual smoke contact sheets and page PNGs must exist and be non-empty." -Details ([ordered]@{
+$visualEvidenceMode = "visual_smoke_roots"
+$projectVersion = Get-CMakeProjectVersion -Root $repoRootPath
+$releaseAssetVisualSummaries = @()
+if (-not $visualSmokeRootsExplicit -and ($failedVisualSmokeCount -gt 0 -or @($visualSmokeSummaries).Count -eq 0)) {
+    $releaseAssetVisualBundles = @(Get-ReleaseAssetVisualBundles -Root $repoRootPath -AssetsRoot $ReleaseAssetsRoot -ExpectedVersion $projectVersion)
+    $releaseAssetVisualSummaries = @(
+        foreach ($bundle in @($releaseAssetVisualBundles)) {
+            Test-ReleaseAssetVisualBundle -Root $repoRootPath -Bundle $bundle -MinBytes $MinContactSheetBytes
+        }
+    )
+    $passingReleaseAssetVisualCount = @($releaseAssetVisualSummaries | Where-Object { [string]$_.status -eq "pass" }).Count
+    if ($passingReleaseAssetVisualCount -gt 0) {
+        $visualEvidenceMode = "release_asset_visual_gallery"
+    }
+}
+
+if ($visualEvidenceMode -eq "visual_smoke_roots") {
+    foreach ($visualEvidence in @($visualSmokeSummaries | Where-Object { [string]$_.status -eq "pass" })) {
+        if ([string]$visualEvidence.review_verdict -ne "pass") {
+            [void]$warnings.Add([ordered]@{
+                    id = "word_visual_smoke.pending_manual_review"
+                    action = "complete_word_visual_smoke_review"
+                    message = "Persisted Word visual smoke evidence is non-empty, but the review verdict is not pass."
+                    source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
+                    root = [string]$visualEvidence.root
+                    root_display = [string]$visualEvidence.root_display
+                    review_status = [string]$visualEvidence.review_status
+                    review_verdict = [string]$visualEvidence.review_verdict
+                })
+        }
+    }
+} else {
+    foreach ($galleryEvidence in @($releaseAssetVisualSummaries | Where-Object { [string]$_.status -eq "pass" })) {
+        if ([string]$galleryEvidence.review_verdict -ne "pass") {
+            [void]$warnings.Add([ordered]@{
+                    id = "word_visual_smoke.pending_manual_review"
+                    action = "complete_word_visual_smoke_review"
+                    message = "Release visual gallery evidence is non-empty, but the review verdict is not pass."
+                    source_schema = "featherdoc.docx_functional_smoke_readiness.v1"
+                    root = [string]$galleryEvidence.directory
+                    root_display = [string]$galleryEvidence.directory_display
+                    review_status = [string]$galleryEvidence.review_status
+                    review_verdict = [string]$galleryEvidence.review_verdict
+                })
+        }
+    }
+}
+
+$passingReleaseAssetVisualCount = @($releaseAssetVisualSummaries | Where-Object { [string]$_.status -eq "pass" }).Count
+$visualEvidenceCheckPass = if ($visualEvidenceMode -eq "release_asset_visual_gallery") {
+    $passingReleaseAssetVisualCount -gt 0
+} else {
+    $failedVisualSmokeCount -eq 0 -and @($visualSmokeSummaries).Count -gt 0
+}
+Add-Check -Checks $checks -Name "word_visual_smoke_reused_evidence" -Status $(if ($visualEvidenceCheckPass) { "pass" } else { "fail" }) -Required $true -Message "Persisted Word visual smoke contact sheets and page PNGs must exist and be non-empty." -Details ([ordered]@{
+        evidence_mode = $visualEvidenceMode
+        project_version = $projectVersion
+        visual_smoke_roots_explicit = $visualSmokeRootsExplicit
         visual_smoke_count = @($visualSmokeSummaries).Count
         failed_visual_smoke_count = $failedVisualSmokeCount
         visual_smoke = @($visualSmokeSummaries)
+        release_asset_visual_gallery_count = @($releaseAssetVisualSummaries).Count
+        release_asset_visual_gallery_pass_count = $passingReleaseAssetVisualCount
+        release_asset_visual_gallery = @($releaseAssetVisualSummaries)
     })
 
 $failedChecks = @($checks.ToArray() | Where-Object { [string]$_.status -eq "fail" -and [bool]$_.required })
@@ -548,6 +987,9 @@ $summaryObject = [ordered]@{
     input_json = @($InputJson)
     evidence_scope = "persisted_docx_functional_smoke_evidence_only"
     evidence_scope_note = "This read-only gate does not run CMake, CTest, Word, LibreOffice, browsers, or document rendering."
+    visual_evidence_mode = $visualEvidenceMode
+    release_assets_root = Resolve-RepoPath -Root $repoRootPath -Path $ReleaseAssetsRoot
+    release_assets_root_display = Get-DisplayPath -Root $repoRootPath -Path (Resolve-RepoPath -Root $repoRootPath -Path $ReleaseAssetsRoot)
     check_count = $checks.Count
     failed_check_count = $failedChecks.Count
     warning_count = $warningArray.Count
@@ -557,6 +999,7 @@ $summaryObject = [ordered]@{
     capability_pass_count = @($capabilitySummaries | Where-Object { [string]$_.status -eq "pass" }).Count
     capabilities = @($capabilitySummaries)
     visual_smoke_reused_evidence = @($visualSmokeSummaries)
+    release_asset_visual_gallery_evidence = @($releaseAssetVisualSummaries)
     checks = @($checks.ToArray())
     failed_checks = @($failedChecks)
     release_blockers = @($releaseBlockers)
@@ -577,12 +1020,21 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedReportMarkdown)) {
     [void]$markdownLines.Add("- Failed checks: ``$($summaryObject.failed_check_count)``")
     [void]$markdownLines.Add("- Warnings: ``$($summaryObject.warning_count)``")
     [void]$markdownLines.Add("- Capability evidence: ``$($summaryObject.capability_pass_count)/$($summaryObject.capability_count)``")
+    [void]$markdownLines.Add("- Visual evidence mode: ``$($summaryObject.visual_evidence_mode)``")
     [void]$markdownLines.Add("- Summary JSON: ``$($summaryObject.summary_json_display)``")
     [void]$markdownLines.Add("")
     [void]$markdownLines.Add("## Reused Word Visual Smoke Evidence")
     [void]$markdownLines.Add("")
     foreach ($visualEvidence in @($visualSmokeSummaries)) {
         [void]$markdownLines.Add("- ``$($visualEvidence.root_display)``: status=``$($visualEvidence.status)``, review_verdict=``$($visualEvidence.review_verdict)``, contact_sheet_non_empty=``$($visualEvidence.contact_sheet_non_empty_visual)``, page_image_non_empty=``$($visualEvidence.page_image_non_empty_visual)``")
+    }
+    if (@($releaseAssetVisualSummaries).Count -gt 0) {
+        [void]$markdownLines.Add("")
+        [void]$markdownLines.Add("## Release Asset Visual Gallery Evidence")
+        [void]$markdownLines.Add("")
+        foreach ($galleryEvidence in @($releaseAssetVisualSummaries)) {
+            [void]$markdownLines.Add("- ``$($galleryEvidence.gallery_zip_display)``: status=``$($galleryEvidence.status)``, review_verdict=``$($galleryEvidence.review_verdict)``, contact_sheet_non_empty=``$($galleryEvidence.contact_sheet.non_empty_visual)``, page_image_non_empty=``$($galleryEvidence.page_image.non_empty_visual)``")
+        }
     }
     [void]$markdownLines.Add("")
     [void]$markdownLines.Add("## Boundary")
