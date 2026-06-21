@@ -193,6 +193,31 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
         ) -Message "Release candidate step summary should mirror handoff nested rollup $propertyName."
     }
 
+    $handoffProjectTemplateReport = @($handoffSummary.reports |
+        Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text (($handoffProjectTemplateReport.business_document_type_summary | ForEach-Object { "$($_.document_type)=$($_.count)" }) -join ", ") `
+        -ExpectedText "invoice=1, policy=1" `
+        -Message "Governance handoff summary should preserve project-template business document type summary."
+    Assert-ContainsText -Text (($handoffProjectTemplateReport.corpus_role_summary | ForEach-Object { "$($_.corpus_role)=$($_.count)" }) -join ", ") `
+        -ExpectedText "planned-business-template=1, registered-business-template=1" `
+        -Message "Governance handoff summary should preserve project-template corpus role summary."
+    $handoffNestedProjectTemplateReport = @($handoffSummary.release_blocker_rollup.source_reports |
+        Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+        Select-Object -First 1)
+    Assert-ContainsText -Text (($handoffNestedProjectTemplateReport.business_document_type_summary | ForEach-Object { "$($_.document_type)=$($_.count)" }) -join ", ") `
+        -ExpectedText "invoice=1, policy=1" `
+        -Message "Nested rollup summary should preserve project-template business document type summary."
+    Assert-ContainsText -Text (($handoffNestedProjectTemplateReport.corpus_role_summary | ForEach-Object { "$($_.corpus_role)=$($_.count)" }) -join ", ") `
+        -ExpectedText "planned-business-template=1, registered-business-template=1" `
+        -Message "Nested rollup summary should preserve project-template corpus role summary."
+
+    $handoffMarkdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffMarkdownPath
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText "business_document_type_summary: ``invoice=1, policy=1``" `
+        -Message "Governance handoff Markdown should include project-template business document type summary."
+    Assert-ContainsText -Text $handoffMarkdown -ExpectedText "corpus_role_summary: ``planned-business-template=1, registered-business-template=1``" `
+        -Message "Governance handoff Markdown should include project-template corpus role summary."
+
     $handoffFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $handoffFinalReviewPath
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "- Release governance handoff: blocked" `
         -Message "Final review should include release governance handoff step status."
@@ -216,6 +241,10 @@ if ($Scenario -in @("handoff", "handoff_fail_on_blocker", "handoff_fail_on_warni
         -Message "Final review should include handoff project-template readiness status."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "readiness_release_ready: False" `
         -Message "Final review should include handoff project-template release_ready state."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "business_document_type_summary: invoice=1, policy=1" `
+        -Message "Final review should include handoff project-template business document type summary."
+    Assert-ContainsText -Text $handoffFinalReview -ExpectedText "corpus_role_summary: planned-business-template=1, registered-business-template=1" `
+        -Message "Final review should include handoff project-template corpus role summary."
     Assert-ContainsText -Text $handoffFinalReview -ExpectedText "repair_action_classes: release_blocking, auto_repair_candidate, manual_confirmation_required" `
         -Message "Final review should include handoff content-control repair action classes."
     Assert-MarkdownListBlockContainsAll -Text $handoffFinalReview -Anchor "project_template_onboarding.schema_approval: action=review_schema_update_candidate" -ExpectedFragments @(
@@ -652,6 +681,15 @@ Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.auto_disc
     -Message "Release summary should record all seven auto-discovered governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.source_report_count) -Expected 7 `
     -Message "Auto-discovered rollup should aggregate the seven default governance reports."
+$autoDiscoverSummaryProjectTemplateReport = @($autoDiscoverSummary.release_blocker_rollup.source_reports |
+    Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text (($autoDiscoverSummaryProjectTemplateReport.business_document_type_summary | ForEach-Object { "$($_.document_type)=$($_.count)" }) -join ", ") `
+    -ExpectedText "invoice=1, policy=1" `
+    -Message "Release candidate summary should preserve rollup project-template business document type summary."
+Assert-ContainsText -Text (($autoDiscoverSummaryProjectTemplateReport.corpus_role_summary | ForEach-Object { "$($_.corpus_role)=$($_.count)" }) -join ", ") `
+    -ExpectedText "planned-business-template=1, registered-business-template=1" `
+    -Message "Release candidate summary should preserve rollup project-template corpus role summary."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.release_blocker_count) -Expected 6 `
     -Message "Auto-discovered rollup should surface blocker count from default governance reports."
 Assert-Equal -Actual ([int]$autoDiscoverSummary.release_blocker_rollup.action_item_count) -Expected 6 `
@@ -792,6 +830,10 @@ Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "metadata_on
     -Message "Auto-discovered rollup Markdown should include generic PDF floating table metadata-only fields."
 Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "review_required_fields: ``full Word-compatible floating table text wrapping, table overlap avoidance and collision resolution``" `
     -Message "Auto-discovered rollup Markdown should include generic PDF floating table review-required fields."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "business_document_type_summary: ``invoice=1, policy=1``" `
+    -Message "Auto-discovered rollup Markdown should include project-template business document type summary."
+Assert-ContainsText -Text $autoDiscoverRollupMarkdown -ExpectedText "corpus_role_summary: ``planned-business-template=1, registered-business-template=1``" `
+    -Message "Auto-discovered rollup Markdown should include project-template corpus role summary."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "Release blocker rollup details" `
     -Message "Auto-discovered final review should include release blocker rollup details."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "metadata_only_fields: leftFromText, rightFromText, topFromText outside paragraph anchoring, tblOverlap" `
@@ -812,6 +854,10 @@ Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_stat
     -Message "Auto-discovered final review should include project-template readiness status."
 Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "readiness_release_ready: False" `
     -Message "Auto-discovered final review should include project-template release_ready state."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "business_document_type_summary: invoice=1, policy=1" `
+    -Message "Auto-discovered final review should include project-template business document type summary."
+Assert-ContainsText -Text $autoDiscoverFinalReview -ExpectedText "corpus_role_summary: planned-business-template=1, registered-business-template=1" `
+    -Message "Auto-discovered final review should include project-template corpus role summary."
 Assert-MarkdownListBlockContainsAll -Text $autoDiscoverFinalReview -Anchor "project_template_onboarding.schema_approval: action=review_schema_update_candidate" -ExpectedFragments @(
     "project_template_onboarding_governance_contract:",
     "status: pending_review",
@@ -834,6 +880,15 @@ Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-
 Assert-ContainsText -Text (($autoDiscoverRollupSummary.source_reports | ForEach-Object { [string]$_.path_display }) -join "`n") `
     -ExpectedText "docx-functional-smoke-readiness" `
     -Message "Auto-discovered rollup should include DOCX functional smoke readiness."
+$autoDiscoverRollupProjectTemplateReport = @($autoDiscoverRollupSummary.source_reports |
+    Where-Object { [string]$_.schema -eq "featherdoc.project_template_delivery_readiness_report.v1" } |
+    Select-Object -First 1)
+Assert-ContainsText -Text (($autoDiscoverRollupProjectTemplateReport.business_document_type_summary | ForEach-Object { "$($_.document_type)=$($_.count)" }) -join ", ") `
+    -ExpectedText "invoice=1, policy=1" `
+    -Message "Auto-discovered rollup summary should preserve project-template business document type summary."
+Assert-ContainsText -Text (($autoDiscoverRollupProjectTemplateReport.corpus_role_summary | ForEach-Object { "$($_.corpus_role)=$($_.count)" }) -join ", ") `
+    -ExpectedText "planned-business-template=1, registered-business-template=1" `
+    -Message "Auto-discovered rollup summary should preserve project-template corpus role summary."
 
     Write-Host "Release candidate blocker rollup auto-discovery regression passed."
     exit 0

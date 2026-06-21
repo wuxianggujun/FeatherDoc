@@ -272,6 +272,7 @@ $summary = [ordered]@{
         report_markdown = $releaseBlockerRollupMarkdownPath
         report_markdown_display = Get-DisplayPath -RepoRoot $repoRoot -Path $releaseBlockerRollupMarkdownPath
         source_report_count = 0
+        source_reports = @()
         source_failure_count = 0
         release_blocker_count = 0
         blocker_source_schema_summary = @()
@@ -352,6 +353,7 @@ if ($IncludeReleaseBlockerRollup) {
     $pdfVisualGateEvidence = @(Get-PdfVisualGateRollupEvidence -RollupSummary $rollupSummary)
     $summary.release_blocker_rollup.status = [string]$rollupSummary.status
     $summary.release_blocker_rollup.source_report_count = [int]$rollupSummary.source_report_count
+    $summary.release_blocker_rollup.source_reports = @(Get-JsonArray -Object $rollupSummary -Name "source_reports")
     $summary.release_blocker_rollup.source_failure_count = [int]$rollupSummary.source_failure_count
     $summary.release_blocker_rollup.release_blocker_count = [int]$rollupSummary.release_blocker_count
     $summary.release_blocker_rollup.blocker_source_schema_summary = @(Get-JsonArray -Object $rollupSummary -Name "blocker_source_schema_summary")

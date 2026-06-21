@@ -337,13 +337,16 @@ Release governance 与发布材料
 - ``scripts/run_release_candidate_checks.ps1``：本地一站式 release candidate
   preflight。
 - ``scripts/build_release_blocker_rollup_report.ps1``：统一汇总 release blocker、
-  warning 和 action item。
+  warning 和 action item；``source_reports`` 必须继续保留并在 Markdown 中展示
+  project-template ``business_document_type_summary`` 与 ``corpus_role_summary``，
+  供 ``final_review.md`` 复核源级业务维度。
 - ``scripts/build_release_governance_pipeline_report.ps1``：生成 release governance
   pipeline summary。
 - ``scripts/build_release_governance_handoff_report.ps1``：生成 release governance
   handoff summary，并保留
   ``word_visual_standard_review_metadata_source_reports`` 作为 Word visual 标准复核
-  metadata 的交接证据。
+  metadata 的交接证据；handoff report status 与嵌套 rollup 也必须保留
+  project-template ``business_document_type_summary`` 与 ``corpus_role_summary``。
 - ``scripts/check_release_metadata_docs.ps1``：检查发布元数据文档的固定契约与
   reviewer-facing 入口。
 - ``scripts/release_blocker_metadata_helpers.ps1``：提供 release blocker 元数据、

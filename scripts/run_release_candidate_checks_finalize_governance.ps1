@@ -71,8 +71,10 @@
             [object[]]$rollupActionItemSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_item_source_schema_summary") }
             [object[]]$rollupInformationalActionItemSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "informational_action_item_source_schema_summary") }
             [object[]]$rollupWarningSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warning_source_schema_summary") }
+            [object[]]$rollupSourceReports = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "source_reports") }
             $summary.release_blocker_rollup.status = if ($null -eq $rollupSummary) { "missing_summary" } else { [string]$rollupSummary.status }
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.source_reports = @($rollupSourceReports)
             $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
             $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") }
@@ -89,6 +91,7 @@
             $summary.release_blocker_rollup.error = ""
             $summary.steps.release_blocker_rollup.status = $summary.release_blocker_rollup.status
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.source_reports = @($summary.release_blocker_rollup.source_reports)
             $summary.steps.release_blocker_rollup.source_failure_count = $summary.release_blocker_rollup.source_failure_count
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
             $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)
@@ -112,8 +115,10 @@
             [object[]]$rollupActionItemSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "action_item_source_schema_summary") }
             [object[]]$rollupInformationalActionItemSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "informational_action_item_source_schema_summary") }
             [object[]]$rollupWarningSourceSchemaSummary = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "warning_source_schema_summary") }
+            [object[]]$rollupSourceReports = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "source_reports") }
             $summary.release_blocker_rollup.status = "failed"
             $summary.release_blocker_rollup.source_report_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_report_count }
+            $summary.release_blocker_rollup.source_reports = @($rollupSourceReports)
             $summary.release_blocker_rollup.source_failure_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.source_failure_count }
             $summary.release_blocker_rollup.release_blocker_count = if ($null -eq $rollupSummary) { 0 } else { [int]$rollupSummary.release_blocker_count }
             $summary.release_blocker_rollup.release_blockers = if ($null -eq $rollupSummary) { @() } else { @(Get-OptionalObjectArrayProperty -Object $rollupSummary -Name "release_blockers") }
@@ -130,6 +135,7 @@
             $summary.release_blocker_rollup.error = $rollupError
             $summary.steps.release_blocker_rollup.status = "failed"
             $summary.steps.release_blocker_rollup.source_report_count = $summary.release_blocker_rollup.source_report_count
+            $summary.steps.release_blocker_rollup.source_reports = @($summary.release_blocker_rollup.source_reports)
             $summary.steps.release_blocker_rollup.source_failure_count = $summary.release_blocker_rollup.source_failure_count
             $summary.steps.release_blocker_rollup.release_blocker_count = $summary.release_blocker_rollup.release_blocker_count
             $summary.steps.release_blocker_rollup.release_blockers = @($summary.release_blocker_rollup.release_blockers)

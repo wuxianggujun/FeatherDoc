@@ -459,6 +459,18 @@ function New-ReportMarkdown {
             $statusParts = @($report.schema_approval_status_summary | ForEach-Object { "$($_.status)=$($_.count)" })
             $lines.Add("  - schema_approval_status_summary: ``$($statusParts -join ', ')``") | Out-Null
         }
+        if (@($report.business_document_type_summary).Count -gt 0) {
+            $businessDocumentTypeSummary = Get-SummaryGroupMarkdownText `
+                -Items @($report.business_document_type_summary) `
+                -NameProperty "document_type"
+            $lines.Add("  - business_document_type_summary: ``$businessDocumentTypeSummary``") | Out-Null
+        }
+        if (@($report.corpus_role_summary).Count -gt 0) {
+            $corpusRoleSummary = Get-SummaryGroupMarkdownText `
+                -Items @($report.corpus_role_summary) `
+                -NameProperty "corpus_role"
+            $lines.Add("  - corpus_role_summary: ``$corpusRoleSummary``") | Out-Null
+        }
         if ([string]::Equals([string]$report.schema, "featherdoc.docx_functional_smoke_readiness.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
             $lines.Add("  - docx_functional_smoke_ready: ``$($report.docx_functional_smoke_ready)``") | Out-Null
             $lines.Add("  - evidence_scope: ``$($report.evidence_scope)``") | Out-Null

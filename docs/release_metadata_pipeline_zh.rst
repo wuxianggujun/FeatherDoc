@@ -737,6 +737,11 @@ compact evidence 原始 schema，``source_schema`` 必须显式保留当前 sour
 ``project-template-onboarding-governance`` 原始证据。这样发布 reviewer 可以从
 最终 release candidate 摘要直接追溯到模板准入与 schema approval 证据，而不是在
 handoff 计数和 release blocker rollup 之间手工拼路径。
+release blocker rollup 的 ``source_reports`` 也必须进入 release candidate summary
+和 ``steps.release_blocker_rollup``，并在 rollup Markdown、governance handoff
+Markdown 与 ``final_review.md`` 中展示 ``business_document_type_summary`` 与
+``corpus_role_summary``，避免 final review 只能看到 readiness/source path 而看不到
+业务文档类型和语料角色覆盖范围。
 ``release_governance_handoff.md`` 还必须遵守
 ``block_scoped_governance_handoff_trace``：``project_template_delivery_readiness`` 与
 ``project_template_onboarding.schema_approval`` 各自的 Markdown list block 必须分别保留

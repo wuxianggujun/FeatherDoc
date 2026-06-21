@@ -191,6 +191,28 @@ function Test-ProjectTemplateOnboardingGovernanceReport {
     )
 }
 
+function Add-ProjectTemplateBusinessDimensionContractLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Report,
+        [string]$Indent
+    )
+
+    $businessDocumentTypeSummary = Get-ReleaseBlockerSummaryGroupDisplay `
+        -Items @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "business_document_type_summary") `
+        -NameProperty "document_type"
+    if ($businessDocumentTypeSummary -ne "(none)") {
+        [void]$Lines.Add("${Indent}- business_document_type_summary: $businessDocumentTypeSummary")
+    }
+
+    $corpusRoleSummary = Get-ReleaseBlockerSummaryGroupDisplay `
+        -Items @(Get-ReleaseBlockerArrayProperty -Object $Report -Name "corpus_role_summary") `
+        -NameProperty "corpus_role"
+    if ($corpusRoleSummary -ne "(none)") {
+        [void]$Lines.Add("${Indent}- corpus_role_summary: $corpusRoleSummary")
+    }
+}
+
 function Add-ProjectTemplateOnboardingGovernanceReportContractLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -238,6 +260,10 @@ function Add-ProjectTemplateOnboardingGovernanceReportContractLines {
     if (-not [string]::IsNullOrWhiteSpace($nextActionGroupCount)) {
         [void]$Lines.Add("      - next_action_group_count: $nextActionGroupCount")
     }
+    Add-ProjectTemplateBusinessDimensionContractLines `
+        -Lines $Lines `
+        -Report $Report `
+        -Indent "      "
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("      - source_report_display: $SourceReportDisplay")
     }
@@ -506,6 +532,11 @@ function Add-ProjectTemplateDeliveryReadinessContractLines {
     if (-not [string]::IsNullOrWhiteSpace($onboardingNextActionGroupCount)) {
         [void]$Lines.Add("    - onboarding_governance_next_action_group_count: $onboardingNextActionGroupCount")
     }
+
+    Add-ProjectTemplateBusinessDimensionContractLines `
+        -Lines $Lines `
+        -Report $Report `
+        -Indent "    "
 
     if (-not [string]::IsNullOrWhiteSpace($SourceReportDisplay)) {
         [void]$Lines.Add("    - source_report_display: $SourceReportDisplay")

@@ -225,6 +225,12 @@ P1：Release governance 与发布材料一致性
      Release body 中断言 ``business_document_type_summary`` 与
      ``corpus_role_summary`` 未丢失，避免发布页刷新只保留 release notes 文本而漏掉
      业务语料覆盖信息。
+   * release blocker rollup 现在会把 ``source_reports`` 继续写入 release
+     candidate summary / steps，并在 rollup Markdown、governance handoff Markdown
+     和 ``final_review.md`` 中展示 project-template
+     ``business_document_type_summary`` 与 ``corpus_role_summary``；对应
+     ``rollup_auto_discover`` 与 ``handoff`` 回归已锁住 JSON、Markdown 和 final review
+     三层输出。
    * 文档契约测试已锁定 ``write_release_body_zh_summary.ps1`` 的 reviewer action
      与业务维度聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续
      重构只保留 release notes 文本而丢失源级聚合路径。
@@ -452,10 +458,10 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：release body / summary 与 GitHub
-   Release 同步路径已由值级回归锁住，下一步优先复核 release blocker rollup、
-   release governance handoff、final review、bundle 和 checklist 是否仍使用同一组
-   project-template 来源字段，尤其守住 ``business_document_type_summary`` 与
-   ``corpus_role_summary``。
+2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：release body / summary、GitHub
+   Release 同步路径、release blocker rollup、governance handoff 与 final review
+   已由值级回归锁住，下一步优先复核 bundle / checklist 与 packaged
+   ``release_assets_manifest.json`` 是否继续使用同一组 project-template 来源字段，
+   尤其守住 ``business_document_type_summary`` 与 ``corpus_role_summary``。
 3. 若要新增功能，优先从 ``P1-SCHEMA-01`` 或 ``P1-TEMPLATE-01`` 中挑一个最小闭环，
    并同步补对应 PowerShell 契约测试。
