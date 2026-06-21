@@ -69,15 +69,14 @@
                                          "project_id":  "project-office",
                                          "template_name":  "notice-template",
                                          "document_type":  "notice",
-                                         "status":  "planned",
+                                         "status":  "registered",
+                                         "source_entry":  "part-template-validation-smoke",
                                          "smoke_contract":  [
                                                                 "template_validations",
                                                                 "schema_validation"
                                                             ],
-                                         "registration_blocker":  "Notice template slot validation fixture is not registered yet.",
-                                         "next_action":  "Add a lightweight notice template with bookmark/content-control slot validation coverage.",
-                                         "coverage_goal":  "Register a notice template for simple bookmark/content-control smoke coverage.",
-                                         "notes":  "Low-risk entry for lightweight template validation coverage."
+                                         "coverage_goal":  "Registered notice template slot and schema smoke coverage backed by the generated part-template fixture.",
+                                         "notes":  "Low-risk lightweight notice corpus entry; no committed business DOCX fixture is added in this step."
                                      },
                                      {
                                          "id":  "project-procurement-tender-template",
@@ -110,6 +109,12 @@
     "entries":  [
                     {
                         "name":  "part-template-validation-smoke",
+                        "project_id":  "project-office",
+                        "template_name":  "notice-template",
+                        "business_domain":  "office",
+                        "business_document_type":  "notice",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Lightweight notice template slot validation coverage backed by the generated part-template validation fixture.",
                         "prepare_sample_target":  "featherdoc_sample_part_template_validation",
                         "prepare_argument":  "output/project-template-smoke-sample/part-template",
                         "input_docx":  "output/project-template-smoke-sample/part-template/part_template_validation.docx",
@@ -126,6 +131,20 @@
                                                                    ]
                                                      }
                                                  ],
+                        "schema_validation":  {
+                                                  "targets":  [
+                                                                  {
+                                                                      "part":  "section-header",
+                                                                      "section":  0,
+                                                                      "kind":  "default",
+                                                                      "slots":  [
+                                                                                    "header_title:text",
+                                                                                    "header_note:block",
+                                                                                    "header_rows:table_rows"
+                                                                                ]
+                                                                  }
+                                                              ]
+                                              },
                         "visual_smoke":  {
                                              "enabled":  true,
                                              "output_dir":  "output/project-template-smoke-sample/part-template-visual"

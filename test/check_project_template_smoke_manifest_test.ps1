@@ -225,10 +225,10 @@ Assert-Equal -Actual $repoManifestResult.ExitCode -Expected 0 `
 $repoManifestReport = Get-Content -Raw -Encoding UTF8 -LiteralPath $repoManifestReportPath | ConvertFrom-Json
 Assert-Equal -Actual ([int]$repoManifestReport.business_template_corpus_count) -Expected 6 `
     -Message "Repository manifest should keep the full business template corpus backlog."
-Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corpus_count) -Expected 1 `
-    -Message "Repository manifest should keep one registered business template corpus entry."
-Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 5 `
-    -Message "Repository manifest should keep five planned business template corpus entries."
+Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corpus_count) -Expected 2 `
+    -Message "Repository manifest should keep two registered business template corpus entries."
+Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 4 `
+    -Message "Repository manifest should keep four planned business template corpus entries."
 $repoManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $resolvedRepoRoot "samples\project_template_smoke.manifest.json") | ConvertFrom-Json
 $repoBusinessDocumentTypes = @($repoManifest.business_template_corpus | ForEach-Object { [string]$_.document_type })
 foreach ($expectedDocumentType in @("invoice", "contract", "policy", "report", "notice", "tender")) {
@@ -242,9 +242,18 @@ Assert-Equal -Actual $registeredInvoiceCorpus.Count -Expected 1 `
     -Message "Repository manifest should keep exactly one registered invoice corpus anchor."
 Assert-Equal -Actual ([string]$registeredInvoiceCorpus[0].source_entry) -Expected "chinese-invoice-template" `
     -Message "Registered invoice corpus should point at the committed manifest entry."
+$registeredNoticeCorpus = @($repoManifest.business_template_corpus | Where-Object {
+        [string]$_.document_type -eq "notice" -and [string]$_.status -eq "registered"
+    })
+Assert-Equal -Actual $registeredNoticeCorpus.Count -Expected 1 `
+    -Message "Repository manifest should keep exactly one registered notice corpus anchor."
+Assert-Equal -Actual ([string]$registeredNoticeCorpus[0].source_entry) -Expected "part-template-validation-smoke" `
+    -Message "Registered notice corpus should point at the part-template validation manifest entry."
 $repoEntryNames = @($repoManifest.entries | ForEach-Object { [string]$_.name })
 Assert-CollectionContains -Items $repoEntryNames -ExpectedText "chinese-invoice-template" `
     -Message "Repository manifest should keep the registered invoice manifest entry."
+Assert-CollectionContains -Items $repoEntryNames -ExpectedText "part-template-validation-smoke" `
+    -Message "Repository manifest should keep the registered notice manifest entry."
 
 $emptyManifestPath = Join-Path $fixtureRoot "empty.manifest.json"
 Write-JsonFile -Path $emptyManifestPath -Value ([ordered]@{ entries = @() })
