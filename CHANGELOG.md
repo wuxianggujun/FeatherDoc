@@ -10,6 +10,18 @@ performance.
 
 ### Added
 
+- Added missing business document type entry details to the schema patch
+  confidence calibration report Markdown and summary JSON so reviewers can
+  inspect incomplete business-dimension metadata without reopening raw
+  artifacts.
+- Added missing source entry details to the schema patch confidence
+  calibration report Markdown and summary JSON so reviewers can inspect
+  incomplete source metadata without reopening raw artifacts.
+
+## [1.12.3] - 2026-06-19
+
+### Added
+
 - Added project-template workflow dashboard evidence to release candidate
   summaries and release-facing materials so reviewers can see readiness status,
   blocker and warning counts, grouped next actions, and source report paths
