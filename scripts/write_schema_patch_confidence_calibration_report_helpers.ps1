@@ -721,6 +721,7 @@ function New-BusinessTemplateCorpusSummary {
         missing_business_document_type_count = $missingBusinessDocumentTypeEntries.Count
         template_sources = @($templateSources)
         missing_source_entries = @($missingSourceEntries)
+        missing_business_document_type_entries = @($missingBusinessDocumentTypeEntries)
     }
 }
 
@@ -1054,6 +1055,21 @@ function New-ReportMarkdown {
         $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count), missing_business_document_types=$($corpus.missing_business_document_type_count), business_document_types=$($corpus.business_document_type_count), corpus_roles=$($corpus.corpus_role_count)") | Out-Null
         $lines.Add("- business_document_types: $businessDocumentTypes") | Out-Null
         $lines.Add("- corpus_roles: $corpusRoles") | Out-Null
+        if (@($corpus.missing_business_document_type_entries).Count -gt 0) {
+            $lines.Add("- missing_business_document_type_entries:") | Out-Null
+            foreach ($entry in @($corpus.missing_business_document_type_entries)) {
+                $entryParts = New-Object 'System.Collections.Generic.List[string]'
+                $scope = Get-JsonString -Object $entry -Name "template_scope"
+                $name = Get-JsonString -Object $entry -Name "candidate_name"
+                $projectId = Get-JsonString -Object $entry -Name "project_id"
+                $templateName = Get-JsonString -Object $entry -Name "template_name"
+                if (-not [string]::IsNullOrWhiteSpace($scope)) { $entryParts.Add("scope=$scope") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
+                $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
+            }
+        }
         if (@($corpus.template_sources).Count -eq 0) {
             $lines.Add("- template_sources: none") | Out-Null
         } else {

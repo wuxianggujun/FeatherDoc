@@ -776,6 +776,8 @@ if (Test-Scenario -Name "business_dimension_metadata") {
         -Message "Business dimension warning should not be confused with missing source identity."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 1 `
         -Message "Corpus summary should count missing business document type metadata."
+    Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_business_document_type_entries).Count) -Expected 1 `
+        -Message "Corpus summary should keep missing business document type entry details."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Missing business document type metadata should produce one warning."
     Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_document_type_metadata" `
@@ -790,6 +792,8 @@ if (Test-Scenario -Name "business_dimension_metadata") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "missing_business_document_types=1" `
         -Message "Markdown should expose missing business document type count."
+    Assert-ContainsText -Text $markdown -ExpectedText "missing_business_document_type_entries:" `
+        -Message "Markdown should expose missing business document type entry details."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_document_type_metadata" `
         -Message "Markdown should include missing business document type action."
 }
