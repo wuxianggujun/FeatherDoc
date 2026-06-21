@@ -166,12 +166,12 @@ function New-DeliveryReadinessReport {
     if (-not $ReleaseReady) {
         $plannedRegistrationActions = @(
             [ordered]@{
-                id = "project-legal-contract-template"
-                project_id = "project-legal"
-                template_name = "contract-template"
-                document_type = "contract"
-                registration_blocker = "No committed contract template fixture is registered yet."
-                next_action = "Add a contract template manifest entry with schema baseline and render-data coverage."
+                id = "project-procurement-tender-template"
+                project_id = "project-procurement"
+                template_name = "tender-template"
+                document_type = "tender"
+                registration_blocker = "Tender template requires schema, render-data, and visual-smoke fixtures before registration."
+                next_action = "Register the tender template after a small procurement sample and render-data contract are available."
             }
         )
     }
@@ -187,7 +187,7 @@ function New-DeliveryReadinessReport {
         schema_approval_status_summary = $schemaApprovalStatusSummary
         business_document_type_summary = @(
             [ordered]@{
-                document_type = "contract"
+                document_type = "tender"
                 count = 1
             }
         )
@@ -293,11 +293,11 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard grouped next actions should expose per-source action counts."
     Assert-Equal -Actual ([string]$summary.next_action_summary_by_source[0].action_groups[0].action) -Expected "review_schema_update_candidate" `
         -Message "Workflow dashboard grouped next actions should keep action details."
-    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "contract" `
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[0].document_type) -Expected "invoice" `
         -Message "Workflow dashboard should aggregate business document type summary across source reports."
     Assert-Equal -Actual ([int]$summary.business_document_type_summary[0].count) -Expected 1 `
         -Message "Workflow dashboard should preserve business document type counts."
-    Assert-Equal -Actual ([string]$summary.business_document_type_summary[1].document_type) -Expected "invoice" `
+    Assert-Equal -Actual ([string]$summary.business_document_type_summary[1].document_type) -Expected "tender" `
         -Message "Workflow dashboard should keep all business document types."
     Assert-Equal -Actual ([string]$summary.corpus_role_summary[0].corpus_role) -Expected "planned-business-template" `
         -Message "Workflow dashboard should aggregate corpus role summary across source reports."
@@ -307,9 +307,9 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard should aggregate planned business template registration action count."
     Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].source_report_id) -Expected "project_template_delivery_readiness" `
         -Message "Workflow dashboard planned registration actions should keep their source report."
-    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].id) -Expected "project-legal-contract-template" `
+    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].id) -Expected "project-procurement-tender-template" `
         -Message "Workflow dashboard planned registration actions should keep their ids."
-    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+    Assert-Equal -Actual ([string]$summary.planned_business_template_registration_actions[0].next_action) -Expected "Register the tender template after a small procurement sample and render-data contract are available." `
         -Message "Workflow dashboard planned registration actions should keep next actions."
     Assert-ContainsText -Text $markdown -ExpectedText "Project Template Workflow Dashboard" `
         -Message "Workflow dashboard Markdown should have a title."
@@ -333,9 +333,9 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Workflow dashboard Markdown should expose source-level corpus roles."
     Assert-ContainsText -Text $markdown -ExpectedText "Planned business template registration actions" `
         -Message "Workflow dashboard Markdown should include planned business template registration actions."
-    Assert-ContainsText -Text $markdown -ExpectedText "project-legal-contract-template" `
+    Assert-ContainsText -Text $markdown -ExpectedText "project-procurement-tender-template" `
         -Message "Workflow dashboard Markdown should include planned registration action ids."
-    Assert-ContainsText -Text $markdown -ExpectedText "Add a contract template manifest entry with schema baseline and render-data coverage." `
+    Assert-ContainsText -Text $markdown -ExpectedText "Register the tender template after a small procurement sample and render-data contract are available." `
         -Message "Workflow dashboard Markdown should include planned registration next actions."
 }
 

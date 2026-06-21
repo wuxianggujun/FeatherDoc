@@ -236,25 +236,15 @@ Assert-Equal -Actual $repoManifestResult.ExitCode -Expected 0 `
 $repoManifestReport = Get-Content -Raw -Encoding UTF8 -LiteralPath $repoManifestReportPath | ConvertFrom-Json
 Assert-Equal -Actual ([int]$repoManifestReport.business_template_corpus_count) -Expected 6 `
     -Message "Repository manifest should keep the full business template corpus backlog."
-Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corpus_count) -Expected 4 `
-    -Message "Repository manifest should keep four registered business template corpus entries."
-Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 2 `
-    -Message "Repository manifest should keep two planned business template corpus entries."
-Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_registration_action_count) -Expected 2 `
-    -Message "Repository manifest report should expose two planned business template registration actions."
+Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corpus_count) -Expected 5 `
+    -Message "Repository manifest should keep five registered business template corpus entries."
+Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 1 `
+    -Message "Repository manifest should keep one planned business template corpus entry."
+Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_registration_action_count) -Expected 1 `
+    -Message "Repository manifest report should expose one planned business template registration action."
 $repoPlannedActionIds = @($repoManifestReport.planned_business_template_registration_actions | ForEach-Object { [string]$_.id })
-Assert-CollectionContains -Items $repoPlannedActionIds -ExpectedText "project-legal-contract-template" `
-    -Message "Repository manifest report should preserve the planned contract registration action."
 Assert-CollectionContains -Items $repoPlannedActionIds -ExpectedText "project-procurement-tender-template" `
     -Message "Repository manifest report should preserve the planned tender registration action."
-$repoContractAction = @($repoManifestReport.planned_business_template_registration_actions | Where-Object {
-        [string]$_.id -eq "project-legal-contract-template"
-    })[0]
-Assert-Equal -Actual ([string]$repoContractAction.document_type) -Expected "contract" `
-    -Message "Repository manifest report should expose planned contract document type."
-Assert-ContainsText -Text ([string]$repoContractAction.registration_blocker) `
-    -ExpectedText "No committed contract DOCX or DOTX fixture" `
-    -Message "Repository manifest report should expose planned contract blocker details."
 $repoTenderAction = @($repoManifestReport.planned_business_template_registration_actions | Where-Object {
         [string]$_.id -eq "project-procurement-tender-template"
     })[0]
@@ -276,6 +266,13 @@ Assert-Equal -Actual $registeredInvoiceCorpus.Count -Expected 1 `
     -Message "Repository manifest should keep exactly one registered invoice corpus anchor."
 Assert-Equal -Actual ([string]$registeredInvoiceCorpus[0].source_entry) -Expected "chinese-invoice-template" `
     -Message "Registered invoice corpus should point at the committed manifest entry."
+$registeredContractCorpus = @($repoManifest.business_template_corpus | Where-Object {
+        [string]$_.document_type -eq "contract" -and [string]$_.status -eq "registered"
+    })
+Assert-Equal -Actual $registeredContractCorpus.Count -Expected 1 `
+    -Message "Repository manifest should keep exactly one registered contract corpus anchor."
+Assert-Equal -Actual ([string]$registeredContractCorpus[0].source_entry) -Expected "contract-template" `
+    -Message "Registered contract corpus should point at the generated contract manifest entry."
 $registeredNoticeCorpus = @($repoManifest.business_template_corpus | Where-Object {
         [string]$_.document_type -eq "notice" -and [string]$_.status -eq "registered"
     })
@@ -302,6 +299,8 @@ Assert-CollectionContains -Items $repoEntryNames -ExpectedText "chinese-invoice-
     -Message "Repository manifest should keep the registered invoice manifest entry."
 Assert-CollectionContains -Items $repoEntryNames -ExpectedText "part-template-validation-smoke" `
     -Message "Repository manifest should keep the registered notice manifest entry."
+Assert-CollectionContains -Items $repoEntryNames -ExpectedText "contract-template" `
+    -Message "Repository manifest should keep the registered contract manifest entry."
 Assert-CollectionContains -Items $repoEntryNames -ExpectedText "resolved-schema-baseline-smoke" `
     -Message "Repository manifest should keep the registered policy manifest entry."
 Assert-CollectionContains -Items $repoEntryNames -ExpectedText "project-report-schema-baseline-smoke" `

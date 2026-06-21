@@ -77,8 +77,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``check_project_template_smoke_manifest.ps1 -Json`` 也必须把 planned 语料的
      ``planned_business_template_registration_actions`` 直接写进 manifest check
      报告，至少保留 ``id``、``document_type``、``registration_blocker``、
-     ``next_action`` 和 ``smoke_contract``，避免只从原始 manifest 手工找
-     contract / tender 的后续注册动作；
+      ``next_action`` 和 ``smoke_contract``，避免只从原始 manifest 手工找
+      remaining planned business template（当前为 tender）的后续注册动作；
      readiness 只能给出
      ``project_template_smoke_summary_missing`` warning，不能把 manifest
      本身当作模板已通过 smoke 的证据。

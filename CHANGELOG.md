@@ -17,6 +17,9 @@ performance.
 - Added planned project-template registration action smoke-contract details to
   the manifest description text report and docs so command-line reviewers can
   see required follow-up smoke coverage without reopening raw manifests.
+- Added a generated lightweight contract project-template smoke fixture with
+  schema-baseline and render-data coverage so the legal contract business
+  corpus moves from planned tracking to a registered smoke entry.
 
 ### Fixed
 

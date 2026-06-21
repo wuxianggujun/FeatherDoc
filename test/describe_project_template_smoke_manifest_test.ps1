@@ -102,15 +102,15 @@ Write-JsonFile -Path $manifestPath -Value ([ordered]@{
             notes = "Registered business corpus fixture."
         },
         [ordered]@{
-            id = "project-legal-contract-template"
-            project_id = "project-legal"
-            template_name = "contract-template"
-            document_type = "contract"
+            id = "project-procurement-tender-template"
+            project_id = "project-procurement"
+            template_name = "tender-template"
+            document_type = "tender"
             status = "planned"
-            smoke_contract = @("schema_validation", "schema_baseline", "render_data")
-            registration_blocker = "No committed contract template fixture is registered yet."
-            next_action = "Add a contract template manifest entry with schema baseline and render-data coverage."
-            coverage_goal = "Track planned contract template coverage without adding a binary fixture."
+            smoke_contract = @("schema_validation", "schema_baseline", "render_data", "visual_smoke")
+            registration_blocker = "Tender template requires schema, render-data, and visual-smoke fixtures before registration."
+            next_action = "Register the tender template after a small procurement sample and render-data contract are available."
+            coverage_goal = "Track planned tender template coverage without adding a large fixture."
         }
     )
     entries = @(
@@ -213,21 +213,21 @@ Assert-Equal -Actual ([int]$report.planned_business_template_corpus_count) -Expe
     -Message "Description JSON should count planned business corpus profiles."
 Assert-Equal -Actual ([int]$report.planned_business_template_registration_action_count) -Expected 1 `
     -Message "Description JSON should count planned corpus registration actions."
-Assert-Equal -Actual ([string]$report.business_document_type_summary[0].document_type) -Expected "contract" `
+Assert-Equal -Actual ([string]$report.business_document_type_summary[0].document_type) -Expected "invoice" `
     -Message "Description JSON should expose document-type summary entries."
 Assert-Equal -Actual ([string]$report.business_template_corpus[0].source_entry) -Expected "invoice-template" `
     -Message "Description JSON should preserve registered source entry."
-Assert-Equal -Actual ([string]$report.business_template_corpus[1].registration_blocker) -Expected "No committed contract template fixture is registered yet." `
+Assert-Equal -Actual ([string]$report.business_template_corpus[1].registration_blocker) -Expected "Tender template requires schema, render-data, and visual-smoke fixtures before registration." `
     -Message "Description JSON should preserve planned corpus registration blockers."
-Assert-Equal -Actual ([string]$report.business_template_corpus[1].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+Assert-Equal -Actual ([string]$report.business_template_corpus[1].next_action) -Expected "Register the tender template after a small procurement sample and render-data contract are available." `
     -Message "Description JSON should preserve planned corpus next actions."
-Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].id) -Expected "project-legal-contract-template" `
+Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].id) -Expected "project-procurement-tender-template" `
     -Message "Description JSON should expose planned corpus registration action ids."
-Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].registration_blocker) -Expected "No committed contract template fixture is registered yet." `
+Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].registration_blocker) -Expected "Tender template requires schema, render-data, and visual-smoke fixtures before registration." `
     -Message "Description JSON should expose planned corpus registration action blockers."
-Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
+Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].next_action) -Expected "Register the tender template after a small procurement sample and render-data contract are available." `
     -Message "Description JSON should expose planned corpus registration action next steps."
-Assert-Equal -Actual ((@($report.planned_business_template_registration_actions[0].smoke_contract) -join ",")) -Expected "schema_validation,schema_baseline,render_data" `
+Assert-Equal -Actual ((@($report.planned_business_template_registration_actions[0].smoke_contract) -join ",")) -Expected "schema_validation,schema_baseline,render_data,visual_smoke" `
     -Message "Description JSON should expose planned corpus registration action smoke contracts."
 Assert-Equal -Actual ([int]$report.latest_available_entry_count) -Expected 1 `
     -Message "Description JSON should count entries joined with latest summary data."
@@ -303,15 +303,15 @@ Assert-ContainsText -Text $textReport -ExpectedText "business_document_type: inv
     -Message "Text report should include entry business document type."
 Assert-ContainsText -Text $textReport -ExpectedText "Business template corpus:" `
     -Message "Text report should include business corpus section."
-Assert-ContainsText -Text $textReport -ExpectedText "project-legal-contract-template" `
-    -Message "Text report should include planned contract corpus profile."
-Assert-ContainsText -Text $textReport -ExpectedText "registration_blocker: No committed contract template fixture is registered yet." `
+Assert-ContainsText -Text $textReport -ExpectedText "project-procurement-tender-template" `
+    -Message "Text report should include planned tender corpus profile."
+Assert-ContainsText -Text $textReport -ExpectedText "registration_blocker: Tender template requires schema, render-data, and visual-smoke fixtures before registration." `
     -Message "Text report should include planned corpus registration blockers."
-Assert-ContainsText -Text $textReport -ExpectedText "next_action: Add a contract template manifest entry with schema baseline and render-data coverage." `
+Assert-ContainsText -Text $textReport -ExpectedText "next_action: Register the tender template after a small procurement sample and render-data contract are available." `
     -Message "Text report should include planned corpus next actions."
 Assert-ContainsText -Text $textReport -ExpectedText "Planned business template registration actions:" `
     -Message "Text report should include planned corpus registration action section."
-Assert-TextOccurrenceCountAtLeast -Text $textReport -ExpectedText "smoke_contract: schema_validation, schema_baseline, render_data" -MinimumCount 2 `
+Assert-TextOccurrenceCountAtLeast -Text $textReport -ExpectedText "smoke_contract: schema_validation, schema_baseline, render_data, visual_smoke" -MinimumCount 2 `
     -Message "Text report should expose planned corpus smoke contracts in both corpus details and registration actions."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest status: needs_review" `
     -Message "Text report should include latest status."

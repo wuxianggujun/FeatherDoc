@@ -22,16 +22,15 @@
                                          "project_id":  "project-legal",
                                          "template_name":  "contract-template",
                                          "document_type":  "contract",
-                                         "status":  "planned",
+                                         "status":  "registered",
+                                         "source_entry":  "contract-template",
                                          "smoke_contract":  [
                                                                 "schema_validation",
                                                                 "schema_baseline",
                                                                 "render_data"
                                                             ],
-                                         "registration_blocker":  "No committed contract DOCX or DOTX fixture has been registered in project-template smoke.",
-                                         "next_action":  "Add a lightweight contract template entry with schema baseline and render-data mapping before using it for confidence thresholds.",
-                                         "coverage_goal":  "Register a contract template through project-template smoke before using it for confidence thresholds.",
-                                         "notes":  "Planned text contract keeps the corpus requirement visible without adding a binary fixture in this step."
+                                         "coverage_goal":  "Registered lightweight contract template with schema baseline and render-data coverage before confidence threshold use.",
+                                         "notes":  "Generated contract fixture keeps legal-template smoke coverage lightweight and repository reproducible."
                                      },
                                      {
                                          "id":  "project-operations-policy-handbook-template",
@@ -147,6 +146,36 @@
                                              "enabled":  true,
                                              "output_dir":  "output/project-template-smoke-sample/part-template-visual"
                                          }
+                    },
+                    {
+                        "name":  "contract-template",
+                        "project_id":  "project-legal",
+                        "template_name":  "contract-template",
+                        "business_domain":  "legal",
+                        "business_document_type":  "contract",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Lightweight generated contract fixture with schema baseline and render-data smoke coverage.",
+                        "prepare_sample_target":  "featherdoc_sample_contract_template",
+                        "prepare_argument":  "output/project-template-smoke-sample/contract_template.docx",
+                        "input_docx":  "output/project-template-smoke-sample/contract_template.docx",
+                        "schema_validation":  {
+                                                  "schema_file":  "baselines/template-schema/contract_template.schema.json"
+                                              },
+                        "schema_baseline":  {
+                                                "schema_file":  "baselines/template-schema/contract_template.schema.json",
+                                                "target_mode":  "default",
+                                                "generated_output":  "output/project-template-smoke-sample/contract_template.generated.schema.json"
+                                            },
+                        "render_data_smoke":  {
+                                                  "data_path":  "samples/contract_template.render_data.json",
+                                                  "mapping_path":  "samples/contract_template.render_data_mapping.json",
+                                                  "output_docx":  "output/project-template-smoke-sample/contract_template.rendered.docx",
+                                                  "summary_json":  "output/project-template-smoke-sample/contract_template.render_data.summary.json",
+                                                  "patch_plan_output":  "output/project-template-smoke-sample/contract_template.render_patch.generated.json",
+                                                  "draft_plan_output":  "output/project-template-smoke-sample/contract_template.render_plan.draft.json",
+                                                  "patched_plan_output":  "output/project-template-smoke-sample/contract_template.render_plan.patched.json",
+                                                  "export_target_mode":  "loaded-parts"
+                                              }
                     },
                     {
                         "name":  "resolved-schema-baseline-smoke",

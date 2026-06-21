@@ -1,0 +1,31 @@
+{
+  "contract": {
+    "title": "Master Services Agreement",
+    "effective_date": "2026-06-22"
+  },
+  "parties": {
+    "party_a": "FeatherDoc Demo Client LLC",
+    "party_b": "FeatherDoc Services LLC"
+  },
+  "clauses": [
+    {
+      "clause": "Scope",
+      "requirement": "Prepare, render, and verify document templates listed in the statement of work.",
+      "owner": "Party B"
+    },
+    {
+      "clause": "Acceptance",
+      "requirement": "Party A reviews generated DOCX evidence and confirms completion in writing.",
+      "owner": "Party A"
+    },
+    {
+      "clause": "Confidentiality",
+      "requirement": "Both parties protect shared template data and generated review artifacts.",
+      "owner": "Both parties"
+    }
+  ],
+  "special_terms": [
+    "This lightweight fixture is for project-template smoke coverage only.",
+    "It intentionally avoids production legal language and external dependencies."
+  ]
+}

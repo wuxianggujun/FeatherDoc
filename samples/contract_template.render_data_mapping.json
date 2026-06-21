@@ -1,0 +1,38 @@
+{
+  "$schema": "./template_render_data_mapping.schema.json",
+  "bookmark_text": [
+    {
+      "bookmark_name": "contract_title",
+      "source": "contract.title"
+    },
+    {
+      "bookmark_name": "party_a",
+      "source": "parties.party_a"
+    },
+    {
+      "bookmark_name": "party_b",
+      "source": "parties.party_b"
+    },
+    {
+      "bookmark_name": "effective_date",
+      "source": "contract.effective_date"
+    }
+  ],
+  "bookmark_table_rows": [
+    {
+      "bookmark_name": "contract_clause_row",
+      "source": "clauses",
+      "columns": [
+        "clause",
+        "requirement",
+        "owner"
+      ]
+    }
+  ],
+  "bookmark_paragraphs": [
+    {
+      "bookmark_name": "special_terms",
+      "source": "special_terms"
+    }
+  ]
+}
