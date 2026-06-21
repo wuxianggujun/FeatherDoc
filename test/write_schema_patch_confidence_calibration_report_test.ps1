@@ -730,6 +730,8 @@ if (Test-Scenario -Name "source_metadata") {
         -Message "Corpus summary should count missing project ids."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 0 `
         -Message "Review/approval-level business document type should satisfy business dimension traceability."
+    Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_source_entries).Count) -Expected 1 `
+        -Message "Corpus summary should keep missing source entry details."
     Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "notice" `
         -Message "Entries should preserve business document type from review or approval metadata."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
@@ -748,6 +750,8 @@ if (Test-Scenario -Name "source_metadata") {
         -Message "Markdown should include business template corpus section for missing source scenario."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_source_metadata=1" `
         -Message "Markdown should expose missing source metadata count."
+    Assert-ContainsText -Text $markdown -ExpectedText "missing_source_entries:" `
+        -Message "Markdown should expose missing source entry details."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_source_metadata" `
         -Message "Markdown should include missing source metadata action."
 }

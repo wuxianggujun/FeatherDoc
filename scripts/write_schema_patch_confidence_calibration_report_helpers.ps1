@@ -1089,6 +1089,29 @@ function New-ReportMarkdown {
         }
         if (@($corpus.missing_source_entries).Count -gt 0) {
             $lines.Add("- missing_source_entries=$(@($corpus.missing_source_entries).Count)") | Out-Null
+            $lines.Add("- missing_source_entries:") | Out-Null
+            foreach ($entry in @($corpus.missing_source_entries)) {
+                $entryParts = New-Object 'System.Collections.Generic.List[string]'
+                $scope = Get-JsonString -Object $entry -Name "template_scope"
+                $name = Get-JsonString -Object $entry -Name "candidate_name"
+                $projectId = Get-JsonString -Object $entry -Name "project_id"
+                $templateName = Get-JsonString -Object $entry -Name "template_name"
+                $candidateType = Get-JsonString -Object $entry -Name "candidate_type"
+                $businessDocumentType = Get-JsonString -Object $entry -Name "business_document_type"
+                $sourceJsonDisplay = Get-JsonString -Object $entry -Name "source_json_display"
+                if (-not [string]::IsNullOrWhiteSpace($scope)) { $entryParts.Add("scope=$scope") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($candidateType)) { $entryParts.Add("candidate_type=$candidateType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($businessDocumentType)) { $entryParts.Add("business_document_type=$businessDocumentType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) { $entryParts.Add("source_json_display=$sourceJsonDisplay") | Out-Null }
+                $entryParts.Add("missing_project_id=$([bool]$entry.missing_project_id)") | Out-Null
+                $entryParts.Add("missing_template_name=$([bool]$entry.missing_template_name)") | Out-Null
+                $entryParts.Add("missing_summary_json=$([bool]$entry.missing_summary_json)") | Out-Null
+                $entryParts.Add("missing_business_document_type=$([bool]$entry.missing_business_document_type)") | Out-Null
+                $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
