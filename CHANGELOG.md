@@ -17,6 +17,9 @@ performance.
 - Added project-template business corpus metadata to schema confidence and
   smoke-manifest flows, including registered/planned corpus profiles for
   invoice, contract, policy, report, notice, and tender template categories.
+- Added a dedicated `project-report-schema-baseline-smoke` corpus entry to the
+  project-template smoke manifest so report coverage is tracked separately from
+  the policy baseline entry while reusing the resolved schema fixture.
 - Added schema approval reviewer-action metadata across approval history,
   delivery readiness, release blocker rollups, governance handoff, release
   notes, reviewer checklists, and release asset manifests.
@@ -35,6 +38,9 @@ performance.
 - Hardened release refresh and publish workflows so generated release artifacts
   are written under a fixed output root and stale workspace-local output is
   cleaned safely before upload.
+- Tightened project-template smoke runner and template schema CLI build
+  helpers so configure/build output stays quiet and build-mode CLI discovery
+  resolves to an absolute binary path.
 - Strengthened release material safety tests so `START_HERE.md`,
   `ARTIFACT_GUIDE.md`, `REVIEWER_CHECKLIST.md`, `release_handoff.md`, release
   body, and release summary keep the same machine-readable governance fields.
@@ -44,6 +50,9 @@ performance.
 - Fixed release entry material safety regressions where ready or blocked
   project-template dashboard action groups could lose `blocker`, `entries`,
   source, or action markers in reviewer-facing materials.
+- Fixed project-template smoke manifest validation so single-entry manifest
+  properties stay enumerable and the report corpus anchor resolves to the
+  dedicated `project-report-schema-baseline-smoke` entry.
 - Fixed release asset manifest validation so `upload.remote_assets` cannot
   include the manifest itself, unrelated assets, malformed remote URLs,
   mismatched release tags, query or fragment polluted URLs, or non-integer size

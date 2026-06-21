@@ -65,10 +65,12 @@ function Get-ManifestArrayProperty {
 
     $property = $Entry.PSObject.Properties[$Name]
     if ($null -eq $property -or $null -eq $property.Value) {
-        return @()
+        Write-Output -NoEnumerate @()
+        return
     }
 
-    return @($property.Value | Where-Object { $null -ne $_ })
+    $values = @($property.Value | Where-Object { $null -ne $_ })
+    Write-Output -NoEnumerate $values
 }
 
 function Get-OptionalObjectPropertyValue {

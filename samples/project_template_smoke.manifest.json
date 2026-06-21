@@ -52,16 +52,15 @@
                                          "project_id":  "project-delivery",
                                          "template_name":  "project-report-template",
                                          "document_type":  "report",
-                                         "status":  "planned",
+                                         "status":  "registered",
+                                         "source_entry":  "project-report-schema-baseline-smoke",
                                          "smoke_contract":  [
                                                                 "schema_validation",
                                                                 "schema_baseline",
                                                                 "visual_smoke"
                                                             ],
-                                         "registration_blocker":  "Report template coverage still lacks a committed section/header/footer visual smoke fixture.",
-                                         "next_action":  "Add a project report template that exercises section setup plus header/footer visual review routing.",
-                                         "coverage_goal":  "Register a project report template that exercises section/header/footer and visual review routing.",
-                                         "notes":  "Keeps report coverage explicit before adding heavier DOCX samples."
+                                         "coverage_goal":  "Registered project report schema-baseline and visual-smoke coverage backed by the resolved schema fixture.",
+                                         "notes":  "Lightweight report corpus entry; it keeps a separate registered entry while reusing the resolved schema fixture."
                                      },
                                      {
                                          "id":  "project-office-notice-template",
@@ -168,6 +167,31 @@
                                                 "target_mode":  "resolved-section-targets",
                                                 "generated_output":  "output/project-template-smoke-sample/template_schema_resolved_fixture.generated.schema.json"
                                             }
+                    },
+                    {
+                        "name":  "project-report-schema-baseline-smoke",
+                        "project_id":  "project-delivery",
+                        "template_name":  "project-report-template",
+                        "business_domain":  "delivery",
+                        "business_document_type":  "report",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Lightweight project report schema baseline and visual smoke coverage backed by the generated resolved schema fixture.",
+                        "prepare_sample_target":  "featherdoc_sample_template_schema_manifest_fixture",
+                        "prepare_argument":  "output/project-template-smoke-sample/project_report_schema_baseline.docx",
+                        "input_docx":  "output/project-template-smoke-sample/project_report_schema_baseline.docx",
+                        "schema_validation":  {
+                                                  "schema_file":  "baselines/template-schema/template_schema_resolved_fixture.schema.json"
+                                              },
+                        "schema_baseline":  {
+                                                "schema_file":  "baselines/template-schema/template_schema_resolved_fixture.schema.json",
+                                                "target_mode":  "resolved-section-targets",
+                                                "generated_output":  "output/project-template-smoke-sample/project_report_schema_baseline.generated.schema.json"
+                                            },
+                        "visual_smoke":  {
+                                             "enabled":  true,
+                                             "input":  "template",
+                                             "output_dir":  "output/project-template-smoke-sample/project-report-visual"
+                                         }
                     },
                     {
                         "name":  "chinese-invoice-template",

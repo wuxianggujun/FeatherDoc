@@ -319,21 +319,21 @@ function Resolve-TemplateSchemaCliPath {
         $vcvarsPath = Get-TemplateSchemaVcvarsPath
         Invoke-TemplateSchemaMsvcCommand -VcvarsPath $vcvarsPath -CommandText (
             "cmake -S `"$RepoRoot`" -B `"$resolvedBuildDir`" -G `"$Generator`" " +
-            "-DBUILD_CLI=ON -DBUILD_TESTING=OFF -DBUILD_SAMPLES=OFF")
+            "-DBUILD_CLI=ON -DBUILD_TESTING=OFF -DBUILD_SAMPLES=OFF") | Out-Null
         Invoke-TemplateSchemaMsvcCommand -VcvarsPath $vcvarsPath -CommandText (
-            "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli")
+            "cmake --build `"$resolvedBuildDir`" --target featherdoc_cli") | Out-Null
     }
 
     $binaryPath = Find-TemplateSchemaCliBinary -SearchRoot $resolvedBuildDir
     if ($binaryPath) {
-        return $binaryPath
+        return [System.IO.Path]::GetFullPath($binaryPath)
     }
 
     $fallbackBinary = Find-TemplateSchemaCliBinaryInBuildRoots `
         -RepoRoot $RepoRoot `
         -PreferredBuildRoot $resolvedBuildDir
     if ($null -ne $fallbackBinary) {
-        return $fallbackBinary.BinaryPath
+        return [System.IO.Path]::GetFullPath($fallbackBinary.BinaryPath)
     }
 
     throw "Could not find featherdoc_cli under $resolvedBuildDir or any build* directory under $RepoRoot."

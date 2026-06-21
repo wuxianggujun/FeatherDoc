@@ -113,12 +113,12 @@ if (-not $SkipBuild) {
     Write-Step "Configuring build directory $resolvedBuildDir"
     Invoke-TemplateSchemaMsvcCommand -VcvarsPath $vcvarsPath -CommandText (
         "cmake -S `"$repoRoot`" -B `"$resolvedBuildDir`" -G `"$Generator`" " +
-        "-DBUILD_CLI=ON -DBUILD_SAMPLES=$buildSamplesValue -DBUILD_TESTING=OFF")
+        "-DBUILD_CLI=ON -DBUILD_SAMPLES=$buildSamplesValue -DBUILD_TESTING=OFF") | Out-Null
 
     $buildTargets = @("featherdoc_cli") + $sampleTargets
     Write-Step "Building targets: $($buildTargets -join ', ')"
     Invoke-TemplateSchemaMsvcCommand -VcvarsPath $vcvarsPath -CommandText (
-        "cmake --build `"$resolvedBuildDir`" --target " + ($buildTargets -join " "))
+        "cmake --build `"$resolvedBuildDir`" --target " + ($buildTargets -join " ")) | Out-Null
 }
 
 $cliPath = Find-TemplateSchemaCliBinary -SearchRoot $resolvedBuildDir
