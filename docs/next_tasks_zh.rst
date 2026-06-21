@@ -74,20 +74,17 @@ P1：模板契约与项目模板工作流
    * 继续校准 schema patch、style rename / merge、content-control 修复建议的置信度。
    * 仓库真实 ``samples/project_template_smoke.manifest.json`` 的业务语料覆盖已由
      ``check_project_template_smoke_manifest_test.ps1`` 直接锁定：必须保留 invoice、
-     contract、policy、report、notice、tender 6 类 document type，以及 5 个
-     registered / 1 个 planned corpus 入口；contract 已通过
+     contract、policy、report、notice、tender 6 类 document type，并全部保持为
+     registered corpus 入口；contract 已通过
      ``contract-template`` 注册为轻量 schema-baseline / render-data 语料，notice 已通过
      ``part-template-validation-smoke`` 注册为轻量通知模板语料，policy 已通过
      ``resolved-schema-baseline-smoke`` 注册为轻量 schema-baseline 语料，report 已通过
      ``project-report-schema-baseline-smoke`` 注册为轻量 schema-baseline / visual-smoke
-     语料，剩余 tender planned 入口仍必须暴露
-     ``registration_blocker`` 与 ``next_action``，并由 manifest check JSON / text
-     报告和 manifest description 同步汇总为
+     语料，tender 已通过 ``tender-template`` 注册为轻量 schema-baseline /
+     render-data / visual-smoke 语料。后续如果再新增 planned corpus，仍必须暴露
+     ``registration_blocker``、``next_action`` 与 ``smoke_contract``，并由 manifest
+     check JSON / text 报告和 manifest description 同步汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
-     manifest description 的 text 报告也必须在 planned action 段保留
-     ``smoke_contract``，避免命令行复核时丢失 tender 后续 smoke 契约。
-     当前 contract 已完成生成型轻量样本注册；tender 仍等待轻量采购样本和 visual-smoke
-     契约。
    * ``build_project_template_delivery_readiness_report.ps1`` 的 manifest-only warning
      现在会把 ``planned_business_template_registration_actions`` 同步写入 JSON 与
      Markdown，包含每个 planned corpus 的 ``id``、``registration_blocker`` 和
@@ -486,7 +483,6 @@ P3：文档、测试与索引治理
    ``missing_business_document_type_count``，生成
    ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
    并把 ``add_business_template_document_type_metadata`` 注册进固定 reviewer runbook。
-4. 下一轮若继续新增功能，优先评估 ``P1-TEMPLATE-01`` 的 tender 轻量采购样本；
-   若没有可提交样本，就继续保持 tender planned，只推进文档和治理收口。若样本到位，
-   再推进 tender 注册薄片。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
-   不做大重构。
+4. 下一轮若继续新增功能，优先把 ``P1-TEMPLATE-01`` 从“补样本”转为“守护样本”：
+   跑 project-template smoke、保持 6 类业务语料全部 registered，并补必要的视觉/发布
+   治理证据。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，不做大重构。

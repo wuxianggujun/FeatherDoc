@@ -1,0 +1,32 @@
+{
+  "tender": {
+    "title": "Document Automation Services Tender",
+    "issuing_organization": "FeatherDoc Procurement Office",
+    "submission_deadline": "2026-09-30 17:00 UTC"
+  },
+  "items": [
+    {
+      "item": "Template smoke workflow",
+      "requirement": "Provide deterministic DOCX fixture generation with schema baseline verification.",
+      "evaluation_focus": "Reproducibility"
+    },
+    {
+      "item": "Render-data coverage",
+      "requirement": "Map source data into text, table-row, and block bookmark slots.",
+      "evaluation_focus": "Traceability"
+    },
+    {
+      "item": "Visual review handoff",
+      "requirement": "Produce a rendered DOCX suitable for project-template visual smoke review.",
+      "evaluation_focus": "Review readiness"
+    }
+  ],
+  "evaluation_criteria": [
+    "Technical fit and evidence quality are weighted before price in this smoke fixture.",
+    "Responses must preserve project-template schema and render-data traceability."
+  ],
+  "submission_instructions": [
+    "Submit the generated proposal package and evidence summary before the deadline.",
+    "This lightweight fixture is intentionally non-binding and used only for smoke coverage."
+  ]
+}

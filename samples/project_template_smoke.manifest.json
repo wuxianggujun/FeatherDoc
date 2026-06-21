@@ -80,17 +80,16 @@
                                          "project_id":  "project-procurement",
                                          "template_name":  "tender-template",
                                          "document_type":  "tender",
-                                         "status":  "planned",
+                                         "status":  "registered",
+                                         "source_entry":  "tender-template",
                                          "smoke_contract":  [
                                                                 "schema_validation",
                                                                 "schema_baseline",
                                                                 "render_data",
                                                                 "visual_smoke"
                                                             ],
-                                         "registration_blocker":  "Tender template requires schema, render-data, and visual-smoke fixtures before registration.",
-                                         "next_action":  "Register the tender template after a small procurement sample and render-data contract are available.",
-                                         "coverage_goal":  "Register a tender template after schema and render-data contract are available.",
-                                         "notes":  "Tracks the heavier procurement document class without adding a large fixture now."
+                                         "coverage_goal":  "Registered lightweight tender template with schema, render-data, and visual-smoke coverage.",
+                                         "notes":  "Generated procurement fixture closes the planned business-template corpus backlog without committing a large binary sample."
                                      }
                                  ],
     "candidate_exclusions":  [
@@ -176,6 +175,41 @@
                                                   "patched_plan_output":  "output/project-template-smoke-sample/contract_template.render_plan.patched.json",
                                                   "export_target_mode":  "loaded-parts"
                                               }
+                    },
+                    {
+                        "name":  "tender-template",
+                        "project_id":  "project-procurement",
+                        "template_name":  "tender-template",
+                        "business_domain":  "procurement",
+                        "business_document_type":  "tender",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Lightweight generated tender fixture with schema, render-data, and visual-smoke coverage.",
+                        "prepare_sample_target":  "featherdoc_sample_tender_template",
+                        "prepare_argument":  "output/project-template-smoke-sample/tender_template.docx",
+                        "input_docx":  "output/project-template-smoke-sample/tender_template.docx",
+                        "schema_validation":  {
+                                                  "schema_file":  "baselines/template-schema/tender_template.schema.json"
+                                              },
+                        "schema_baseline":  {
+                                                "schema_file":  "baselines/template-schema/tender_template.schema.json",
+                                                "target_mode":  "default",
+                                                "generated_output":  "output/project-template-smoke-sample/tender_template.generated.schema.json"
+                                            },
+                        "render_data_smoke":  {
+                                                  "data_path":  "samples/tender_template.render_data.json",
+                                                  "mapping_path":  "samples/tender_template.render_data_mapping.json",
+                                                  "output_docx":  "output/project-template-smoke-sample/tender_template.rendered.docx",
+                                                  "summary_json":  "output/project-template-smoke-sample/tender_template.render_data.summary.json",
+                                                  "patch_plan_output":  "output/project-template-smoke-sample/tender_template.render_patch.generated.json",
+                                                  "draft_plan_output":  "output/project-template-smoke-sample/tender_template.render_plan.draft.json",
+                                                  "patched_plan_output":  "output/project-template-smoke-sample/tender_template.render_plan.patched.json",
+                                                  "export_target_mode":  "loaded-parts"
+                                              },
+                        "visual_smoke":  {
+                                             "enabled":  true,
+                                             "input":  "rendered_docx",
+                                             "output_dir":  "output/project-template-smoke-sample/tender-template-visual"
+                                         }
                     },
                     {
                         "name":  "resolved-schema-baseline-smoke",

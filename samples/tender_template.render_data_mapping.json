@@ -1,0 +1,38 @@
+{
+  "$schema": "./template_render_data_mapping.schema.json",
+  "bookmark_text": [
+    {
+      "bookmark_name": "tender_title",
+      "source": "tender.title"
+    },
+    {
+      "bookmark_name": "issuing_organization",
+      "source": "tender.issuing_organization"
+    },
+    {
+      "bookmark_name": "submission_deadline",
+      "source": "tender.submission_deadline"
+    }
+  ],
+  "bookmark_table_rows": [
+    {
+      "bookmark_name": "tender_item_row",
+      "source": "items",
+      "columns": [
+        "item",
+        "requirement",
+        "evaluation_focus"
+      ]
+    }
+  ],
+  "bookmark_paragraphs": [
+    {
+      "bookmark_name": "evaluation_criteria",
+      "source": "evaluation_criteria"
+    },
+    {
+      "bookmark_name": "submission_instructions",
+      "source": "submission_instructions"
+    }
+  ]
+}

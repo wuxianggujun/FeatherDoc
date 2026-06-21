@@ -116,8 +116,8 @@
   text 报告会同时暴露
   ``planned_business_template_registration_action_count`` 与
   ``planned_business_template_registration_actions``，让 reviewer 不重新解析
-  manifest 也能看到 tender 等 remaining planned 业务模板的 blocker 和
-  ``next_action``。
+  manifest 也能看到后续 planned 业务模板的 blocker 和 ``next_action``；当前仓库真实
+  manifest 已保持 0 个 planned action。
 - ``scripts/project_template_smoke_manifest_common.ps1``：提供项目模板 smoke
   manifest 共享的属性读取、路径解析和校验问题工具。
 - ``scripts/describe_project_template_smoke_manifest.ps1``：只读描述项目模板

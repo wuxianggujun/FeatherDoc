@@ -274,6 +274,9 @@ if(BUILD_SAMPLES)
     featherdoc_add_executable_with_runtime_dlls(featherdoc_sample_contract_template
         samples/sample_contract_template.cpp
         FeatherDoc::FeatherDoc)
+    featherdoc_add_executable_with_runtime_dlls(featherdoc_sample_tender_template
+        samples/sample_tender_template.cpp
+        FeatherDoc::FeatherDoc)
     featherdoc_add_executable_with_runtime_dlls(featherdoc_sample_insert_table_row
         samples/sample_insert_table_row.cpp
         FeatherDoc::FeatherDoc)

@@ -782,31 +782,22 @@ if (Test-Scenario -Name "manifest_description") {
         summary_json = ""
         summary_json_display = ""
         latest_summary_available = $false
-        entry_count = 5
-        registered_entry_count = 5
+        entry_count = 6
+        registered_entry_count = 6
         business_template_corpus_count = 6
-        registered_business_template_corpus_count = 5
-        planned_business_template_corpus_count = 1
-        planned_business_template_registration_action_count = 1
-        planned_business_template_registration_actions = @(
-            [ordered]@{
-                id = "project-procurement-tender-template"
-                project_id = "project-procurement"
-                template_name = "tender-template"
-                document_type = "tender"
-                registration_blocker = "Tender template requires schema, render-data, and visual-smoke fixtures before registration."
-                next_action = "Register the tender template after a small procurement sample and render-data contract are available."
-                smoke_contract = @("schema_validation", "schema_baseline", "render_data", "visual_smoke")
-            }
-        )
-        schema_validation_entry_count = 5
-        schema_baseline_entry_count = 4
-        visual_smoke_entry_count = 3
+        registered_business_template_corpus_count = 6
+        planned_business_template_corpus_count = 0
+        planned_business_template_registration_action_count = 0
+        planned_business_template_registration_actions = @()
+        schema_validation_entry_count = 6
+        schema_baseline_entry_count = 5
+        visual_smoke_entry_count = 4
         latest_available_entry_count = 0
-        latest_missing_entry_count = 5
+        latest_missing_entry_count = 6
         entries = @(
             [ordered]@{ name = "part-template-validation-smoke"; latest_available = $false },
             [ordered]@{ name = "contract-template"; latest_available = $false },
+            [ordered]@{ name = "tender-template"; latest_available = $false },
             [ordered]@{ name = "invoice-template"; latest_available = $false },
             [ordered]@{ name = "resolved-schema-baseline-smoke"; latest_available = $false },
             [ordered]@{ name = "project-report-schema-baseline-smoke"; latest_available = $false }
@@ -844,23 +835,19 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only readiness should emit project_template_smoke_summary_missing."
     Assert-Equal -Actual ([string]$missingSmokeWarning.repair_strategy) -Expected "run_project_template_smoke_for_registered_manifest" `
         -Message "Manifest-only warning should expose a smoke-run repair strategy."
-    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_template_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_template_count) -Expected 6 `
         -Message "Manifest-only warning should preserve registered template count."
     Assert-Equal -Actual ([int]$missingSmokeWarning.business_template_corpus_count) -Expected 6 `
         -Message "Manifest-only warning should preserve business corpus count."
-    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_business_template_corpus_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$missingSmokeWarning.registered_business_template_corpus_count) -Expected 6 `
         -Message "Manifest-only warning should preserve registered business corpus count."
-    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_corpus_count) -Expected 1 `
+    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_corpus_count) -Expected 0 `
         -Message "Manifest-only warning should preserve planned business corpus count."
-    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_registration_action_count) -Expected 1 `
+    Assert-Equal -Actual ([int]$missingSmokeWarning.planned_business_template_registration_action_count) -Expected 0 `
         -Message "Manifest-only warning should preserve planned business corpus registration action count."
-    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].id) -Expected "project-procurement-tender-template" `
-        -Message "Manifest-only warning should preserve planned business corpus registration action ids."
-    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].registration_blocker) -Expected "Tender template requires schema, render-data, and visual-smoke fixtures before registration." `
-        -Message "Manifest-only warning should preserve planned business corpus registration blockers."
-    Assert-Equal -Actual ([string]$missingSmokeWarning.planned_business_template_registration_actions[0].next_action) -Expected "Register the tender template after a small procurement sample and render-data contract are available." `
-        -Message "Manifest-only warning should preserve planned business corpus next actions."
-    Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 5 `
+    Assert-Equal -Actual (@($missingSmokeWarning.planned_business_template_registration_actions).Count) -Expected 0 `
+        -Message "Manifest-only warning should preserve the empty planned business corpus registration action list."
+    Assert-Equal -Actual ([int]$missingSmokeWarning.latest_missing_entry_count) -Expected 6 `
         -Message "Manifest-only warning should preserve missing latest summary count."
     Assert-ContainsText -Text ([string]$missingSmokeWarning.command_template) -ExpectedText "run_project_template_smoke.ps1" `
         -Message "Manifest-only warning should include the smoke command template."
@@ -871,10 +858,6 @@ if (Test-Scenario -Name "manifest_description") {
         -Message "Manifest-only Markdown should surface the specific smoke summary warning."
     Assert-ContainsText -Text $markdown -ExpectedText "run_project_template_smoke.ps1" `
         -Message "Manifest-only Markdown should surface the smoke command template."
-    Assert-ContainsText -Text $markdown -ExpectedText "planned_business_template_registration_actions" `
-        -Message "Manifest-only Markdown should surface planned business corpus registration actions."
-    Assert-ContainsText -Text $markdown -ExpectedText "Register the tender template after a small procurement sample and render-data contract are available." `
-        -Message "Manifest-only Markdown should surface planned business corpus next actions."
 }
 
 if (Test-Scenario -Name "smoke_summary") {

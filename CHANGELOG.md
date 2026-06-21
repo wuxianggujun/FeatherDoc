@@ -20,6 +20,9 @@ performance.
 - Added a generated lightweight contract project-template smoke fixture with
   schema-baseline and render-data coverage so the legal contract business
   corpus moves from planned tracking to a registered smoke entry.
+- Added a generated lightweight tender project-template smoke fixture with
+  schema-baseline, render-data, and visual-smoke coverage so the procurement
+  tender corpus completes the registered business-template set.
 
 ### Fixed
 

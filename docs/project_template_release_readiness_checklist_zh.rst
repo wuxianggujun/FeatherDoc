@@ -78,7 +78,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``planned_business_template_registration_actions`` 直接写进 manifest check
      报告，至少保留 ``id``、``document_type``、``registration_blocker``、
       ``next_action`` 和 ``smoke_contract``，避免只从原始 manifest 手工找
-      remaining planned business template（当前为 tender）的后续注册动作；
+      remaining planned business template 的后续注册动作；当前仓库真实 manifest
+      应保持该列表为空；
      readiness 只能给出
      ``project_template_smoke_summary_missing`` warning，不能把 manifest
      本身当作模板已通过 smoke 的证据。
