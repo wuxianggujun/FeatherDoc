@@ -384,6 +384,24 @@ if (-not $badManifestProjectTemplateReadinessSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing schema_approval_status_summary."
 }
 
+$badManifestProjectTemplateReadinessBusinessDimensionDir = Join-Path $failDir "manifest-project-template-readiness-missing-business-document-types"
+$badManifestProjectTemplateReadinessBusinessDimensionPath = Join-Path $badManifestProjectTemplateReadinessBusinessDimensionDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessBusinessDimensionDir -Force | Out-Null
+$badManifestProjectTemplateReadinessBusinessDimension = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateReadinessBusinessDimension.project_template_delivery_readiness_contract.PSObject.Properties.Remove("business_document_type_summary")
+($badManifestProjectTemplateReadinessBusinessDimension | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateReadinessBusinessDimensionPath -Encoding UTF8
+
+$badManifestProjectTemplateReadinessBusinessDimensionFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateReadinessBusinessDimensionPath
+} catch {
+    $badManifestProjectTemplateReadinessBusinessDimensionFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateReadinessBusinessDimensionFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with project template readiness contract missing business_document_type_summary."
+}
+
 $badManifestProjectTemplateReadinessStatusDir = Join-Path $failDir "manifest-project-template-readiness-status-release-ready-mismatch"
 $badManifestProjectTemplateReadinessStatusPath = Join-Path $badManifestProjectTemplateReadinessStatusDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $badManifestProjectTemplateReadinessStatusDir -Force | Out-Null
@@ -546,6 +564,24 @@ try {
 
 if (-not $badManifestProjectTemplateOnboardingSchemaSummaryFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with empty project template onboarding schema_approval_status_summary."
+}
+
+$badManifestProjectTemplateOnboardingBusinessDimensionDir = Join-Path $failDir "manifest-project-template-onboarding-empty-corpus-roles"
+$badManifestProjectTemplateOnboardingBusinessDimensionPath = Join-Path $badManifestProjectTemplateOnboardingBusinessDimensionDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestProjectTemplateOnboardingBusinessDimensionDir -Force | Out-Null
+$badManifestProjectTemplateOnboardingBusinessDimension = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestProjectTemplateOnboardingBusinessDimension.project_template_onboarding_governance_contract.corpus_role_summary = @()
+($badManifestProjectTemplateOnboardingBusinessDimension | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestProjectTemplateOnboardingBusinessDimensionPath -Encoding UTF8
+
+$badManifestProjectTemplateOnboardingBusinessDimensionFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestProjectTemplateOnboardingBusinessDimensionPath
+} catch {
+    $badManifestProjectTemplateOnboardingBusinessDimensionFailedAsExpected = $true
+}
+
+if (-not $badManifestProjectTemplateOnboardingBusinessDimensionFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest with empty project template onboarding corpus_role_summary."
 }
 
 $badManifestProjectTemplateOnboardingInvalidStatusDir = Join-Path $failDir "manifest-project-template-onboarding-invalid-status"

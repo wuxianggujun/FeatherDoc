@@ -236,6 +236,10 @@ P1：Release governance 与发布材料一致性
      dimensions；完整 package、allow-incomplete package 和 warning-only readiness
      package 回归都会锁定 ``business_document_type_summary`` 与
      ``corpus_role_summary`` 的值级输出。
+   * release material safety 负例已补充：packaged manifest 若缺失
+     ``project_template_delivery_readiness_contract.business_document_type_summary``，
+     或 ``project_template_onboarding_governance_contract.corpus_role_summary`` 为空，
+     审计必须失败，避免只校验字段名而漏掉空数组或空值。
    * 文档契约测试已锁定 ``write_release_body_zh_summary.ps1`` 的 reviewer action
      与业务维度聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续
      重构只保留 release notes 文本而丢失源级聚合路径。
@@ -465,8 +469,8 @@ P3：文档、测试与索引治理
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
 2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：release body / summary、GitHub
    Release 同步路径、release blocker rollup、governance handoff、final review、
-   bundle / checklist 与 packaged ``release_assets_manifest.json`` 已由值级回归锁住；
-   下一步优先补 release material safety 对缺失 business dimension summary 的负例，
-   防止只校验字段名而漏掉空数组或空值。
+   bundle / checklist、packaged ``release_assets_manifest.json`` 与 release material
+   safety 负例已由值级回归锁住；下一步若继续新增功能，优先从 ``P1-SCHEMA-01`` 或
+   ``P1-TEMPLATE-01`` 中挑一个最小闭环。
 3. 若要新增功能，优先从 ``P1-SCHEMA-01`` 或 ``P1-TEMPLATE-01`` 中挑一个最小闭环，
    并同步补对应 PowerShell 契约测试。
