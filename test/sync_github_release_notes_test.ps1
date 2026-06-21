@@ -36,6 +36,9 @@ Set-Content -LiteralPath $releaseBodyPath -Encoding UTF8 -Value @"
 ## 验证结论
 - execution_status：pass
 - visual_verdict：pass
+
+## Project template governance contracts
+- Project template readiness: project_template_delivery_readiness project_template_delivery_readiness_contract source_schema=featherdoc.project_template_delivery_readiness_report.v1 status=blocked release_ready=False latest_schema_approval_gate_status=pending_review schema_approval_status_summary=pending_review onboarding_governance_next_action_group_count=1 business_document_type_summary=invoice=1, policy=1 corpus_role_summary=planned-business-template=1, registered-business-template=1 source_report_display=.\output\project-template-delivery-readiness\summary.json source_json_display=.\output\project-template-delivery-readiness\summary.json
 "@
 
 $summary = [ordered]@{
@@ -143,6 +146,15 @@ $logContent = Get-Content -Raw -LiteralPath $fakeGhLogPath
 
 if ($finalState.body -ne $expectedBody) {
     throw "Fake GitHub release body did not match the audited release body after sync."
+}
+
+foreach ($expectedText in @(
+        "business_document_type_summary=invoice=1, policy=1",
+        "corpus_role_summary=planned-business-template=1, registered-business-template=1"
+    )) {
+    if ([string]$finalState.body -notlike "*$expectedText*") {
+        throw "Fake GitHub release body lost project-template business dimension marker: $expectedText"
+    }
 }
 
 if (-not [bool](-not $finalState.isDraft)) {

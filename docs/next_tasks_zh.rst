@@ -220,6 +220,11 @@ P1：Release governance 与发布材料一致性
      ``reviewer_action_reason``、``reviewer_actions``、
      ``business_document_type_summary`` 和 ``corpus_role_summary``，避免 release notes
      只展示 readiness 状态而丢失人工复核动作或业务语料覆盖信息。
+   * ``sync_github_release_notes.ps1`` 的 fake gh 回归现在显式在 audited release
+     body 中放入 project-template business dimension markers，并在同步后的 GitHub
+     Release body 中断言 ``business_document_type_summary`` 与
+     ``corpus_role_summary`` 未丢失，避免发布页刷新只保留 release notes 文本而漏掉
+     业务语料覆盖信息。
    * 文档契约测试已锁定 ``write_release_body_zh_summary.ps1`` 的 reviewer action
      与业务维度聚合 helper，以及 release note bundle 对上述字段值的断言，避免后续
      重构只保留 release notes 文本而丢失源级聚合路径。
@@ -447,10 +452,10 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：让 release blocker rollup、
-   release governance handoff、final review、bundle、checklist、release body /
-   summary 与 GitHub Release 同步路径保持同一来源字段，尤其守住
-   ``business_document_type_summary`` 与 ``corpus_role_summary``；release body /
-   summary 已有值级回归，下一步优先审计 GitHub Release 同步路径。
+2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：release body / summary 与 GitHub
+   Release 同步路径已由值级回归锁住，下一步优先复核 release blocker rollup、
+   release governance handoff、final review、bundle 和 checklist 是否仍使用同一组
+   project-template 来源字段，尤其守住 ``business_document_type_summary`` 与
+   ``corpus_role_summary``。
 3. 若要新增功能，优先从 ``P1-SCHEMA-01`` 或 ``P1-TEMPLATE-01`` 中挑一个最小闭环，
    并同步补对应 PowerShell 契约测试。

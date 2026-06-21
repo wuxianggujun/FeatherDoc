@@ -372,7 +372,10 @@ Release governance 与发布材料
   避免入口文档丢失 PDF 浮动表复核字段与 project-template readiness checklist
   交付证据。
 - ``scripts/publish_github_release.ps1``：发布 GitHub release。
-- ``scripts/sync_github_release_notes.ps1``：同步 GitHub release notes。
+- ``scripts/sync_github_release_notes.ps1``：同步已审计 GitHub release notes；
+  fake gh 回归必须保证 audited release body 全文同步，并保留
+  ``business_document_type_summary`` 与 ``corpus_role_summary`` 等
+  project-template business dimension markers。
 - ``scripts/write_release_metadata_start_here.ps1``：生成发布材料入口
   ``START_HERE.md``。
 - ``scripts/write_release_body_zh.ps1``：生成中文 release body 与短摘要，并在
