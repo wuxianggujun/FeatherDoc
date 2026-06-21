@@ -82,6 +82,8 @@ P1：模板契约与项目模板工作流
      语料，剩余 planned 入口仍必须暴露
      ``registration_blocker`` 与 ``next_action``，并由 manifest description 汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
+     当前仓库没有可直接复用的 contract.docx / tender.docx 轻量样本，因此这两项先保
+     持 planned。
    * ``build_project_template_delivery_readiness_report.ps1`` 的 manifest-only warning
      现在会把 ``planned_business_template_registration_actions`` 同步写入 JSON 与
      Markdown，包含每个 planned corpus 的 ``id``、``registration_blocker`` 和
@@ -480,5 +482,7 @@ P3：文档、测试与索引治理
    ``missing_business_document_type_count``，生成
    ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
    并把 ``add_business_template_document_type_metadata`` 注册进固定 reviewer runbook。
-4. 下一轮若继续新增功能，继续推进 ``P1-TEMPLATE-01`` 的 contract / tender 注册
-   薄片；若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，不做大重构。
+4. 下一轮若继续新增功能，先检查 ``P1-TEMPLATE-01`` 是否已有可提交的 contract /
+   tender 样本资产；没有就继续保持 planned，只推进文档和治理收口。若样本到位，
+   再推进注册薄片。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，不做
+   大重构。
