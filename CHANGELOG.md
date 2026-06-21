@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.12.4] - 2026-06-21
+
 ### Added
 
 - Added missing business document type entry details to the schema patch
