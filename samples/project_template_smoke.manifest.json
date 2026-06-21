@@ -38,15 +38,14 @@
                                          "project_id":  "project-operations",
                                          "template_name":  "policy-handbook-template",
                                          "document_type":  "policy",
-                                         "status":  "planned",
+                                         "status":  "registered",
+                                         "source_entry":  "resolved-schema-baseline-smoke",
                                          "smoke_contract":  [
                                                                 "schema_validation",
                                                                 "schema_baseline"
                                                             ],
-                                         "registration_blocker":  "Policy or handbook schema drift fixture is not yet committed.",
-                                         "next_action":  "Register a policy template with schema baseline evidence and approval-history coverage.",
-                                         "coverage_goal":  "Register a policy or handbook template with schema drift review and approval evidence.",
-                                         "notes":  "Used to calibrate type-update and required-field review paths."
+                                         "coverage_goal":  "Registered policy handbook schema-validation and schema-baseline coverage backed by the resolved schema fixture.",
+                                         "notes":  "Lightweight schema-baseline policy corpus entry; approval-history coverage remains a separate governance path."
                                      },
                                      {
                                          "id":  "project-delivery-project-report-template",
@@ -152,6 +151,12 @@
                     },
                     {
                         "name":  "resolved-schema-baseline-smoke",
+                        "project_id":  "project-operations",
+                        "template_name":  "policy-handbook-template",
+                        "business_domain":  "operations",
+                        "business_document_type":  "policy",
+                        "corpus_role":  "registered-business-template",
+                        "corpus_source_note":  "Lightweight policy handbook schema baseline coverage backed by the generated resolved schema fixture.",
                         "prepare_sample_target":  "featherdoc_sample_template_schema_manifest_fixture",
                         "prepare_argument":  "output/project-template-smoke-sample/template_schema_resolved_fixture.docx",
                         "input_docx":  "output/project-template-smoke-sample/template_schema_resolved_fixture.docx",

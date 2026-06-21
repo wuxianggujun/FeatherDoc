@@ -74,10 +74,11 @@ P1：模板契约与项目模板工作流
    * 继续校准 schema patch、style rename / merge、content-control 修复建议的置信度。
    * 仓库真实 ``samples/project_template_smoke.manifest.json`` 的业务语料覆盖已由
      ``check_project_template_smoke_manifest_test.ps1`` 直接锁定：必须保留 invoice、
-     contract、policy、report、notice、tender 6 类 document type，以及 2 个
-     registered / 4 个 planned corpus 入口；notice 已通过
-     ``part-template-validation-smoke`` 注册为轻量通知模板语料，剩余 planned 入口
-     仍必须暴露
+     contract、policy、report、notice、tender 6 类 document type，以及 3 个
+     registered / 3 个 planned corpus 入口；notice 已通过
+     ``part-template-validation-smoke`` 注册为轻量通知模板语料，policy 已通过
+     ``resolved-schema-baseline-smoke`` 注册为轻量 schema-baseline 语料，剩余 planned
+     入口仍必须暴露
      ``registration_blocker`` 与 ``next_action``，并由 manifest description 汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
    * ``build_project_template_delivery_readiness_report.ps1`` 的 manifest-only warning
@@ -478,5 +479,6 @@ P3：文档、测试与索引治理
    ``missing_business_document_type_count``，生成
    ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
    并把 ``add_business_template_document_type_metadata`` 注册进固定 reviewer runbook。
-4. 下一轮若继续新增功能，继续推进 ``P1-TEMPLATE-01`` 的下一个 planned corpus
-   注册薄片；若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，不做大重构。
+4. 下一轮若继续新增功能，继续推进 ``P1-TEMPLATE-01`` 的 contract / report /
+   tender 注册薄片；若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
+   不做大重构。
