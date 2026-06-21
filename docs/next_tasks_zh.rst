@@ -80,7 +80,8 @@ P1：模板契约与项目模板工作流
      ``resolved-schema-baseline-smoke`` 注册为轻量 schema-baseline 语料，report 已通过
      ``project-report-schema-baseline-smoke`` 注册为轻量 schema-baseline / visual-smoke
      语料，剩余 planned 入口仍必须暴露
-     ``registration_blocker`` 与 ``next_action``，并由 manifest description 汇总为
+     ``registration_blocker`` 与 ``next_action``，并由 manifest check JSON / text
+     报告和 manifest description 同步汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
      当前仓库没有可直接复用的 contract.docx / tender.docx 轻量样本，因此这两项先保
      持 planned。

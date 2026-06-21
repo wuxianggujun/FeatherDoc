@@ -275,6 +275,34 @@ function Test-ProjectTemplateSmokeBusinessCorpus {
     }
 }
 
+function Get-ProjectTemplateSmokePlannedBusinessCorpusRegistrationActions {
+    param(
+        [object[]]$CorpusItems
+    )
+
+    $actions = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($item in @($CorpusItems)) {
+        $status = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "status"
+        if ($status -ne "planned") {
+            continue
+        }
+
+        $actions.Add([ordered]@{
+            id = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "id"
+            project_id = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "project_id"
+            template_name = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "template_name"
+            document_type = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "document_type"
+            registration_blocker = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "registration_blocker"
+            next_action = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "next_action"
+            smoke_contract = @(Get-ProjectTemplateSmokeArrayProperty -Object $item -Name "smoke_contract")
+            coverage_goal = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "coverage_goal"
+            notes = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $item -Name "notes"
+        }) | Out-Null
+    }
+
+    return @($actions.ToArray())
+}
+
 function Test-ProjectTemplateSmokeSelection {
     param(
         $Selection,
@@ -398,6 +426,8 @@ function Test-ProjectTemplateSmokeManifest {
             business_template_corpus_count = 0
             registered_business_template_corpus_count = 0
             planned_business_template_corpus_count = 0
+            planned_business_template_registration_action_count = 0
+            planned_business_template_registration_actions = @()
             errors = $issues.ToArray()
             entries = @()
         }
@@ -418,6 +448,7 @@ function Test-ProjectTemplateSmokeManifest {
     }
 
     Test-ProjectTemplateSmokeBusinessCorpus -CorpusItems $businessTemplateCorpus -EntryNames $entryNames -Issues $issues
+    $plannedBusinessTemplateRegistrationActions = @(Get-ProjectTemplateSmokePlannedBusinessCorpusRegistrationActions -CorpusItems $businessTemplateCorpus)
 
     $seenNames = @{}
 
@@ -625,6 +656,8 @@ function Test-ProjectTemplateSmokeManifest {
         planned_business_template_corpus_count = @($businessTemplateCorpus | Where-Object {
                 (Get-ProjectTemplateSmokeOptionalPropertyValue -Object $_ -Name "status") -eq "planned"
             }).Count
+        planned_business_template_registration_action_count = $plannedBusinessTemplateRegistrationActions.Count
+        planned_business_template_registration_actions = @($plannedBusinessTemplateRegistrationActions)
         errors = $issues.ToArray()
         entries = $entryReports.ToArray()
     }

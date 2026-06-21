@@ -8,6 +8,13 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added planned project-template business corpus registration actions to the
+  project-template smoke manifest check JSON/text reports so contract and
+  tender template blockers remain machine-readable without reparsing the
+  manifest.
+
 ### Fixed
 
 - Fixed DOCX functional smoke readiness so default runs can fall back to the

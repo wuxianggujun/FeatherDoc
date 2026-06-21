@@ -110,9 +110,22 @@ $lines = New-Object 'System.Collections.Generic.List[string]'
 [void]$lines.Add("Business template corpus: $($report.business_template_corpus_count)")
 [void]$lines.Add("Registered business templates: $($report.registered_business_template_corpus_count)")
 [void]$lines.Add("Planned business templates: $($report.planned_business_template_corpus_count)")
+[void]$lines.Add("Planned business template registration actions: $($report.planned_business_template_registration_action_count)")
 [void]$lines.Add("Passed: $($report.passed)")
 [void]$lines.Add("Errors: $($report.error_count)")
 [void]$lines.Add("")
+
+if ($report.planned_business_template_registration_action_count -gt 0) {
+    [void]$lines.Add("Planned registration actions:")
+    foreach ($action in @($report.planned_business_template_registration_actions)) {
+        $contracts = @($action.smoke_contract) -join ", "
+        [void]$lines.Add("- $($action.id): project=$($action.project_id) template=$($action.template_name) type=$($action.document_type)")
+        [void]$lines.Add("  blocker: $($action.registration_blocker)")
+        [void]$lines.Add("  next_action: $($action.next_action)")
+        [void]$lines.Add("  smoke_contract: $contracts")
+    }
+    [void]$lines.Add("")
+}
 
 foreach ($entry in $report.entries) {
     $displayName = if ([string]::IsNullOrWhiteSpace($entry.name)) { "(unnamed entry)" } else { $entry.name }

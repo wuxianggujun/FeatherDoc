@@ -201,6 +201,17 @@ Assert-Equal -Actual ([int]$validReport.registered_business_template_corpus_coun
     -Message "Valid report should count registered business corpus profiles."
 Assert-Equal -Actual ([int]$validReport.planned_business_template_corpus_count) -Expected 1 `
     -Message "Valid report should count planned business corpus profiles."
+Assert-Equal -Actual ([int]$validReport.planned_business_template_registration_action_count) -Expected 1 `
+    -Message "Valid report should expose planned business corpus registration action count."
+Assert-Equal -Actual ([string]$validReport.planned_business_template_registration_actions[0].id) -Expected "project-test-contract-template" `
+    -Message "Valid report should expose planned business corpus registration action ids."
+Assert-Equal -Actual ([string]$validReport.planned_business_template_registration_actions[0].registration_blocker) -Expected "No committed contract template fixture is registered yet." `
+    -Message "Valid report should expose planned business corpus registration blockers."
+Assert-Equal -Actual ([string]$validReport.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline coverage." `
+    -Message "Valid report should expose planned business corpus next actions."
+Assert-ContainsText -Text ((@($validReport.planned_business_template_registration_actions[0].smoke_contract) -join "`n")) `
+    -ExpectedText "schema_validation" `
+    -Message "Valid report should expose planned business corpus smoke contracts."
 Assert-ContainsText -Text ((@($validReport.entries[0].configured_checks) -join "`n")) `
     -ExpectedText "template_validations" `
     -Message "Valid report should include template validation checks."
@@ -229,6 +240,29 @@ Assert-Equal -Actual ([int]$repoManifestReport.registered_business_template_corp
     -Message "Repository manifest should keep four registered business template corpus entries."
 Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_corpus_count) -Expected 2 `
     -Message "Repository manifest should keep two planned business template corpus entries."
+Assert-Equal -Actual ([int]$repoManifestReport.planned_business_template_registration_action_count) -Expected 2 `
+    -Message "Repository manifest report should expose two planned business template registration actions."
+$repoPlannedActionIds = @($repoManifestReport.planned_business_template_registration_actions | ForEach-Object { [string]$_.id })
+Assert-CollectionContains -Items $repoPlannedActionIds -ExpectedText "project-legal-contract-template" `
+    -Message "Repository manifest report should preserve the planned contract registration action."
+Assert-CollectionContains -Items $repoPlannedActionIds -ExpectedText "project-procurement-tender-template" `
+    -Message "Repository manifest report should preserve the planned tender registration action."
+$repoContractAction = @($repoManifestReport.planned_business_template_registration_actions | Where-Object {
+        [string]$_.id -eq "project-legal-contract-template"
+    })[0]
+Assert-Equal -Actual ([string]$repoContractAction.document_type) -Expected "contract" `
+    -Message "Repository manifest report should expose planned contract document type."
+Assert-ContainsText -Text ([string]$repoContractAction.registration_blocker) `
+    -ExpectedText "No committed contract DOCX or DOTX fixture" `
+    -Message "Repository manifest report should expose planned contract blocker details."
+$repoTenderAction = @($repoManifestReport.planned_business_template_registration_actions | Where-Object {
+        [string]$_.id -eq "project-procurement-tender-template"
+    })[0]
+Assert-Equal -Actual ([string]$repoTenderAction.document_type) -Expected "tender" `
+    -Message "Repository manifest report should expose planned tender document type."
+Assert-ContainsText -Text ((@($repoTenderAction.smoke_contract) -join "`n")) `
+    -ExpectedText "visual_smoke" `
+    -Message "Repository manifest report should expose planned tender visual-smoke contract."
 $repoManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $resolvedRepoRoot "samples\project_template_smoke.manifest.json") | ConvertFrom-Json
 $repoBusinessDocumentTypes = @($repoManifest.business_template_corpus | ForEach-Object { [string]$_.document_type })
 foreach ($expectedDocumentType in @("invoice", "contract", "policy", "report", "notice", "tender")) {
