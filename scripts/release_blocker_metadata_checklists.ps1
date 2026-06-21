@@ -150,6 +150,8 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "resolve_pending_schema_approvals",
             "fix_invalid_approval_records",
             "add_explicit_confidence_metadata",
+            "add_business_template_source_metadata",
+            "add_business_template_document_type_metadata",
             "review_schema_patch_confidence_calibration_evidence"
         )) {
         Add-SchemaPatchConfidenceCalibrationGuidanceLines `

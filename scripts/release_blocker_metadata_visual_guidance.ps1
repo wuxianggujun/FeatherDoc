@@ -320,6 +320,8 @@ function Get-ReleaseBlockerRegisteredActions {
         "review_table_style_quality_plan",
         "review_unbound_form_content_control",
         "resolve_pending_schema_approvals",
+        "add_business_template_source_metadata",
+        "add_business_template_document_type_metadata",
         "review_schema_patch_confidence_calibration_evidence",
         "review_schema_update_candidate",
         "review_style_numbering_audit",

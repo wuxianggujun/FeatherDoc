@@ -467,10 +467,14 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 继续推进 ``P1-RELEASE-01`` 的最小闭环：release body / summary、GitHub
+2. ``P1-RELEASE-01`` 的本轮发布材料收口已完成：release body / summary、GitHub
    Release 同步路径、release blocker rollup、governance handoff、final review、
    bundle / checklist、packaged ``release_assets_manifest.json`` 与 release material
-   safety 负例已由值级回归锁住；下一步若继续新增功能，优先从 ``P1-SCHEMA-01`` 或
-   ``P1-TEMPLATE-01`` 中挑一个最小闭环。
-3. 若要新增功能，优先从 ``P1-SCHEMA-01`` 或 ``P1-TEMPLATE-01`` 中挑一个最小闭环，
-   并同步补对应 PowerShell 契约测试。
+   safety 负例已由值级回归锁住。
+3. ``P1-SCHEMA-01`` 已继续补 schema patch confidence 的
+   ``business_document_type`` 缺失治理：报告会输出
+   ``missing_business_document_type_count``，生成
+   ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
+   并把 ``add_business_template_document_type_metadata`` 注册进固定 reviewer runbook。
+4. 下一轮若继续新增功能，优先推进 ``P1-TEMPLATE-01`` 的 planned corpus 注册薄片；
+   若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，不做大重构。

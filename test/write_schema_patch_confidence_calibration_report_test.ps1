@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "source_metadata", "fail_on_pending")]
+    [ValidateSet("all", "aggregate", "source_metadata", "business_dimension_metadata", "fail_on_pending")]
     [string]$Scenario = "all"
 )
 
@@ -138,8 +138,9 @@ $smokeSummaryPath = Join-Path $fixtureRoot "smoke\summary.json"
 $noopSmokeSummaryPath = Join-Path $fixtureRoot "noop-smoke\summary.json"
 $historyPath = Join-Path $fixtureRoot "history\project_template_schema_approval_history.json"
 $missingSourceSummaryPath = Join-Path $resolvedWorkingDir "missing-source-fixture\summary.json"
+$missingBusinessDocumentTypeSummaryPath = Join-Path $resolvedWorkingDir "missing-business-document-type-fixture\summary.json"
 
-foreach ($fixtureDir in @($fixtureRoot, (Join-Path $resolvedWorkingDir "missing-source-fixture"))) {
+foreach ($fixtureDir in @($fixtureRoot, (Join-Path $resolvedWorkingDir "missing-source-fixture"), (Join-Path $resolvedWorkingDir "missing-business-document-type-fixture"))) {
     if (Test-Path -LiteralPath $fixtureDir) {
         Remove-Item -LiteralPath $fixtureDir -Recurse -Force
     }
@@ -409,6 +410,7 @@ Write-JsonFile -Path $missingSourceSummaryPath -Value ([ordered]@{
         [ordered]@{
             name = "legacy-notice-template"
             template_name = "legacy-notice-template"
+            business_document_type = "notice"
             candidate_type = "add"
             review_json = "legacy-notice.review.json"
             changed = $true
@@ -429,6 +431,7 @@ Write-JsonFile -Path $missingSourceSummaryPath -Value ([ordered]@{
         [ordered]@{
             name = "legacy-notice-template"
             template_name = "legacy-notice-template"
+            business_document_type = "notice"
             candidate_type = "add"
             status = "approved"
             decision = "approved"
@@ -439,6 +442,51 @@ Write-JsonFile -Path $missingSourceSummaryPath -Value ([ordered]@{
             approval_result = "legacy-notice.approval.json"
             schema_update_candidate = "legacy-notice.schema.json"
             review_json = "legacy-notice.review.json"
+            compliance_issue_count = 0
+        }
+    )
+})
+
+Write-JsonFile -Path $missingBusinessDocumentTypeSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_smoke_summary.v1"
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 1
+    schema_patch_reviews = @(
+        [ordered]@{
+            name = "office-notice-template"
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            candidate_type = "add"
+            review_json = "office-notice.review.json"
+            changed = $true
+            baseline_slot_count = 1
+            generated_slot_count = 2
+            upsert_slot_count = 1
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 0
+            inserted_slots = 1
+            replaced_slots = 0
+            confidence = 91
+            reason_code = "business_document_type_missing"
+        }
+    )
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "office-notice-template"
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            candidate_type = "add"
+            status = "approved"
+            decision = "approved"
+            approved = $true
+            pending = $false
+            confidence = 91
+            reason_code = "business_document_type_missing"
+            approval_result = "office-notice.approval.json"
+            schema_update_candidate = "office-notice.schema.json"
+            review_json = "office-notice.review.json"
             compliance_issue_count = 0
         }
     )
@@ -495,6 +543,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Corpus summary should expose distinct source JSON count."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 0 `
         -Message "Corpus summary should report missing source metadata count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 0 `
+        -Message "Corpus summary should report missing business document type metadata count."
     Assert-True -Condition (@($summary.business_template_corpus_summary.template_sources | Where-Object { $_.template_scope -eq "project-finance/invoice-template" }).Count -eq 1) `
         -Message "Corpus summary should route invoice fixture back to its project/template scope."
     Assert-True -Condition (@($summary.business_template_corpus_summary.business_document_types) -contains "invoice") `
@@ -678,6 +728,10 @@ if (Test-Scenario -Name "source_metadata") {
         -Message "Corpus summary should count missing source metadata."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_project_id_count) -Expected 1 `
         -Message "Corpus summary should count missing project ids."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 0 `
+        -Message "Review/approval-level business document type should satisfy business dimension traceability."
+    Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "notice" `
+        -Message "Entries should preserve business document type from review or approval metadata."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Missing source metadata should produce one warning."
     Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_template_source_metadata" `
@@ -696,6 +750,48 @@ if (Test-Scenario -Name "source_metadata") {
         -Message "Markdown should expose missing source metadata count."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_source_metadata" `
         -Message "Markdown should include missing source metadata action."
+}
+
+if (Test-Scenario -Name "business_dimension_metadata") {
+    $outputDir = Join-Path $resolvedWorkingDir "business-dimension-metadata-report"
+    $result = Invoke-CalibrationScript -Arguments @(
+        "-InputJson", $missingBusinessDocumentTypeSummaryPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Calibration report should not fail only because business document type metadata is incomplete. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "schema_patch_confidence_calibration.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready" `
+        -Message "Missing business document type metadata should be a warning, not a release blocker."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Missing business document type metadata alone should not fail release readiness."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.entry_count) -Expected 1 `
+        -Message "Business dimension scenario should expose corpus entry count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.traced_entry_count) -Expected 1 `
+        -Message "Business dimension scenario should keep source identity traced."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 0 `
+        -Message "Business dimension warning should not be confused with missing source identity."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 1 `
+        -Message "Corpus summary should count missing business document type metadata."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Missing business document type metadata should produce one warning."
+    Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_document_type_metadata" `
+        -Message "Missing business document type warning should use a stable id."
+    Assert-Equal -Actual ([string]$summary.warnings[0].action) -Expected "add_business_template_document_type_metadata" `
+        -Message "Missing business document type warning should route to repair action."
+    Assert-Equal -Actual ([int]$summary.warnings[0].missing_business_document_type_count) -Expected 1 `
+        -Message "Missing business document type warning should expose the affected count."
+    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "add_business_template_document_type_metadata" }).Count -eq 1) `
+        -Message "Missing business document type recommendation should be mirrored as an action item."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "missing_business_document_types=1" `
+        -Message "Markdown should expose missing business document type count."
+    Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_document_type_metadata" `
+        -Message "Markdown should include missing business document type action."
 }
 
 if (Test-Scenario -Name "fail_on_pending") {

@@ -269,6 +269,50 @@ Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "write_schema
 Assert-ContainsText -Text $schemaCalibrationGuidance -ExpectedText "regenerate the release note bundle" `
     -Message "Schema patch confidence calibration runbook should tell reviewers to refresh release materials."
 
+$schemaCalibrationSourceMetadataWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.missing_business_template_source_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "add_business_template_source_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationSourceMetadataGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationSourceMetadataWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationSourceMetadataGuidance -ExpectedText "add_business_template_source_metadata" `
+    -Message "Schema patch confidence calibration source metadata warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationSourceMetadataGuidance -ExpectedText "project_id, template_name, and source summary metadata" `
+    -Message "Schema patch confidence calibration source metadata runbook should explain missing source identity remediation."
+Assert-ContainsText -Text $schemaCalibrationSourceMetadataGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration source metadata runbook should point at the calibration writer."
+
+$schemaCalibrationDocumentTypeWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.missing_business_document_type_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "add_business_template_document_type_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationDocumentTypeGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationDocumentTypeWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "add_business_template_document_type_metadata" `
+    -Message "Schema patch confidence calibration document type warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "business_document_type metadata" `
+    -Message "Schema patch confidence calibration document type runbook should explain missing business document type remediation."
+Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration document type runbook should point at the calibration writer."
+
 $contentControlBlocker = [pscustomobject]@{
     id = "content_control_data_binding.bound_placeholder"
     source = "content_control_data_binding_governance"

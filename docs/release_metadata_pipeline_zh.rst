@@ -422,15 +422,20 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 报告还会写出 ``business_template_corpus_summary``，按 project/template/source JSON
 汇总真实业务模板语料覆盖，并暴露 ``missing_source_metadata_count``、
 ``missing_project_id_count``、``missing_template_name_count`` 与
-``missing_summary_json_count``。如果候选缺少项目、模板或来源 summary，报告会生成
+``missing_summary_json_count``，同时暴露
+``missing_business_document_type_count``。如果候选缺少项目、模板或来源 summary，报告会生成
 ``schema_patch_confidence_calibration.missing_business_template_source_metadata`` warning，
-并把 ``add_business_template_source_metadata`` 同步为 action item；这类问题不直接阻断
-发布，但 reviewer 不能把缺来源语料用于自动阈值收紧。
+并把 ``add_business_template_source_metadata`` 同步为 action item；如果候选缺少
+``business_document_type``，报告会生成
+``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
+并把 ``add_business_template_document_type_metadata`` 同步为 action item；这类问题不直接阻断
+发布，但 reviewer 不能把缺来源或缺业务文档类型的语料用于自动阈值收紧。
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
 其中 ``resolve_pending_schema_approvals``、``fix_invalid_approval_records``、
-``add_explicit_confidence_metadata``、``add_business_template_source_metadata`` 和
+``add_explicit_confidence_metadata``、``add_business_template_source_metadata``、
+``add_business_template_document_type_metadata`` 和
 ``review_schema_patch_confidence_calibration_evidence`` 都映射到固定 reviewer
 runbook：先打开 ``source_report_display`` 与 ``source_json_display``，修复审批或置信度
 证据，再重跑 ``write_schema_patch_confidence_calibration_report.ps1`` 并刷新 release
