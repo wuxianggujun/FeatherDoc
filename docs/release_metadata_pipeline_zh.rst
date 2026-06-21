@@ -742,6 +742,11 @@ release blocker rollup 的 ``source_reports`` 也必须进入 release candidate 
 Markdown 与 ``final_review.md`` 中展示 ``business_document_type_summary`` 与
 ``corpus_role_summary``，避免 final review 只能看到 readiness/source path 而看不到
 业务文档类型和语料角色覆盖范围。
+packaged ``release_assets_manifest.json`` 也必须在
+``project_template_delivery_readiness_contract`` 与
+``project_template_onboarding_governance_contract`` 中保留这两组 summary。完整 package、
+allow-incomplete package 与 warning-only readiness package 都要值级验证，不能只依赖
+``manifest_signoff_entrypoints.required_fields`` 的字段名清单。
 ``release_governance_handoff.md`` 还必须遵守
 ``block_scoped_governance_handoff_trace``：``project_template_delivery_readiness`` 与
 ``project_template_onboarding.schema_approval`` 各自的 Markdown list block 必须分别保留

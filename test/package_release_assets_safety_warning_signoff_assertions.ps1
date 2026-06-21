@@ -45,6 +45,22 @@ if ([string]$warningOnlyManifestReadiness.source_report_display -ne $expectedWar
 if ([string]$warningOnlyManifestReadiness.source_json_display -ne $expectedWarningOnlyProjectTemplateDeliveryReadinessDisplay) {
     throw "release_assets_manifest.json lost warning-only project template delivery readiness source_json_display."
 }
+$warningOnlyManifestBusinessTypes = @($warningOnlyManifestReadiness.business_document_type_summary)
+if ($warningOnlyManifestBusinessTypes.Count -ne 2 -or
+    [string]$warningOnlyManifestBusinessTypes[0].document_type -ne "invoice" -or
+    [int]$warningOnlyManifestBusinessTypes[0].count -ne 1 -or
+    [string]$warningOnlyManifestBusinessTypes[1].document_type -ne "policy" -or
+    [int]$warningOnlyManifestBusinessTypes[1].count -ne 1) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness business_document_type_summary."
+}
+$warningOnlyManifestCorpusRoles = @($warningOnlyManifestReadiness.corpus_role_summary)
+if ($warningOnlyManifestCorpusRoles.Count -ne 2 -or
+    [string]$warningOnlyManifestCorpusRoles[0].corpus_role -ne "planned-business-template" -or
+    [int]$warningOnlyManifestCorpusRoles[0].count -ne 1 -or
+    [string]$warningOnlyManifestCorpusRoles[1].corpus_role -ne "registered-business-template" -or
+    [int]$warningOnlyManifestCorpusRoles[1].count -ne 1) {
+    throw "release_assets_manifest.json lost warning-only project template delivery readiness corpus_role_summary."
+}
 
 $manifestSignoffEntrypoints = $manifest.manifest_signoff_entrypoints
 if ($null -eq $manifestSignoffEntrypoints) {
