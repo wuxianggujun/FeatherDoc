@@ -14,6 +14,9 @@ performance.
   project-template smoke manifest check JSON/text reports so contract and
   tender template blockers remain machine-readable without reparsing the
   manifest.
+- Added planned project-template registration action smoke-contract details to
+  the manifest description text report and docs so command-line reviewers can
+  see required follow-up smoke coverage without reopening raw manifests.
 
 ### Fixed
 

@@ -31,6 +31,14 @@ function Assert-ContainsText {
     }
 }
 
+function Assert-TextOccurrenceCountAtLeast {
+    param([string]$Text, [string]$ExpectedText, [int]$MinimumCount, [string]$Message)
+    $actualCount = ([regex]::Matches($Text, [regex]::Escape($ExpectedText))).Count
+    if ($actualCount -lt $MinimumCount) {
+        throw "$Message ExpectedAtLeast='$MinimumCount' Actual='$actualCount' Text='$ExpectedText'."
+    }
+}
+
 function Write-JsonFile {
     param([string]$Path, $Value)
 
@@ -219,6 +227,8 @@ Assert-Equal -Actual ([string]$report.planned_business_template_registration_act
     -Message "Description JSON should expose planned corpus registration action blockers."
 Assert-Equal -Actual ([string]$report.planned_business_template_registration_actions[0].next_action) -Expected "Add a contract template manifest entry with schema baseline and render-data coverage." `
     -Message "Description JSON should expose planned corpus registration action next steps."
+Assert-Equal -Actual ((@($report.planned_business_template_registration_actions[0].smoke_contract) -join ",")) -Expected "schema_validation,schema_baseline,render_data" `
+    -Message "Description JSON should expose planned corpus registration action smoke contracts."
 Assert-Equal -Actual ([int]$report.latest_available_entry_count) -Expected 1 `
     -Message "Description JSON should count entries joined with latest summary data."
 Assert-Equal -Actual ([int]$report.latest_missing_entry_count) -Expected 0 `
@@ -301,6 +311,8 @@ Assert-ContainsText -Text $textReport -ExpectedText "next_action: Add a contract
     -Message "Text report should include planned corpus next actions."
 Assert-ContainsText -Text $textReport -ExpectedText "Planned business template registration actions:" `
     -Message "Text report should include planned corpus registration action section."
+Assert-TextOccurrenceCountAtLeast -Text $textReport -ExpectedText "smoke_contract: schema_validation, schema_baseline, render_data" -MinimumCount 2 `
+    -Message "Text report should expose planned corpus smoke contracts in both corpus details and registration actions."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest status: needs_review" `
     -Message "Text report should include latest status."
 Assert-ContainsText -Text $textReport -ExpectedText "Latest visual verdict: needs_review" `

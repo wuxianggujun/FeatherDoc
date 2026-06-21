@@ -83,6 +83,8 @@ P1：模板契约与项目模板工作流
      ``registration_blocker`` 与 ``next_action``，并由 manifest check JSON / text
      报告和 manifest description 同步汇总为
      ``planned_business_template_registration_actions``，避免语料扩展停留在不可执行说明。
+     manifest description 的 text 报告也必须在 planned action 段保留
+     ``smoke_contract``，避免命令行复核时丢失 contract / tender 后续 smoke 契约。
      当前仓库没有可直接复用的 contract.docx / tender.docx 轻量样本，因此这两项先保
      持 planned。
    * ``build_project_template_delivery_readiness_report.ps1`` 的 manifest-only warning

@@ -70,7 +70,9 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``featherdoc.project_template_smoke_manifest_description.v1`` 作为清单诊断；
      该诊断必须保留 ``business_template_corpus_count``、
      ``registered_business_template_corpus_count``、
-     ``planned_business_template_corpus_count`` 和 ``business_document_type_summary``，
+     ``planned_business_template_corpus_count``、``business_document_type_summary``、
+     ``planned_business_template_registration_actions``，并在 JSON / text 报告中保留
+     planned 语料的 ``registration_blocker``、``next_action`` 与 ``smoke_contract``，
      让 reviewer 能区分已注册业务模板与只做计划跟踪的语料类型；
      ``check_project_template_smoke_manifest.ps1 -Json`` 也必须把 planned 语料的
      ``planned_business_template_registration_actions`` 直接写进 manifest check

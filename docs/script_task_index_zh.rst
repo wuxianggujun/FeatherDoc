@@ -124,7 +124,11 @@
   smoke manifest 状态与维护入口；JSON 输出使用
   ``featherdoc.project_template_smoke_manifest_description.v1`` schema，并暴露
   ``business_template_corpus_count``、``registered_business_template_corpus_count``、
-  ``planned_business_template_corpus_count`` 与 ``business_document_type_summary``。
+  ``planned_business_template_corpus_count``、``business_document_type_summary``、
+  ``planned_business_template_registration_action_count`` 与
+  ``planned_business_template_registration_actions``；JSON / text 报告都必须保留
+  planned 业务模板的 ``registration_blocker``、``next_action`` 和
+  ``smoke_contract``。
 - ``scripts/discover_project_template_smoke_candidates.ps1``：发现尚未纳入
   manifest 的 ``.docx`` / ``.dotx`` 候选；支持 ``-FailOnUnregistered``
   作为 CI gating，并在 JSON 报告中写入 ``unregistered_candidate_count``。

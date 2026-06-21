@@ -465,12 +465,14 @@ if ($businessTemplateCorpus.Count -gt 0) {
 if ($plannedBusinessTemplateRegistrationActions.Count -gt 0) {
     [void]$lines.Add("Planned business template registration actions:")
     foreach ($action in $plannedBusinessTemplateRegistrationActions) {
+        $actionContracts = @($action.smoke_contract) -join ", "
         [void]$lines.Add("- $($action.id)")
         [void]$lines.Add("  project_id: $($action.project_id)")
         [void]$lines.Add("  template_name: $($action.template_name)")
         [void]$lines.Add("  document_type: $($action.document_type)")
         [void]$lines.Add("  registration_blocker: $($action.registration_blocker)")
         [void]$lines.Add("  next_action: $($action.next_action)")
+        [void]$lines.Add("  smoke_contract: $actionContracts")
     }
     [void]$lines.Add("")
 }
