@@ -859,6 +859,9 @@ $badManifestMismatchedMetricDetails.table_layout_delivery_quality = [ordered]@{
         manual_table_style_fix_count = 0
         table_position_automatic_count = 0
         table_position_review_count = 0
+        fixed_layout_table_count = 1
+        autofit_layout_table_count = 1
+        unspecified_layout_table_count = 1
         command_failure_count = 0
         unresolved_item_count = 1
         metadata_only_fields = @("leftFromText", "rightFromText", "topFromText outside paragraph anchoring", "tblOverlap")
@@ -916,6 +919,24 @@ try {
 
 if (-not $missingManifestTableLayoutReviewFieldsFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without table layout review_required_fields details."
+}
+
+$badManifestMissingTableLayoutModeCountsDir = Join-Path $failDir "manifest-missing-table-layout-mode-counts"
+$badManifestMissingTableLayoutModeCountsPath = Join-Path $badManifestMissingTableLayoutModeCountsDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badManifestMissingTableLayoutModeCountsDir -Force | Out-Null
+$badManifestMissingTableLayoutModeCounts = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badManifestMissingTableLayoutModeCounts.table_layout_delivery_quality.details.PSObject.Properties.Remove("fixed_layout_table_count")
+($badManifestMissingTableLayoutModeCounts | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badManifestMissingTableLayoutModeCountsPath -Encoding UTF8
+
+$missingManifestTableLayoutModeCountsFailedAsExpected = $false
+try {
+    & $auditScript -Path $badManifestMissingTableLayoutModeCountsPath
+} catch {
+    $missingManifestTableLayoutModeCountsFailedAsExpected = $true
+}
+
+if (-not $missingManifestTableLayoutModeCountsFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed release manifest without table layout mode count details."
 }
 
 $badManifestMissingNumberingConfidenceSourceJsonDisplayDir = Join-Path $failDir "manifest-missing-numbering-confidence-source-json-display"

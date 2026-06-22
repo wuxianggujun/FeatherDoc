@@ -241,6 +241,15 @@ if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_automatic_co
 if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_review_count -ne 0) {
     throw "release_assets_manifest.json lost table layout delivery quality table_position_review_count."
 }
+if ([int]$manifestTableLayoutDeliveryQuality.details.fixed_layout_table_count -ne 1) {
+    throw "release_assets_manifest.json lost table layout delivery quality fixed_layout_table_count."
+}
+if ([int]$manifestTableLayoutDeliveryQuality.details.autofit_layout_table_count -ne 1) {
+    throw "release_assets_manifest.json lost table layout delivery quality autofit_layout_table_count."
+}
+if ([int]$manifestTableLayoutDeliveryQuality.details.unspecified_layout_table_count -ne 1) {
+    throw "release_assets_manifest.json lost table layout delivery quality unspecified_layout_table_count."
+}
 if (-not (@($manifestTableLayoutDeliveryQuality.details.penalty_summary |
         ForEach-Object { [string]$_.factor }) -contains "floating_table_plans_pending")) {
     throw "release_assets_manifest.json lost table layout delivery quality penalty summary."

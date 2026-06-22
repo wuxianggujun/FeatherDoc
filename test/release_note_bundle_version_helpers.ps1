@@ -252,6 +252,9 @@ function New-TableLayoutDeliveryMetricFixture {
             manual_table_style_fix_count = 0
             table_position_automatic_count = 0
             table_position_review_count = 0
+            fixed_layout_table_count = 1
+            autofit_layout_table_count = 1
+            unspecified_layout_table_count = 1
             pdf_floating_table_supported_geometry_count = 4
             pdf_floating_table_metadata_only_count = 5
             pdf_floating_table_tracked_geometry_count = 9

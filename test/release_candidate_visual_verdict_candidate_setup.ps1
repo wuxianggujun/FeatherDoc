@@ -79,6 +79,9 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "table-layout
             manual_table_style_fix_count = 0
             table_position_automatic_count = 0
             table_position_review_count = 0
+            fixed_layout_table_count = 1
+            autofit_layout_table_count = 1
+            unspecified_layout_table_count = 1
             pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
             pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
             metadata_only_fields = @(

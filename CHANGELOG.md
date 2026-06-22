@@ -27,6 +27,10 @@ performance.
   inspection, semantic diffing, table layout delivery reports, rollups,
   governance summaries, and release handoff metric details so Word table width
   reviews can find fixed-layout grids without reopening raw DOCX XML.
+- Added release material safety coverage for fixed/autofit/unspecified table
+  layout-mode counts so packaged release manifests and entry materials cannot
+  silently drop Word table width evidence during release-note or bundle
+  generation.
 
 ### Fixed
 

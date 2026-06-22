@@ -398,6 +398,15 @@ function Assert-PackageReleaseAssetsAllowIncompleteRegression {
     if ([int]$manifestTableLayoutDeliveryQuality.details.table_position_review_count -ne 0) {
         throw "Release assets manifest lost table layout delivery quality table_position_review_count in AllowIncomplete mode."
     }
+    if ([int]$manifestTableLayoutDeliveryQuality.details.fixed_layout_table_count -ne 1) {
+        throw "Release assets manifest lost table layout delivery quality fixed_layout_table_count in AllowIncomplete mode."
+    }
+    if ([int]$manifestTableLayoutDeliveryQuality.details.autofit_layout_table_count -ne 1) {
+        throw "Release assets manifest lost table layout delivery quality autofit_layout_table_count in AllowIncomplete mode."
+    }
+    if ([int]$manifestTableLayoutDeliveryQuality.details.unspecified_layout_table_count -ne 1) {
+        throw "Release assets manifest lost table layout delivery quality unspecified_layout_table_count in AllowIncomplete mode."
+    }
     if (-not (@($manifestTableLayoutDeliveryQuality.details.penalty_summary |
             ForEach-Object { [string]$_.factor }) -contains "floating_table_plans_pending")) {
         throw "Release assets manifest lost table layout delivery quality penalty summary in AllowIncomplete mode."

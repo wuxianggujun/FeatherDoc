@@ -199,6 +199,9 @@ Table Layout Delivery
 * ``pdf_floating_table_support``
 * ``pdf_floating_table_supported_geometry_percent``
 * ``pdf_floating_table_tracked_geometry_count``
+* ``fixed_layout_table_count``
+* ``autofit_layout_table_count``
+* ``unspecified_layout_table_count``
 * ``pdf_floating_table_reviewer_focus``
 * ``pdf_floating_table_metadata_only_fields``
 * ``pdf_floating_table_review_required_fields``

@@ -370,7 +370,9 @@ P2：表格与版式交付能力
 1. table layout delivery governance：
 
    * 继续保留 ``ready_document_percent``、``unresolved_item_count``、
-     ``table_position_review_count`` 等 release-facing 指标。
+     ``table_position_review_count``、``fixed_layout_table_count``、
+     ``autofit_layout_table_count``、``unspecified_layout_table_count`` 等
+     release-facing 指标。
    * 对 ``tblLook``、表格样式和固定布局差异输出更直接的修复建议。
 
 2. floating table 与 PDF-sensitive 布局：

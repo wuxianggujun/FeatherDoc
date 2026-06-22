@@ -84,6 +84,9 @@ Write-JsonFile -Path $tableSummaryPath -Value ([ordered]@{
         unresolved_item_count = 2
         table_position_automatic_count = 1
         table_position_review_count = 1
+        fixed_layout_table_count = 1
+        autofit_layout_table_count = 0
+        unspecified_layout_table_count = 1
         pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
         pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
         metadata_only_fields = @(
@@ -208,6 +211,9 @@ Write-JsonFile -Path $autoDiscoverTableSummaryPath -Value ([ordered]@{
         unresolved_item_count = 2
         table_position_automatic_count = 1
         table_position_review_count = 1
+        fixed_layout_table_count = 1
+        autofit_layout_table_count = 0
+        unspecified_layout_table_count = 1
         pdf_floating_table_support_coverage = "4/9 supported (44 percent); metadata_only=5"
         pdf_floating_table_reviewer_focus = "review metadata-only tblpPr fields before approving PDF-layout-sensitive release."
         metadata_only_fields = @(
