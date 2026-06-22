@@ -138,7 +138,7 @@ function Get-ArgumentValue {
 $command = $CliArgs[0]
 switch ($command) {
     "inspect-tables" {
-        Write-Output '{"command":"inspect-tables","count":1,"tables":[{"index":0,"style_id":"DeliveryTable"}]}'
+        Write-Output '{"command":"inspect-tables","count":1,"tables":[{"index":0,"style_id":"DeliveryTable","layout_mode":"fixed"}]}'
         exit 0
     }
     "inspect-table-style" {
@@ -234,6 +234,12 @@ Assert-Equal -Actual ([int]$summary.positioned_table_count) -Expected 0 `
     -Message "Fixture should start without floating table position."
 Assert-Equal -Actual ([int]$summary.unpositioned_table_count) -Expected 1 `
     -Message "Fixture should report one unpositioned table."
+Assert-Equal -Actual ([int]$summary.fixed_layout_table_count) -Expected 1 `
+    -Message "Report should count fixed-layout tables from inspect-tables."
+Assert-Equal -Actual ([int]$summary.autofit_layout_table_count) -Expected 0 `
+    -Message "Report should count autofit tables from inspect-tables."
+Assert-Equal -Actual ([int]$summary.unspecified_layout_table_count) -Expected 0 `
+    -Message "Report should count unspecified table layout modes from inspect-tables."
 Assert-Equal -Actual ([string]$summary.table_style_ids[0]) -Expected "DeliveryTable" `
     -Message "Report should list the table style id."
 Assert-Equal -Actual ([int]$summary.table_style_quality_issue_count) -Expected 1 `
@@ -264,6 +270,8 @@ Assert-True -Condition ($suggestionIds -contains "repair-table-style-look") `
     -Message "Report should suggest tblLook repair."
 Assert-True -Condition ($suggestionIds -contains "apply-table-position-plan") `
     -Message "Report should suggest applying the floating table preset plan."
+Assert-True -Condition ($suggestionIds -contains "review-fixed-layout-grid-widths") `
+    -Message "Report should suggest fixed-layout grid and cell width review."
 
 $visualIds = @($summary.visual_regression_entries | ForEach-Object { [string]$_.id })
 Assert-True -Condition ($visualIds -contains "word-visual-smoke") `
@@ -277,6 +285,10 @@ Assert-ContainsText -Text $markdown -ExpectedText "Apply safe tblLook quality fi
     -Message "Markdown should include the quality repair suggestion."
 Assert-ContainsText -Text $markdown -ExpectedText "Apply floating table position preset" `
     -Message "Markdown should include the position repair suggestion."
+Assert-ContainsText -Text $markdown -ExpectedText "Fixed layout table count: 1" `
+    -Message "Markdown should include fixed-layout table counts."
+Assert-ContainsText -Text $markdown -ExpectedText "Review fixed-layout grid and cell width consistency" `
+    -Message "Markdown should include fixed-layout review guidance."
 Assert-ContainsText -Text $markdown -ExpectedText "run_table_style_quality_visual_regression.ps1" `
     -Message "Markdown should include the visual regression entry."
 

@@ -21,7 +21,7 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
     CHECK_NE(inspect_text.find("tables: 2"), std::string::npos);
     CHECK_NE(
         inspect_text.find(
-            "table[0]: style_id=TableGrid width_twips=7200 rows=2 columns=2"),
+            "table[0]: style_id=TableGrid width_twips=7200 layout_mode=none rows=2 columns=2"),
         std::string::npos);
     CHECK_NE(inspect_text.find("column_widths=[1800,5400]"),
              std::string::npos);
@@ -36,7 +36,7 @@ TEST_CASE("cli inspect-tables lists body tables in text mode and supports single
         read_text_file(single_output),
         std::string{
             "{\"table\":{\"index\":1,\"style_id\":null,\"width_twips\":null,"
-            "\"alignment\":null,\"indent_twips\":null,"
+            "\"layout_mode\":null,\"alignment\":null,\"indent_twips\":null,"
             "\"cell_spacing_twips\":null,"
             "\"cell_margins\":{\"top\":null,\"left\":null,"
             "\"bottom\":null,\"right\":null},\"borders\":null,"

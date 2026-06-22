@@ -156,6 +156,21 @@ auto semantic_column_widths_value(
     return stream.str();
 }
 
+auto semantic_table_layout_mode(
+    const std::optional<featherdoc::table_layout_mode> &layout_mode)
+    -> std::string {
+    if (!layout_mode.has_value()) {
+        return {};
+    }
+    switch (*layout_mode) {
+    case featherdoc::table_layout_mode::autofit:
+        return "autofit";
+    case featherdoc::table_layout_mode::fixed:
+        return "fixed";
+    }
+    return {};
+}
+
 auto semantic_paragraph_value(
     const featherdoc::paragraph_inspection_summary &paragraph) -> std::string {
     std::ostringstream stream;
@@ -189,6 +204,7 @@ auto semantic_table_value(
            << semantic_optional_string(table.style_id) << "\nrows="
            << table.row_count << "\ncolumns=" << table.column_count
            << "\nwidth=" << semantic_optional_numeric(table.width_twips)
+           << "\nlayout_mode=" << semantic_table_layout_mode(table.layout_mode)
            << "\ncolumn_widths="
            << semantic_column_widths_value(table.column_widths)
            << "\nposition=" << semantic_table_position_value(table.position);

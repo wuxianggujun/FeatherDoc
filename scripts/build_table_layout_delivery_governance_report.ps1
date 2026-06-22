@@ -59,6 +59,9 @@ $totalManualFixCount = 0
 $totalPositionAutomaticCount = 0
 $totalPositionReviewCount = 0
 $totalPositionAlreadyMatchingCount = 0
+$totalFixedLayoutTableCount = 0
+$totalAutofitLayoutTableCount = 0
+$totalUnspecifiedLayoutTableCount = 0
 $totalCommandFailureCount = 0
 
 foreach ($path in @($inputPaths)) {
@@ -78,6 +81,9 @@ foreach ($path in @($inputPaths)) {
                 $totalPositionAutomaticCount += Get-JsonInt -Object $json -Name "total_table_position_automatic_count"
                 $totalPositionReviewCount += Get-JsonInt -Object $json -Name "total_table_position_review_count"
                 $totalPositionAlreadyMatchingCount += Get-JsonInt -Object $json -Name "total_table_position_already_matching_count"
+                $totalFixedLayoutTableCount += Get-JsonInt -Object $json -Name "total_fixed_layout_table_count"
+                $totalAutofitLayoutTableCount += Get-JsonInt -Object $json -Name "total_autofit_layout_table_count"
+                $totalUnspecifiedLayoutTableCount += Get-JsonInt -Object $json -Name "total_unspecified_layout_table_count"
                 $totalCommandFailureCount += Get-JsonInt -Object $json -Name "total_command_failure_count"
 
                 foreach ($document in @(Get-JsonArray -Object $json -Name "document_entries")) {
@@ -96,6 +102,9 @@ foreach ($path in @($inputPaths)) {
                         table_position_automatic_count = Get-JsonInt -Object $document -Name "table_position_automatic_count"
                         table_position_review_count = Get-JsonInt -Object $document -Name "table_position_review_count"
                         table_position_already_matching_count = Get-JsonInt -Object $document -Name "table_position_already_matching_count"
+                        fixed_layout_table_count = Get-JsonInt -Object $document -Name "fixed_layout_table_count"
+                        autofit_layout_table_count = Get-JsonInt -Object $document -Name "autofit_layout_table_count"
+                        unspecified_layout_table_count = Get-JsonInt -Object $document -Name "unspecified_layout_table_count"
                         pdf_floating_table_support_status = Get-JsonString -Object $document -Name "pdf_floating_table_support_status" -DefaultValue "not_reported"
                         pdf_floating_table_layout_boundary = Get-JsonString -Object $document -Name "pdf_floating_table_layout_boundary"
                         pdf_floating_table_supported_geometry_count = Get-JsonInt -Object $document -Name "pdf_floating_table_supported_geometry_count"
@@ -298,6 +307,17 @@ if ($totalPositionAutomaticCount -gt 0) {
         -RepairHint "Run a fingerprint-checked dry-run before writing any positioned DOCX output." `
         -CommandTemplate "featherdoc_cli apply-table-position-plan <table-position.plan.json> --dry-run --json")
 }
+if ($totalFixedLayoutTableCount -gt 0) {
+    Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
+        -Id "review_fixed_layout_grid_widths" `
+        -Scope "table_layout_delivery" `
+        -SourceKind "table_layout_delivery_governance" `
+        -Action "review_fixed_layout_grid_widths" `
+        -Title "Review fixed-layout tblGrid and tcW width evidence" `
+        -RepairStrategy "review_fixed_layout_grid_widths" `
+        -RepairHint "Fixed-layout tables are valid, but release reviewers should confirm tblGrid and tcW width consistency." `
+        -CommandTemplate "featherdoc_cli inspect-tables <input.docx> --json")
+}
 if ($totalIssueCount -gt 0 -or $totalAutomaticFixCount -gt 0 -or $totalPositionAutomaticCount -gt 0 -or $totalPositionReviewCount -gt 0) {
     Add-UniqueAction -Collection $deliveryActions -Action (New-ActionItem `
         -Id "run_table_style_quality_visual_regression" `
@@ -404,6 +424,9 @@ $deliveryQuality = New-DeliveryQuality `
     -TotalManualTableStyleFixCount $totalManualFixCount `
     -TotalTablePositionAutomaticCount $totalPositionAutomaticCount `
     -TotalTablePositionReviewCount $totalPositionReviewCount `
+    -TotalFixedLayoutTableCount $totalFixedLayoutTableCount `
+    -TotalAutofitLayoutTableCount $totalAutofitLayoutTableCount `
+    -TotalUnspecifiedLayoutTableCount $totalUnspecifiedLayoutTableCount `
     -TotalCommandFailureCount $totalCommandFailureCount `
     -PdfFloatingTableCapabilityStatus $pdfFloatingTableCapabilityStatus `
     -PdfFloatingTableLayoutBoundary $pdfFloatingTableLayoutBoundary `
@@ -469,6 +492,9 @@ $summary = [ordered]@{
     total_table_position_automatic_count = $totalPositionAutomaticCount
     total_table_position_review_count = $totalPositionReviewCount
     total_table_position_already_matching_count = $totalPositionAlreadyMatchingCount
+    total_fixed_layout_table_count = $totalFixedLayoutTableCount
+    total_autofit_layout_table_count = $totalAutofitLayoutTableCount
+    total_unspecified_layout_table_count = $totalUnspecifiedLayoutTableCount
     total_command_failure_count = $totalCommandFailureCount
     release_blocker_count = $releaseBlockers.Count
     release_blockers = @($releaseBlockers.ToArray())

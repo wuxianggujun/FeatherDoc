@@ -102,6 +102,10 @@ function ConvertTo-JsonPathText {
 }
 `$command = `$Args[0]
 switch (`$command) {
+    "inspect-tables" {
+        Write-Output '{"command":"inspect-tables","count":3,"tables":[{"index":0,"style_id":"DeliveryTable","layout_mode":"fixed"},{"index":1,"style_id":"DeliveryTable","layout_mode":"autofit"},{"index":2,"style_id":"DeliveryTable","layout_mode":null}]}'
+        exit 0
+    }
     "audit-table-style-quality" {
         Write-Output '{"command":"audit-table-style-quality","ok":false,"clean":false,"issue_count":3,"issues":[{"kind":"missing_region"},{"kind":"bad_tblLook"}]}'
         exit 0
@@ -159,6 +163,14 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should expose the report schema."
     Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
         -Message "Summary should require review when table actions exist."
+    Assert-Equal -Actual ([int]$summary.table_count) -Expected 3 `
+        -Message "Summary should include inspect-tables table count."
+    Assert-Equal -Actual ([int]$summary.fixed_layout_table_count) -Expected 1 `
+        -Message "Summary should include fixed-layout table count."
+    Assert-Equal -Actual ([int]$summary.autofit_layout_table_count) -Expected 1 `
+        -Message "Summary should include autofit table count."
+    Assert-Equal -Actual ([int]$summary.unspecified_layout_table_count) -Expected 1 `
+        -Message "Summary should include unspecified layout table count."
     Assert-Equal -Actual ([int]$summary.table_style_issue_count) -Expected 3 `
         -Message "Summary should include table style issue count."
     Assert-Equal -Actual ([int]$summary.automatic_tblLook_fix_count) -Expected 2 `
@@ -220,12 +232,19 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should expose actionable next steps."
     Assert-ContainsText -Text ([string]$summary.action_items[1].command) -ExpectedText "apply-table-style-quality-fixes" `
         -Message "Action items should include safe tblLook application command."
+    Assert-ContainsText -Text (($summary.action_items | ForEach-Object { [string]$_.id }) -join "`n") `
+        -ExpectedText "review_fixed_layout_grid_widths" `
+        -Message "Action items should include fixed-layout grid width review."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Table Layout Delivery Report" `
         -Message "Markdown report should include a title."
     Assert-ContainsText -Text $markdown -ExpectedText "Suggested Actions" `
         -Message "Markdown report should include suggested actions."
+    Assert-ContainsText -Text $markdown -ExpectedText "Fixed layout table count" `
+        -Message "Markdown report should include fixed-layout table counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "Review fixed-layout tblGrid and tcW width evidence" `
+        -Message "Markdown report should include fixed-layout review action."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
         -Message "Markdown report should include PDF floating table support evidence."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF floating table supported geometry" `
@@ -271,7 +290,7 @@ if (Test-Scenario -Name "failing") {
         -Message "Failing summary should count the failed command."
     Assert-Equal -Actual ([string]$failingSummary.status) -Expected "failed" `
         -Message "Failing summary should expose failed status."
-    Assert-Equal -Actual ([int]$failingSummary.commands[2].exit_code) -Expected 1 `
+    Assert-Equal -Actual ([int]$failingSummary.commands[3].exit_code) -Expected 1 `
         -Message "Failing summary should preserve the position plan exit code."
 }
 

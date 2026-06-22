@@ -23,6 +23,10 @@ performance.
 - Added a generated lightweight tender project-template smoke fixture with
   schema-baseline, render-data, and visual-smoke coverage so the procurement
   tender corpus completes the registered business-template set.
+- Added fixed/autofit/unspecified table layout-mode evidence to table
+  inspection, semantic diffing, table layout delivery reports, rollups,
+  governance summaries, and release handoff metric details so Word table width
+  reviews can find fixed-layout grids without reopening raw DOCX XML.
 
 ### Fixed
 

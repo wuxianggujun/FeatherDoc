@@ -172,6 +172,9 @@ function New-LayoutRollup {
                     table_position_automatic_count = 0
                     table_position_review_count = 0
                     table_position_already_matching_count = 1
+                    fixed_layout_table_count = 0
+                    autofit_layout_table_count = 1
+                    unspecified_layout_table_count = 0
                     pdf_floating_table_support_status = "partial"
                     pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                     pdf_floating_table_supported_geometry_count = 4
@@ -201,6 +204,9 @@ function New-LayoutRollup {
             total_table_position_automatic_count = 0
             total_table_position_review_count = 0
             total_table_position_already_matching_count = 1
+            total_fixed_layout_table_count = 0
+            total_autofit_layout_table_count = 1
+            total_unspecified_layout_table_count = 0
             total_command_failure_count = 0
             pdf_floating_table_support_report_count = 1
             pdf_floating_table_support_summary = @([ordered]@{ status = "partial"; count = 1 })
@@ -231,6 +237,9 @@ function New-LayoutRollup {
                 table_position_automatic_count = 0
                 table_position_review_count = 0
                 table_position_already_matching_count = 1
+                fixed_layout_table_count = 0
+                autofit_layout_table_count = 1
+                unspecified_layout_table_count = 0
                 pdf_floating_table_support_status = "partial"
                 pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                 pdf_floating_table_supported_geometry_count = 4
@@ -254,6 +263,9 @@ function New-LayoutRollup {
                 table_position_automatic_count = 2
                 table_position_review_count = 1
                 table_position_already_matching_count = 0
+                fixed_layout_table_count = 2
+                autofit_layout_table_count = 0
+                unspecified_layout_table_count = 1
                 pdf_floating_table_support_status = "partial"
                 pdf_floating_table_layout_boundary = "stable_pdf_geometry_subset_not_full_word_wrapping"
                 pdf_floating_table_supported_geometry_count = 4
@@ -293,6 +305,9 @@ function New-LayoutRollup {
         total_table_position_automatic_count = 2
         total_table_position_review_count = 1
         total_table_position_already_matching_count = 1
+        total_fixed_layout_table_count = 2
+        total_autofit_layout_table_count = 1
+        total_unspecified_layout_table_count = 1
         total_command_failure_count = 0
         pdf_floating_table_support_report_count = 2
         pdf_floating_table_support_summary = @([ordered]@{ status = "partial"; count = 2 })
@@ -406,6 +421,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose automatic floating table plan count in delivery quality details."
     Assert-Equal -Actual ([int]$summary.delivery_quality.table_position_review_count) -Expected 1 `
         -Message "Summary should expose floating table review count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.fixed_layout_table_count) -Expected 2 `
+        -Message "Summary should expose fixed-layout table count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.autofit_layout_table_count) -Expected 1 `
+        -Message "Summary should expose autofit table count in delivery quality details."
+    Assert-Equal -Actual ([int]$summary.delivery_quality.unspecified_layout_table_count) -Expected 1 `
+        -Message "Summary should expose unspecified layout table count in delivery quality details."
     Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_capability_status) -Expected "partial" `
         -Message "Summary should expose PDF floating table capability status in delivery quality details."
     Assert-Equal -Actual ([string]$summary.delivery_quality.pdf_floating_table_layout_boundary) `
@@ -477,6 +498,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should preserve automatic floating table plan count."
     Assert-Equal -Actual ([int]$summary.total_table_position_review_count) -Expected 1 `
         -Message "Summary should preserve floating table review count."
+    Assert-Equal -Actual ([int]$summary.total_fixed_layout_table_count) -Expected 2 `
+        -Message "Summary should preserve fixed-layout table count."
+    Assert-Equal -Actual ([int]$summary.total_autofit_layout_table_count) -Expected 1 `
+        -Message "Summary should preserve autofit table count."
+    Assert-Equal -Actual ([int]$summary.total_unspecified_layout_table_count) -Expected 1 `
+        -Message "Summary should preserve unspecified layout table count."
     Assert-Equal -Actual ([int]$summary.table_position_plan_count) -Expected 2 `
         -Message "Summary should expose table position plans."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support_report_count) -Expected 2 `
@@ -486,6 +513,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should group PDF floating table support statuses."
     Assert-Equal -Actual ([string]$summary.documents[0].pdf_floating_table_support_status) -Expected "partial" `
         -Message "Governance documents should preserve PDF floating table support status."
+    Assert-Equal -Actual ([int]$summary.documents[1].fixed_layout_table_count) -Expected 2 `
+        -Message "Governance documents should preserve fixed-layout table counts."
     Assert-ContainsText -Text (($summary.pdf_floating_table_support[0].metadata_only | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "tblOverlap" `
         -Message "Governance summary should preserve metadata-only PDF floating table rows."
@@ -544,6 +573,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should add visual regression action."
     Assert-ContainsText -Text $actionText -ExpectedText "dry_run_apply_table_position_plans" `
         -Message "Summary should add position plan dry-run action."
+    Assert-ContainsText -Text $actionText -ExpectedText "review_fixed_layout_grid_widths" `
+        -Message "Summary should add fixed-layout grid width review action."
     $actionRepairText = ($summary.delivery_actions | ForEach-Object {
             "$($_.id)|$($_.repair_strategy)|$($_.repair_hint)|$($_.command_template)"
         }) -join "`n"
@@ -553,6 +584,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Review action should expose repair strategy."
     Assert-ContainsText -Text $actionRepairText -ExpectedText "dry_run_apply_table_position_plans|dry_run_table_position_plan" `
         -Message "Dry-run action should expose repair strategy."
+    Assert-ContainsText -Text $actionRepairText -ExpectedText "review_fixed_layout_grid_widths|review_fixed_layout_grid_widths" `
+        -Message "Fixed-layout review action should expose repair strategy."
     Assert-ContainsText -Text $actionRepairText -ExpectedText "run_table_style_quality_visual_regression|generate_table_layout_visual_evidence" `
         -Message "Visual regression action should expose repair strategy."
     Assert-ContainsText -Text $actionRepairText -ExpectedText "run_table_style_quality_visual_regression.ps1" `
@@ -612,6 +645,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include title."
     Assert-ContainsText -Text $markdown -ExpectedText "Floating Table Plans" `
         -Message "Markdown should include floating table plans."
+    Assert-ContainsText -Text $markdown -ExpectedText "Fixed layout tables" `
+        -Message "Markdown should include fixed-layout table counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "fixed_layout=``2``" `
+        -Message "Markdown should include per-document fixed-layout counts."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
         -Message "Markdown should include PDF floating table support."
     Assert-ContainsText -Text $markdown -ExpectedText "stable_pdf_geometry_subset_not_full_word_wrapping" `

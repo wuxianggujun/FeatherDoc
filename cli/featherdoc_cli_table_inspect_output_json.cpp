@@ -139,6 +139,12 @@ void write_json_table_summary(
     write_json_optional_string(stream, table.style_id);
     stream << ",\"width_twips\":";
     write_json_optional_u32(stream, table.width_twips);
+    stream << ",\"layout_mode\":";
+    if (table.layout_mode.has_value()) {
+        write_json_string(stream, table_layout_mode_name(*table.layout_mode));
+    } else {
+        stream << "null";
+    }
     stream << ",\"alignment\":";
     if (table.alignment.has_value()) {
         write_json_string(stream, table_alignment_name(*table.alignment));

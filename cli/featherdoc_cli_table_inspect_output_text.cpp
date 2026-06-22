@@ -78,6 +78,12 @@ void print_table_summary(std::ostream &stream,
     } else {
         stream << "none";
     }
+    stream << " layout_mode=";
+    if (table.layout_mode.has_value()) {
+        stream << table_layout_mode_name(*table.layout_mode);
+    } else {
+        stream << "none";
+    }
     stream << " rows=" << table.row_count
            << " columns=" << table.column_count
            << " alignment=";

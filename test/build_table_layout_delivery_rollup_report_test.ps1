@@ -104,6 +104,9 @@ function New-LayoutSummary {
         [int]$PositionAutomaticCount = 0,
         [int]$PositionReviewCount = 0,
         [int]$PositionAlreadyMatchingCount = 0,
+        [int]$FixedLayoutTableCount = 0,
+        [int]$AutofitLayoutTableCount = 0,
+        [int]$UnspecifiedLayoutTableCount = 0,
         [object[]]$Issues = @(),
         [object[]]$ReleaseBlockers = @(),
         [object[]]$ActionItems = @()
@@ -145,6 +148,9 @@ function New-LayoutSummary {
         table_position_automatic_count = $PositionAutomaticCount
         table_position_review_count = $PositionReviewCount
         table_position_already_matching_count = $PositionAlreadyMatchingCount
+        fixed_layout_table_count = $FixedLayoutTableCount
+        autofit_layout_table_count = $AutofitLayoutTableCount
+        unspecified_layout_table_count = $UnspecifiedLayoutTableCount
         pdf_floating_table_support = $pdfSupport
         pdf_floating_table_support_status = $pdfSupport.status
         pdf_floating_table_layout_boundary = $pdfSupport.boundary
@@ -176,6 +182,7 @@ if (Test-Scenario -Name "aggregate") {
         -PlanPath "output/table-layout-delivery/invoice/table-position-paragraph-callout.plan.json" `
         -Status "ready" `
         -PositionAlreadyMatchingCount 1 `
+        -AutofitLayoutTableCount 1 `
         -ActionItems @(
             [ordered]@{
                 id = "review_table_position_preset"
@@ -194,6 +201,8 @@ if (Test-Scenario -Name "aggregate") {
         -ManualFixCount 1 `
         -PositionAutomaticCount 2 `
         -PositionReviewCount 1 `
+        -FixedLayoutTableCount 2 `
+        -UnspecifiedLayoutTableCount 1 `
         -Issues @(
             [ordered]@{ kind = "missing_region" },
             [ordered]@{ kind = "bad_tblLook" },
@@ -266,6 +275,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate layout rollup should sum floating table review plans."
     Assert-Equal -Actual ([int]$summary.total_table_position_already_matching_count) -Expected 1 `
         -Message "Aggregate layout rollup should sum already-matching floating table plans."
+    Assert-Equal -Actual ([int]$summary.total_fixed_layout_table_count) -Expected 2 `
+        -Message "Aggregate layout rollup should sum fixed-layout table counts."
+    Assert-Equal -Actual ([int]$summary.total_autofit_layout_table_count) -Expected 1 `
+        -Message "Aggregate layout rollup should sum autofit table counts."
+    Assert-Equal -Actual ([int]$summary.total_unspecified_layout_table_count) -Expected 1 `
+        -Message "Aggregate layout rollup should sum unspecified table layout counts."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 2 `
         -Message "Aggregate layout rollup should preserve release blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
@@ -307,6 +322,11 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Document entries should preserve PDF floating table support status."
     Assert-Equal -Actual ([int]$summary.document_entries[0].pdf_floating_table_supported_geometry_percent) -Expected 44 `
         -Message "Document entries should preserve PDF floating table support percentage."
+    $contractDocument = $summary.document_entries |
+        Where-Object { [string]$_.document_name -eq "contract.docx" } |
+        Select-Object -First 1
+    Assert-Equal -Actual ([int]$contractDocument.fixed_layout_table_count) -Expected 2 `
+        -Message "Document entries should preserve fixed-layout table counts."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].supported_geometry_count) -Expected 4 `
         -Message "Rollup should preserve supported PDF floating table geometry count."
     Assert-Equal -Actual ([int]$summary.pdf_floating_table_support[0].tracked_geometry_count) -Expected 9 `
@@ -337,6 +357,10 @@ if (Test-Scenario -Name "aggregate") {
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Floating Table Plans" `
         -Message "Markdown report should include floating table plan section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Fixed layout tables" `
+        -Message "Markdown report should include fixed-layout table totals."
+    Assert-ContainsText -Text $markdown -ExpectedText "fixed_layout=``2``" `
+        -Message "Markdown report should include per-document fixed-layout counts."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF Floating Table Support" `
         -Message "Markdown report should include PDF floating table support section."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_floating_table_support_coverage" `

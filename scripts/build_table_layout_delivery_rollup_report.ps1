@@ -362,6 +362,9 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($Summary.total_manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
+    $lines.Add("- Fixed layout tables: ``$($Summary.total_fixed_layout_table_count)``") | Out-Null
+    $lines.Add("- Autofit layout tables: ``$($Summary.total_autofit_layout_table_count)``") | Out-Null
+    $lines.Add("- Unspecified layout tables: ``$($Summary.total_unspecified_layout_table_count)``") | Out-Null
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
     $lines.Add("- pdf_floating_table_reviewer_focus: ``$($Summary.pdf_floating_table_reviewer_focus)``") | Out-Null
@@ -386,13 +389,14 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.document_entries)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` preset=``{2}`` issues=``{3}`` tblLook=``{4}`` position_review=``{5}`` source=``{6}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` preset=``{2}`` issues=``{3}`` tblLook=``{4}`` position_review=``{5}`` fixed_layout=``{6}`` source=``{7}``" -f
                 $document.document_name,
                 $document.status,
                 $document.preset,
                 $document.table_style_issue_count,
                 $document.automatic_tblLook_fix_count,
                 $document.table_position_review_count,
+                $document.fixed_layout_table_count,
                 $document.source_report_display)) | Out-Null
         }
     }
@@ -547,6 +551,9 @@ $totalManualFixCount = 0
 $totalPositionAutomaticCount = 0
 $totalPositionReviewCount = 0
 $totalPositionAlreadyMatchingCount = 0
+$totalFixedLayoutTableCount = 0
+$totalAutofitLayoutTableCount = 0
+$totalUnspecifiedLayoutTableCount = 0
 $totalCommandFailureCount = 0
 
 foreach ($path in @($inputPaths)) {
@@ -585,6 +592,9 @@ foreach ($path in @($inputPaths)) {
             $positionAutomaticCount = Get-JsonInt -Object $summaryObject -Name "table_position_automatic_count"
             $positionReviewCount = Get-JsonInt -Object $summaryObject -Name "table_position_review_count"
             $positionAlreadyMatchingCount = Get-JsonInt -Object $summaryObject -Name "table_position_already_matching_count"
+            $fixedLayoutTableCount = Get-JsonInt -Object $summaryObject -Name "fixed_layout_table_count"
+            $autofitLayoutTableCount = Get-JsonInt -Object $summaryObject -Name "autofit_layout_table_count"
+            $unspecifiedLayoutTableCount = Get-JsonInt -Object $summaryObject -Name "unspecified_layout_table_count"
             $commandFailureCount = Get-JsonInt -Object $summaryObject -Name "command_failure_count"
             $positionPlanPath = Get-JsonString -Object $summaryObject -Name "table_position_plan_path"
             $positionPlanDisplay = Get-ReportPathDisplay -RepoRoot $repoRoot -Path $positionPlanPath
@@ -627,6 +637,9 @@ foreach ($path in @($inputPaths)) {
                 table_position_automatic_count = $positionAutomaticCount
                 table_position_review_count = $positionReviewCount
                 table_position_already_matching_count = $positionAlreadyMatchingCount
+                fixed_layout_table_count = $fixedLayoutTableCount
+                autofit_layout_table_count = $autofitLayoutTableCount
+                unspecified_layout_table_count = $unspecifiedLayoutTableCount
                 pdf_floating_table_support_status = $pdfSupportEntry.status
                 pdf_floating_table_layout_boundary = $pdfSupportEntry.boundary
                 pdf_floating_table_supported_geometry_count = $pdfSupportEntry.supported_geometry_count
@@ -720,6 +733,9 @@ foreach ($path in @($inputPaths)) {
             $totalPositionAutomaticCount += $positionAutomaticCount
             $totalPositionReviewCount += $positionReviewCount
             $totalPositionAlreadyMatchingCount += $positionAlreadyMatchingCount
+            $totalFixedLayoutTableCount += $fixedLayoutTableCount
+            $totalAutofitLayoutTableCount += $autofitLayoutTableCount
+            $totalUnspecifiedLayoutTableCount += $unspecifiedLayoutTableCount
             $totalCommandFailureCount += $commandFailureCount
         }
     } catch {
@@ -825,6 +841,9 @@ $summary = [ordered]@{
     total_table_position_automatic_count = $totalPositionAutomaticCount
     total_table_position_review_count = $totalPositionReviewCount
     total_table_position_already_matching_count = $totalPositionAlreadyMatchingCount
+    total_fixed_layout_table_count = $totalFixedLayoutTableCount
+    total_autofit_layout_table_count = $totalAutofitLayoutTableCount
+    total_unspecified_layout_table_count = $totalUnspecifiedLayoutTableCount
     total_command_failure_count = $totalCommandFailureCount
     table_style_issue_summary = @(Add-IssueSummary -Items $issueRows.ToArray())
     table_position_plan_count = $positionPlans.Count

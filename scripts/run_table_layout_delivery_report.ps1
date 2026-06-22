@@ -115,6 +115,25 @@ function Get-UniqueTableStyleIds {
     }
     return $ids.ToArray()
 }
+function Get-TableLayoutModeCounts {
+    param($TablesJson)
+    $fixedCount = 0
+    $autofitCount = 0
+    $unspecifiedCount = 0
+    foreach ($table in @($TablesJson.tables)) {
+        $layoutMode = [string](Get-PropertyValue -Object $table -Name "layout_mode" -Default "")
+        switch ($layoutMode) {
+            "fixed" { $fixedCount++; break }
+            "autofit" { $autofitCount++; break }
+            default { $unspecifiedCount++; break }
+        }
+    }
+    return [ordered]@{
+        fixed = $fixedCount
+        autofit = $autofitCount
+        unspecified = $unspecifiedCount
+    }
+}
 function New-OutputSuggestion {
     param([string]$Id, [string]$Label, [string]$Command, [string]$Reason)
     return [ordered]@{
@@ -151,6 +170,9 @@ function Write-MarkdownReport {
         "- Position automatic count: $($Summary.position_automatic_count)",
         "- Position review count: $($Summary.position_review_count)",
         "- Position already matching count: $($Summary.position_already_matching_count)",
+        "- Fixed layout table count: $($Summary.fixed_layout_table_count)",
+        "- Autofit layout table count: $($Summary.autofit_layout_table_count)",
+        "- Unspecified layout table count: $($Summary.unspecified_layout_table_count)",
         "- Dry-run validated: $($Summary.position_plan_dry_run_ok)",
         ""
     )
@@ -304,6 +326,7 @@ foreach ($table in @($inspectTables.tables)) {
     if ($null -ne (Get-PropertyValue -Object $table -Name "position" -Default $null)) { $positionedTableCount++ }
 }
 $unpositionedTableCount = [Math]::Max(0, $tableCount - $positionedTableCount)
+$layoutModeCounts = Get-TableLayoutModeCounts -TablesJson $inspectTables
 
 $styleQualityIssueCount = Get-IntValue -Object $styleQualityAudit -Name "issue_count"
 $styleQualityAutoFixCount = Get-IntValue -Object $styleQualityPlan -Name "automatic_fix_count"
@@ -349,6 +372,13 @@ if ($styleQualityManualFixCount -gt 0) {
         -Command (ConvertTo-CommandLine -Parts @($cliExecutable, "inspect-table-style", $resolvedInputDocx, "<style-id>", "--json")) `
         -Reason "The style quality plan reports $styleQualityManualFixCount manual table style definition fix(es)."))
 }
+if ([int]$layoutModeCounts.fixed -gt 0) {
+    $suggestions.Add((New-OutputSuggestion `
+        -Id "review-fixed-layout-grid-widths" `
+        -Label "Review fixed-layout grid and cell width consistency" `
+        -Command (ConvertTo-CommandLine -Parts @($cliExecutable, "inspect-tables", $resolvedInputDocx, "--json")) `
+        -Reason "$($layoutModeCounts.fixed) fixed-layout table(s) need width evidence review for tblGrid and tcW consistency."))
+}
 
 $wordVisualSmokeCommand = ConvertTo-CommandLine -Parts @(
     "powershell", "-ExecutionPolicy", "Bypass", "-File", ".\scripts\run_word_visual_smoke.ps1",
@@ -385,6 +415,9 @@ $summary = [ordered]@{
     styled_table_count = $styledTableCount
     positioned_table_count = $positionedTableCount
     unpositioned_table_count = $unpositionedTableCount
+    fixed_layout_table_count = [int]$layoutModeCounts.fixed
+    autofit_layout_table_count = [int]$layoutModeCounts.autofit
+    unspecified_layout_table_count = [int]$layoutModeCounts.unspecified
     table_style_ids = $styleIds
     table_style_quality_issue_count = $styleQualityIssueCount
     table_style_quality_automatic_fix_count = $styleQualityAutoFixCount

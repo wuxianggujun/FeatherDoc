@@ -235,6 +235,7 @@ auto summarize_table_handle(featherdoc::Table table_handle,
     summary.index = table_index;
     summary.style_id = table_handle.style_id();
     summary.width_twips = table_handle.width_twips();
+    summary.layout_mode = table_handle.layout_mode();
     summary.alignment = table_handle.alignment();
     summary.indent_twips = table_handle.indent_twips();
     summary.cell_spacing_twips = table_handle.cell_spacing_twips();

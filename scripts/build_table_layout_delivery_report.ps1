@@ -47,6 +47,52 @@ function Get-JsonInt {
     return [int]$property.Value
 }
 
+function Get-JsonString {
+    param($Object, [string]$Name, [string]$DefaultValue = "")
+    if ($null -eq $Object) { return $DefaultValue }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) { return $DefaultValue }
+    $value = [string]$property.Value
+    if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultValue }
+    return $value
+}
+
+function Get-JsonArray {
+    param($Object, [string]$Name)
+    if ($null -eq $Object) { return @() }
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) { return @() }
+    $value = $property.Value
+    if ($value -is [string]) { return @($value) }
+    if ($value -is [System.Collections.IDictionary]) { return @($value) }
+    if ($value -is [System.Collections.IEnumerable]) {
+        return @($value | Where-Object { $null -ne $_ })
+    }
+    return @($value)
+}
+
+function Get-TableLayoutModeCounts {
+    param($InspectTables)
+
+    $fixedCount = 0
+    $autofitCount = 0
+    $unspecifiedCount = 0
+    foreach ($table in @(Get-JsonArray -Object $InspectTables -Name "tables")) {
+        $layoutMode = Get-JsonString -Object $table -Name "layout_mode"
+        switch ($layoutMode) {
+            "fixed" { $fixedCount++; break }
+            "autofit" { $autofitCount++; break }
+            default { $unspecifiedCount++; break }
+        }
+    }
+
+    return [ordered]@{
+        fixed = $fixedCount
+        autofit = $autofitCount
+        unspecified = $unspecifiedCount
+    }
+}
+
 function Read-JsonObjectFromLines {
     param([string[]]$Lines, [string]$Command)
 
@@ -175,6 +221,9 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($Summary.manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Position automatic count: ``$($Summary.table_position_automatic_count)``") | Out-Null
     $lines.Add("- Position review count: ``$($Summary.table_position_review_count)``") | Out-Null
+    $lines.Add("- Fixed layout table count: ``$($Summary.fixed_layout_table_count)``") | Out-Null
+    $lines.Add("- Autofit layout table count: ``$($Summary.autofit_layout_table_count)``") | Out-Null
+    $lines.Add("- Unspecified layout table count: ``$($Summary.unspecified_layout_table_count)``") | Out-Null
     $lines.Add("- Command failures: ``$($Summary.command_failure_count)``") | Out-Null
     $lines.Add("- PDF floating table support: ``$($Summary.pdf_floating_table_support_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($Summary.pdf_floating_table_layout_boundary)``") | Out-Null
@@ -262,6 +311,13 @@ $resolvedCliPath = if ([string]::IsNullOrWhiteSpace($CliPath)) {
     Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $CliPath
 }
 
+Write-Step "Inspecting table layout modes"
+$inspectTablesResult = Invoke-CliJsonCommand -ExecutablePath $resolvedCliPath -Name "inspect_tables" -Command "inspect-tables" -Arguments @(
+    "inspect-tables",
+    $resolvedInputDocx,
+    "--json"
+)
+
 Write-Step "Auditing table style quality"
 $auditResult = Invoke-CliJsonCommand -ExecutablePath $resolvedCliPath -Name "audit_table_style_quality" -Command "audit-table-style-quality" -Arguments @(
     "audit-table-style-quality",
@@ -289,11 +345,14 @@ $positionPlanResult = Invoke-CliJsonCommand -ExecutablePath $resolvedCliPath -Na
     "--json"
 )
 
-$commands = @($auditResult, $fixPlanResult, $positionPlanResult)
+$commands = @($inspectTablesResult, $auditResult, $fixPlanResult, $positionPlanResult)
 $commandFailures = @($commands | Where-Object { -not [bool]$_.ok })
+$inspectTables = $inspectTablesResult.json
 $audit = $auditResult.json
 $fixPlan = $fixPlanResult.json
 $positionPlan = $positionPlanResult.json
+$tableCount = Get-JsonInt -Object $inspectTables -Name "count"
+$layoutModeCounts = Get-TableLayoutModeCounts -InspectTables $inspectTables
 $issueCount = Get-JsonInt -Object $audit -Name "issue_count"
 $automaticFixCount = Get-JsonInt -Object $fixPlan -Name "automatic_fix_count"
 $manualFixCount = Get-JsonInt -Object $fixPlan -Name "manual_fix_count"
@@ -354,6 +413,13 @@ $actionItems = @(
         command = "pwsh -ExecutionPolicy Bypass -File .\scripts\run_table_style_quality_visual_regression.ps1"
     }
 )
+if ([int]$layoutModeCounts.fixed -gt 0) {
+    $actionItems += [ordered]@{
+        id = "review_fixed_layout_grid_widths"
+        title = "Review fixed-layout tblGrid and tcW width evidence"
+        command = "featherdoc_cli inspect-tables <input.docx> --json"
+    }
+}
 
 $status = if ($commandFailures.Count -gt 0) {
     "failed"
@@ -374,11 +440,16 @@ $summary = [ordered]@{
     report_markdown = $markdownPath
     cli_path = $resolvedCliPath
     preset = $Preset
+    table_inspection = $inspectTables
     table_style_quality_audit = $audit
     table_style_quality_fix_plan = $fixPlan
     table_position_plan = $positionPlan
     table_position_plan_path = $positionPlanPath
     positioned_output_docx = $positionedOutputPath
+    table_count = $tableCount
+    fixed_layout_table_count = [int]$layoutModeCounts.fixed
+    autofit_layout_table_count = [int]$layoutModeCounts.autofit
+    unspecified_layout_table_count = [int]$layoutModeCounts.unspecified
     table_style_issue_count = $issueCount
     automatic_tblLook_fix_count = $automaticFixCount
     manual_table_style_fix_count = $manualFixCount

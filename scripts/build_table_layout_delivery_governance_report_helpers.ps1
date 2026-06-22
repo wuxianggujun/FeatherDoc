@@ -186,6 +186,9 @@ function New-DeliveryQuality {
         [int]$TotalManualTableStyleFixCount,
         [int]$TotalTablePositionAutomaticCount,
         [int]$TotalTablePositionReviewCount,
+        [int]$TotalFixedLayoutTableCount = 0,
+        [int]$TotalAutofitLayoutTableCount = 0,
+        [int]$TotalUnspecifiedLayoutTableCount = 0,
         [int]$TotalCommandFailureCount,
         [string]$PdfFloatingTableCapabilityStatus = "not_reported",
         [string]$PdfFloatingTableLayoutBoundary = "",
@@ -235,6 +238,9 @@ function New-DeliveryQuality {
         manual_table_style_fix_count = $TotalManualTableStyleFixCount
         table_position_automatic_count = $TotalTablePositionAutomaticCount
         table_position_review_count = $TotalTablePositionReviewCount
+        fixed_layout_table_count = $TotalFixedLayoutTableCount
+        autofit_layout_table_count = $TotalAutofitLayoutTableCount
+        unspecified_layout_table_count = $TotalUnspecifiedLayoutTableCount
         pdf_floating_table_capability_status = $PdfFloatingTableCapabilityStatus
         pdf_floating_table_layout_boundary = $PdfFloatingTableLayoutBoundary
         pdf_floating_table_supported_geometry_count = $PdfFloatingTableSupportedGeometryCount
@@ -462,6 +468,9 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($Summary.total_manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($Summary.total_table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($Summary.total_table_position_review_count)``") | Out-Null
+    $lines.Add("- Fixed layout tables: ``$($Summary.total_fixed_layout_table_count)``") | Out-Null
+    $lines.Add("- Autofit layout tables: ``$($Summary.total_autofit_layout_table_count)``") | Out-Null
+    $lines.Add("- Unspecified layout tables: ``$($Summary.total_unspecified_layout_table_count)``") | Out-Null
     $lines.Add("- PDF floating table support reports: ``$($Summary.pdf_floating_table_support_report_count)``") | Out-Null
     $lines.Add("- PDF floating table supported geometry: ``$($Summary.pdf_floating_table_supported_geometry_count)/$($Summary.pdf_floating_table_tracked_geometry_count)`` (``$($Summary.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
     $lines.Add("- pdf_floating_table_support_coverage: ``$($Summary.pdf_floating_table_support_coverage)``") | Out-Null
@@ -497,6 +506,9 @@ function New-ReportMarkdown {
     $lines.Add("- Manual table style fixes: ``$($quality.manual_table_style_fix_count)``") | Out-Null
     $lines.Add("- Floating table automatic plans: ``$($quality.table_position_automatic_count)``") | Out-Null
     $lines.Add("- Floating table review plans: ``$($quality.table_position_review_count)``") | Out-Null
+    $lines.Add("- Fixed layout tables: ``$($quality.fixed_layout_table_count)``") | Out-Null
+    $lines.Add("- Autofit layout tables: ``$($quality.autofit_layout_table_count)``") | Out-Null
+    $lines.Add("- Unspecified layout tables: ``$($quality.unspecified_layout_table_count)``") | Out-Null
     $lines.Add("- PDF floating table capability: ``$($quality.pdf_floating_table_capability_status)``") | Out-Null
     $lines.Add("- PDF floating table boundary: ``$($quality.pdf_floating_table_layout_boundary)``") | Out-Null
     $lines.Add("- PDF floating table supported geometry: ``$($quality.pdf_floating_table_supported_geometry_count)/$($quality.pdf_floating_table_tracked_geometry_count)`` (``$($quality.pdf_floating_table_supported_geometry_percent)%``)") | Out-Null
@@ -530,14 +542,15 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.documents)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` preset=``{2}`` issues=``{3}`` tblLook=``{4}`` manual=``{5}`` position_review=``{6}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` preset=``{2}`` issues=``{3}`` tblLook=``{4}`` manual=``{5}`` position_review=``{6}`` fixed_layout=``{7}``" -f
                 $document.document_name,
                 $document.status,
                 $document.preset,
                 $document.table_style_issue_count,
                 $document.automatic_tblLook_fix_count,
                 $document.manual_table_style_fix_count,
-                $document.table_position_review_count)) | Out-Null
+                $document.table_position_review_count,
+                $document.fixed_layout_table_count)) | Out-Null
         }
     }
     $lines.Add("") | Out-Null

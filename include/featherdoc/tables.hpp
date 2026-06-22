@@ -263,6 +263,7 @@ struct table_inspection_summary {
     std::size_t index{0};
     std::optional<std::string> style_id;
     std::optional<std::uint32_t> width_twips;
+    std::optional<featherdoc::table_layout_mode> layout_mode;
     std::optional<featherdoc::table_alignment> alignment;
     std::optional<std::uint32_t> indent_twips;
     std::optional<std::uint32_t> cell_spacing_twips;
