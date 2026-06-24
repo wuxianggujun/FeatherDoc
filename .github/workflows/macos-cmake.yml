@@ -30,7 +30,24 @@ jobs:
 
       - name: Build
         timeout-minutes: 45
-        run: cmake --build build-macos --parallel 4 --verbose
+        run: |
+          set -euo pipefail
+          build_command="cmake --build build-macos --parallel 4 --verbose"
+          echo "Starting ${build_command}"
+          ${build_command} &
+          build_pid=$!
+          while kill -0 "${build_pid}" 2>/dev/null; do
+            echo "Build heartbeat: ${build_command} is still running"
+            sleep 60
+          done &
+          heartbeat_pid=$!
+          set +e
+          wait "${build_pid}"
+          build_status=$?
+          set -e
+          kill "${heartbeat_pid}" 2>/dev/null || true
+          wait "${heartbeat_pid}" 2>/dev/null || true
+          exit "${build_status}"
 
       - name: Run tests
         run: ctest --test-dir build-macos --parallel 2 --output-on-failure --timeout 60

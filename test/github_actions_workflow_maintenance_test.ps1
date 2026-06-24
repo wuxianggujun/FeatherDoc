@@ -258,6 +258,25 @@ foreach ($marker in @(
         -Message "macOS workflow should keep the CTest parallel marker '$marker'."
 }
 
+foreach ($workflowContract in @(
+        [pscustomobject]@{ Text = $linuxWorkflow; Name = "Linux workflow" },
+        [pscustomobject]@{ Text = $macosWorkflow; Name = "macOS workflow" },
+        [pscustomobject]@{ Text = $windowsWorkflow; Name = "Windows workflow" }
+    )) {
+    foreach ($marker in @(
+            "Build heartbeat:",
+            "is still running"
+        )) {
+        Assert-ContainsText -Text $workflowContract.Text -ExpectedText $marker `
+            -Message "$($workflowContract.Name) should keep a visible Build heartbeat marker '$marker'."
+    }
+}
+
+Assert-ContainsText -Text $windowsWorkflow -ExpectedText "Start-Process" `
+    -Message "Windows workflow should run the CMake build through a process handle so heartbeat output can continue while the build runs."
+Assert-ContainsText -Text $windowsWorkflow -ExpectedText 'Stop-Process -Id $build.Id -Force' `
+    -Message "Windows workflow should clean up the CMake build process if the heartbeat wrapper exits early."
+
 foreach ($marker in @(
         "output/release-assets-ci/v*/release_assets_manifest.json",
         "output/release-assets-ci/v*/FeatherDoc-*-msvc-install.zip",

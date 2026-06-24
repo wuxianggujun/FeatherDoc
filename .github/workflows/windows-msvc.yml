@@ -109,7 +109,33 @@ jobs:
       - name: Build
         shell: pwsh
         timeout-minutes: 75
-        run: cmake --build build-msvc-ninja --parallel 4 --verbose
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $buildCommandText = "cmake --build build-msvc-ninja --parallel 4 --verbose"
+          Write-Host "Starting $buildCommandText"
+          $build = Start-Process `
+              -FilePath "cmake" `
+              -ArgumentList @("--build", "build-msvc-ninja", "--parallel", "4", "--verbose") `
+              -NoNewWindow `
+              -PassThru
+
+          try {
+              while (-not $build.HasExited) {
+                  Write-Host "Build heartbeat: $buildCommandText is still running"
+                  Start-Sleep -Seconds 60
+                  $build.Refresh()
+              }
+          } finally {
+              if (-not $build.HasExited) {
+                  Stop-Process -Id $build.Id -Force -ErrorAction SilentlyContinue
+              }
+          }
+
+          if ($build.ExitCode -ne 0) {
+              throw "Build failed with exit code $($build.ExitCode)."
+          }
 
       - name: Run tests
         shell: pwsh
