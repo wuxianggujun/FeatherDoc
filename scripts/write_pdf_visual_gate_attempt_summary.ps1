@@ -186,6 +186,55 @@ function Get-CjkCopySearchEvidence {
     }
 }
 
+function Get-PngDimensions {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $null
+    }
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -lt 24) {
+        return $null
+    }
+
+    $pngSignature = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
+    for ($index = 0; $index -lt $pngSignature.Length; $index++) {
+        if ($bytes[$index] -ne $pngSignature[$index]) {
+            return $null
+        }
+    }
+
+    $width = ([int]$bytes[16] -shl 24) -bor ([int]$bytes[17] -shl 16) -bor `
+        ([int]$bytes[18] -shl 8) -bor [int]$bytes[19]
+    $height = ([int]$bytes[20] -shl 24) -bor ([int]$bytes[21] -shl 16) -bor `
+        ([int]$bytes[22] -shl 8) -bor [int]$bytes[23]
+
+    if ($width -le 0 -or $height -le 0) {
+        return $null
+    }
+
+    return [pscustomobject][ordered]@{
+        width = $width
+        height = $height
+    }
+}
+
+function Get-JsonIntValue {
+    param(
+        $Object,
+        [string]$Name,
+        [int]$DefaultValue = 0
+    )
+
+    $value = Get-JsonProperty -Object $Object -Name $Name
+    if ($null -eq $value) {
+        return $DefaultValue
+    }
+
+    return [int]$value
+}
+
 function Get-VisualBaselineEvidence {
     param(
         [string]$Path,
@@ -200,23 +249,137 @@ function Get-VisualBaselineEvidence {
     }
 
     $freshCount = 0
+    $unreadableSummaryCount = 0
+    $missingPdfCount = 0
+    $totalPdfBytes = [int64]0
+    $pngPageCount = 0
+    $missingPngPageCount = 0
+    $totalPngBytes = [int64]0
+    $unreadablePngDimensionCount = 0
+    $dimensionCounts = @{}
     $renderedSampleNames = New-Object System.Collections.Generic.List[string]
     $freshRenderedSampleNames = New-Object System.Collections.Generic.List[string]
     $staleRenderedSampleNames = New-Object System.Collections.Generic.List[string]
-    foreach ($file in $summaryFiles) {
+    $sampleArtifacts = New-Object System.Collections.Generic.List[object]
+    foreach ($file in @($summaryFiles | Sort-Object FullName)) {
         $sampleName = Split-Path -Leaf (Split-Path -Parent $file.FullName)
         if (-not [string]::IsNullOrWhiteSpace($sampleName)) {
             $renderedSampleNames.Add($sampleName) | Out-Null
         }
 
+        $isFresh = $false
         if ($null -ne $AttemptStart -and $file.LastWriteTime -ge $AttemptStart) {
             $freshCount++
+            $isFresh = $true
             if (-not [string]::IsNullOrWhiteSpace($sampleName)) {
                 $freshRenderedSampleNames.Add($sampleName) | Out-Null
             }
         } elseif (-not [string]::IsNullOrWhiteSpace($sampleName)) {
             $staleRenderedSampleNames.Add($sampleName) | Out-Null
         }
+
+        $summary = $null
+        try {
+            $summary = Read-JsonFile -Path $file.FullName
+        } catch {
+            $unreadableSummaryCount++
+            $sampleArtifacts.Add([pscustomobject][ordered]@{
+                    sample = $sampleName
+                    status = "unreadable_summary"
+                    fresh = $isFresh
+                    summary_path = $file.FullName
+                    input_pdf = ""
+                    pdf_exists = $false
+                    pdf_bytes = 0
+                    expected_page_count = 0
+                    png_page_count = 0
+                    missing_png_page_count = 0
+                    png_total_bytes = 0
+                    page_dimensions = @()
+                }) | Out-Null
+            continue
+        }
+
+        $inputPdf = Get-JsonString -Object $summary -Name "input_pdf"
+        $pdfExists = -not [string]::IsNullOrWhiteSpace($inputPdf) -and
+            (Test-Path -LiteralPath $inputPdf -PathType Leaf)
+        $pdfBytes = 0
+        if ($pdfExists) {
+            $pdfBytes = (Get-Item -LiteralPath $inputPdf).Length
+            $totalPdfBytes += [int64]$pdfBytes
+        } else {
+            $missingPdfCount++
+        }
+
+        $expectedPageCount = Get-JsonIntValue -Object $summary -Name "page_count"
+        $listedPagePaths = @(Get-JsonArray -Object $summary -Name "pages" | ForEach-Object { [string]$_ })
+        if ($listedPagePaths.Count -eq 0) {
+            $pagesDir = Join-Path (Split-Path -Parent $file.FullName) "pages"
+            if (Test-Path -LiteralPath $pagesDir) {
+                $listedPagePaths = @(
+                    Get-ChildItem -LiteralPath $pagesDir -Filter "page-*.png" -File -ErrorAction SilentlyContinue |
+                        Sort-Object Name |
+                        ForEach-Object { $_.FullName }
+                )
+            }
+        }
+        if ($expectedPageCount -le 0) {
+            $expectedPageCount = $listedPagePaths.Count
+        }
+
+        $existingPngPaths = @($listedPagePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+        $listedMissingPngCount = @($listedPagePaths | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count
+        $expectedMissingPngCount = [Math]::Max(0, $expectedPageCount - $existingPngPaths.Count)
+        $sampleMissingPngCount = [Math]::Max($listedMissingPngCount, $expectedMissingPngCount)
+        $missingPngPageCount += $sampleMissingPngCount
+        $pngPageCount += $existingPngPaths.Count
+
+        $samplePngBytes = [int64]0
+        $sampleUnreadablePngDimensionCount = 0
+        $sampleDimensions = New-Object System.Collections.Generic.List[object]
+        foreach ($pagePath in $existingPngPaths) {
+            $pageItem = Get-Item -LiteralPath $pagePath
+            $samplePngBytes += [int64]$pageItem.Length
+            $dimensions = Get-PngDimensions -Path $pagePath
+            if ($null -eq $dimensions) {
+                $sampleUnreadablePngDimensionCount++
+                $unreadablePngDimensionCount++
+                continue
+            }
+
+            $dimensionKey = "$($dimensions.width)x$($dimensions.height)"
+            if (-not $dimensionCounts.ContainsKey($dimensionKey)) {
+                $dimensionCounts[$dimensionKey] = 0
+            }
+            $dimensionCounts[$dimensionKey]++
+            $sampleDimensions.Add($dimensions) | Out-Null
+        }
+        $totalPngBytes += $samplePngBytes
+
+        $artifactStatus = if (-not $pdfExists) {
+            "missing_pdf"
+        } elseif ($sampleMissingPngCount -gt 0) {
+            "missing_png"
+        } elseif ($sampleUnreadablePngDimensionCount -gt 0) {
+            "unreadable_png_dimension"
+        } else {
+            "pass"
+        }
+
+        $sampleArtifacts.Add([pscustomobject][ordered]@{
+                sample = $sampleName
+                status = $artifactStatus
+                fresh = $isFresh
+                summary_path = $file.FullName
+                input_pdf = $inputPdf
+                pdf_exists = $pdfExists
+                pdf_bytes = $pdfBytes
+                expected_page_count = $expectedPageCount
+                png_page_count = $existingPngPaths.Count
+                missing_png_page_count = $sampleMissingPngCount
+                png_total_bytes = $samplePngBytes
+                page_dimensions = @($sampleDimensions.ToArray())
+            }) | Out-Null
     }
 
     $expectedNames = @($ExpectedSampleNames | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -249,17 +412,32 @@ function Get-VisualBaselineEvidence {
     }
 
     $attemptCount = if ($null -ne $AttemptStart) { $freshCount } else { $summaryFiles.Count }
+    $artifactIssueCount = $unreadableSummaryCount + $missingPdfCount +
+        $missingPngPageCount + $unreadablePngDimensionCount
     $status = if ($summaryFiles.Count -eq 0) {
         "missing"
+    } elseif ($artifactIssueCount -gt 0) {
+        "fail"
     } elseif ($ExpectedCount -gt 0 -and $attemptCount -lt $ExpectedCount) {
         "partial"
     } else {
         "pass"
     }
 
+    $dimensionSummary = @(
+        foreach ($key in @($dimensionCounts.Keys | Sort-Object)) {
+            $parts = $key -split "x", 2
+            [pscustomobject][ordered]@{
+                width = [int]$parts[0]
+                height = [int]$parts[1]
+                count = [int]$dimensionCounts[$key]
+            }
+        }
+    )
+
     return [pscustomobject][ordered]@{
         status = $status
-        verdict = if ($status -eq "pass") { "pass" } else { "not_complete" }
+        verdict = if ($status -eq "fail") { "fail" } elseif ($status -eq "pass") { "pass" } else { "not_complete" }
         baseline_dir = $Path
         rendered_summary_count = $summaryFiles.Count
         fresh_rendered_summary_count = $freshCount
@@ -276,6 +454,15 @@ function Get-VisualBaselineEvidence {
         resume_needed = $resumeNeeded
         resume_slice_offset = $resumeOffset
         resume_slice_limit = $resumeLimit
+        unreadable_summary_count = $unreadableSummaryCount
+        missing_pdf_count = $missingPdfCount
+        pdf_total_bytes = $totalPdfBytes
+        png_page_count = $pngPageCount
+        missing_png_page_count = $missingPngPageCount
+        png_total_bytes = $totalPngBytes
+        unreadable_png_dimension_count = $unreadablePngDimensionCount
+        png_dimension_summary = @($dimensionSummary)
+        sample_artifacts = @($sampleArtifacts.ToArray())
     }
 }
 
@@ -414,6 +601,7 @@ $passedStageCount = @($stageEvidence | Where-Object { $_.verdict -eq "pass" }).C
 $failedStageCount = @($stageEvidence | Where-Object { $_.verdict -eq "fail" }).Count
 $incompleteStageCount = @($stageEvidence | Where-Object { $_.verdict -notin @("pass", "fail") }).Count
 $completedStages = @($stageEvidence | Where-Object { $_.verdict -eq "pass" } | ForEach-Object { $_.id })
+$freshNonFinalizeFullPass = $freshNonFinalizeFullPass -and $failedStageCount -eq 0 -and $incompleteStageCount -eq 0
 
 $status = if ($freshNonFinalizeFullPass) {
     "pass"
@@ -503,6 +691,15 @@ $summary = [ordered]@{
     visual_baseline_resume_slice_offset = $visualBaseline.resume_slice_offset
     visual_baseline_resume_slice_limit = $visualBaseline.resume_slice_limit
     visual_baseline_resume_slice_command_template = $resumeSliceCommandTemplate
+    visual_baseline_unreadable_summary_count = $visualBaseline.unreadable_summary_count
+    visual_baseline_missing_pdf_count = $visualBaseline.missing_pdf_count
+    visual_baseline_pdf_total_bytes = $visualBaseline.pdf_total_bytes
+    visual_baseline_png_page_count = $visualBaseline.png_page_count
+    visual_baseline_missing_png_page_count = $visualBaseline.missing_png_page_count
+    visual_baseline_png_total_bytes = $visualBaseline.png_total_bytes
+    visual_baseline_unreadable_png_dimension_count = $visualBaseline.unreadable_png_dimension_count
+    visual_baseline_png_dimension_summary = @($visualBaseline.png_dimension_summary)
+    visual_baseline_sample_artifacts = @($visualBaseline.sample_artifacts)
     aggregate_contact_sheet_status = $contactSheet.status
     aggregate_contact_sheet = $aggregateContactSheet
     aggregate_contact_sheet_display = Get-RepoRelativePath -Root $resolvedRepoRoot -Path $aggregateContactSheet

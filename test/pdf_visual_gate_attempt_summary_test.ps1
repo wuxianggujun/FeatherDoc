@@ -40,6 +40,39 @@ function Write-TextFile {
     $Text | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+function Write-BinaryFile {
+    param([string]$Path, [byte[]]$Bytes)
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
+    [System.IO.File]::WriteAllBytes($Path, $Bytes)
+}
+
+function Write-FakePngHeader {
+    param(
+        [string]$Path,
+        [int]$Width,
+        [int]$Height
+    )
+
+    $bytes = [byte[]]::new(24)
+    [byte[]](137, 80, 78, 71, 13, 10, 26, 10) | ForEach-Object -Begin { $index = 0 } -Process {
+        $bytes[$index] = $_
+        $index++
+    }
+    [byte[]](0, 0, 0, 13, 73, 72, 68, 82) | ForEach-Object -Begin { $index = 8 } -Process {
+        $bytes[$index] = $_
+        $index++
+    }
+    $bytes[16] = [byte](($Width -shr 24) -band 0xFF)
+    $bytes[17] = [byte](($Width -shr 16) -band 0xFF)
+    $bytes[18] = [byte](($Width -shr 8) -band 0xFF)
+    $bytes[19] = [byte]($Width -band 0xFF)
+    $bytes[20] = [byte](($Height -shr 24) -band 0xFF)
+    $bytes[21] = [byte](($Height -shr 16) -band 0xFF)
+    $bytes[22] = [byte](($Height -shr 8) -band 0xFF)
+    $bytes[23] = [byte]($Height -band 0xFF)
+    Write-BinaryFile -Path $Path -Bytes $bytes
+}
+
 function Invoke-AttemptSummaryScript {
     param(
         [string]$ReportDir,
@@ -160,12 +193,23 @@ Visual summary written to output/pdf-visual-release-gate-current/unicode-font/re
 
     for ($index = 0; $index -lt $visualSampleNames.Count; $index++) {
         $sampleDir = Join-Path $baselineDir $visualSampleNames[$index]
+        $pagesDir = Join-Path $sampleDir "pages"
+        $samplePdfPath = Join-Path $Root ("pdfs\{0}.pdf" -f $visualSampleNames[$index])
+        $pagePath = Join-Path $pagesDir "page-01.png"
+        Write-BinaryFile -Path $samplePdfPath -Bytes ([byte[]](37, 80, 68, 70, 45, 49, 46, 55))
+        Write-FakePngHeader -Path $pagePath -Width 320 -Height 480
         $summaryPath = Join-Path $sampleDir "summary.json"
         Write-JsonFile -Path $summaryPath -Value ([ordered]@{
+            input_pdf = $samplePdfPath
             page_count = 1
+            pages = @($pagePath)
+            contact_sheet = ""
+            contact_sheet_skipped = $true
         })
         $timestamp = if ($FreshFullPass -or $index -lt 22) { $freshTime } else { $oldTime }
         (Get-Item -LiteralPath $summaryPath).LastWriteTime = $timestamp
+        (Get-Item -LiteralPath $samplePdfPath).LastWriteTime = $timestamp
+        (Get-Item -LiteralPath $pagePath).LastWriteTime = $timestamp
     }
 
     $contactSheetPath = Join-Path $reportDir "aggregate-contact-sheet.png"
@@ -185,6 +229,7 @@ Visual summary written to output/pdf-visual-release-gate-current/unicode-font/re
 
     return [pscustomobject]@{
         ReportDir = $reportDir
+        BaselineDir = $baselineDir
         OutputJson = Join-Path $reportDir "attempt-summary.json"
     }
 }
@@ -223,6 +268,26 @@ Assert-Equal -Actual ([int]$partialSummary.visual_baseline_fresh_rendered_count)
     -Message "Attempt summary should count only fresh rendered baselines for the attempt."
 Assert-Equal -Actual ([int]$partialSummary.visual_baseline_expected_sample_count) -Expected 44 `
     -Message "Attempt summary should expose the expected visual baseline sample count."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_missing_pdf_count) -Expected 0 `
+    -Message "Attempt summary should verify that every rendered visual baseline has a source PDF."
+Assert-Equal -Actual ([int64]$partialSummary.visual_baseline_pdf_total_bytes) -Expected 352 `
+    -Message "Attempt summary should aggregate visual baseline PDF bytes."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_png_page_count) -Expected 44 `
+    -Message "Attempt summary should aggregate rendered PNG page counts."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_missing_png_page_count) -Expected 0 `
+    -Message "Attempt summary should report missing rendered PNG pages."
+Assert-Equal -Actual ([int64]$partialSummary.visual_baseline_png_total_bytes) -Expected 1056 `
+    -Message "Attempt summary should aggregate rendered PNG bytes."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_unreadable_png_dimension_count) -Expected 0 `
+    -Message "Attempt summary should report unreadable PNG dimensions."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_png_dimension_summary[0].width) -Expected 320 `
+    -Message "Attempt summary should expose rendered PNG width evidence."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_png_dimension_summary[0].height) -Expected 480 `
+    -Message "Attempt summary should expose rendered PNG height evidence."
+Assert-Equal -Actual ([int]$partialSummary.visual_baseline_png_dimension_summary[0].count) -Expected 44 `
+    -Message "Attempt summary should aggregate identical rendered PNG dimensions."
+Assert-Equal -Actual ([int](@($partialSummary.visual_baseline_sample_artifacts)).Count) -Expected 44 `
+    -Message "Attempt summary should expose per-sample visual baseline artifact evidence."
 Assert-Equal -Actual ([int]$partialSummary.visual_baseline_fresh_missing_sample_count) -Expected 22 `
     -Message "Attempt summary should expose how many baselines remain stale for the current attempt."
 Assert-Equal -Actual ([bool]$partialSummary.visual_baseline_resume_needed) -Expected $true `
@@ -272,3 +337,26 @@ Assert-Equal -Actual ([int]$passSummary.visual_baseline_fresh_missing_sample_cou
     -Message "Fresh non-finalize full pass should not report fresh-missing baselines."
 Assert-Equal -Actual ([bool]$passSummary.visual_baseline_resume_needed) -Expected $false `
     -Message "Fresh non-finalize full pass should not require slice resume."
+
+$missingArtifactFixture = New-AttemptFixture -Root (Join-Path $resolvedWorkingDir "missing-artifact") -FreshFullPass $true
+$missingPagePath = @(
+    Get-ChildItem -LiteralPath $missingArtifactFixture.BaselineDir -Filter "page-01.png" -File -Recurse |
+        Sort-Object FullName |
+        Select-Object -First 1
+)[0].FullName
+Remove-Item -LiteralPath $missingPagePath -Force
+Invoke-AttemptSummaryScript -ReportDir $missingArtifactFixture.ReportDir -OutputJson $missingArtifactFixture.OutputJson
+$missingArtifactSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $missingArtifactFixture.OutputJson | ConvertFrom-Json
+
+Assert-Equal -Actual $missingArtifactSummary.status -Expected "fail" `
+    -Message "Missing rendered PNG evidence should fail the attempt summary even when a full summary exists."
+Assert-Equal -Actual $missingArtifactSummary.verdict -Expected "fail" `
+    -Message "Missing rendered PNG evidence should produce a fail verdict."
+Assert-Equal -Actual $missingArtifactSummary.full_visual_gate_status -Expected "fail" `
+    -Message "Missing rendered PNG evidence should not preserve full_visual_gate_status=pass."
+Assert-Equal -Actual $missingArtifactSummary.visual_baseline_render_status -Expected "fail" `
+    -Message "Missing rendered PNG evidence should fail the visual baseline render stage."
+Assert-Equal -Actual ([int]$missingArtifactSummary.visual_baseline_missing_png_page_count) -Expected 1 `
+    -Message "Attempt summary should count missing rendered PNG pages."
+Assert-Equal -Actual ([int](@($missingArtifactSummary.visual_baseline_sample_artifacts | Where-Object { [string]$_.status -eq "missing_png" })).Count) -Expected 1 `
+    -Message "Attempt summary should identify the sample with missing rendered PNG evidence."
