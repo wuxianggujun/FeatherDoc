@@ -330,6 +330,24 @@ Assert-Equal -Actual ([int]$bindingCoverage["unbound"]) -Expected 1 `
 Assert-True -Condition ($null -eq $summary.PSObject.Properties["binding_status_summary"]) `
     -Message "Summary should not emit the removed legacy binding_status_summary field."
 
+$formKinds = @{}
+foreach ($entry in @($summary.form_kind_summary)) {
+    $formKinds[[string]$entry.form_kind] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$formKinds["date"]) -Expected 1 `
+    -Message "Summary should group date content controls by their real form kind value."
+Assert-Equal -Actual ([int]$formKinds["drop_down_list"]) -Expected 1 `
+    -Message "Summary should preserve drop-down form kind groups."
+Assert-Equal -Actual ([int]$formKinds["plain_text"]) -Expected 1 `
+    -Message "Summary should preserve plain-text form kind groups."
+
+$syncIssueReasons = @{}
+foreach ($entry in @($summary.sync_issue_reason_summary)) {
+    $syncIssueReasons[[string]$entry.reason] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$syncIssueReasons["custom_xml_value_not_found"]) -Expected 1 `
+    -Message "Summary should group sync issue reasons by their real reason value."
+
 $blockerIds = @($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n"
 Assert-ContainsText -Text $blockerIds -ExpectedText "content_control_data_binding.custom_xml_sync_issue" `
     -Message "Summary should include Custom XML sync blocker."
@@ -440,6 +458,32 @@ Assert-ContainsText -Text $repairStatuses -ExpectedText "requires_user_values" `
     -Message "Repair plan should flag value-dependent binding paths."
 Assert-ContainsText -Text $repairStatuses -ExpectedText "review_only" `
     -Message "Repair plan should flag review-only paths."
+
+$repairStatusCounts = @{}
+foreach ($entry in @($summary.repair_plan_status_summary)) {
+    $repairStatusCounts[[string]$entry.plan_status] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$repairStatusCounts["review_then_apply"]) -Expected 2 `
+    -Message "Repair plan status summary should preserve review-then-apply counts."
+
+$blockerIdCounts = @{}
+foreach ($entry in @($summary.blocker_id_summary)) {
+    $blockerIdCounts[[string]$entry.id] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$blockerIdCounts["content_control_data_binding.bound_placeholder"]) -Expected 1 `
+    -Message "Blocker summary should group bound-placeholder blocker IDs by their real IDs."
+Assert-Equal -Actual ([int]$blockerIdCounts["content_control_data_binding.custom_xml_sync_issue"]) -Expected 1 `
+    -Message "Blocker summary should preserve Custom XML sync blocker IDs."
+
+$actionItemCounts = @{}
+foreach ($entry in @($summary.action_item_summary)) {
+    $actionItemCounts[[string]$entry.action] = [int]$entry.count
+}
+Assert-Equal -Actual ([int]$actionItemCounts["review_content_control_lock_strategy"]) -Expected 1 `
+    -Message "Action summary should group lock-review action items by their real action value."
+Assert-Equal -Actual ([int]$actionItemCounts["review_duplicate_content_control_binding"]) -Expected 1 `
+    -Message "Action summary should preserve duplicate binding review action values."
+
 $repairActionClasses = @{}
 foreach ($entry in @($summary.repair_action_class_summary)) {
     $repairActionClasses[[string]$entry.repair_action_class] = [int]$entry.count
