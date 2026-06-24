@@ -312,8 +312,16 @@ function Get-EvidenceKind {
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
+    $rows = @(
+        foreach ($item in @($Items | Where-Object { $null -ne $_ })) {
+            [pscustomobject]@{
+                value = Get-JsonString -Object $item -Name $PropertyName
+            }
+        }
+    )
+
     return @(
-        foreach ($group in @($Items | Group-Object $PropertyName |
+        foreach ($group in @($rows | Group-Object value |
             Sort-Object -Property @{ Expression = "Count"; Descending = $true },
                 @{ Expression = "Name"; Ascending = $true })) {
             $summary = [ordered]@{}

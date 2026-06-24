@@ -511,6 +511,18 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Summary should group PDF floating table support statuses."
+    Assert-ContainsText -Text (($summary.preset_summary | ForEach-Object { "$($_.preset):$($_.count)" }) -join "`n") `
+        -ExpectedText "margin-anchor:1" `
+        -Message "Summary should group document presets by their real preset value."
+    Assert-ContainsText -Text (($summary.preset_summary | ForEach-Object { "$($_.preset):$($_.count)" }) -join "`n") `
+        -ExpectedText "paragraph-callout:1" `
+        -Message "Summary should keep every document preset group."
+    Assert-ContainsText -Text (($summary.status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "needs_review:1" `
+        -Message "Summary should group document statuses by their real status value."
+    Assert-ContainsText -Text (($summary.status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "ready:1" `
+        -Message "Summary should keep ready document status groups."
     Assert-Equal -Actual ([string]$summary.documents[0].pdf_floating_table_support_status) -Expected "partial" `
         -Message "Governance documents should preserve PDF floating table support status."
     Assert-Equal -Actual ([int]$summary.documents[1].fixed_layout_table_count) -Expected 2 `
@@ -536,6 +548,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should add safe tblLook blocker."
     Assert-ContainsText -Text $blockerText -ExpectedText "table_layout_delivery.floating_table_review_pending" `
         -Message "Summary should add floating table review blocker."
+    Assert-ContainsText -Text (($summary.blocker_id_summary | ForEach-Object { "$($_.id):$($_.count)" }) -join "`n") `
+        -ExpectedText "table_layout_delivery.safe_tblLook_fixes_pending:1" `
+        -Message "Summary should group blocker IDs by their real IDs."
+    Assert-ContainsText -Text (($summary.blocker_id_summary | ForEach-Object { "$($_.id):$($_.count)" }) -join "`n") `
+        -ExpectedText "table_layout.positioned_tables_need_review:1" `
+        -Message "Summary should preserve source rollup blocker ID groups."
     $blockerRepairText = ($summary.release_blockers | ForEach-Object {
             "$($_.id)|$($_.repair_strategy)|$($_.repair_hint)|$($_.command_template)"
         }) -join "`n"
@@ -575,6 +593,12 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should add position plan dry-run action."
     Assert-ContainsText -Text $actionText -ExpectedText "review_fixed_layout_grid_widths" `
         -Message "Summary should add fixed-layout grid width review action."
+    Assert-ContainsText -Text (($summary.action_item_summary | ForEach-Object { "$($_.action):$($_.count)" }) -join "`n") `
+        -ExpectedText "apply_safe_tblLook_fixes:1" `
+        -Message "Summary should group source action items by their real action value."
+    Assert-ContainsText -Text (($summary.action_item_summary | ForEach-Object { "$($_.action):$($_.count)" }) -join "`n") `
+        -ExpectedText "run_table_style_quality_visual_regression:1" `
+        -Message "Summary should group synthetic action items by their real action value."
     $actionRepairText = ($summary.delivery_actions | ForEach-Object {
             "$($_.id)|$($_.repair_strategy)|$($_.repair_hint)|$($_.command_template)"
         }) -join "`n"
