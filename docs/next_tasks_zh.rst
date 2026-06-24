@@ -489,10 +489,12 @@ P3：文档、测试与索引治理
    bundle / checklist、packaged ``release_assets_manifest.json`` 与 release material
    safety 负例已由值级回归锁住。
 3. ``P1-SCHEMA-01`` 已继续补 schema patch confidence 的
-   ``business_document_type`` 缺失治理：报告会输出
-   ``missing_business_document_type_count``，生成
-   ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
-   并把 ``add_business_template_document_type_metadata`` 注册进固定 reviewer runbook。
+   ``business_document_type`` 与 ``corpus_role`` 缺失治理：报告会输出
+   ``missing_business_document_type_count`` / ``missing_corpus_role_count``，生成
+   ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` 与
+   ``schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata`` warning，
+   并把 ``add_business_template_document_type_metadata`` /
+   ``add_business_template_corpus_role_metadata`` 注册进固定 reviewer runbook。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle、handoff、final review 仍能看到

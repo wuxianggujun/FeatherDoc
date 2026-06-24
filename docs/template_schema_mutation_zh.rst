@@ -203,14 +203,17 @@ entry name 排查。release-candidate preflight 在启用 project template smoke
 ``template_scope`` 和来源 ``summary_json`` 聚合真实业务模板语料覆盖，并记录
 ``missing_source_metadata_count``、``missing_project_id_count``、
 ``missing_template_name_count``、``missing_summary_json_count`` 与
-``missing_business_document_type_count``。如果候选缺少项目、模板或来源 summary，报告会产生
+``missing_business_document_type_count``、``missing_corpus_role_count``。如果候选缺少项目、模板或来源 summary，报告会产生
 ``schema_patch_confidence_calibration.missing_business_template_source_metadata`` warning
 和 ``add_business_template_source_metadata`` action item；如果候选缺少
 ``business_document_type``，会产生
 ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning
-和 ``add_business_template_document_type_metadata`` action item。这样后续继续扩大合同、
+和 ``add_business_template_document_type_metadata`` action item；如果候选缺少
+``corpus_role``，会产生
+``schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata`` warning
+和 ``add_business_template_corpus_role_metadata`` action item。这样后续继续扩大合同、
 制度、发票、报告、通知、标书等语料时，置信度阈值不会只依赖候选数量，而能回溯到具体
-业务模板来源和业务文档类型。
+业务模板来源、业务文档类型和语料角色。
 
 
 使用建议

@@ -127,6 +127,8 @@ foreach ($marker in @(
         "source_report_display",
         "source_json_display",
         "open_command",
+        "corpus_role",
+        "add_business_template_corpus_role_metadata",
         "confidence calibration",
         "release governance pipeline"
     )) {
@@ -158,7 +160,10 @@ foreach ($marker in @(
         "source_schema",
         "source_report_display",
         "source_json_display",
-        "open_command"
+        "open_command",
+        "missing_corpus_role_count",
+        "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata",
+        "add_business_template_corpus_role_metadata"
     )) {
     Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
         -Message "Release metadata pipeline should preserve schema calibration marker '$marker'."
@@ -181,6 +186,9 @@ foreach ($assertion in @(
                 "source_report_display",
                 "source_json_display",
                 "open_command",
+                "missing_corpus_role_count",
+                "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata",
+                "add_business_template_corpus_role_metadata",
                 "FailOnPending"
             )
         },
@@ -231,6 +239,9 @@ foreach ($assertion in @(
                 "source_report_display",
                 "source_json_display",
                 "open_command:",
+                "missing_corpus_role_count",
+                "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata",
+                "add_business_template_corpus_role_metadata",
                 "-FailOnPending"
             )
         },

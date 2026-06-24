@@ -605,6 +605,12 @@ function Test-BusinessDocumentTypeMetadataMissing {
     return [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Entry -Name "business_document_type"))
 }
 
+function Test-BusinessTemplateCorpusRoleMetadataMissing {
+    param($Entry)
+
+    return [string]::IsNullOrWhiteSpace((Get-JsonString -Object $Entry -Name "corpus_role"))
+}
+
 function New-BusinessTemplateSourceStatus {
     param($Entry)
 
@@ -612,12 +618,14 @@ function New-BusinessTemplateSourceStatus {
     $templateName = Get-JsonString -Object $Entry -Name "template_name"
     $summaryJson = Get-JsonString -Object $Entry -Name "summary_json"
     $businessDocumentType = Get-JsonString -Object $Entry -Name "business_document_type"
+    $corpusRole = Get-JsonString -Object $Entry -Name "corpus_role"
 
     return [ordered]@{
         missing_project_id = [string]::IsNullOrWhiteSpace($projectId)
         missing_template_name = [string]::IsNullOrWhiteSpace($templateName)
         missing_summary_json = [string]::IsNullOrWhiteSpace($summaryJson)
         missing_business_document_type = [string]::IsNullOrWhiteSpace($businessDocumentType)
+        missing_corpus_role = [string]::IsNullOrWhiteSpace($corpusRole)
     }
 }
 
@@ -627,6 +635,7 @@ function New-BusinessTemplateCorpusSummary {
     $entryArray = @($Entries)
     $missingEntries = @($entryArray | Where-Object { Test-BusinessTemplateSourceMetadataMissing -Entry $_ })
     $missingBusinessDocumentTypeEntries = @($entryArray | Where-Object { Test-BusinessDocumentTypeMetadataMissing -Entry $_ })
+    $missingCorpusRoleEntries = @($entryArray | Where-Object { Test-BusinessTemplateCorpusRoleMetadataMissing -Entry $_ })
     $projectIds = @($entryArray |
         ForEach-Object { Get-JsonString -Object $_ -Name "project_id" } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
@@ -692,6 +701,7 @@ function New-BusinessTemplateCorpusSummary {
                 template_name = Get-JsonString -Object $entry -Name "template_name"
                 template_scope = Get-JsonString -Object $entry -Name "template_scope"
                 business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+                corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
                 candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
                 candidate_name = Get-JsonString -Object $entry -Name "name"
                 source_json_display = if ([string]::IsNullOrWhiteSpace($summaryJson)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson }
@@ -699,6 +709,21 @@ function New-BusinessTemplateCorpusSummary {
                 missing_template_name = $status.missing_template_name
                 missing_summary_json = $status.missing_summary_json
                 missing_business_document_type = $status.missing_business_document_type
+                missing_corpus_role = $status.missing_corpus_role
+            }
+        }
+    )
+    $missingCorpusRoleDetails = @(
+        foreach ($entry in $missingCorpusRoleEntries) {
+            $summaryJson = Get-JsonString -Object $entry -Name "summary_json"
+            [ordered]@{
+                project_id = Get-JsonString -Object $entry -Name "project_id"
+                template_name = Get-JsonString -Object $entry -Name "template_name"
+                template_scope = Get-JsonString -Object $entry -Name "template_scope"
+                business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+                candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+                candidate_name = Get-JsonString -Object $entry -Name "name"
+                source_json_display = if ([string]::IsNullOrWhiteSpace($summaryJson)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson }
             }
         }
     )
@@ -719,9 +744,11 @@ function New-BusinessTemplateCorpusSummary {
         missing_template_name_count = @($entryArray | Where-Object { [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "template_name")) }).Count
         missing_summary_json_count = @($entryArray | Where-Object { [string]::IsNullOrWhiteSpace((Get-JsonString -Object $_ -Name "summary_json")) }).Count
         missing_business_document_type_count = $missingBusinessDocumentTypeEntries.Count
+        missing_corpus_role_count = $missingCorpusRoleEntries.Count
         template_sources = @($templateSources)
         missing_source_entries = @($missingSourceEntries)
         missing_business_document_type_entries = @($missingBusinessDocumentTypeEntries)
+        missing_corpus_role_entries = @($missingCorpusRoleDetails)
     }
 }
 
@@ -785,6 +812,7 @@ function New-Recommendations {
     $unscoredEntries = @($Entries | Where-Object { $_.calibration_bucket -eq "unscored" })
     $missingSourceEntries = @($Entries | Where-Object { Test-BusinessTemplateSourceMetadataMissing -Entry $_ })
     $missingBusinessDocumentTypeEntries = @($Entries | Where-Object { Test-BusinessDocumentTypeMetadataMissing -Entry $_ })
+    $missingCorpusRoleEntries = @($Entries | Where-Object { Test-BusinessTemplateCorpusRoleMetadataMissing -Entry $_ })
 
     if ($null -ne $RecommendedMinConfidence) {
         $recommendations.Add([ordered]@{
@@ -829,6 +857,13 @@ function New-Recommendations {
         -Priority "medium" `
         -Recommendation "Add business_document_type metadata before using this corpus for threshold tuning." `
         -CountName "missing_business_document_type_count"
+    Add-ScopedRecommendations `
+        -Recommendations $recommendations `
+        -Entries $missingCorpusRoleEntries `
+        -BaseId "add_business_template_corpus_role_metadata" `
+        -Priority "medium" `
+        -Recommendation "Add corpus_role metadata before using this corpus for threshold tuning." `
+        -CountName "missing_corpus_role_count"
 
     return @($recommendations.ToArray())
 }
@@ -991,6 +1026,27 @@ function New-Warnings {
         }) | Out-Null
     }
 
+    $missingCorpusRoleEntries = @($Entries | Where-Object { Test-BusinessTemplateCorpusRoleMetadataMissing -Entry $_ })
+    foreach ($entry in $missingCorpusRoleEntries) {
+        $warnings.Add([ordered]@{
+            id = Get-ScopedGovernanceId -BaseId "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata" -Entry $entry -AffectedCount $missingCorpusRoleEntries.Count
+            action = "add_business_template_corpus_role_metadata"
+            message = "Some schema patch candidates are missing business template corpus role metadata."
+            missing_corpus_role_count = 1
+            project_id = Get-JsonString -Object $entry -Name "project_id"
+            template_name = Get-JsonString -Object $entry -Name "template_name"
+            template_scope = Get-JsonString -Object $entry -Name "template_scope"
+            candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
+            candidate_name = Get-JsonString -Object $entry -Name "name"
+            schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            source_schema = $calibrationSchema
+            source_report = $SourceReport
+            source_report_display = $SourceReportDisplay
+            source_json = $SourceJson
+            source_json_display = $SourceJsonDisplay
+        }) | Out-Null
+    }
+
     return @($warnings.ToArray())
 }
 
@@ -1052,7 +1108,7 @@ function New-ReportMarkdown {
         if ([string]::IsNullOrWhiteSpace($corpusRoles)) {
             $corpusRoles = "(none)"
         }
-        $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count), missing_business_document_types=$($corpus.missing_business_document_type_count), business_document_types=$($corpus.business_document_type_count), corpus_roles=$($corpus.corpus_role_count)") | Out-Null
+        $lines.Add("- projects=$($corpus.project_count), templates=$($corpus.template_count), source_jsons=$($corpus.source_json_count), traced_entries=$($corpus.traced_entry_count), missing_source_metadata=$($corpus.missing_source_metadata_count), missing_business_document_types=$($corpus.missing_business_document_type_count), missing_corpus_roles=$($corpus.missing_corpus_role_count), business_document_types=$($corpus.business_document_type_count), corpus_roles=$($corpus.corpus_role_count)") | Out-Null
         $lines.Add("- business_document_types: $businessDocumentTypes") | Out-Null
         $lines.Add("- corpus_roles: $corpusRoles") | Out-Null
         if (@($corpus.missing_business_document_type_entries).Count -gt 0) {
@@ -1067,6 +1123,25 @@ function New-ReportMarkdown {
                 if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
+                $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
+            }
+        }
+        if (@($corpus.missing_corpus_role_entries).Count -gt 0) {
+            $lines.Add("- missing_corpus_role_entries:") | Out-Null
+            foreach ($entry in @($corpus.missing_corpus_role_entries)) {
+                $entryParts = New-Object 'System.Collections.Generic.List[string]'
+                $scope = Get-JsonString -Object $entry -Name "template_scope"
+                $name = Get-JsonString -Object $entry -Name "candidate_name"
+                $projectId = Get-JsonString -Object $entry -Name "project_id"
+                $templateName = Get-JsonString -Object $entry -Name "template_name"
+                $businessDocumentType = Get-JsonString -Object $entry -Name "business_document_type"
+                $sourceJsonDisplay = Get-JsonString -Object $entry -Name "source_json_display"
+                if (-not [string]::IsNullOrWhiteSpace($scope)) { $entryParts.Add("scope=$scope") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($businessDocumentType)) { $entryParts.Add("business_document_type=$businessDocumentType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) { $entryParts.Add("source_json_display=$sourceJsonDisplay") | Out-Null }
                 $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
             }
         }
@@ -1110,6 +1185,7 @@ function New-ReportMarkdown {
                 $entryParts.Add("missing_template_name=$([bool]$entry.missing_template_name)") | Out-Null
                 $entryParts.Add("missing_summary_json=$([bool]$entry.missing_summary_json)") | Out-Null
                 $entryParts.Add("missing_business_document_type=$([bool]$entry.missing_business_document_type)") | Out-Null
+                $entryParts.Add("missing_corpus_role=$([bool]$entry.missing_corpus_role)") | Out-Null
                 $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
             }
         }

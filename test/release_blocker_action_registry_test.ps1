@@ -313,6 +313,28 @@ Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "
 Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Schema patch confidence calibration document type runbook should point at the calibration writer."
 
+$schemaCalibrationCorpusRoleWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "add_business_template_corpus_role_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationCorpusRoleGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationCorpusRoleWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "add_business_template_corpus_role_metadata" `
+    -Message "Schema patch confidence calibration corpus role warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "corpus_role metadata" `
+    -Message "Schema patch confidence calibration corpus role runbook should explain missing corpus role remediation."
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration corpus role runbook should point at the calibration writer."
+
 $contentControlBlocker = [pscustomobject]@{
     id = "content_control_data_binding.bound_placeholder"
     source = "content_control_data_binding_governance"

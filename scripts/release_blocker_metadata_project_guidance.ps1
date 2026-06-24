@@ -31,6 +31,10 @@ function Add-SchemaPatchConfidenceCalibrationGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `add_business_template_document_type_metadata`{0}: add business_document_type metadata for schema patch candidate(s), then rerun schema patch confidence calibration.' -f $contextSuffix)
             break
         }
+        "add_business_template_corpus_role_metadata" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `add_business_template_corpus_role_metadata`{0}: add corpus_role metadata for schema patch candidate(s), then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
         default {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_patch_confidence_calibration_evidence`{0}: review schema patch confidence calibration evidence, then rerun the calibration report.' -f $contextSuffix)
         }
