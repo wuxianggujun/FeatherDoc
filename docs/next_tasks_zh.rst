@@ -360,6 +360,10 @@ P2：样式与编号治理
    * exemplar catalog 冲突审计。
    * numbering catalog patch 衔接。
    * 多文档 rollup 中保留 per-document source 与 action。
+   * numbering catalog governance 已开始输出 per-document ``real_corpus_alignment``
+     明细；``missing_baseline`` / ``missing_exemplar`` 会进入 release-blocking
+     action item，并带上 ``source_schema``、``source_report_display``、
+     ``source_json_display`` 和可复跑 ``open_command``。
 
 
 P2：表格与版式交付能力

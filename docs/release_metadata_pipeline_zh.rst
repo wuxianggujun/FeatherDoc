@@ -445,6 +445,12 @@ governance / release note bundle。
 默认产物为 ``output/numbering-catalog-governance/summary.json``。当 catalog
 与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
 ``numbering_catalog_governance.real_corpus_alignment_gap``；同时
+per-document ``real_corpus_alignment`` 会把 ``missing_baseline`` 与
+``missing_exemplar`` 拆成 ``numbering_catalog_governance.missing_baseline`` /
+``numbering_catalog_governance.missing_exemplar`` action item，并保留原始
+``source_schema``、``source_report_display``、``source_json_display`` 和
+``open_command``，让 reviewer 能直接回到 document skeleton rollup 或 manifest
+summary 重建证据。
 ``numbering_catalog_governance.real_corpus_confidence`` / ``real_corpus_confidence``
 会作为治理指标进入 rollup、handoff、bundle 与
 ``numbering_catalog_real_corpus_confidence`` 打包镜像字段。该指标必须继续携带

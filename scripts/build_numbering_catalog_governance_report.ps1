@@ -268,20 +268,164 @@ if ($manifestSummaryCount -eq 0) {
 
 $sourceFailureCount = @($sourceFiles.ToArray() | Where-Object { $_.status -eq "failed" }).Count
 
+$catalogAlignmentRows = @(
+    foreach ($catalog in @($catalogExemplars.ToArray())) {
+        $documentKey = Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $catalog -Names @("input_docx", "document_name"))
+        if ([string]::IsNullOrWhiteSpace($documentKey)) { continue }
+
+        [ordered]@{
+            document_key = $documentKey
+            document_name = Get-JsonString -Object $catalog -Name "document_name"
+            input_docx = Get-JsonString -Object $catalog -Name "input_docx"
+            input_docx_display = Get-JsonString -Object $catalog -Name "input_docx_display"
+            exemplar_catalog_path = Get-JsonString -Object $catalog -Name "exemplar_catalog_path"
+            exemplar_catalog_display = Get-JsonString -Object $catalog -Name "exemplar_catalog_display"
+            definition_count = Get-JsonInt -Object $catalog -Name "definition_count"
+            instance_count = Get-JsonInt -Object $catalog -Name "instance_count"
+            source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
+            source_json = Get-JsonString -Object $catalog -Name "source_json"
+            source_json_display = Get-JsonString -Object $catalog -Name "source_json_display"
+            source_report = Get-JsonString -Object $catalog -Name "source_report"
+            source_report_display = Get-JsonString -Object $catalog -Name "source_report_display"
+        }
+    }
+)
+$baselineAlignmentRows = @(
+    foreach ($entry in @($baselineEntries.ToArray())) {
+        $documentKey = Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $entry -Names @("input_docx", "name"))
+        if ([string]::IsNullOrWhiteSpace($documentKey)) { continue }
+
+        [ordered]@{
+            document_key = $documentKey
+            name = Get-JsonString -Object $entry -Name "name"
+            input_docx = Get-JsonString -Object $entry -Name "input_docx"
+            input_docx_display = Get-JsonString -Object $entry -Name "input_docx_display"
+            catalog_file = Get-JsonString -Object $entry -Name "catalog_file"
+            catalog_file_display = Get-JsonString -Object $entry -Name "catalog_file_display"
+            matches = Get-JsonBool -Object $entry -Name "matches" -DefaultValue $true
+            clean = Get-JsonBool -Object $entry -Name "clean" -DefaultValue $true
+            catalog_lint_clean = Get-JsonBool -Object $entry -Name "catalog_lint_clean" -DefaultValue $true
+            source_schema = "featherdoc.numbering_catalog_manifest_summary.v1"
+            source_json = Get-JsonString -Object $entry -Name "source_json"
+            source_json_display = Get-JsonString -Object $entry -Name "source_json_display"
+            source_report = Get-JsonString -Object $entry -Name "source_report"
+            source_report_display = Get-JsonString -Object $entry -Name "source_report_display"
+        }
+    }
+)
 $catalogDocumentKeys = @(
-    $catalogExemplars.ToArray() |
-        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "document_name")) } |
+    $catalogAlignmentRows |
+        ForEach-Object { [string]$_.document_key } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Unique
 )
 $baselineDocumentKeys = @(
-    $baselineEntries.ToArray() |
-        ForEach-Object { Get-CanonicalDocumentKey -Value (Get-FirstJsonString -Object $_ -Names @("input_docx", "name")) } |
+    $baselineAlignmentRows |
+        ForEach-Object { [string]$_.document_key } |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Unique
 )
 $matchedDocumentKeys = @($catalogDocumentKeys | Where-Object { $baselineDocumentKeys -contains $_ })
 $matchedDocumentCount = $matchedDocumentKeys.Count
+
+$realCorpusAlignment = New-Object 'System.Collections.Generic.List[object]'
+$alignmentKeys = @(@($catalogDocumentKeys) + @($baselineDocumentKeys) |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Sort-Object -Unique)
+foreach ($documentKey in $alignmentKeys) {
+    $catalogMatches = @($catalogAlignmentRows | Where-Object { [string]$_.document_key -eq $documentKey })
+    $baselineMatches = @($baselineAlignmentRows | Where-Object { [string]$_.document_key -eq $documentKey })
+    $status = if ($catalogMatches.Count -gt 0 -and $baselineMatches.Count -gt 0) {
+        "matched"
+    } elseif ($catalogMatches.Count -gt 0) {
+        "missing_baseline"
+    } else {
+        "missing_exemplar"
+    }
+
+    $sourceSchema = "featherdoc.numbering_catalog_governance_report.v1"
+    $sourceJson = $summaryPath
+    $sourceJsonDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $sourceReport = $summaryPath
+    $sourceReportDisplay = Get-DisplayPath -RepoRoot $repoRoot -Path $summaryPath
+    $action = ""
+    $openCommand = ""
+    $message = "Catalog exemplar and baseline entry are aligned."
+
+    if ($status -eq "missing_baseline") {
+        $catalogSource = $catalogMatches[0]
+        $sourceSchema = [string]$catalogSource.source_schema
+        $sourceJson = [string]$catalogSource.source_json
+        $sourceJsonDisplay = [string]$catalogSource.source_json_display
+        $sourceReport = [string]$catalogSource.source_report
+        $sourceReportDisplay = [string]$catalogSource.source_report_display
+        $action = "review_numbering_catalog_real_corpus_alignment"
+        $inputDocx = [string]$catalogSource.input_docx
+        $catalogPath = [string]$catalogSource.exemplar_catalog_path
+        $openCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx $inputDocx -CatalogFile $catalogPath -BuildDir <build-dir> -SkipBuild"
+        $message = "Generated exemplar catalog has no registered numbering baseline entry."
+    } elseif ($status -eq "missing_exemplar") {
+        $baselineSource = $baselineMatches[0]
+        $sourceSchema = [string]$baselineSource.source_schema
+        $sourceJson = [string]$baselineSource.source_json
+        $sourceJsonDisplay = [string]$baselineSource.source_json_display
+        $sourceReport = [string]$baselineSource.source_report
+        $sourceReportDisplay = [string]$baselineSource.source_report_display
+        $action = "review_numbering_catalog_real_corpus_alignment"
+        $inputDocx = [string]$baselineSource.input_docx
+        $outputDirForDocument = ".\output\document-skeleton-governance\$documentKey"
+        $openCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_document_skeleton_governance_report.ps1 -InputDocx $inputDocx -OutputDir $outputDirForDocument -BuildDir <build-dir> -SkipBuild"
+        $message = "Registered numbering baseline entry has no generated document skeleton exemplar."
+    }
+
+    $alignmentEntry = [ordered]@{
+        document_key = $documentKey
+        status = $status
+        has_catalog_exemplar = ($catalogMatches.Count -gt 0)
+        has_baseline_entry = ($baselineMatches.Count -gt 0)
+        catalog_exemplar_count = $catalogMatches.Count
+        baseline_entry_count = $baselineMatches.Count
+        catalog_exemplars = @($catalogMatches)
+        baseline_entries = @($baselineMatches)
+        action = $action
+        message = $message
+        open_command = $openCommand
+        source_schema = $sourceSchema
+        source_json = $sourceJson
+        source_json_display = $sourceJsonDisplay
+        source_report = $sourceReport
+        source_report_display = $sourceReportDisplay
+    }
+    $realCorpusAlignment.Add($alignmentEntry) | Out-Null
+
+    if ($status -ne "matched") {
+        $alignmentActionId = if ($status -eq "missing_baseline") {
+            "numbering_catalog_governance.missing_baseline"
+        } else {
+            "numbering_catalog_governance.missing_exemplar"
+        }
+        $actionItems.Add([ordered]@{
+            id = $alignmentActionId
+            scope = $documentKey
+            source_kind = "numbering_catalog_governance_report"
+            source_schema = $sourceSchema
+            source_json = $sourceJson
+            source_json_display = $sourceJsonDisplay
+            source_report = $sourceReport
+            source_report_display = $sourceReportDisplay
+            action = $action
+            title = $message
+            command = $openCommand
+            open_command = $openCommand
+            audit_command = ""
+            review_command = ""
+            category = "remediation"
+            severity = "error"
+            release_blocking = $true
+            optional = $false
+        }) | Out-Null
+    }
+}
 
 $realCorpusConfidence = New-RealCorpusConfidence `
     -DocumentCount $documentCount `
@@ -297,6 +441,7 @@ $realCorpusConfidence = New-RealCorpusConfidence `
 $realCorpusConfidence["catalog_document_keys"] = @($catalogDocumentKeys)
 $realCorpusConfidence["baseline_document_keys"] = @($baselineDocumentKeys)
 $realCorpusConfidence["matched_document_keys"] = @($matchedDocumentKeys)
+$realCorpusConfidence["alignment_status_summary"] = @(Add-SummaryGroup -Items $realCorpusAlignment.ToArray() -PropertyName "status" -OutputName "status")
 
 if ($realCorpusConfidence.alignment_gap_count -gt 0) {
     $alignmentBlocker = New-ReleaseBlocker `
@@ -369,6 +514,9 @@ $summary = [ordered]@{
     real_corpus_confidence_score = $realCorpusConfidence.score
     real_corpus_confidence_level = $realCorpusConfidence.level
     real_corpus_confidence = $realCorpusConfidence
+    real_corpus_alignment_count = $realCorpusAlignment.Count
+    real_corpus_alignment_gap_count = @($realCorpusAlignment.ToArray() | Where-Object { [string]$_.status -ne "matched" }).Count
+    real_corpus_alignment = @($realCorpusAlignment.ToArray())
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount
     total_style_usage_count = $totalStyleUsageCount

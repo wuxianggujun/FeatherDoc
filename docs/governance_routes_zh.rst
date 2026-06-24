@@ -153,6 +153,11 @@ Numbering Catalog Governance
 * ``numbering catalog governance``
 * ``numbering_catalog_governance.real_corpus_confidence``
 * ``real_corpus_confidence``
+* ``real_corpus_alignment``
+* ``missing_baseline``
+* ``missing_exemplar``
+* ``numbering_catalog_governance.missing_baseline``
+* ``numbering_catalog_governance.missing_exemplar``
 * ``numbering_catalog_governance.real_corpus_alignment_gap``
 * ``source_schema``
 * ``source_report_display``

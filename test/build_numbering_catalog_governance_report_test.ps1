@@ -412,6 +412,19 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose numbering baseline coverage."
     Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 2 `
         -Message "Summary should expose matched real-corpus document count."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 2 `
+        -Message "Summary should expose per-document real-corpus alignment rows."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_gap_count) -Expected 0 `
+        -Message "Fully matched real-corpus evidence should not expose alignment gaps."
+    Assert-ContainsText -Text (($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status)" }) -join "`n") `
+        -ExpectedText "contract:matched" `
+        -Message "Summary should mark the contract catalog/baseline pair as matched."
+    Assert-ContainsText -Text (($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status)" }) -join "`n") `
+        -ExpectedText "invoice:matched" `
+        -Message "Summary should mark the invoice catalog/baseline pair as matched."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "matched:2" `
+        -Message "Summary should group real-corpus alignment rows by status."
     Assert-ContainsText -Text (($summary.real_corpus_confidence.penalty_summary | ForEach-Object { "$($_.factor):$($_.penalty)" }) -join "`n") `
         -ExpectedText "style_numbering_issues:15" `
         -Message "Summary should expose style-numbering confidence penalties."
@@ -483,6 +496,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include baseline manifest section."
     Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Confidence" `
         -Message "Markdown should include real corpus confidence section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Alignment" `
+        -Message "Markdown should include per-document real corpus alignment section."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`matched`' `
+        -Message "Markdown should include matched alignment rows."
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
     Assert-ContainsText -Text $markdown -ExpectedText "Catalog document keys" `
@@ -615,6 +632,23 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Baseline coverage should fall when one baseline does not match a real-corpus document."
     Assert-Equal -Actual ([int]$summary.real_corpus_confidence.coverage_score) -Expected 50 `
         -Message "Coverage score should use document identity alignment, not only entry counts."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 3 `
+        -Message "Alignment gap summary should expose every matched and unmatched document key."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_gap_count) -Expected 2 `
+        -Message "Alignment gap summary should count both missing sides."
+    $alignmentStatusText = ($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status):$($_.source_schema)" }) -join "`n"
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "contract:missing_baseline:featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Alignment rows should route missing baseline evidence back to the skeleton rollup source."
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "obsolete:missing_exemplar:featherdoc.numbering_catalog_manifest_summary.v1" `
+        -Message "Alignment rows should route missing exemplar evidence back to the manifest source."
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "invoice:matched:featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Alignment rows should preserve matched entries as governance-summary evidence."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "missing_baseline:1" `
+        -Message "Alignment status summary should count missing baseline rows."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "missing_exemplar:1" `
+        -Message "Alignment status summary should count missing exemplar rows."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_governance.real_corpus_alignment_gap" `
         -Message "Alignment gaps should create a release blocker."
@@ -658,9 +692,49 @@ if (Test-Scenario -Name "alignment_gap") {
         -ExpectedText "invoice" `
         -Message "Alignment blocker should expose the matched document key."
 
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+        -Message "Alignment gaps should add two release-blocking action items alongside the skeleton action."
+    $missingBaselineAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.missing_baseline" })[0]
+    Assert-True -Condition ($null -ne $missingBaselineAction) `
+        -Message "Missing baseline alignment row should create a release action."
+    Assert-Equal -Actual ([string]$missingBaselineAction.scope) -Expected "contract" `
+        -Message "Missing baseline action should be scoped to the unmatched catalog document key."
+    Assert-Equal -Actual ([string]$missingBaselineAction.source_schema) `
+        -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Missing baseline action should point to the skeleton rollup evidence."
+    Assert-ContainsText -Text ([string]$missingBaselineAction.open_command) `
+        -ExpectedText "check_numbering_catalog_baseline.ps1" `
+        -Message "Missing baseline action should provide a baseline review command."
+    Assert-ContainsText -Text ([string]$missingBaselineAction.open_command) `
+        -ExpectedText "samples/contract.docx" `
+        -Message "Missing baseline action should target the unmatched catalog document."
+
+    $missingExemplarAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.missing_exemplar" })[0]
+    Assert-True -Condition ($null -ne $missingExemplarAction) `
+        -Message "Missing exemplar alignment row should create a release action."
+    Assert-Equal -Actual ([string]$missingExemplarAction.scope) -Expected "obsolete" `
+        -Message "Missing exemplar action should be scoped to the unmatched baseline document key."
+    Assert-Equal -Actual ([string]$missingExemplarAction.source_schema) `
+        -Expected "featherdoc.numbering_catalog_manifest_summary.v1" `
+        -Message "Missing exemplar action should point to the manifest evidence."
+    Assert-ContainsText -Text ([string]$missingExemplarAction.open_command) `
+        -ExpectedText "build_document_skeleton_governance_report.ps1" `
+        -Message "Missing exemplar action should provide a skeleton governance rebuild command."
+    Assert-ContainsText -Text ([string]$missingExemplarAction.open_command) `
+        -ExpectedText "samples/obsolete.docx" `
+        -Message "Missing exemplar action should target the unmatched baseline document."
+
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Alignment" `
+        -Message "Markdown should include per-document alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`missing_baseline`' `
+        -Message "Markdown should expose missing baseline alignment rows."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`missing_exemplar`' `
+        -Message "Markdown should expose missing exemplar alignment rows."
     Assert-ContainsText -Text $markdown -ExpectedText "Unmatched catalog keys" `
         -Message "Markdown should include unmatched catalog key details."
     Assert-ContainsText -Text $markdown -ExpectedText "Unmatched baseline keys" `
@@ -671,6 +745,10 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Markdown should include the unmatched baseline document key."
     Assert-ContainsText -Text $markdown -ExpectedText "real_corpus_alignment_gap" `
         -Message "Markdown should include alignment gap blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "check_numbering_catalog_baseline.ps1" `
+        -Message "Markdown should include the missing-baseline review command."
+    Assert-ContainsText -Text $markdown -ExpectedText "build_document_skeleton_governance_report.ps1" `
+        -Message "Markdown should include the missing-exemplar rebuild command."
 }
 
 if (Test-Scenario -Name "malformed") {

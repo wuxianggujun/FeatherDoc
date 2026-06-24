@@ -179,8 +179,16 @@ function Get-EvidenceKind {
 function Add-SummaryGroup {
     param([object[]]$Items, [string]$PropertyName, [string]$OutputName)
 
+    $rows = @(
+        foreach ($item in @($Items | Where-Object { $null -ne $_ })) {
+            [pscustomobject]@{
+                value = Get-JsonString -Object $item -Name $PropertyName
+            }
+        }
+    )
+
     return @(
-        foreach ($group in @($Items | Group-Object $PropertyName |
+        foreach ($group in @($rows | Group-Object value |
             Sort-Object -Property @{ Expression = "Count"; Descending = $true }, @{ Expression = "Name"; Ascending = $true })) {
             $summary = [ordered]@{}
             $summary[$OutputName] = [string]$group.Name
@@ -537,6 +545,34 @@ function New-ReportMarkdown {
                 $penalty.factor,
                 $penalty.count,
                 $penalty.penalty)) | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Real Corpus Alignment") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.real_corpus_alignment).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($entry in @($Summary.real_corpus_alignment)) {
+            $catalogInputs = @($entry.catalog_exemplars |
+                ForEach-Object { Get-FirstJsonString -Object $_ -Names @("input_docx_display", "input_docx", "document_name") })
+            $baselineInputs = @($entry.baseline_entries |
+                ForEach-Object { Get-FirstJsonString -Object $_ -Names @("input_docx_display", "input_docx", "name") })
+            $lines.Add(("- ``{0}``: status=``{1}`` catalog_inputs={2} baseline_inputs={3} action=``{4}`` source_report_display=``{5}`` source_json_display=``{6}``" -f
+                $entry.document_key,
+                $entry.status,
+                (Format-MarkdownCodeList -Values $catalogInputs),
+                (Format-MarkdownCodeList -Values $baselineInputs),
+                $entry.action,
+                $entry.source_report_display,
+                $entry.source_json_display)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$entry.message)) {
+                $lines.Add("  - message: $($entry.message)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$entry.open_command)) {
+                $lines.Add("  - open_command: ``$($entry.open_command)``") | Out-Null
+            }
         }
     }
     $lines.Add("") | Out-Null
