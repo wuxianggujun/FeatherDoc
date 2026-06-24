@@ -377,7 +377,7 @@ P2：表格与版式交付能力
      ``table_position_review_count``、``fixed_layout_table_count``、
      ``autofit_layout_table_count``、``unspecified_layout_table_count`` 等
      release-facing 指标。
-   * 治理 summary 已要求 ``preset_summary``、``status_summary``、
+   * rollup / governance summary 已要求 ``preset_summary``、``status_summary``、
      ``blocker_id_summary`` 和 ``action_item_summary`` 输出真实分组 key，
      避免 release 面板只看到空分组计数。
    * 对 ``tblLook``、表格样式和固定布局差异输出更直接的修复建议。

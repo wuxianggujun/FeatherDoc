@@ -318,6 +318,18 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($summary.pdf_floating_table_support_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
         -ExpectedText "partial:2" `
         -Message "Aggregate layout rollup should group PDF floating table support statuses."
+    Assert-ContainsText -Text (($summary.preset_summary | ForEach-Object { "$($_.preset):$($_.count)" }) -join "`n") `
+        -ExpectedText "margin-anchor:1" `
+        -Message "Aggregate layout rollup should group document presets by their real preset value."
+    Assert-ContainsText -Text (($summary.preset_summary | ForEach-Object { "$($_.preset):$($_.count)" }) -join "`n") `
+        -ExpectedText "paragraph-callout:1" `
+        -Message "Aggregate layout rollup should keep every document preset group."
+    Assert-ContainsText -Text (($summary.status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "needs_review:1" `
+        -Message "Aggregate layout rollup should group document statuses by their real status value."
+    Assert-ContainsText -Text (($summary.status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "ready:1" `
+        -Message "Aggregate layout rollup should keep ready document status groups."
     Assert-Equal -Actual ([string]$summary.document_entries[0].pdf_floating_table_support_status) -Expected "partial" `
         -Message "Document entries should preserve PDF floating table support status."
     Assert-Equal -Actual ([int]$summary.document_entries[0].pdf_floating_table_supported_geometry_percent) -Expected 44 `
