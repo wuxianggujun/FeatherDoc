@@ -557,6 +557,12 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations {
         "pdf_visual_gate_attempt_visual_baseline_render_status:",
         "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count:",
         "pdf_visual_gate_attempt_expected_visual_render_count:",
+        "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count:",
+        "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes:",
+        "pdf_visual_gate_attempt_visual_baseline_png_page_count:",
+        "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count:",
+        "pdf_visual_gate_attempt_visual_baseline_png_total_bytes:",
+        "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count:",
         "pdf_visual_gate_attempt_aggregate_contact_sheet_status:",
         "pdf_visual_gate_attempt_aggregate_contact_sheet_display:"
     )
@@ -565,7 +571,7 @@ function Add-ReleaseGovernanceHandoffPdfVisualGateAttemptTraceViolations {
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release governance handoff must keep PDF visual gate bounded attempt status, verdict, auxiliary scope, CTest counts, CJK evidence, render progress, and contact-sheet status in the same source_report block."
+            -Text "Release governance handoff must keep PDF visual gate bounded attempt status, verdict, auxiliary scope, CTest counts, CJK evidence, render progress, artifact completeness, and contact-sheet status in the same source_report block."
     }
 }
 
@@ -744,6 +750,12 @@ function Add-ReleaseBlockerRollupPdfVisualGateAttemptTraceViolations {
         "pdf_visual_gate_attempt_visual_baseline_render_status:",
         "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count:",
         "pdf_visual_gate_attempt_expected_visual_render_count:",
+        "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count:",
+        "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes:",
+        "pdf_visual_gate_attempt_visual_baseline_png_page_count:",
+        "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count:",
+        "pdf_visual_gate_attempt_visual_baseline_png_total_bytes:",
+        "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count:",
         "pdf_visual_gate_attempt_aggregate_contact_sheet_status:",
         "pdf_visual_gate_attempt_aggregate_contact_sheet_display:",
         "aggregate-contact-sheet.png"
@@ -757,7 +769,7 @@ function Add-ReleaseBlockerRollupPdfVisualGateAttemptTraceViolations {
             -Violations $Violations `
             -File $File `
             -Label $label `
-            -Text "Release blocker rollup must keep PDF visual gate bounded attempt status, verdict, auxiliary scope, outer guard status, regression counts, CJK evidence, render progress, and contact-sheet evidence in the same release-candidate Source Report Contracts block. Fixed marker: $traceMarker."
+            -Text "Release blocker rollup must keep PDF visual gate bounded attempt status, verdict, auxiliary scope, outer guard status, regression counts, CJK evidence, render progress, artifact completeness, and contact-sheet evidence in the same release-candidate Source Report Contracts block. Fixed marker: $traceMarker."
     }
 }
 

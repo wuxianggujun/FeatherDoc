@@ -328,6 +328,18 @@ function Add-PdfVisualGateAttemptEvidenceFields {
         -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_fresh_rendered_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_expected_visual_render_count" `
         -Value (Get-FirstJsonProperty -Object $attempt -Names @("expected_visual_render_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_missing_pdf_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_pdf_total_bytes"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_png_page_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_png_page_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_missing_png_page_count"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_png_total_bytes" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_png_total_bytes"))
+    Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count" `
+        -Value (Get-FirstJsonProperty -Object $attempt -Names @("visual_baseline_unreadable_png_dimension_count"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_status" `
         -Value (Get-FirstJsonString -Object $attempt -Names @("aggregate_contact_sheet_status"))
     Set-OptionalSourceReportField -Target $Target -Name "pdf_visual_gate_attempt_aggregate_contact_sheet" `

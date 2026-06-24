@@ -88,6 +88,12 @@ Set-Content -LiteralPath $passReleaseGovernanceHandoffPdfAttemptTracePath -Encod
     - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
     - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
     - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+    - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``
+    - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``
+    - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``
+    - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``
+    - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``
+    - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``
     - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
     - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
 "@
@@ -144,6 +150,12 @@ Set-Content -LiteralPath $badReleaseGovernanceHandoffPdfAttemptSplitPath -Encodi
   - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
   - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
   - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``
+  - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``
+  - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
 "@
@@ -375,6 +387,12 @@ Set-Content -LiteralPath $passReleaseBlockerRollupPdfAuxTracePath -Encoding UTF8
   - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
   - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
   - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``
+  - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``
+  - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
   - pdf_visual_segmented_gate_status: ``pass``
@@ -449,6 +467,12 @@ Set-Content -LiteralPath $badReleaseBlockerRollupPdfAuxSplitPath -Encoding UTF8 
 - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
 - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
 - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+- pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``
+- pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``
+- pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``
+- pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``
+- pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``
+- pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``
 - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
 - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
 - pdf_visual_segmented_gate_status: ``pass``
@@ -529,6 +553,12 @@ Set-Content -LiteralPath $badReleaseBlockerRollupPdfAuxWrongSchemaPath -Encoding
   - pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``
   - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``
   - pdf_visual_gate_attempt_expected_visual_render_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``
+  - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``
+  - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``
+  - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``
+  - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``stale``
   - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``.\output\pdf-visual-release-gate-current\report\aggregate-contact-sheet.png``
   - pdf_visual_segmented_gate_status: ``pass``

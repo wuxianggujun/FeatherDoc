@@ -93,6 +93,12 @@ function Get-PdfVisualGateRollupEvidence {
                 pdf_visual_gate_attempt_visual_baseline_render_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_visual_baseline_render_status"
                 pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count")
                 pdf_visual_gate_attempt_expected_visual_render_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_expected_visual_render_count")
+                pdf_visual_gate_attempt_visual_baseline_missing_pdf_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_missing_pdf_count")
+                pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes")
+                pdf_visual_gate_attempt_visual_baseline_png_page_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_png_page_count")
+                pdf_visual_gate_attempt_visual_baseline_missing_png_page_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_missing_png_page_count")
+                pdf_visual_gate_attempt_visual_baseline_png_total_bytes = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_png_total_bytes")
+                pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count = Get-FirstJsonProperty -Object $sourceReport -Names @("pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count")
                 pdf_visual_gate_attempt_aggregate_contact_sheet_status = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_status"
                 pdf_visual_gate_attempt_aggregate_contact_sheet_display = Get-JsonString -Object $sourceReport -Name "pdf_visual_gate_attempt_aggregate_contact_sheet_display"
                 pdf_visual_segmented_gate_status = $segmentedStatus

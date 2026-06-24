@@ -317,7 +317,13 @@ OCR 或任意视觉精确还原。
      ``pdf_visual_gate_attempt_outer_guard_timed_out``、
      ``pdf_visual_gate_attempt_outer_guard_timeout_seconds``、
      ``pdf_visual_gate_attempt_pdf_regression_skipped_test_count`` 和
-     ``pdf_visual_gate_attempt_visual_baseline_render_status``；当
+     ``pdf_visual_gate_attempt_visual_baseline_render_status``、
+     ``pdf_visual_gate_attempt_visual_baseline_missing_pdf_count``、
+     ``pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes``、
+     ``pdf_visual_gate_attempt_visual_baseline_png_page_count``、
+     ``pdf_visual_gate_attempt_visual_baseline_missing_png_page_count``、
+     ``pdf_visual_gate_attempt_visual_baseline_png_total_bytes`` 和
+     ``pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count``；当
      ``evidence_scope = bounded_attempt_auxiliary_only`` 或
      ``verdict = not_complete`` 时，不能替代 full visual gate verdict。固定标记：
      ``pdf_visual_gate_attempt_summary_trace``、
@@ -326,7 +332,7 @@ OCR 或任意视觉精确还原。
      ``release_blocker_rollup.md`` 的 ``Source Report Contracts`` 也必须把
      attempt status、verdict、full status、``bounded_attempt_auxiliary_only`` scope、
      ``attempt-summary.json``、outer guard ``timed_out`` / ``true`` / ``60``、
-     regression/CJK/render 计数和 contact sheet 保留在同一个 release-candidate
+     regression/CJK/render 计数、artifact 完整性和 contact sheet 保留在同一个 release-candidate
      list block。固定标记：
      ``pdf_visual_gate_attempt_rollup_material_safety_trace``。
      如果外层 60 秒保护截断本次尝试，

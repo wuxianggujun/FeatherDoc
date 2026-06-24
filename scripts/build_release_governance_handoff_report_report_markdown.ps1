@@ -319,6 +319,12 @@ function New-ReportMarkdown {
                 $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_render_status: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_render_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_expected_visual_render_count: ``$($evidence.pdf_visual_gate_attempt_expected_visual_render_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_missing_pdf_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_png_page_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_missing_png_page_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_png_total_bytes)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_display)``") | Out-Null
             }

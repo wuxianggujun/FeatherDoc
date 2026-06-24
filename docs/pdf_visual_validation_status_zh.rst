@@ -613,7 +613,13 @@ schema 为 ``featherdoc.pdf_visual_gate_attempt_summary.v1``，固定标记：
 ``pdf_visual_gate_attempt_outer_guard_status``、
 ``pdf_visual_gate_attempt_outer_guard_timed_out``、
 ``pdf_visual_gate_attempt_outer_guard_timeout_seconds``、
-``pdf_visual_gate_attempt_visual_baseline_render_status`` 和
+``pdf_visual_gate_attempt_visual_baseline_render_status``、
+``pdf_visual_gate_attempt_visual_baseline_missing_pdf_count``、
+``pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes``、
+``pdf_visual_gate_attempt_visual_baseline_png_page_count``、
+``pdf_visual_gate_attempt_visual_baseline_missing_png_page_count``、
+``pdf_visual_gate_attempt_visual_baseline_png_total_bytes``、
+``pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count`` 和
 ``pdf_visual_gate_attempt_aggregate_contact_sheet_status`` 作为同一
 ``source_report:`` block 的辅助证据。``bounded_attempt_auxiliary_only`` 只能解释
 已完成子阶段；当 ``verdict = not_complete`` 时，仍不能替代

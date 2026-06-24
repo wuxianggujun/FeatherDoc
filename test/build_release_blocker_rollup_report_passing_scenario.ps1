@@ -452,6 +452,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF visual gate attempt fresh render count."
     Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_expected_visual_render_count) -Expected 44 `
         -Message "Rollup should preserve PDF visual gate attempt expected render count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_missing_pdf_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt missing PDF count."
+    Assert-Equal -Actual ([int64]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes) -Expected 7340032 `
+        -Message "Rollup should preserve PDF visual gate attempt PDF byte total."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_png_page_count) -Expected 44 `
+        -Message "Rollup should preserve PDF visual gate attempt PNG page count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_missing_png_page_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt missing PNG page count."
+    Assert-Equal -Actual ([int64]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_png_total_bytes) -Expected 2097152 `
+        -Message "Rollup should preserve PDF visual gate attempt PNG byte total."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt unreadable PNG dimension count."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
         -Message "Rollup should preserve PDF visual gate attempt contact sheet status."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_segmented_gate_status) -Expected "pass" `
@@ -812,6 +824,12 @@ if (Test-Scenario -Name "passing") {
         "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``",
         "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``",
         "pdf_visual_gate_attempt_expected_visual_render_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``",
+        "pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``",
+        "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``",
         "pdf_visual_segmented_gate_status: ``pass``",
         "pdf_visual_segmented_gate_verdict: ``pass``",
         "pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``",

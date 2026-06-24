@@ -531,6 +531,12 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             visual_baseline_render_status = "partial"
             visual_baseline_fresh_rendered_count = 22
             expected_visual_render_count = 44
+            visual_baseline_missing_pdf_count = 0
+            visual_baseline_pdf_total_bytes = 7340032
+            visual_baseline_png_page_count = 44
+            visual_baseline_missing_png_page_count = 0
+            visual_baseline_png_total_bytes = 2097152
+            visual_baseline_unreadable_png_dimension_count = 0
             aggregate_contact_sheet_status = "stale"
             aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
         }

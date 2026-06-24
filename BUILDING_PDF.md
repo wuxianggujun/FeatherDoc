@@ -371,7 +371,13 @@ schema 为 `featherdoc.pdf_visual_gate_attempt_summary.v1`，并显式写出
 `pdf_visual_gate_attempt_outer_guard_status`、
 `pdf_visual_gate_attempt_outer_guard_timed_out`、
 `pdf_visual_gate_attempt_outer_guard_timeout_seconds`、
-`pdf_visual_gate_attempt_visual_baseline_render_status` 和
+`pdf_visual_gate_attempt_visual_baseline_render_status`、
+`pdf_visual_gate_attempt_visual_baseline_missing_pdf_count`、
+`pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes`、
+`pdf_visual_gate_attempt_visual_baseline_png_page_count`、
+`pdf_visual_gate_attempt_visual_baseline_missing_png_page_count`、
+`pdf_visual_gate_attempt_visual_baseline_png_total_bytes`、
+`pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count` 和
 `pdf_visual_gate_attempt_aggregate_contact_sheet_status`。固定标记：
 `pdf_visual_gate_attempt_summary_trace`、`pdf_visual_gate_attempt_governance_trace`。
 如果外层 60 秒保护截断了本次尝试，必须写出

@@ -202,6 +202,18 @@
         -Message "Handoff summary should expose PDF visual gate attempt fresh render count."
     Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_expected_visual_render_count) -Expected 44 `
         -Message "Handoff summary should expose PDF visual gate attempt expected render count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_missing_pdf_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF visual gate attempt missing PDF count."
+    Assert-Equal -Actual ([int64]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes) -Expected 7340032 `
+        -Message "Handoff summary should expose PDF visual gate attempt PDF byte total."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_png_page_count) -Expected 44 `
+        -Message "Handoff summary should expose PDF visual gate attempt PNG page count."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_missing_png_page_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF visual gate attempt missing PNG page count."
+    Assert-Equal -Actual ([int64]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_png_total_bytes) -Expected 2097152 `
+        -Message "Handoff summary should expose PDF visual gate attempt PNG byte total."
+    Assert-Equal -Actual ([int]$pdfEvidence.pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count) -Expected 0 `
+        -Message "Handoff summary should expose PDF visual gate attempt unreadable PNG dimension count."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
         -Message "Handoff summary should expose PDF visual gate attempt contact sheet status."
     Assert-Equal -Actual ([string]$pdfEvidence.pdf_visual_segmented_gate_status) -Expected "pass" `
