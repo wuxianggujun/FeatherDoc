@@ -1,3 +1,187 @@
+$passFinalReviewSchemaCalibrationTraceDir = Join-Path $passDir "final-review-schema-calibration-corpus-metadata-trace"
+$passFinalReviewSchemaCalibrationTracePath = Join-Path $passFinalReviewSchemaCalibrationTraceDir "final_review.md"
+New-Item -ItemType Directory -Path $passFinalReviewSchemaCalibrationTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passFinalReviewSchemaCalibrationTracePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Schema calibration evidence
+
+### Handoff Action Items
+
+- schema_patch_confidence_calibration / add_business_template_document_type_metadata: action=add_business_template_document_type_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_business_document_type: contract
+  - corpus_role: registered-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 1
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: contract.customer_name
+  - schema_update_candidate: customer_name
+- schema_patch_confidence_calibration / add_business_template_corpus_role_metadata: action=add_business_template_corpus_role_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: policy
+  - source_business_document_type: policy
+  - source_corpus_role: planned-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 1
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: policy.effective_date
+  - schema_update_candidate: effective_date
+- schema_patch_confidence_calibration / align_business_template_corpus_metadata: action=align_business_template_corpus_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: experimental-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 1
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+
+### Handoff Warnings
+
+- schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_document_type_metadata: action=add_business_template_document_type_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_business_document_type: contract
+  - corpus_role: registered-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 1
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: contract.customer_name
+  - schema_update_candidate: customer_name
+- schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata: action=add_business_template_corpus_role_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: policy
+  - source_business_document_type: policy
+  - source_corpus_role: planned-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 1
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: policy.effective_date
+  - schema_update_candidate: effective_date
+- schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata: action=align_business_template_corpus_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: experimental-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 1
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+"@
+
+& $auditScript -Path $passFinalReviewSchemaCalibrationTracePath
+
+$badFinalReviewSchemaCalibrationMissingSourceTypeDir = Join-Path $failDir "final-review-schema-calibration-corpus-metadata-missing-source-type"
+$badFinalReviewSchemaCalibrationMissingSourceTypePath = Join-Path $badFinalReviewSchemaCalibrationMissingSourceTypeDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewSchemaCalibrationMissingSourceTypeDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewSchemaCalibrationMissingSourceTypePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Schema calibration evidence
+
+### Handoff Action Items
+
+- schema_patch_confidence_calibration / add_business_template_document_type_metadata: action=add_business_template_document_type_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - corpus_role: registered-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 1
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: contract.customer_name
+  - schema_update_candidate: customer_name
+"@
+
+$badFinalReviewSchemaCalibrationMissingSourceTypeFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewSchemaCalibrationMissingSourceTypePath
+} catch {
+    $badFinalReviewSchemaCalibrationMissingSourceTypeFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewSchemaCalibrationMissingSourceTypeFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with schema calibration source_business_document_type removed."
+}
+
+$badFinalReviewSchemaCalibrationMissingSourceRoleDir = Join-Path $failDir "final-review-schema-calibration-corpus-metadata-missing-source-role"
+$badFinalReviewSchemaCalibrationMissingSourceRolePath = Join-Path $badFinalReviewSchemaCalibrationMissingSourceRoleDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewSchemaCalibrationMissingSourceRoleDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewSchemaCalibrationMissingSourceRolePath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Schema calibration evidence
+
+### Handoff Warnings
+
+- schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata: action=align_business_template_corpus_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: experimental-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 1
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+"@
+
+$badFinalReviewSchemaCalibrationMissingSourceRoleFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewSchemaCalibrationMissingSourceRolePath
+} catch {
+    $badFinalReviewSchemaCalibrationMissingSourceRoleFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewSchemaCalibrationMissingSourceRoleFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with schema calibration source_corpus_role removed."
+}
+
 $badFinalReviewStatusTraceDir = Join-Path $failDir "final-review-missing-project-template-readiness-status"
 $badFinalReviewStatusTracePath = Join-Path $badFinalReviewStatusTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $badFinalReviewStatusTraceDir -Force | Out-Null

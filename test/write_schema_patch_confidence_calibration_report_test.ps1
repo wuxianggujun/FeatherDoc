@@ -466,11 +466,19 @@ Write-JsonFile -Path $missingBusinessDocumentTypeSummaryPath -Value ([ordered]@{
     schema = "featherdoc.project_template_smoke_summary.v1"
     schema_patch_review_count = 1
     schema_patch_review_changed_count = 1
+    entries = @(
+        [ordered]@{
+            name = "office-notice-template"
+            business_document_type = "contract"
+            corpus_role = "registered-business-template"
+        }
+    )
     schema_patch_reviews = @(
         [ordered]@{
             name = "office-notice-template"
             project_id = "project-office"
             template_name = "office-notice-template"
+            business_document_type = ""
             corpus_role = "registered-business-template"
             candidate_type = "add"
             review_json = "office-notice.review.json"
@@ -493,6 +501,7 @@ Write-JsonFile -Path $missingBusinessDocumentTypeSummaryPath -Value ([ordered]@{
             name = "office-notice-template"
             project_id = "project-office"
             template_name = "office-notice-template"
+            business_document_type = ""
             corpus_role = "registered-business-template"
             candidate_type = "add"
             status = "approved"
@@ -513,12 +522,20 @@ Write-JsonFile -Path $missingCorpusRoleSummaryPath -Value ([ordered]@{
     schema = "featherdoc.project_template_smoke_summary.v1"
     schema_patch_review_count = 1
     schema_patch_review_changed_count = 1
+    entries = @(
+        [ordered]@{
+            name = "office-notice-template"
+            business_document_type = "notice"
+            corpus_role = "planned-business-template"
+        }
+    )
     schema_patch_reviews = @(
         [ordered]@{
             name = "office-notice-template"
             project_id = "project-office"
             template_name = "office-notice-template"
             business_document_type = "notice"
+            corpus_role = ""
             candidate_type = "add"
             review_json = "office-notice.review.json"
             changed = $true
@@ -541,6 +558,7 @@ Write-JsonFile -Path $missingCorpusRoleSummaryPath -Value ([ordered]@{
             project_id = "project-office"
             template_name = "office-notice-template"
             business_document_type = "notice"
+            corpus_role = ""
             candidate_type = "add"
             status = "approved"
             decision = "approved"
@@ -924,6 +942,10 @@ if (Test-Scenario -Name "business_dimension_metadata") {
         -Message "Business document type warning should not be confused with mismatched corpus metadata."
     Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_business_document_type_entries).Count) -Expected 1 `
         -Message "Corpus summary should keep missing business document type entry details."
+    Assert-Equal -Actual ([string]$summary.business_template_corpus_summary.missing_business_document_type_entries[0].source_business_document_type) -Expected "contract" `
+        -Message "Corpus summary should keep source business document type for missing business document type triage."
+    Assert-Equal -Actual ([string]$summary.business_template_corpus_summary.missing_business_document_type_entries[0].source_corpus_role) -Expected "registered-business-template" `
+        -Message "Corpus summary should keep source corpus role for missing business document type triage."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Missing business document type metadata should produce one warning."
     Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_document_type_metadata" `
@@ -932,14 +954,27 @@ if (Test-Scenario -Name "business_dimension_metadata") {
         -Message "Missing business document type warning should route to repair action."
     Assert-Equal -Actual ([int]$summary.warnings[0].missing_business_document_type_count) -Expected 1 `
         -Message "Missing business document type warning should expose the affected count."
-    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "add_business_template_document_type_metadata" }).Count -eq 1) `
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_business_document_type) -Expected "contract" `
+        -Message "Missing business document type warning should expose source business document type."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_corpus_role) -Expected "registered-business-template" `
+        -Message "Missing business document type warning should expose source corpus role."
+    $documentTypeAction = @($summary.action_items | Where-Object { $_.id -eq "add_business_template_document_type_metadata" }) | Select-Object -First 1
+    Assert-True -Condition ($null -ne $documentTypeAction) `
         -Message "Missing business document type recommendation should be mirrored as an action item."
+    Assert-Equal -Actual ([string]$documentTypeAction.source_business_document_type) -Expected "contract" `
+        -Message "Missing business document type action should expose source business document type."
+    Assert-Equal -Actual ([string]$documentTypeAction.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Missing business document type action should expose source corpus role."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "missing_business_document_types=1" `
         -Message "Markdown should expose missing business document type count."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_business_document_type_entries:" `
         -Message "Markdown should expose missing business document type entry details."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_business_document_type=contract" `
+        -Message "Markdown should include source business document type for missing business document type entries."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_corpus_role=registered-business-template" `
+        -Message "Markdown should include source corpus role for missing business document type entries."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_document_type_metadata" `
         -Message "Markdown should include missing business document type action."
 }
@@ -972,6 +1007,10 @@ if (Test-Scenario -Name "corpus_role_metadata") {
         -Message "Corpus summary should count missing corpus role metadata."
     Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_corpus_role_entries).Count) -Expected 1 `
         -Message "Corpus summary should keep missing corpus role entry details."
+    Assert-Equal -Actual ([string]$summary.business_template_corpus_summary.missing_corpus_role_entries[0].source_business_document_type) -Expected "notice" `
+        -Message "Corpus summary should keep source business document type for missing corpus role triage."
+    Assert-Equal -Actual ([string]$summary.business_template_corpus_summary.missing_corpus_role_entries[0].source_corpus_role) -Expected "planned-business-template" `
+        -Message "Corpus summary should keep source corpus role for missing corpus role triage."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
         -Message "Missing corpus role metadata should produce one warning."
     Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata" `
@@ -980,14 +1019,27 @@ if (Test-Scenario -Name "corpus_role_metadata") {
         -Message "Missing corpus role warning should route to repair action."
     Assert-Equal -Actual ([int]$summary.warnings[0].missing_corpus_role_count) -Expected 1 `
         -Message "Missing corpus role warning should expose the affected count."
-    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "add_business_template_corpus_role_metadata" }).Count -eq 1) `
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_business_document_type) -Expected "notice" `
+        -Message "Missing corpus role warning should expose source business document type."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_corpus_role) -Expected "planned-business-template" `
+        -Message "Missing corpus role warning should expose source corpus role."
+    $corpusRoleAction = @($summary.action_items | Where-Object { $_.id -eq "add_business_template_corpus_role_metadata" }) | Select-Object -First 1
+    Assert-True -Condition ($null -ne $corpusRoleAction) `
         -Message "Missing corpus role recommendation should be mirrored as an action item."
+    Assert-Equal -Actual ([string]$corpusRoleAction.source_business_document_type) -Expected "notice" `
+        -Message "Missing corpus role action should expose source business document type."
+    Assert-Equal -Actual ([string]$corpusRoleAction.source_corpus_role) -Expected "planned-business-template" `
+        -Message "Missing corpus role action should expose source corpus role."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "missing_corpus_roles=1" `
         -Message "Markdown should expose missing corpus role count."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_corpus_role_entries:" `
         -Message "Markdown should expose missing corpus role entry details."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_business_document_type=notice" `
+        -Message "Markdown should include source business document type for missing corpus role entries."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_corpus_role=planned-business-template" `
+        -Message "Markdown should include source corpus role for missing corpus role entries."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_corpus_role_metadata" `
         -Message "Markdown should include missing corpus role action."
 }

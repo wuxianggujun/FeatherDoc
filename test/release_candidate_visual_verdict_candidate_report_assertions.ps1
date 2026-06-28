@@ -145,7 +145,14 @@ Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "attempt-summar
 Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema_patch_confidence_calibration / add_business_template_document_type_metadata" -Fragments @(
     "schema_patch_confidence_calibration / add_business_template_document_type_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "source_business_document_type: contract",
+    "corpus_role: registered-business-template",
+    "source_corpus_role: registered-business-template",
     "missing_business_document_type_count: 1",
+    "missing_corpus_role_count: 0",
+    "mismatched_corpus_metadata_count: 0",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
     "candidate_name: contract.customer_name",
     "schema_update_candidate: customer_name"
 ) -Message "release_handoff.md should keep schema calibration missing business document type action fields in one handoff action block."
@@ -153,7 +160,13 @@ Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema
     "schema_patch_confidence_calibration / add_business_template_corpus_role_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
     "business_document_type: policy",
+    "source_business_document_type: policy",
+    "source_corpus_role: planned-business-template",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
+    "missing_business_document_type_count: 0",
     "missing_corpus_role_count: 1",
+    "mismatched_corpus_metadata_count: 0",
     "candidate_name: policy.effective_date",
     "schema_update_candidate: effective_date"
 ) -Message "release_handoff.md should keep schema calibration missing corpus role action fields in one handoff action block."
@@ -174,7 +187,14 @@ Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema
     "schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_document_type_metadata",
     "action=add_business_template_document_type_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "source_business_document_type: contract",
+    "corpus_role: registered-business-template",
+    "source_corpus_role: registered-business-template",
     "missing_business_document_type_count: 1",
+    "missing_corpus_role_count: 0",
+    "mismatched_corpus_metadata_count: 0",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
     "candidate_name: contract.customer_name",
     "schema_update_candidate: customer_name"
 ) -Message "release_handoff.md should keep schema calibration missing business document type warning fields in one handoff warning block."
@@ -183,7 +203,13 @@ Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema
     "action=add_business_template_corpus_role_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
     "business_document_type: policy",
+    "source_business_document_type: policy",
+    "source_corpus_role: planned-business-template",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
+    "missing_business_document_type_count: 0",
     "missing_corpus_role_count: 1",
+    "mismatched_corpus_metadata_count: 0",
     "candidate_name: policy.effective_date",
     "schema_update_candidate: effective_date"
 ) -Message "release_handoff.md should keep schema calibration missing corpus role warning fields in one handoff warning block."
@@ -312,7 +338,14 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_t
 Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_patch_confidence_calibration / add_business_template_document_type_metadata" -Fragments @(
     "schema_patch_confidence_calibration / add_business_template_document_type_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "source_business_document_type: contract",
+    "corpus_role: registered-business-template",
+    "source_corpus_role: registered-business-template",
     "missing_business_document_type_count: 1",
+    "missing_corpus_role_count: 0",
+    "mismatched_corpus_metadata_count: 0",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
     "candidate_name: contract.customer_name",
     "schema_update_candidate: customer_name"
 ) -Message "final_review.md should keep schema calibration missing business document type action fields in one handoff action block."
@@ -320,7 +353,13 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_pa
     "schema_patch_confidence_calibration / add_business_template_corpus_role_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
     "business_document_type: policy",
+    "source_business_document_type: policy",
+    "source_corpus_role: planned-business-template",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
+    "missing_business_document_type_count: 0",
     "missing_corpus_role_count: 1",
+    "mismatched_corpus_metadata_count: 0",
     "candidate_name: policy.effective_date",
     "schema_update_candidate: effective_date"
 ) -Message "final_review.md should keep schema calibration missing corpus role action fields in one handoff action block."
@@ -341,7 +380,14 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_pa
     "schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_document_type_metadata",
     "action=add_business_template_document_type_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "source_business_document_type: contract",
+    "corpus_role: registered-business-template",
+    "source_corpus_role: registered-business-template",
     "missing_business_document_type_count: 1",
+    "missing_corpus_role_count: 0",
+    "mismatched_corpus_metadata_count: 0",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
     "candidate_name: contract.customer_name",
     "schema_update_candidate: customer_name"
 ) -Message "final_review.md should keep schema calibration missing business document type warning fields in one handoff warning block."
@@ -350,7 +396,13 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_pa
     "action=add_business_template_corpus_role_metadata",
     "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
     "business_document_type: policy",
+    "source_business_document_type: policy",
+    "source_corpus_role: planned-business-template",
+    "business_document_type_mismatch: False",
+    "corpus_role_mismatch: False",
+    "missing_business_document_type_count: 0",
     "missing_corpus_role_count: 1",
+    "mismatched_corpus_metadata_count: 0",
     "candidate_name: policy.effective_date",
     "schema_update_candidate: effective_date"
 ) -Message "final_review.md should keep schema calibration missing corpus role warning fields in one handoff warning block."

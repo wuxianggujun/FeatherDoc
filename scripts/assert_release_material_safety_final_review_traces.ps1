@@ -548,6 +548,144 @@ function Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTrac
     }
 }
 
+function Add-FinalReviewSchemaCalibrationCorpusMetadataTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -ne "final_review.md") {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "schema_patch_confidence_calibration",
+        "featherdoc.schema_patch_confidence_calibration_report.v1",
+        "add_business_template_document_type_metadata",
+        "add_business_template_corpus_role_metadata",
+        "align_business_template_corpus_metadata"
+    ))) {
+        return
+    }
+
+    $label = "final review schema calibration corpus metadata trace"
+    $commonNeedles = @(
+        "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+        "source_report_display",
+        "source_json_display",
+        "candidate_name",
+        "schema_update_candidate"
+    )
+    $corpusMetadataCountNeedles = @(
+        "missing_business_document_type_count",
+        "missing_corpus_role_count",
+        "mismatched_corpus_metadata_count",
+        "mismatched_business_document_type_count",
+        "mismatched_corpus_role_count"
+    )
+    $metadataMismatchNeedles = @(
+        "business_document_type_mismatch",
+        "corpus_role_mismatch"
+    )
+
+    $traceContracts = @(
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / add_business_template_document_type_metadata"
+            Description = "schema calibration action missing business_document_type metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / add_business_template_corpus_role_metadata"
+            Description = "schema calibration action missing corpus_role metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "business_document_type",
+                "source_business_document_type",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / align_business_template_corpus_metadata"
+            Description = "schema calibration action mismatched corpus metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "business_document_type",
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_document_type_metadata"
+            Description = "schema calibration warning missing business_document_type metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "action=add_business_template_document_type_metadata",
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata"
+            Description = "schema calibration warning missing corpus_role metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "action=add_business_template_corpus_role_metadata",
+                "business_document_type",
+                "source_business_document_type",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+            Description = "schema calibration warning mismatched corpus metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "action=align_business_template_corpus_metadata",
+                "business_document_type",
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        }
+    )
+
+    foreach ($traceContract in $traceContracts) {
+        $anchor = [string]$traceContract.Anchor
+        if (-not $Content.Contains($anchor)) {
+            continue
+        }
+
+        $needles = @($traceContract.Needles | ForEach-Object { [string]$_ })
+        $runNeedles = @($anchor) + $needles
+        if (Test-MarkdownListRunContainsAll -Text $Content -Anchor $anchor -Needles $runNeedles) {
+            continue
+        }
+
+        $foundMissingNeedle = $false
+        foreach ($needle in $needles) {
+            if (-not (Test-MarkdownListRunContainsAll -Text $Content -Anchor $anchor -Needles @($anchor, $needle))) {
+                $foundMissingNeedle = $true
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Final review mentions $($traceContract.Description) without required schema/corpus metadata marker '$needle'."
+            }
+        }
+
+        if (-not $foundMissingNeedle) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Final review must keep $($traceContract.Description) schema/corpus metadata markers in the same Markdown list run."
+        }
+    }
+}
+
 function Add-FinalReviewProjectTemplateGovernanceTraceViolations {
     param(
         [string]$File,

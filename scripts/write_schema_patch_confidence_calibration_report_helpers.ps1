@@ -54,11 +54,31 @@ function Get-JsonProperty {
     return $property.Value
 }
 
+function Test-JsonPropertyExists {
+    param($Object, [string]$Name)
+    if ($null -eq $Object) { return $false }
+    if ($Object -is [System.Collections.IDictionary]) {
+        return $Object.Contains($Name)
+    }
+    return $null -ne $Object.PSObject.Properties[$Name]
+}
+
 function Get-JsonString {
     param($Object, [string]$Name, [string]$DefaultValue = "")
     $value = Get-JsonProperty -Object $Object -Name $Name
     if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) { return $DefaultValue }
     return [string]$value
+}
+
+function Get-JsonStringWithExplicitBlank {
+    param($Primary, $Secondary, [string]$Name, [string]$DefaultValue = "")
+    if (Test-JsonPropertyExists -Object $Primary -Name $Name) {
+        return Get-JsonString -Object $Primary -Name $Name
+    }
+    if (Test-JsonPropertyExists -Object $Secondary -Name $Name) {
+        return Get-JsonString -Object $Secondary -Name $Name
+    }
+    return $DefaultValue
 }
 
 function Get-JsonInt {
@@ -370,8 +390,8 @@ function New-EntryFromReviewAndApproval {
     $resolvedProjectId = Get-JsonString -Object $Approval -Name "project_id" -DefaultValue (Get-JsonString -Object $Review -Name "project_id" -DefaultValue $ProjectId)
     $resolvedTemplateName = Get-JsonString -Object $Approval -Name "template_name" -DefaultValue (Get-JsonString -Object $Review -Name "template_name" -DefaultValue $TemplateName)
     if ([string]::IsNullOrWhiteSpace($resolvedTemplateName)) { $resolvedTemplateName = $Name }
-    $resolvedBusinessDocumentType = Get-JsonString -Object $Approval -Name "business_document_type" -DefaultValue (Get-JsonString -Object $Review -Name "business_document_type" -DefaultValue $BusinessDocumentType)
-    $resolvedCorpusRole = Get-JsonString -Object $Approval -Name "corpus_role" -DefaultValue (Get-JsonString -Object $Review -Name "corpus_role" -DefaultValue $CorpusRole)
+    $resolvedBusinessDocumentType = Get-JsonStringWithExplicitBlank -Primary $Approval -Secondary $Review -Name "business_document_type" -DefaultValue $BusinessDocumentType
+    $resolvedCorpusRole = Get-JsonStringWithExplicitBlank -Primary $Approval -Secondary $Review -Name "corpus_role" -DefaultValue $CorpusRole
     $businessDocumentTypeMismatch = (-not [string]::IsNullOrWhiteSpace($BusinessDocumentType) -and
         -not [string]::IsNullOrWhiteSpace($resolvedBusinessDocumentType) -and
         -not [string]::Equals($BusinessDocumentType, $resolvedBusinessDocumentType, [System.StringComparison]::Ordinal))
@@ -719,7 +739,9 @@ function New-BusinessTemplateCorpusSummary {
                 template_name = Get-JsonString -Object $entry -Name "template_name"
                 template_scope = Get-JsonString -Object $entry -Name "template_scope"
                 business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+                source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
                 corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
+                source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
                 candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
                 candidate_name = Get-JsonString -Object $entry -Name "name"
                 source_json_display = if ([string]::IsNullOrWhiteSpace($summaryJson)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson }
@@ -739,6 +761,8 @@ function New-BusinessTemplateCorpusSummary {
                 template_name = Get-JsonString -Object $entry -Name "template_name"
                 template_scope = Get-JsonString -Object $entry -Name "template_scope"
                 business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+                source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+                source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
                 candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
                 candidate_name = Get-JsonString -Object $entry -Name "name"
                 source_json_display = if ([string]::IsNullOrWhiteSpace($summaryJson)) { "" } else { Get-DisplayPath -RepoRoot $RepoRoot -Path $summaryJson }
@@ -838,6 +862,12 @@ function Add-ScopedRecommendations {
             candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+            source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+            corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
+            source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
+            business_document_type_mismatch = Get-JsonBool -Object $entry -Name "business_document_type_mismatch"
+            corpus_role_mismatch = Get-JsonBool -Object $entry -Name "corpus_role_mismatch"
             missing_business_document_type_count = Get-JsonInt -Object $entry -Name "missing_business_document_type_count"
             missing_corpus_role_count = Get-JsonInt -Object $entry -Name "missing_corpus_role_count"
             mismatched_corpus_metadata_count = Get-JsonInt -Object $entry -Name "mismatched_corpus_metadata_count"
@@ -948,6 +978,12 @@ function New-ReleaseBlockers {
             candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+            source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+            corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
+            source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
+            business_document_type_mismatch = Get-JsonBool -Object $entry -Name "business_document_type_mismatch"
+            corpus_role_mismatch = Get-JsonBool -Object $entry -Name "corpus_role_mismatch"
             source_schema = $calibrationSchema
             source_report = $SourceReport
             source_report_display = $SourceReportDisplay
@@ -972,6 +1008,12 @@ function New-ReleaseBlockers {
             candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+            source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+            corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
+            source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
+            business_document_type_mismatch = Get-JsonBool -Object $entry -Name "business_document_type_mismatch"
+            corpus_role_mismatch = Get-JsonBool -Object $entry -Name "corpus_role_mismatch"
             source_schema = $calibrationSchema
             source_report = $SourceReport
             source_report_display = $SourceReportDisplay
@@ -1066,6 +1108,11 @@ function New-Warnings {
             action = "add_business_template_document_type_metadata"
             message = "Some schema patch candidates are missing business document type metadata."
             missing_business_document_type_count = 1
+            source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+            corpus_role = Get-JsonString -Object $entry -Name "corpus_role"
+            source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
+            business_document_type_mismatch = Get-JsonBool -Object $entry -Name "business_document_type_mismatch"
+            corpus_role_mismatch = Get-JsonBool -Object $entry -Name "corpus_role_mismatch"
             project_id = Get-JsonString -Object $entry -Name "project_id"
             template_name = Get-JsonString -Object $entry -Name "template_name"
             template_scope = Get-JsonString -Object $entry -Name "template_scope"
@@ -1087,6 +1134,11 @@ function New-Warnings {
             action = "add_business_template_corpus_role_metadata"
             message = "Some schema patch candidates are missing business template corpus role metadata."
             missing_corpus_role_count = 1
+            business_document_type = Get-JsonString -Object $entry -Name "business_document_type"
+            source_business_document_type = Get-JsonString -Object $entry -Name "source_business_document_type"
+            source_corpus_role = Get-JsonString -Object $entry -Name "source_corpus_role"
+            business_document_type_mismatch = Get-JsonBool -Object $entry -Name "business_document_type_mismatch"
+            corpus_role_mismatch = Get-JsonBool -Object $entry -Name "corpus_role_mismatch"
             project_id = Get-JsonString -Object $entry -Name "project_id"
             template_name = Get-JsonString -Object $entry -Name "template_name"
             template_scope = Get-JsonString -Object $entry -Name "template_scope"
@@ -1152,6 +1204,12 @@ function New-ActionItems {
                 candidate_type = Get-JsonString -Object $recommendation -Name "candidate_type"
                 candidate_name = Get-JsonString -Object $recommendation -Name "candidate_name"
                 schema_update_candidate = Get-JsonString -Object $recommendation -Name "schema_update_candidate"
+                business_document_type = Get-JsonString -Object $recommendation -Name "business_document_type"
+                source_business_document_type = Get-JsonString -Object $recommendation -Name "source_business_document_type"
+                corpus_role = Get-JsonString -Object $recommendation -Name "corpus_role"
+                source_corpus_role = Get-JsonString -Object $recommendation -Name "source_corpus_role"
+                business_document_type_mismatch = Get-JsonBool -Object $recommendation -Name "business_document_type_mismatch"
+                corpus_role_mismatch = Get-JsonBool -Object $recommendation -Name "corpus_role_mismatch"
                 missing_business_document_type_count = Get-JsonInt -Object $recommendation -Name "missing_business_document_type_count"
                 missing_corpus_role_count = Get-JsonInt -Object $recommendation -Name "missing_corpus_role_count"
                 mismatched_corpus_metadata_count = Get-JsonInt -Object $recommendation -Name "mismatched_corpus_metadata_count"
@@ -1205,10 +1263,16 @@ function New-ReportMarkdown {
                 $name = Get-JsonString -Object $entry -Name "candidate_name"
                 $projectId = Get-JsonString -Object $entry -Name "project_id"
                 $templateName = Get-JsonString -Object $entry -Name "template_name"
+                $sourceBusinessDocumentType = Get-JsonString -Object $entry -Name "source_business_document_type"
+                $corpusRole = Get-JsonString -Object $entry -Name "corpus_role"
+                $sourceCorpusRole = Get-JsonString -Object $entry -Name "source_corpus_role"
                 if (-not [string]::IsNullOrWhiteSpace($scope)) { $entryParts.Add("scope=$scope") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceBusinessDocumentType)) { $entryParts.Add("source_business_document_type=$sourceBusinessDocumentType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($corpusRole)) { $entryParts.Add("corpus_role=$corpusRole") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceCorpusRole)) { $entryParts.Add("source_corpus_role=$sourceCorpusRole") | Out-Null }
                 $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
             }
         }
@@ -1221,12 +1285,16 @@ function New-ReportMarkdown {
                 $projectId = Get-JsonString -Object $entry -Name "project_id"
                 $templateName = Get-JsonString -Object $entry -Name "template_name"
                 $businessDocumentType = Get-JsonString -Object $entry -Name "business_document_type"
+                $sourceBusinessDocumentType = Get-JsonString -Object $entry -Name "source_business_document_type"
+                $sourceCorpusRole = Get-JsonString -Object $entry -Name "source_corpus_role"
                 $sourceJsonDisplay = Get-JsonString -Object $entry -Name "source_json_display"
                 if (-not [string]::IsNullOrWhiteSpace($scope)) { $entryParts.Add("scope=$scope") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($name)) { $entryParts.Add("name=$name") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($projectId)) { $entryParts.Add("project_id=$projectId") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($templateName)) { $entryParts.Add("template_name=$templateName") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($businessDocumentType)) { $entryParts.Add("business_document_type=$businessDocumentType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceBusinessDocumentType)) { $entryParts.Add("source_business_document_type=$sourceBusinessDocumentType") | Out-Null }
+                if (-not [string]::IsNullOrWhiteSpace($sourceCorpusRole)) { $entryParts.Add("source_corpus_role=$sourceCorpusRole") | Out-Null }
                 if (-not [string]::IsNullOrWhiteSpace($sourceJsonDisplay)) { $entryParts.Add("source_json_display=$sourceJsonDisplay") | Out-Null }
                 $lines.Add("  - $(@($entryParts.ToArray()) -join ', ')") | Out-Null
             }

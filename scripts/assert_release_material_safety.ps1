@@ -104,6 +104,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewSchemaCalibrationCorpusMetadataTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations
