@@ -40,6 +40,135 @@ Set-Content -LiteralPath $passEntryGovernanceTracePath -Encoding UTF8 -Value @"
 
 & $auditScript -Path $passEntryGovernanceTracePath
 
+$passEntrySchemaCalibrationTraceDir = Join-Path $passDir "entry-schema-calibration-corpus-metadata-trace"
+$passEntrySchemaCalibrationTracePath = Join-Path $passEntrySchemaCalibrationTraceDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntrySchemaCalibrationTraceDir -Force | Out-Null
+Set-Content -LiteralPath $passEntrySchemaCalibrationTracePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- schema_patch_confidence_calibration.pending_schema_approvals: action=resolve_pending_schema_approvals
+  - source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_business_document_type: contract
+  - corpus_role: registered-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 1
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: contract.customer_name
+  - schema_update_candidate: customer_name
+- resolve_pending_schema_approvals: action=resolve_pending_schema_approvals
+  - source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1
+  - business_document_type: policy
+  - source_business_document_type: policy
+  - source_corpus_role: planned-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 1
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: policy.effective_date
+  - schema_update_candidate: effective_date
+- schema_patch_confidence_calibration.unscored_candidates: action=add_explicit_confidence_metadata
+  - source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: registered-business-template
+  - source_corpus_role: planned-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 1
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+"@
+
+& $auditScript -Path $passEntrySchemaCalibrationTracePath
+
+$badEntrySchemaCalibrationMissingSourceTypeDir = Join-Path $failDir "entry-schema-calibration-corpus-metadata-missing-source-type"
+$badEntrySchemaCalibrationMissingSourceTypePath = Join-Path $badEntrySchemaCalibrationMissingSourceTypeDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntrySchemaCalibrationMissingSourceTypeDir -Force | Out-Null
+Set-Content -LiteralPath $badEntrySchemaCalibrationMissingSourceTypePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- schema_patch_confidence_calibration.pending_schema_approvals: action=resolve_pending_schema_approvals
+  - source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - corpus_role: registered-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: False
+  - corpus_role_mismatch: False
+  - missing_business_document_type_count: 1
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 0
+  - mismatched_business_document_type_count: 0
+  - mismatched_corpus_role_count: 0
+  - candidate_name: contract.customer_name
+  - schema_update_candidate: customer_name
+"@
+
+$badEntrySchemaCalibrationMissingSourceTypeFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntrySchemaCalibrationMissingSourceTypePath
+} catch {
+    $badEntrySchemaCalibrationMissingSourceTypeFailedAsExpected = $true
+}
+
+if (-not $badEntrySchemaCalibrationMissingSourceTypeFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with schema calibration source_business_document_type removed."
+}
+
+$badEntrySchemaCalibrationMissingSourceRoleDir = Join-Path $failDir "entry-schema-calibration-corpus-metadata-missing-source-role"
+$badEntrySchemaCalibrationMissingSourceRolePath = Join-Path $badEntrySchemaCalibrationMissingSourceRoleDir "START_HERE.md"
+New-Item -ItemType Directory -Path $badEntrySchemaCalibrationMissingSourceRoleDir -Force | Out-Null
+Set-Content -LiteralPath $badEntrySchemaCalibrationMissingSourceRolePath -Encoding UTF8 -Value @"
+# START_HERE
+
+- schema_patch_confidence_calibration.unscored_candidates: action=add_explicit_confidence_metadata
+  - source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: registered-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_corpus_metadata_count: 1
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+"@
+
+$badEntrySchemaCalibrationMissingSourceRoleFailedAsExpected = $false
+try {
+    & $auditScript -Path $badEntrySchemaCalibrationMissingSourceRolePath
+} catch {
+    $badEntrySchemaCalibrationMissingSourceRoleFailedAsExpected = $true
+}
+
+if (-not $badEntrySchemaCalibrationMissingSourceRoleFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed START_HERE.md with schema calibration source_corpus_role removed."
+}
+
 $badEntryMissingContentControlActionDir = Join-Path $failDir "entry-missing-content-control-action"
 $badEntryMissingContentControlActionPath = Join-Path $badEntryMissingContentControlActionDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryMissingContentControlActionDir -Force | Out-Null

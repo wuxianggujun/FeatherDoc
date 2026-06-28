@@ -75,6 +75,7 @@ foreach ($file in $scanFiles) {
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".md") {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntrySchemaCalibrationCorpusMetadataTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateWorkflowDashboardTraceViolations -File $file -Content $content -Violations $violations

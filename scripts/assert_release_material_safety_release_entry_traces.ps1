@@ -15,6 +15,7 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
         "project_template_delivery_readiness",
         "project_template_onboarding.schema_approval",
         "project_template_onboarding_governance",
+        "schema_patch_confidence_calibration",
         "table_layout_delivery_governance.delivery_quality",
         "real_corpus_confidence",
         "delivery_quality",
@@ -229,6 +230,111 @@ function Add-ReleaseEntryDocumentGovernanceTraceViolations {
             "penalty_summary",
             "floating_table_plans_pending"
         )
+    }
+}
+
+function Add-ReleaseEntrySchemaCalibrationCorpusMetadataTraceViolations {
+    param(
+        [string]$File,
+        [string]$Content,
+        $Violations
+    )
+
+    $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
+    if ($leafName -notin @("start_here.md", "artifact_guide.md", "reviewer_checklist.md", "release_handoff.md")) {
+        return
+    }
+
+    if (-not (Test-TextContainsAny -Text $Content -Needles @(
+        "schema_patch_confidence_calibration",
+        "featherdoc.schema_patch_confidence_calibration_report.v1"
+    ))) {
+        return
+    }
+
+    $label = "release entry schema calibration corpus metadata trace"
+    $commonNeedles = @(
+        "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+        "source_report_display",
+        "source_json_display",
+        "candidate_name",
+        "schema_update_candidate"
+    )
+    $corpusMetadataCountNeedles = @(
+        "missing_business_document_type_count",
+        "missing_corpus_role_count",
+        "mismatched_corpus_metadata_count",
+        "mismatched_business_document_type_count",
+        "mismatched_corpus_role_count"
+    )
+    $metadataMismatchNeedles = @(
+        "business_document_type_mismatch",
+        "corpus_role_mismatch"
+    )
+
+    $traceContracts = @(
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration.pending_schema_approvals: action=resolve_pending_schema_approvals"
+            Description = "schema calibration pending approval missing business_document_type metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        },
+        [ordered]@{
+            Anchor = "resolve_pending_schema_approvals: action=resolve_pending_schema_approvals"
+            Description = "schema calibration action missing corpus_role metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "business_document_type",
+                "source_business_document_type",
+                "source_corpus_role",
+                "open_command"
+            ))
+        },
+        [ordered]@{
+            Anchor = "schema_patch_confidence_calibration.unscored_candidates: action=add_explicit_confidence_metadata"
+            Description = "schema calibration warning mismatched corpus metadata"
+            Needles = @($commonNeedles + $corpusMetadataCountNeedles + $metadataMismatchNeedles + @(
+                "business_document_type",
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role"
+            ))
+        }
+    )
+
+    foreach ($traceContract in $traceContracts) {
+        $anchor = [string]$traceContract.Anchor
+        if (-not $Content.Contains($anchor)) {
+            continue
+        }
+
+        $needles = @($traceContract.Needles | ForEach-Object { [string]$_ })
+        $blockNeedles = @($anchor) + $needles
+        if (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $anchor -Needles $blockNeedles) {
+            continue
+        }
+
+        $foundMissingNeedle = $false
+        foreach ($needle in $needles) {
+            if (-not (Test-MarkdownListBlockContainsAll -Text $Content -Anchor $anchor -Needles @($anchor, $needle))) {
+                $foundMissingNeedle = $true
+                Add-AuditViolation `
+                    -Violations $Violations `
+                    -File $File `
+                    -Label $label `
+                    -Text "Release entry mentions $($traceContract.Description) without required schema/corpus metadata marker '$needle'."
+            }
+        }
+
+        if (-not $foundMissingNeedle) {
+            Add-AuditViolation `
+                -Violations $Violations `
+                -File $File `
+                -Label $label `
+                -Text "Release entry must keep $($traceContract.Description) schema/corpus metadata markers in the same Markdown list block."
+        }
     }
 }
 

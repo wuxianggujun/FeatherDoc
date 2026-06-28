@@ -513,6 +513,9 @@ P3：文档、测试与索引治理
    ``corpus_role`` / ``source_corpus_role``、mismatch flag / count、``candidate_name``
    和 ``schema_update_candidate``，避免公开入口材料只保留 source path 而丢失
    schema/corpus metadata 缺口细节。
+   release material safety 也已补入口材料负例，专门拦截 schema calibration
+   blocker / action / warning 丢失来源 document type、来源 corpus role、
+   missing / mismatch count 或候选字段的回归。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
