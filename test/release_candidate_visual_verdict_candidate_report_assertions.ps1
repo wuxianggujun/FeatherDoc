@@ -134,14 +134,34 @@ foreach ($assertion in @(
 }
 
 $candidateReleaseHandoff = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateReleaseHandoffPath
-Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "Warnings: 1" `
-    -Message "release_handoff.md should expose the propagated warning count."
+Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "Warnings: 2" `
+    -Message "release_handoff.md should expose the handoff warning count."
 Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "pdf_visual_gate_attempt.incomplete_fresh_render" `
     -Message "release_handoff.md should preserve the PDF fresh-attempt warning id."
 Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "review_pdf_visual_gate_attempt_and_finalize_evidence" `
     -Message "release_handoff.md should preserve the PDF fresh-attempt warning action."
 Assert-ContainsText -Text $candidateReleaseHandoff -ExpectedText "attempt-summary.json" `
     -Message "release_handoff.md should preserve the PDF fresh-attempt warning evidence path."
+Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema_patch_confidence_calibration / align_business_template_corpus_metadata" -Fragments @(
+    "schema_patch_confidence_calibration / align_business_template_corpus_metadata",
+    "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "business_document_type: invoice",
+    "source_business_document_type: notice",
+    "corpus_role: experimental-business-template",
+    "source_corpus_role: registered-business-template"
+) -Message "release_handoff.md should keep schema calibration corpus metadata action fields in one handoff action block."
+Assert-MarkdownListRunContainsAll -Text $candidateReleaseHandoff -Anchor "schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" -Fragments @(
+    "schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata",
+    "action=align_business_template_corpus_metadata",
+    "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "mismatched_corpus_metadata_count: 1",
+    "business_document_type: invoice",
+    "source_business_document_type: notice",
+    "corpus_role: experimental-business-template",
+    "source_corpus_role: registered-business-template",
+    "business_document_type_mismatch: True",
+    "corpus_role_mismatch: True"
+) -Message "release_handoff.md should keep schema calibration corpus metadata warning fields in one handoff warning block."
 
 $candidateFinalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $candidateFinalReviewPath
 Assert-MarkdownSectionContainsAll -Text $candidateFinalReview -Heading "## Key outputs" -Fragments $pdfImportDiagnosticsKeyOutputFragments `
@@ -248,6 +268,26 @@ Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "project_t
     "source_json_display:",
     "project-template-onboarding-governance"
 ) -Message "final_review.md should keep project-template readiness and onboarding governance contracts in one material-safety block."
+Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_patch_confidence_calibration / align_business_template_corpus_metadata" -Fragments @(
+    "schema_patch_confidence_calibration / align_business_template_corpus_metadata",
+    "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "business_document_type: invoice",
+    "source_business_document_type: notice",
+    "corpus_role: experimental-business-template",
+    "source_corpus_role: registered-business-template"
+) -Message "final_review.md should keep schema calibration corpus metadata action fields in one handoff action block."
+Assert-MarkdownListRunContainsAll -Text $candidateFinalReview -Anchor "schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" -Fragments @(
+    "schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata",
+    "action=align_business_template_corpus_metadata",
+    "source_schema=featherdoc.schema_patch_confidence_calibration_report.v1",
+    "mismatched_corpus_metadata_count: 1",
+    "business_document_type: invoice",
+    "source_business_document_type: notice",
+    "corpus_role: experimental-business-template",
+    "source_corpus_role: registered-business-template",
+    "business_document_type_mismatch: True",
+    "corpus_role_mismatch: True"
+) -Message "final_review.md should keep schema calibration corpus metadata warning fields in one handoff warning block."
 
 foreach ($assertion in @(
         @{ Path = $candidateFinalReviewPath; Label = "final_review.md" },

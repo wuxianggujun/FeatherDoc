@@ -39,6 +39,38 @@ function Add-ReleaseGovernanceReviewerActionLines {
     }
 }
 
+function Add-ReleaseGovernanceSchemaCorpusMetadataLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    foreach ($fieldName in @(
+            "business_document_type",
+            "source_business_document_type",
+            "corpus_role",
+            "source_corpus_role",
+            "business_document_type_mismatch",
+            "corpus_role_mismatch",
+            "mismatched_corpus_metadata_count",
+            "mismatched_business_document_type_count",
+            "mismatched_corpus_role_count",
+            "candidate_name",
+            "schema_update_candidate"
+        )) {
+        if (-not (Test-ReleaseBlockerPropertyExists -Object $Item -Name $fieldName)) {
+            continue
+        }
+
+        $fieldValues = @(Get-ReleaseBlockerArrayProperty -Object $Item -Name $fieldName |
+            ForEach-Object { [string]$_ } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($fieldValues.Count -gt 0) {
+            [void]$Lines.Add("  - ${fieldName}: $($fieldValues -join ', ')")
+        }
+    }
+}
+
 function Add-ReleaseGovernanceRollupSourceLines {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -70,6 +102,7 @@ function Add-ReleaseGovernanceRollupSourceLines {
     if (-not [string]::IsNullOrWhiteSpace($candidateType)) {
         [void]$Lines.Add("  - candidate_type: $candidateType")
     }
+    Add-ReleaseGovernanceSchemaCorpusMetadataLines -Lines $Lines -Item $Item
 
     foreach ($fieldName in @("source_report", "source_json")) {
         $fieldValue = Get-ReleaseBlockerPropertyValue -Object $Item -Name $fieldName

@@ -196,14 +196,54 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "project-temp
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch-confidence-calibration\summary.json") -Value ([ordered]@{
         schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
-        status = "ready"
-        release_ready = $true
+        status = "needs_review"
+        release_ready = $false
         release_blocker_count = 0
         release_blockers = @()
-        action_item_count = 0
-        action_items = @()
-        warning_count = 0
-        warnings = @()
+        action_item_count = 1
+        action_items = @(
+            [ordered]@{
+                id = "align_business_template_corpus_metadata"
+                action = "align_business_template_corpus_metadata"
+                title = "Align schema patch candidate corpus metadata"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                project_id = "project-office"
+                template_name = "office-notice-template"
+                business_document_type = "invoice"
+                source_business_document_type = "notice"
+                corpus_role = "experimental-business-template"
+                source_corpus_role = "registered-business-template"
+                candidate_type = "add"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
+        warning_count = 1
+        warnings = @(
+            [ordered]@{
+                id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+                action = "align_business_template_corpus_metadata"
+                message = "Some schema patch candidates disagree with their source business template corpus metadata."
+                mismatched_corpus_metadata_count = 1
+                business_document_type = "invoice"
+                source_business_document_type = "notice"
+                corpus_role = "experimental-business-template"
+                source_corpus_role = "registered-business-template"
+                business_document_type_mismatch = $true
+                corpus_role_mismatch = $true
+                project_id = "project-office"
+                template_name = "office-notice-template"
+                candidate_type = "add"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            }
+        )
         source_failure_count = 0
     })
 Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "docx-functional-smoke-readiness\summary.json") -Value ([ordered]@{
