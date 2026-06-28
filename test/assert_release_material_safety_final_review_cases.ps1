@@ -182,6 +182,44 @@ if (-not $badFinalReviewSchemaCalibrationMissingSourceRoleFailedAsExpected) {
     throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with schema calibration source_corpus_role removed."
 }
 
+$badFinalReviewSchemaCalibrationMissingMismatchCountDir = Join-Path $failDir "final-review-schema-calibration-corpus-metadata-missing-mismatch-count"
+$badFinalReviewSchemaCalibrationMissingMismatchCountPath = Join-Path $badFinalReviewSchemaCalibrationMissingMismatchCountDir "final_review.md"
+New-Item -ItemType Directory -Path $badFinalReviewSchemaCalibrationMissingMismatchCountDir -Force | Out-Null
+Set-Content -LiteralPath $badFinalReviewSchemaCalibrationMissingMismatchCountPath -Encoding UTF8 -Value @"
+# Release Candidate Checks
+
+## Schema calibration evidence
+
+### Handoff Warnings
+
+- schema_patch_confidence_calibration / schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata: action=align_business_template_corpus_metadata source_schema=featherdoc.schema_patch_confidence_calibration_report.v1
+  - source_report_display: .\output\schema-patch-confidence-calibration\summary.json
+  - source_json_display: .\output\schema-patch-confidence-calibration\summary.json
+  - business_document_type: invoice
+  - source_business_document_type: notice
+  - corpus_role: experimental-business-template
+  - source_corpus_role: registered-business-template
+  - business_document_type_mismatch: True
+  - corpus_role_mismatch: True
+  - missing_business_document_type_count: 0
+  - missing_corpus_role_count: 0
+  - mismatched_business_document_type_count: 1
+  - mismatched_corpus_role_count: 1
+  - candidate_name: notice.invoice_number
+  - schema_update_candidate: invoice_number
+"@
+
+$badFinalReviewSchemaCalibrationMissingMismatchCountFailedAsExpected = $false
+try {
+    & $auditScript -Path $badFinalReviewSchemaCalibrationMissingMismatchCountPath
+} catch {
+    $badFinalReviewSchemaCalibrationMissingMismatchCountFailedAsExpected = $true
+}
+
+if (-not $badFinalReviewSchemaCalibrationMissingMismatchCountFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly passed final_review.md with schema calibration mismatched_corpus_metadata_count removed."
+}
+
 $badFinalReviewStatusTraceDir = Join-Path $failDir "final-review-missing-project-template-readiness-status"
 $badFinalReviewStatusTracePath = Join-Path $badFinalReviewStatusTraceDir "final_review.md"
 New-Item -ItemType Directory -Path $badFinalReviewStatusTraceDir -Force | Out-Null

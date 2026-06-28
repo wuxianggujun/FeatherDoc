@@ -516,10 +516,10 @@ P3：文档、测试与索引治理
    release material safety 也已补入口材料负例，专门拦截 schema calibration
    blocker / action / warning 丢失来源 document type、来源 corpus role、
    missing / mismatch count 或候选字段的回归。
-   本轮继续补 final review 侧 material-safety 负例，并让 schema calibration
-   missing document type / missing corpus role 的 action / warning 在生成器层透传
-   ``source_business_document_type`` / ``source_corpus_role``，避免 reviewer-facing
-   ``final_review.md`` 只展示修复动作却丢失来源语料上下文。
+   final review 侧 material-safety 负例已继续补齐 schema calibration mismatch
+   count 契约；``final_review.md`` 若只保留修复动作、来源路径和候选字段，却丢失
+   ``mismatched_corpus_metadata_count``，审计会失败，避免 reviewer-facing 最终材料
+   丢失 schema/corpus metadata mismatch 的数量上下文。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
