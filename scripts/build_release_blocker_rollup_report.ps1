@@ -204,6 +204,17 @@ foreach ($path in @($inputPaths)) {
                     "reviewer_action_summary",
                     "reviewer_action_reason",
                     "reviewer_actions",
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate",
                     "matched_document_count",
                     "unmatched_catalog_document_count",
                     "unmatched_baseline_document_count",
@@ -327,7 +338,18 @@ foreach ($path in @($inputPaths)) {
                     "requires_reviewer_action",
                     "reviewer_action_summary",
                     "reviewer_action_reason",
-                    "reviewer_actions"
+                    "reviewer_actions",
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate"
                 )
             Normalize-ReadinessActionEvidence `
                 -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `
@@ -352,7 +374,7 @@ foreach ($path in @($inputPaths)) {
             $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
             $originSourceReport = Get-JsonString -Object $warning -Name "source_report"
             $originSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
-            $warnings.Add([ordered]@{
+            $rollupWarning = [ordered]@{
                 composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
                 id = $id
                 project_id = Get-JsonString -Object $warning -Name "project_id"
@@ -391,7 +413,24 @@ foreach ($path in @($inputPaths)) {
                 schema_target = Get-JsonString -Object $warning -Name "schema_target"
                 target_mode = Get-JsonString -Object $warning -Name "target_mode"
                 message = Get-JsonString -Object $warning -Name "message"
-            }) | Out-Null
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupWarning `
+                -Source $warning `
+                -Names @(
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate"
+                )
+            $warnings.Add($rollupWarning) | Out-Null
         }
     } catch {
         $status = "failed"

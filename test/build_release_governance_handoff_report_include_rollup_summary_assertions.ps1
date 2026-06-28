@@ -28,9 +28,9 @@
         -Message "Handoff summary should consume nested rollup source report count."
     Assert-Equal -Actual ([int]$summary.release_blocker_rollup.release_blocker_count) -Expected 5 `
         -Message "Handoff summary should consume nested rollup blocker count."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.action_item_count) -Expected 7 `
         -Message "Handoff summary should consume nested rollup action item count."
-    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.release_blocker_rollup.warning_count) -Expected 4 `
         -Message "Handoff summary should consume nested rollup warning count."
     Assert-ContainsText -Text (($summary.release_blocker_rollup.blocker_source_schema_summary | ForEach-Object { "$($_.source_schema):$($_.count)" }) -join "`n") `
         -ExpectedText "featherdoc.schema_patch_confidence_calibration_report.v1:1" `

@@ -498,6 +498,9 @@ P3：文档、测试与索引治理
    并把 ``add_business_template_document_type_metadata`` /
    ``add_business_template_corpus_role_metadata`` /
    ``align_business_template_corpus_metadata`` 注册进固定 reviewer runbook。
+   本轮继续把 ``align_business_template_corpus_metadata`` 的 warning / action fixture
+   接入 release blocker rollup 与 release governance handoff 值级回归，锁住候选
+   ``business_document_type`` / ``corpus_role`` 及来源语料字段在发布治理出口中的传递。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle、handoff、final review 仍能看到

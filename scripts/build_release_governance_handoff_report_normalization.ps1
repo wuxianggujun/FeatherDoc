@@ -73,6 +73,45 @@ function New-ReportEntry {
     }
 }
 
+function Add-OptionalJsonProperties {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Source,
+        [string[]]$Names
+    )
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Source -Name $name
+        if ($null -ne $value) {
+            $Target[$name] = $value
+        }
+    }
+}
+
+function Add-SchemaCorpusMetadataProperties {
+    param(
+        [System.Collections.IDictionary]$Target,
+        $Source
+    )
+
+    Add-OptionalJsonProperties `
+        -Target $Target `
+        -Source $Source `
+        -Names @(
+            "business_document_type",
+            "source_business_document_type",
+            "corpus_role",
+            "source_corpus_role",
+            "business_document_type_mismatch",
+            "corpus_role_mismatch",
+            "mismatched_corpus_metadata_count",
+            "mismatched_business_document_type_count",
+            "mismatched_corpus_role_count",
+            "candidate_name",
+            "schema_update_candidate"
+        )
+}
+
 function Add-NormalizedBlockers {
     param(
         [System.Collections.Generic.List[object]]$Collection,
@@ -135,7 +174,7 @@ function Add-NormalizedBlockers {
                 $onboardingSourceJsonDisplay = Get-JsonString -Object $ProjectTemplateOnboardingGovernanceContract -Name "source_json_display"
             }
         }
-        $Collection.Add([ordered]@{
+        $normalizedBlocker = [ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $blocker -Name "id" -DefaultValue "release_blocker"
@@ -186,7 +225,9 @@ function Add-NormalizedBlockers {
             catalog_document_keys = @(Get-JsonArray -Object $blocker -Name "catalog_document_keys")
             baseline_document_keys = @(Get-JsonArray -Object $blocker -Name "baseline_document_keys")
             matched_document_keys = @(Get-JsonArray -Object $blocker -Name "matched_document_keys")
-        }) | Out-Null
+        }
+        Add-SchemaCorpusMetadataProperties -Target $normalizedBlocker -Source $blocker
+        $Collection.Add($normalizedBlocker) | Out-Null
     }
 }
 
@@ -310,6 +351,7 @@ function Add-NormalizedActions {
             command_template = Get-JsonString -Object $item -Name "command_template"
             repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
         }
+        Add-SchemaCorpusMetadataProperties -Target $normalizedAction -Source $item
         if ($ForceInformational -or (Test-InformationalActionItem -Item $normalizedAction)) {
             $InformationalCollection.Add((Copy-ActionItemWithReleaseChecklistDefaults -Item $normalizedAction)) | Out-Null
         } else {
@@ -329,7 +371,7 @@ function Add-NormalizedWarnings {
         $sourceReport = Get-JsonString -Object $warning -Name "source_report" -DefaultValue ([string]$Report.expected_summary)
         $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display" -DefaultValue $sourceReportDisplay
         $sourceJson = Get-JsonString -Object $warning -Name "source_json" -DefaultValue $sourceReport
-        $Collection.Add([ordered]@{
+        $normalizedWarning = [ordered]@{
             report_id = [string]$Report.id
             report_title = [string]$Report.title
             id = Get-JsonString -Object $warning -Name "id" -DefaultValue "warning"
@@ -351,7 +393,9 @@ function Add-NormalizedWarnings {
             input_docx_display = Get-JsonString -Object $warning -Name "input_docx_display"
             schema_target = Get-JsonString -Object $warning -Name "schema_target"
             target_mode = Get-JsonString -Object $warning -Name "target_mode"
-        }) | Out-Null
+        }
+        Add-SchemaCorpusMetadataProperties -Target $normalizedWarning -Source $warning
+        $Collection.Add($normalizedWarning) | Out-Null
     }
 }
 

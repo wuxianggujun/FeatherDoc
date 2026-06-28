@@ -338,7 +338,7 @@ function Write-GovernanceFixtures {
             status = "pending_review"
             release_ready = $false
             release_blocker_count = 1
-            warning_count = 1
+            warning_count = 2
             release_blockers = @(
                 [ordered]@{
                     id = "schema_patch_confidence_calibration.pending_schema_approvals"
@@ -356,7 +356,7 @@ function Write-GovernanceFixtures {
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
             )
-            action_item_count = 1
+            action_item_count = 2
             action_items = @(
                 [ordered]@{
                     id = "resolve_pending_schema_approvals"
@@ -366,6 +366,24 @@ function Write-GovernanceFixtures {
                     project_id = "project-finance"
                     template_name = "invoice-template"
                     candidate_type = "rename"
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                },
+                [ordered]@{
+                    id = "align_business_template_corpus_metadata"
+                    action = "align_business_template_corpus_metadata"
+                    title = "Align schema patch candidate corpus metadata"
+                    open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                    project_id = "project-office"
+                    template_name = "office-notice-template"
+                    business_document_type = "invoice"
+                    source_business_document_type = "notice"
+                    corpus_role = "experimental-business-template"
+                    source_corpus_role = "registered-business-template"
+                    candidate_type = "add"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_report = "output/schema-patch-confidence-calibration/summary.json"
                     source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
@@ -381,6 +399,26 @@ function Write-GovernanceFixtures {
                     project_id = "project-finance"
                     template_name = "invoice-template"
                     candidate_type = "rename"
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                },
+                [ordered]@{
+                    id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+                    action = "align_business_template_corpus_metadata"
+                    message = "Some schema patch candidates disagree with their source business template corpus metadata."
+                    mismatched_corpus_metadata_count = 1
+                    business_document_type = "invoice"
+                    source_business_document_type = "notice"
+                    corpus_role = "experimental-business-template"
+                    source_corpus_role = "registered-business-template"
+                    business_document_type_mismatch = $true
+                    corpus_role_mismatch = $true
+                    project_id = "project-office"
+                    template_name = "office-notice-template"
+                    candidate_type = "add"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_report = "output/schema-patch-confidence-calibration/summary.json"
                     source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"

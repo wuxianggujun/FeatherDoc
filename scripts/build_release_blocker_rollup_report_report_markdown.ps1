@@ -14,6 +14,38 @@ function Add-RepairActionClassMarkdownLines {
     }
 }
 
+function Add-SchemaCorpusMetadataMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    foreach ($fieldName in @(
+            "business_document_type",
+            "source_business_document_type",
+            "corpus_role",
+            "source_corpus_role",
+            "business_document_type_mismatch",
+            "corpus_role_mismatch",
+            "mismatched_corpus_metadata_count",
+            "mismatched_business_document_type_count",
+            "mismatched_corpus_role_count",
+            "candidate_name",
+            "schema_update_candidate"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Item -Name $fieldName
+        if ($null -eq $fieldValue) { continue }
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if (-not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -290,6 +322,7 @@ function New-ReportMarkdown {
         foreach ($blocker in @($Summary.release_blockers)) {
             $lines.Add("- ``$($blocker.composite_id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $blocker
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
@@ -327,6 +360,7 @@ function New-ReportMarkdown {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -365,6 +399,7 @@ function New-ReportMarkdown {
         foreach ($item in @($Summary.informational_action_items)) {
             $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -403,6 +438,7 @@ function New-ReportMarkdown {
         foreach ($warning in @($Summary.warnings)) {
             $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $warning
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
             }

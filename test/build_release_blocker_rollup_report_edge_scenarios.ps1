@@ -10,7 +10,7 @@ if (Test-Scenario -Name "fail_on_warning") {
     Assert-Equal -Actual $result.ExitCode -Expected 1 `
         -Message "Rollup should fail fail-on-warning when PDF preflight warnings are present. Output: $($result.Text)"
     $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $outputDir "summary.json") | ConvertFrom-Json
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 4 `
         -Message "Fail-on-warning rollup should still write structured warning evidence."
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `

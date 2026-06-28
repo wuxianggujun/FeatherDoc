@@ -27,9 +27,9 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should be blocked when blockers exist."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 8 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 7 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 4 `
         -Message "Rollup should aggregate warning items."
     Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
@@ -64,7 +64,7 @@ if (Test-Scenario -Name "passing") {
     Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
-        -ExpectedCount 1 `
+        -ExpectedCount 2 `
         -Message "Rollup should summarize action items by source schema for reviewer filtering."
     Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
         -PropertyName "source_schema" `
@@ -74,7 +74,7 @@ if (Test-Scenario -Name "passing") {
     Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
-        -ExpectedCount 1 `
+        -ExpectedCount 2 `
         -Message "Rollup should summarize warnings by source schema for reviewer filtering."
     Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
         -PropertyName "source_schema" `
@@ -656,6 +656,25 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration action raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationAction.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration action origin source report display."
+    $calibrationMetadataAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "align_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.project_id) -Expected "project-office" `
+        -Message "Rollup should preserve calibration corpus metadata action project id."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.template_name) -Expected "office-notice-template" `
+        -Message "Rollup should preserve calibration corpus metadata action template name."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.business_document_type) -Expected "invoice" `
+        -Message "Rollup should preserve calibration corpus metadata action business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_business_document_type) -Expected "notice" `
+        -Message "Rollup should preserve calibration corpus metadata action source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.corpus_role) -Expected "experimental-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata action corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata action source corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.candidate_type) -Expected "add" `
+        -Message "Rollup should preserve calibration corpus metadata action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationMetadataAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Rollup should preserve calibration corpus metadata action raw source JSON."
     $calibrationWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
         Select-Object -First 1)
@@ -669,6 +688,27 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration warning raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration warning origin source report display."
+    $calibrationMetadataWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.action) -Expected "align_business_template_corpus_metadata" `
+        -Message "Rollup should preserve calibration corpus metadata warning action."
+    Assert-Equal -Actual ([int]$calibrationMetadataWarning.mismatched_corpus_metadata_count) -Expected 1 `
+        -Message "Rollup should preserve calibration corpus metadata mismatch count."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.business_document_type) -Expected "invoice" `
+        -Message "Rollup should preserve calibration corpus metadata warning business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_business_document_type) -Expected "notice" `
+        -Message "Rollup should preserve calibration corpus metadata warning source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.corpus_role) -Expected "experimental-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata warning corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata warning source corpus role."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.business_document_type_mismatch) -Expected $true `
+        -Message "Rollup should preserve calibration business document type mismatch flag."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.corpus_role_mismatch) -Expected $true `
+        -Message "Rollup should preserve calibration corpus role mismatch flag."
+    Assert-ContainsText -Text ([string]$calibrationMetadataWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Rollup should preserve calibration corpus metadata warning origin source report display."
     $pdfPreflightWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "pdf_controlled_visual_smoke.unavailable_or_failed" } |
         Select-Object -First 1)

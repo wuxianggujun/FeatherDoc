@@ -28,9 +28,9 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should not mark default reports missing."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 4 `
         -Message "Aggregate handoff should normalize release blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 5 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 6 `
         -Message "Aggregate handoff should normalize action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 2 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
         -Message "Aggregate handoff should preserve warning counts."
     Assert-Equal -Actual ([int]$summary.governance_metric_count) -Expected 2 `
         -Message "Aggregate handoff should preserve governance metric count."
@@ -166,7 +166,7 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text (($tableMetric.details.penalty_summary | ForEach-Object { [string]$_.factor }) -join "`n") `
         -ExpectedText "safe_tblLook_fixes_pending" `
         -Message "Aggregate handoff should preserve table layout delivery penalty summary."
-    Assert-Equal -Actual (@($summary.warnings).Count) -Expected 2 `
+    Assert-Equal -Actual (@($summary.warnings).Count) -Expected 3 `
         -Message "Aggregate handoff should normalize warning details."
     Assert-ContainsText -Text (($summary.warnings | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_manifest_summary_missing" `
@@ -211,6 +211,25 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve calibration action raw source report."
     Assert-ContainsText -Text ([string]$calibrationAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
         -Message "Aggregate handoff should preserve calibration action raw source JSON."
+    $calibrationMetadataAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "align_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.project_id) -Expected "project-office" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action project id."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.template_name) -Expected "office-notice-template" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action template name."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.business_document_type) -Expected "invoice" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_business_document_type) -Expected "notice" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.corpus_role) -Expected "experimental-business-template" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action source corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.candidate_type) -Expected "add" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationMetadataAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata action raw source JSON."
     $calibrationWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
         Select-Object -First 1)
@@ -224,6 +243,27 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate handoff should preserve calibration warning raw source report."
     Assert-ContainsText -Text ([string]$calibrationWarning.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
         -Message "Aggregate handoff should preserve calibration warning raw source JSON."
+    $calibrationMetadataWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.action) -Expected "align_business_template_corpus_metadata" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning action."
+    Assert-Equal -Actual ([int]$calibrationMetadataWarning.mismatched_corpus_metadata_count) -Expected 1 `
+        -Message "Aggregate handoff should preserve calibration corpus metadata mismatch count."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.business_document_type) -Expected "invoice" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_business_document_type) -Expected "notice" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.corpus_role) -Expected "experimental-business-template" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning source corpus role."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.business_document_type_mismatch) -Expected $true `
+        -Message "Aggregate handoff should preserve calibration business document type mismatch flag."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.corpus_role_mismatch) -Expected $true `
+        -Message "Aggregate handoff should preserve calibration corpus role mismatch flag."
+    Assert-ContainsText -Text ([string]$calibrationMetadataWarning.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Aggregate handoff should preserve calibration corpus metadata warning raw source JSON."
     Assert-ContainsText -Text (($summary.next_commands | ForEach-Object { [string]$_ }) -join "`n") `
         -ExpectedText "ReleaseBlockerRollupAutoDiscover" `
         -Message "Aggregate handoff should hand off to release candidate auto-discovery."
@@ -365,6 +405,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include content-control source JSON display."
     Assert-ContainsText -Text $markdown -ExpectedText "schema_patch_confidence_calibration" `
         -Message "Markdown should include schema patch confidence calibration."
+    Assert-ContainsText -Text $markdown -ExpectedText "align_business_template_corpus_metadata" `
+        -Message "Markdown should include calibration corpus metadata mismatch action."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_business_document_type" `
+        -Message "Markdown should include calibration source business document type evidence."
     Assert-ContainsText -Text $markdown -ExpectedText 'project=`project-finance` template=`invoice-template` candidate=`rename`' `
         -Message "Markdown should include calibration project/template/candidate routing fields."
     Assert-ContainsText -Text $markdown -ExpectedText "## Warnings" `

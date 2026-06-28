@@ -5,7 +5,7 @@
         -Message "Nested rollup should consume all loaded governance reports and explicit release-candidate evidence."
     Assert-Equal -Actual ([int]$rollupSummary.release_blocker_count) -Expected 5 `
         -Message "Nested rollup should preserve blocker count."
-    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$rollupSummary.action_item_count) -Expected 7 `
         -Message "Nested rollup should preserve action item count."
     Assert-Equal -Actual ([int]$rollupSummary.governance_metric_count) -Expected 2 `
         -Message "Nested rollup should preserve governance metric count."
