@@ -124,7 +124,9 @@
   ``business_document_type`` 或 ``corpus_role`` 的语料分别输出
   ``add_business_template_source_metadata`` /
   ``add_business_template_document_type_metadata`` /
-  ``add_business_template_corpus_role_metadata`` 动作；
+  ``add_business_template_corpus_role_metadata`` 动作；若候选上的
+  ``business_document_type`` / ``corpus_role`` 与来源语料条目不一致，则输出
+  ``align_business_template_corpus_metadata`` 动作；
   reviewer 分流约定为先用 ``source_report_display`` 打开 Markdown 报告，再用
   ``source_json_display`` 核对机器证据，最后复制 ``open_command`` 重新生成或复核校准材料
 - release blocker rollup 统一发布阻断汇总

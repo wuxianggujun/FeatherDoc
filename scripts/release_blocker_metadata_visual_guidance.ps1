@@ -323,6 +323,7 @@ function Get-ReleaseBlockerRegisteredActions {
         "add_business_template_source_metadata",
         "add_business_template_document_type_metadata",
         "add_business_template_corpus_role_metadata",
+        "align_business_template_corpus_metadata",
         "review_schema_patch_confidence_calibration_evidence",
         "review_schema_update_candidate",
         "review_style_numbering_audit",

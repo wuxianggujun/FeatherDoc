@@ -335,6 +335,28 @@ Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "co
 Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Schema patch confidence calibration corpus role runbook should point at the calibration writer."
 
+$schemaCalibrationCorpusMismatchWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "align_business_template_corpus_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationCorpusMismatchGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationCorpusMismatchWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "align_business_template_corpus_metadata" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "source corpus entry" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch runbook should explain source entry alignment."
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch runbook should point at the calibration writer."
+
 $contentControlBlocker = [pscustomobject]@{
     id = "content_control_data_binding.bound_placeholder"
     source = "content_control_data_binding_governance"

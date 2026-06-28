@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "source_metadata", "business_dimension_metadata", "corpus_role_metadata", "fail_on_pending")]
+    [ValidateSet("all", "aggregate", "source_metadata", "business_dimension_metadata", "corpus_role_metadata", "corpus_metadata_mismatch", "fail_on_pending")]
     [string]$Scenario = "all"
 )
 
@@ -140,12 +140,14 @@ $historyPath = Join-Path $fixtureRoot "history\project_template_schema_approval_
 $missingSourceSummaryPath = Join-Path $resolvedWorkingDir "missing-source-fixture\summary.json"
 $missingBusinessDocumentTypeSummaryPath = Join-Path $resolvedWorkingDir "missing-business-document-type-fixture\summary.json"
 $missingCorpusRoleSummaryPath = Join-Path $resolvedWorkingDir "missing-corpus-role-fixture\summary.json"
+$mismatchedCorpusMetadataSummaryPath = Join-Path $resolvedWorkingDir "mismatched-corpus-metadata-fixture\summary.json"
 
 foreach ($fixtureDir in @(
         $fixtureRoot,
         (Join-Path $resolvedWorkingDir "missing-source-fixture"),
         (Join-Path $resolvedWorkingDir "missing-business-document-type-fixture"),
-        (Join-Path $resolvedWorkingDir "missing-corpus-role-fixture")
+        (Join-Path $resolvedWorkingDir "missing-corpus-role-fixture"),
+        (Join-Path $resolvedWorkingDir "mismatched-corpus-metadata-fixture")
     )) {
     if (Test-Path -LiteralPath $fixtureDir) {
         Remove-Item -LiteralPath $fixtureDir -Recurse -Force
@@ -554,6 +556,62 @@ Write-JsonFile -Path $missingCorpusRoleSummaryPath -Value ([ordered]@{
     )
 })
 
+Write-JsonFile -Path $mismatchedCorpusMetadataSummaryPath -Value ([ordered]@{
+    schema = "featherdoc.project_template_smoke_summary.v1"
+    schema_patch_review_count = 1
+    schema_patch_review_changed_count = 1
+    entries = @(
+        [ordered]@{
+            name = "office-notice-template"
+            business_document_type = "notice"
+            corpus_role = "registered-business-template"
+        }
+    )
+    schema_patch_reviews = @(
+        [ordered]@{
+            name = "office-notice-template"
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            business_document_type = "invoice"
+            corpus_role = "experimental-business-template"
+            candidate_type = "add"
+            review_json = "office-notice.review.json"
+            changed = $true
+            baseline_slot_count = 1
+            generated_slot_count = 2
+            upsert_slot_count = 1
+            remove_target_count = 0
+            remove_slot_count = 0
+            rename_slot_count = 0
+            update_slot_count = 0
+            inserted_slots = 1
+            replaced_slots = 0
+            confidence = 91
+            reason_code = "corpus_metadata_mismatch"
+        }
+    )
+    schema_patch_approval_items = @(
+        [ordered]@{
+            name = "office-notice-template"
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            business_document_type = "invoice"
+            corpus_role = "experimental-business-template"
+            candidate_type = "add"
+            status = "approved"
+            decision = "approved"
+            approved = $true
+            pending = $false
+            confidence = 91
+            reason_code = "corpus_metadata_mismatch"
+            approval_result = "office-notice.approval.json"
+            schema_update_candidate = "office-notice.schema.json"
+            review_json = "office-notice.review.json"
+            compliance_issue_count = 0
+        }
+    )
+})
+
 if (Test-Scenario -Name "aggregate") {
     $outputDir = Join-Path $resolvedWorkingDir "aggregate-report"
     $result = Invoke-CalibrationScript -Arguments @(
@@ -609,6 +667,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Corpus summary should report missing business document type metadata count."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_corpus_role_count) -Expected 0 `
         -Message "Corpus summary should report missing corpus role metadata count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_corpus_metadata_count) -Expected 0 `
+        -Message "Corpus summary should report mismatched corpus metadata count."
     Assert-True -Condition (@($summary.business_template_corpus_summary.template_sources | Where-Object { $_.template_scope -eq "project-finance/invoice-template" }).Count -eq 1) `
         -Message "Corpus summary should route invoice fixture back to its project/template scope."
     Assert-True -Condition (@($summary.business_template_corpus_summary.business_document_types) -contains "invoice") `
@@ -750,6 +810,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include corpus role counts."
     Assert-ContainsText -Text $markdown -ExpectedText "missing_corpus_roles=0" `
         -Message "Markdown should include missing corpus role counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "mismatched_corpus_metadata=0" `
+        -Message "Markdown should include mismatched corpus metadata counts."
     Assert-ContainsText -Text $markdown -ExpectedText "source_jsons=2" `
         -Message "Markdown should include source JSON coverage."
     Assert-ContainsText -Text $markdown -ExpectedText "Confidence Buckets" `
@@ -802,6 +864,8 @@ if (Test-Scenario -Name "source_metadata") {
         -Message "Review/approval-level business document type should satisfy business dimension traceability."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_corpus_role_count) -Expected 0 `
         -Message "Review/approval-level corpus role should satisfy corpus-role traceability."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_corpus_metadata_count) -Expected 0 `
+        -Message "Source metadata warning should not be confused with mismatched corpus metadata."
     Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_source_entries).Count) -Expected 1 `
         -Message "Corpus summary should keep missing source entry details."
     Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "notice" `
@@ -856,6 +920,8 @@ if (Test-Scenario -Name "business_dimension_metadata") {
         -Message "Corpus summary should count missing business document type metadata."
     Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_corpus_role_count) -Expected 0 `
         -Message "Business document type warning should not be confused with missing corpus role."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_corpus_metadata_count) -Expected 0 `
+        -Message "Business document type warning should not be confused with mismatched corpus metadata."
     Assert-Equal -Actual (@($summary.business_template_corpus_summary.missing_business_document_type_entries).Count) -Expected 1 `
         -Message "Corpus summary should keep missing business document type entry details."
     Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
@@ -924,6 +990,80 @@ if (Test-Scenario -Name "corpus_role_metadata") {
         -Message "Markdown should expose missing corpus role entry details."
     Assert-ContainsText -Text $markdown -ExpectedText "add_business_template_corpus_role_metadata" `
         -Message "Markdown should include missing corpus role action."
+}
+
+if (Test-Scenario -Name "corpus_metadata_mismatch") {
+    $outputDir = Join-Path $resolvedWorkingDir "corpus-metadata-mismatch-report"
+    $result = Invoke-CalibrationScript -Arguments @(
+        "-InputJson", $mismatchedCorpusMetadataSummaryPath,
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Calibration report should not fail only because corpus metadata mismatches its source entry. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "schema_patch_confidence_calibration.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+    Assert-Equal -Actual ([string]$summary.status) -Expected "ready" `
+        -Message "Mismatched corpus metadata should be a warning, not a release blocker."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $true `
+        -Message "Mismatched corpus metadata alone should not fail release readiness."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.entry_count) -Expected 1 `
+        -Message "Corpus mismatch scenario should expose corpus entry count."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.traced_entry_count) -Expected 1 `
+        -Message "Corpus mismatch scenario should keep source identity traced."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_source_metadata_count) -Expected 0 `
+        -Message "Corpus mismatch warning should not be confused with missing source identity."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_business_document_type_count) -Expected 0 `
+        -Message "Corpus mismatch warning should not be confused with missing business document type."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.missing_corpus_role_count) -Expected 0 `
+        -Message "Corpus mismatch warning should not be confused with missing corpus role."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_corpus_metadata_count) -Expected 1 `
+        -Message "Corpus summary should count mismatched corpus metadata."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_business_document_type_count) -Expected 1 `
+        -Message "Corpus summary should count mismatched business document type metadata."
+    Assert-Equal -Actual ([int]$summary.business_template_corpus_summary.mismatched_corpus_role_count) -Expected 1 `
+        -Message "Corpus summary should count mismatched corpus role metadata."
+    Assert-Equal -Actual (@($summary.business_template_corpus_summary.mismatched_corpus_metadata_entries).Count) -Expected 1 `
+        -Message "Corpus summary should keep mismatched corpus metadata entry details."
+    Assert-Equal -Actual ([string]$summary.entries[0].business_document_type) -Expected "invoice" `
+        -Message "Entries should preserve the candidate business document type for mismatch triage."
+    Assert-Equal -Actual ([string]$summary.entries[0].source_business_document_type) -Expected "notice" `
+        -Message "Entries should preserve source business document type for mismatch triage."
+    Assert-Equal -Actual ([string]$summary.entries[0].corpus_role) -Expected "experimental-business-template" `
+        -Message "Entries should preserve the candidate corpus role for mismatch triage."
+    Assert-Equal -Actual ([string]$summary.entries[0].source_corpus_role) -Expected "registered-business-template" `
+        -Message "Entries should preserve source corpus role for mismatch triage."
+    Assert-Equal -Actual ([bool]$summary.entries[0].business_document_type_mismatch) -Expected $true `
+        -Message "Entries should flag business document type mismatch."
+    Assert-Equal -Actual ([bool]$summary.entries[0].corpus_role_mismatch) -Expected $true `
+        -Message "Entries should flag corpus role mismatch."
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 1 `
+        -Message "Mismatched corpus metadata should produce one warning."
+    Assert-Equal -Actual ([string]$summary.warnings[0].id) -Expected "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" `
+        -Message "Mismatched corpus metadata warning should use a stable id."
+    Assert-Equal -Actual ([string]$summary.warnings[0].action) -Expected "align_business_template_corpus_metadata" `
+        -Message "Mismatched corpus metadata warning should route to repair action."
+    Assert-Equal -Actual ([int]$summary.warnings[0].mismatched_corpus_metadata_count) -Expected 1 `
+        -Message "Mismatched corpus metadata warning should expose the affected count."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_business_document_type) -Expected "notice" `
+        -Message "Mismatched corpus metadata warning should expose source business document type."
+    Assert-Equal -Actual ([string]$summary.warnings[0].source_corpus_role) -Expected "registered-business-template" `
+        -Message "Mismatched corpus metadata warning should expose source corpus role."
+    Assert-True -Condition (@($summary.action_items | Where-Object { $_.id -eq "align_business_template_corpus_metadata" }).Count -eq 1) `
+        -Message "Mismatched corpus metadata recommendation should be mirrored as an action item."
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "mismatched_corpus_metadata=1" `
+        -Message "Markdown should expose mismatched corpus metadata count."
+    Assert-ContainsText -Text $markdown -ExpectedText "mismatched_corpus_metadata_entries:" `
+        -Message "Markdown should expose mismatched corpus metadata entry details."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_business_document_type=notice" `
+        -Message "Markdown should include source business document type."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_corpus_role=registered-business-template" `
+        -Message "Markdown should include source corpus role."
+    Assert-ContainsText -Text $markdown -ExpectedText "align_business_template_corpus_metadata" `
+        -Message "Markdown should include mismatched corpus metadata action."
 }
 
 if (Test-Scenario -Name "fail_on_pending") {
