@@ -506,9 +506,16 @@ P3：文档、测试与索引治理
    ``missing_business_document_type_count``、``missing_corpus_role_count``、
    ``mismatched_*_count``、候选 ``business_document_type`` / ``corpus_role`` 及来源语料
    字段在发布治理出口和 reviewer-facing 最终材料中的传递。
+   release note bundle 回归也已补 schema calibration blocker / action / warning
+   fixture，要求 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
+   ``REVIEWER_CHECKLIST.md`` 与 ``START_HERE.md`` 的同一 Markdown list block
+   继续展示 ``business_document_type`` / ``source_business_document_type``、
+   ``corpus_role`` / ``source_corpus_role``、mismatch flag / count、``candidate_name``
+   和 ``schema_update_candidate``，避免公开入口材料只保留 source path 而丢失
+   schema/corpus metadata 缺口细节。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
-   schema patch confidence 回归，并确认 release bundle、handoff、final review 仍能看到
+   schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
    dashboard、schema approval 与 schema/corpus metadata missing / mismatch 的来源路径、
    下一步命令和 blocker/action 明细。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
    不做大重构。

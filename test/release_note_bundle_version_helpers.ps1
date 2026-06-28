@@ -199,6 +199,75 @@ function Assert-ContentControlGovernanceTrace {
         ) -Label $Label
 }
 
+function Assert-SchemaCalibrationCorpusMetadataTrace {
+    param(
+        [string]$Path,
+        [string]$Label
+    )
+
+    Assert-MarkdownListBlockContainsAll -Path $Path `
+        -Anchor 'schema_patch_confidence_calibration.pending_schema_approvals: action=resolve_pending_schema_approvals' `
+        -ExpectedFragments @(
+            'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1',
+            'source_report_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'source_json_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'source_business_document_type: contract',
+            'corpus_role: registered-business-template',
+            'source_corpus_role: registered-business-template',
+            'business_document_type_mismatch: False',
+            'corpus_role_mismatch: False',
+            'missing_business_document_type_count: 1',
+            'missing_corpus_role_count: 0',
+            'mismatched_corpus_metadata_count: 0',
+            'mismatched_business_document_type_count: 0',
+            'mismatched_corpus_role_count: 0',
+            'candidate_name: contract.customer_name',
+            'schema_update_candidate: customer_name'
+        ) -Label $Label
+
+    Assert-MarkdownListBlockContainsAll -Path $Path `
+        -Anchor 'schema_patch_confidence_calibration.unscored_candidates: action=add_explicit_confidence_metadata' `
+        -ExpectedFragments @(
+            'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1',
+            'source_report_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'source_json_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'business_document_type: invoice',
+            'source_business_document_type: notice',
+            'corpus_role: registered-business-template',
+            'source_corpus_role: planned-business-template',
+            'business_document_type_mismatch: True',
+            'corpus_role_mismatch: True',
+            'missing_business_document_type_count: 0',
+            'missing_corpus_role_count: 0',
+            'mismatched_corpus_metadata_count: 1',
+            'mismatched_business_document_type_count: 1',
+            'mismatched_corpus_role_count: 1',
+            'candidate_name: notice.invoice_number',
+            'schema_update_candidate: invoice_number'
+        ) -Label $Label
+
+    Assert-MarkdownListBlockContainsAll -Path $Path `
+        -Anchor 'resolve_pending_schema_approvals: action=resolve_pending_schema_approvals' `
+        -ExpectedFragments @(
+            'source_schema=featherdoc.schema_patch_confidence_calibration_report.v1',
+            'source_report_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'source_json_display: .\output\schema-patch-confidence-calibration\summary.json',
+            'open_command: pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1',
+            'business_document_type: policy',
+            'source_business_document_type: policy',
+            'source_corpus_role: planned-business-template',
+            'business_document_type_mismatch: False',
+            'corpus_role_mismatch: False',
+            'missing_business_document_type_count: 0',
+            'missing_corpus_role_count: 1',
+            'mismatched_corpus_metadata_count: 0',
+            'mismatched_business_document_type_count: 0',
+            'mismatched_corpus_role_count: 0',
+            'candidate_name: policy.effective_date',
+            'schema_update_candidate: effective_date'
+        ) -Label $Label
+}
+
 function New-NumberingGovernanceMetricFixture {
     return [ordered]@{
         id = "numbering_catalog_governance.real_corpus_confidence"

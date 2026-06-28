@@ -21,6 +21,64 @@ $expectedSupersededReviewTasksReportDisplayPath = if ($supersededReviewTasksRepo
 $contentControlCommandTemplateMarker = "command_template: featherdoc_cli sync-content-controls-from-custom-xml <input.docx> --output <synced.docx> --json"
 $contentControlDuplicateActionCommandTemplateMarker = "command_template: featherdoc_cli inspect-content-controls <input.docx> --json"
 
+function New-ReleaseNoteSchemaCorpusMetadataFixture {
+    param([ValidateSet("missing_document_type", "missing_corpus_role", "mismatched_metadata")] [string]$Case)
+
+    switch ($Case) {
+        "missing_document_type" {
+            return [ordered]@{
+                business_document_type = ""
+                source_business_document_type = "contract"
+                corpus_role = "registered-business-template"
+                source_corpus_role = "registered-business-template"
+                business_document_type_mismatch = $false
+                corpus_role_mismatch = $false
+                missing_business_document_type_count = 1
+                missing_corpus_role_count = 0
+                mismatched_corpus_metadata_count = 0
+                mismatched_business_document_type_count = 0
+                mismatched_corpus_role_count = 0
+                candidate_name = "contract.customer_name"
+                schema_update_candidate = "customer_name"
+            }
+        }
+        "missing_corpus_role" {
+            return [ordered]@{
+                business_document_type = "policy"
+                source_business_document_type = "policy"
+                corpus_role = ""
+                source_corpus_role = "planned-business-template"
+                business_document_type_mismatch = $false
+                corpus_role_mismatch = $false
+                missing_business_document_type_count = 0
+                missing_corpus_role_count = 1
+                mismatched_corpus_metadata_count = 0
+                mismatched_business_document_type_count = 0
+                mismatched_corpus_role_count = 0
+                candidate_name = "policy.effective_date"
+                schema_update_candidate = "effective_date"
+            }
+        }
+        default {
+            return [ordered]@{
+                business_document_type = "invoice"
+                source_business_document_type = "notice"
+                corpus_role = "registered-business-template"
+                source_corpus_role = "planned-business-template"
+                business_document_type_mismatch = $true
+                corpus_role_mismatch = $true
+                missing_business_document_type_count = 0
+                missing_corpus_role_count = 0
+                mismatched_corpus_metadata_count = 1
+                mismatched_business_document_type_count = 1
+                mismatched_corpus_role_count = 1
+                candidate_name = "notice.invoice_number"
+                schema_update_candidate = "invoice_number"
+            }
+        }
+    }
+}
+
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 New-Item -ItemType Directory -Path $gateReportDir -Force | Out-Null
@@ -338,7 +396,7 @@ $summary = [ordered]@{
                 reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
                 reviewer_actions = @("review_schema_update_candidate")
             },
-            [ordered]@{
+            ([ordered]@{
                 id = "schema_patch_confidence_calibration.pending_schema_approvals"
                 source = "schema_patch_confidence_calibration"
                 severity = "error"
@@ -348,7 +406,7 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
-            },
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "missing_document_type")),
             [ordered]@{
                 id = "pdf_visual_release_gate_preflight.build_outputs_missing"
                 source = "pdf_visual_release_gate_preflight"
@@ -447,14 +505,14 @@ $summary = [ordered]@{
                 reviewer_action_reason = "latest_review_state=pending; issue_keys=(none)"
                 reviewer_actions = @("review_schema_update_candidate")
             },
-            [ordered]@{
+            ([ordered]@{
                 id = "resolve_pending_schema_approvals"
                 action = "resolve_pending_schema_approvals"
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
-            },
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "missing_corpus_role")),
             [ordered]@{
                 id = "prepare_pdf_visual_release_gate_build_outputs"
                 action = "prepare_pdf_visual_release_gate_build_outputs"
@@ -532,14 +590,14 @@ $summary = [ordered]@{
                 schema_target = "invoice"
                 target_mode = "resolved-section-targets"
             },
-            [ordered]@{
+            ([ordered]@{
                 id = "schema_patch_confidence_calibration.unscored_candidates"
                 action = "add_explicit_confidence_metadata"
                 message = "Some schema patch candidates do not carry explicit confidence metadata."
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
-            }
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "mismatched_metadata"))
         )
         governance_metric_count = 2
         governance_metrics = @(
@@ -711,7 +769,7 @@ $summary = [ordered]@{
                 onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                 onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
-            [ordered]@{
+            ([ordered]@{
                 report_id = "schema_patch_confidence_calibration"
                 id = "schema_patch_confidence_calibration.pending_schema_approvals"
                 severity = "error"
@@ -721,7 +779,7 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
-            }
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "missing_document_type"))
         )
         action_item_count = 2
         action_items = @(
@@ -760,7 +818,7 @@ $summary = [ordered]@{
                 onboarding_governance_source_report_display = ".\output\project-template-onboarding-governance\summary.json"
                 onboarding_governance_source_json_display = ".\output\project-template-onboarding-governance\summary.json"
             },
-            [ordered]@{
+            ([ordered]@{
                 report_id = "schema_patch_confidence_calibration"
                 id = "resolve_pending_schema_approvals"
                 action = "resolve_pending_schema_approvals"
@@ -768,11 +826,11 @@ $summary = [ordered]@{
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
-            }
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "missing_corpus_role"))
         )
         warning_count = 1
         warnings = @(
-            [ordered]@{
+            ([ordered]@{
                 report_id = "schema_patch_confidence_calibration"
                 id = "schema_patch_confidence_calibration.unscored_candidates"
                 action = "add_explicit_confidence_metadata"
@@ -780,7 +838,7 @@ $summary = [ordered]@{
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
-            }
+            } + (New-ReleaseNoteSchemaCorpusMetadataFixture -Case "mismatched_metadata"))
         )
         project_template_readiness_checklist_entrypoints_source_report_count = 1
         project_template_readiness_checklist_entrypoints_source_reports = @(

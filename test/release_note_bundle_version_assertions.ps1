@@ -898,3 +898,7 @@ Assert-ContentControlGovernanceTrace -Path $handoffPath -Label 'release_handoff.
 Assert-ContentControlGovernanceTrace -Path $guidePath -Label 'ARTIFACT_GUIDE.md'
 Assert-ContentControlGovernanceTrace -Path $checklistPath -Label 'REVIEWER_CHECKLIST.md'
 Assert-ContentControlGovernanceTrace -Path $startHerePath -Label 'START_HERE.md'
+Assert-SchemaCalibrationCorpusMetadataTrace -Path $handoffPath -Label 'release_handoff.md'
+Assert-SchemaCalibrationCorpusMetadataTrace -Path $guidePath -Label 'ARTIFACT_GUIDE.md'
+Assert-SchemaCalibrationCorpusMetadataTrace -Path $checklistPath -Label 'REVIEWER_CHECKLIST.md'
+Assert-SchemaCalibrationCorpusMetadataTrace -Path $startHerePath -Label 'START_HERE.md'
