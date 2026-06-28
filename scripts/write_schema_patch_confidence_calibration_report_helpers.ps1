@@ -838,6 +838,11 @@ function Add-ScopedRecommendations {
             candidate_type = Get-JsonString -Object $entry -Name "candidate_type"
             candidate_name = Get-JsonString -Object $entry -Name "name"
             schema_update_candidate = Get-JsonString -Object $entry -Name "schema_update_candidate"
+            missing_business_document_type_count = Get-JsonInt -Object $entry -Name "missing_business_document_type_count"
+            missing_corpus_role_count = Get-JsonInt -Object $entry -Name "missing_corpus_role_count"
+            mismatched_corpus_metadata_count = Get-JsonInt -Object $entry -Name "mismatched_corpus_metadata_count"
+            mismatched_business_document_type_count = Get-JsonInt -Object $entry -Name "mismatched_business_document_type_count"
+            mismatched_corpus_role_count = Get-JsonInt -Object $entry -Name "mismatched_corpus_role_count"
         }
         $item[$CountName] = 1
         $Recommendations.Add($item) | Out-Null
@@ -1147,6 +1152,11 @@ function New-ActionItems {
                 candidate_type = Get-JsonString -Object $recommendation -Name "candidate_type"
                 candidate_name = Get-JsonString -Object $recommendation -Name "candidate_name"
                 schema_update_candidate = Get-JsonString -Object $recommendation -Name "schema_update_candidate"
+                missing_business_document_type_count = Get-JsonInt -Object $recommendation -Name "missing_business_document_type_count"
+                missing_corpus_role_count = Get-JsonInt -Object $recommendation -Name "missing_corpus_role_count"
+                mismatched_corpus_metadata_count = Get-JsonInt -Object $recommendation -Name "mismatched_corpus_metadata_count"
+                mismatched_business_document_type_count = Get-JsonInt -Object $recommendation -Name "mismatched_business_document_type_count"
+                mismatched_corpus_role_count = Get-JsonInt -Object $recommendation -Name "mismatched_corpus_role_count"
                 open_command = $calibrationOpenCommand
                 source_schema = $calibrationSchema
                 source_report = $SourceReport

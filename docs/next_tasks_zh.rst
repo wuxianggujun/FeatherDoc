@@ -498,14 +498,17 @@ P3：文档、测试与索引治理
    并把 ``add_business_template_document_type_metadata`` /
    ``add_business_template_corpus_role_metadata`` /
    ``align_business_template_corpus_metadata`` 注册进固定 reviewer runbook。
-   本轮继续把 ``align_business_template_corpus_metadata`` 的 warning / action fixture
-   接入 release blocker rollup、release governance handoff、release candidate
-   ``release_handoff.md`` 与 ``final_review.md`` 值级回归，锁住候选
-   ``business_document_type`` / ``corpus_role`` 及来源语料字段在发布治理出口和
-   reviewer-facing 最终材料中的传递。
+   本轮继续把 ``add_business_template_document_type_metadata``、
+   ``add_business_template_corpus_role_metadata`` 和
+   ``align_business_template_corpus_metadata`` 的 warning / action fixture 接入
+   release blocker rollup、release governance handoff、release candidate
+   ``release_handoff.md`` 与 ``final_review.md`` 值级回归，锁住
+   ``missing_business_document_type_count``、``missing_corpus_role_count``、
+   ``mismatched_*_count``、候选 ``business_document_type`` / ``corpus_role`` 及来源语料
+   字段在发布治理出口和 reviewer-facing 最终材料中的传递。
 4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle、handoff、final review 仍能看到
-   dashboard、schema approval 与 schema/corpus metadata mismatch 的来源路径、下一步命令和
-   blocker/action 明细。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
+   dashboard、schema approval 与 schema/corpus metadata missing / mismatch 的来源路径、
+   下一步命令和 blocker/action 明细。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
    不做大重构。

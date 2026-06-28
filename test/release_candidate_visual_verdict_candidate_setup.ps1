@@ -203,6 +203,41 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch
         action_item_count = 1
         action_items = @(
             [ordered]@{
+                id = "add_business_template_document_type_metadata"
+                action = "add_business_template_document_type_metadata"
+                title = "Add schema patch candidate business document type metadata"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                project_id = "project-legal"
+                template_name = "contract-template"
+                missing_business_document_type_count = 1
+                candidate_type = "rename"
+                candidate_name = "contract.customer_name"
+                schema_update_candidate = "customer_name"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            },
+            [ordered]@{
+                id = "add_business_template_corpus_role_metadata"
+                action = "add_business_template_corpus_role_metadata"
+                title = "Add schema patch candidate corpus role metadata"
+                open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                project_id = "project-policy"
+                template_name = "policy-template"
+                business_document_type = "policy"
+                missing_corpus_role_count = 1
+                candidate_type = "add"
+                candidate_name = "policy.effective_date"
+                schema_update_candidate = "effective_date"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            },
+            [ordered]@{
                 id = "align_business_template_corpus_metadata"
                 action = "align_business_template_corpus_metadata"
                 title = "Align schema patch candidate corpus metadata"
@@ -213,7 +248,12 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch
                 source_business_document_type = "notice"
                 corpus_role = "experimental-business-template"
                 source_corpus_role = "registered-business-template"
+                mismatched_corpus_metadata_count = 1
+                mismatched_business_document_type_count = 1
+                mismatched_corpus_role_count = 1
                 candidate_type = "add"
+                candidate_name = "notice.invoice_number"
+                schema_update_candidate = "invoice_number"
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report = "output/schema-patch-confidence-calibration/summary.json"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
@@ -221,13 +261,48 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch
                 source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
             }
         )
-        warning_count = 1
+        warning_count = 3
         warnings = @(
+            [ordered]@{
+                id = "schema_patch_confidence_calibration.missing_business_document_type_metadata"
+                action = "add_business_template_document_type_metadata"
+                message = "Some schema patch candidates are missing business document type metadata."
+                missing_business_document_type_count = 1
+                project_id = "project-legal"
+                template_name = "contract-template"
+                candidate_type = "rename"
+                candidate_name = "contract.customer_name"
+                schema_update_candidate = "customer_name"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            },
+            [ordered]@{
+                id = "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata"
+                action = "add_business_template_corpus_role_metadata"
+                message = "Some schema patch candidates are missing business template corpus role metadata."
+                missing_corpus_role_count = 1
+                project_id = "project-policy"
+                template_name = "policy-template"
+                business_document_type = "policy"
+                candidate_type = "add"
+                candidate_name = "policy.effective_date"
+                schema_update_candidate = "effective_date"
+                source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                source_report = "output/schema-patch-confidence-calibration/summary.json"
+                source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                source_json = "output/schema-patch-confidence-calibration/summary.json"
+                source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            },
             [ordered]@{
                 id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
                 action = "align_business_template_corpus_metadata"
                 message = "Some schema patch candidates disagree with their source business template corpus metadata."
                 mismatched_corpus_metadata_count = 1
+                mismatched_business_document_type_count = 1
+                mismatched_corpus_role_count = 1
                 business_document_type = "invoice"
                 source_business_document_type = "notice"
                 corpus_role = "experimental-business-template"
@@ -237,6 +312,8 @@ Write-TestJson -Path (Join-Path $releaseGovernanceHandoffInputRoot "schema-patch
                 project_id = "project-office"
                 template_name = "office-notice-template"
                 candidate_type = "add"
+                candidate_name = "notice.invoice_number"
+                schema_update_candidate = "invoice_number"
                 source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                 source_report = "output/schema-patch-confidence-calibration/summary.json"
                 source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"

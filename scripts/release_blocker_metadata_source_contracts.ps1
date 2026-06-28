@@ -52,6 +52,8 @@ function Add-ReleaseGovernanceSchemaCorpusMetadataLines {
             "source_corpus_role",
             "business_document_type_mismatch",
             "corpus_role_mismatch",
+            "missing_business_document_type_count",
+            "missing_corpus_role_count",
             "mismatched_corpus_metadata_count",
             "mismatched_business_document_type_count",
             "mismatched_corpus_role_count",

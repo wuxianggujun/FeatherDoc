@@ -244,6 +244,39 @@ if ([int]$candidateSummary.release_governance_handoff.report_count -ne 6 -or
     @($candidateSummary.release_governance_handoff.reports).Count -ne 6) {
     throw "Release candidate summary did not preserve release governance source reports for material rendering."
 }
+$handoffDocumentTypeAction = @($candidateSummary.release_governance_handoff.action_items) |
+    Where-Object { [string]$_.id -eq "add_business_template_document_type_metadata" } |
+    Select-Object -First 1
+$stepsDocumentTypeAction = @($candidateSummary.steps.release_governance_handoff.action_items) |
+    Where-Object { [string]$_.id -eq "add_business_template_document_type_metadata" } |
+    Select-Object -First 1
+if ($null -eq $handoffDocumentTypeAction -or
+    $null -eq $stepsDocumentTypeAction -or
+    [string]$handoffDocumentTypeAction.action -ne "add_business_template_document_type_metadata" -or
+    [string]$stepsDocumentTypeAction.action -ne "add_business_template_document_type_metadata" -or
+    [int]$handoffDocumentTypeAction.missing_business_document_type_count -ne 1 -or
+    [int]$stepsDocumentTypeAction.missing_business_document_type_count -ne 1 -or
+    [string]$handoffDocumentTypeAction.candidate_name -ne "contract.customer_name" -or
+    [string]$handoffDocumentTypeAction.schema_update_candidate -ne "customer_name") {
+    throw "Release candidate summary did not preserve schema calibration missing business document type action fields through handoff."
+}
+$handoffCorpusRoleAction = @($candidateSummary.release_governance_handoff.action_items) |
+    Where-Object { [string]$_.id -eq "add_business_template_corpus_role_metadata" } |
+    Select-Object -First 1
+$stepsCorpusRoleAction = @($candidateSummary.steps.release_governance_handoff.action_items) |
+    Where-Object { [string]$_.id -eq "add_business_template_corpus_role_metadata" } |
+    Select-Object -First 1
+if ($null -eq $handoffCorpusRoleAction -or
+    $null -eq $stepsCorpusRoleAction -or
+    [string]$handoffCorpusRoleAction.action -ne "add_business_template_corpus_role_metadata" -or
+    [string]$stepsCorpusRoleAction.action -ne "add_business_template_corpus_role_metadata" -or
+    [int]$handoffCorpusRoleAction.missing_corpus_role_count -ne 1 -or
+    [int]$stepsCorpusRoleAction.missing_corpus_role_count -ne 1 -or
+    [string]$handoffCorpusRoleAction.business_document_type -ne "policy" -or
+    [string]$handoffCorpusRoleAction.candidate_name -ne "policy.effective_date" -or
+    [string]$handoffCorpusRoleAction.schema_update_candidate -ne "effective_date") {
+    throw "Release candidate summary did not preserve schema calibration missing corpus role action fields through handoff."
+}
 $handoffMetadataAction = @($candidateSummary.release_governance_handoff.action_items) |
     Where-Object { [string]$_.id -eq "align_business_template_corpus_metadata" } |
     Select-Object -First 1
@@ -258,11 +291,52 @@ if ($null -eq $handoffMetadataAction -or
     [string]$handoffMetadataAction.source_business_document_type -ne "notice" -or
     [string]$handoffMetadataAction.corpus_role -ne "experimental-business-template" -or
     [string]$handoffMetadataAction.source_corpus_role -ne "registered-business-template" -or
+    [int]$handoffMetadataAction.mismatched_corpus_metadata_count -ne 1 -or
+    [int]$handoffMetadataAction.mismatched_business_document_type_count -ne 1 -or
+    [int]$handoffMetadataAction.mismatched_corpus_role_count -ne 1 -or
+    [string]$handoffMetadataAction.candidate_name -ne "notice.invoice_number" -or
+    [string]$handoffMetadataAction.schema_update_candidate -ne "invoice_number" -or
     [string]$stepsMetadataAction.business_document_type -ne "invoice" -or
     [string]$stepsMetadataAction.source_business_document_type -ne "notice" -or
     [string]$stepsMetadataAction.corpus_role -ne "experimental-business-template" -or
-    [string]$stepsMetadataAction.source_corpus_role -ne "registered-business-template") {
+    [string]$stepsMetadataAction.source_corpus_role -ne "registered-business-template" -or
+    [int]$stepsMetadataAction.mismatched_corpus_metadata_count -ne 1 -or
+    [int]$stepsMetadataAction.mismatched_business_document_type_count -ne 1 -or
+    [int]$stepsMetadataAction.mismatched_corpus_role_count -ne 1) {
     throw "Release candidate summary did not preserve schema calibration corpus metadata action fields through handoff."
+}
+$handoffDocumentTypeWarning = @($candidateSummary.release_governance_handoff.warnings) |
+    Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.missing_business_document_type_metadata" } |
+    Select-Object -First 1
+$stepsDocumentTypeWarning = @($candidateSummary.steps.release_governance_handoff.warnings) |
+    Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.missing_business_document_type_metadata" } |
+    Select-Object -First 1
+if ($null -eq $handoffDocumentTypeWarning -or
+    $null -eq $stepsDocumentTypeWarning -or
+    [string]$handoffDocumentTypeWarning.action -ne "add_business_template_document_type_metadata" -or
+    [string]$stepsDocumentTypeWarning.action -ne "add_business_template_document_type_metadata" -or
+    [int]$handoffDocumentTypeWarning.missing_business_document_type_count -ne 1 -or
+    [int]$stepsDocumentTypeWarning.missing_business_document_type_count -ne 1 -or
+    [string]$handoffDocumentTypeWarning.candidate_name -ne "contract.customer_name" -or
+    [string]$handoffDocumentTypeWarning.schema_update_candidate -ne "customer_name") {
+    throw "Release candidate summary did not preserve schema calibration missing business document type warning fields through handoff."
+}
+$handoffCorpusRoleWarning = @($candidateSummary.release_governance_handoff.warnings) |
+    Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata" } |
+    Select-Object -First 1
+$stepsCorpusRoleWarning = @($candidateSummary.steps.release_governance_handoff.warnings) |
+    Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata" } |
+    Select-Object -First 1
+if ($null -eq $handoffCorpusRoleWarning -or
+    $null -eq $stepsCorpusRoleWarning -or
+    [string]$handoffCorpusRoleWarning.action -ne "add_business_template_corpus_role_metadata" -or
+    [string]$stepsCorpusRoleWarning.action -ne "add_business_template_corpus_role_metadata" -or
+    [int]$handoffCorpusRoleWarning.missing_corpus_role_count -ne 1 -or
+    [int]$stepsCorpusRoleWarning.missing_corpus_role_count -ne 1 -or
+    [string]$handoffCorpusRoleWarning.business_document_type -ne "policy" -or
+    [string]$handoffCorpusRoleWarning.candidate_name -ne "policy.effective_date" -or
+    [string]$handoffCorpusRoleWarning.schema_update_candidate -ne "effective_date") {
+    throw "Release candidate summary did not preserve schema calibration missing corpus role warning fields through handoff."
 }
 $handoffMetadataWarning = @($candidateSummary.release_governance_handoff.warnings) |
     Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" } |
@@ -275,13 +349,19 @@ if ($null -eq $handoffMetadataWarning -or
     [string]$handoffMetadataWarning.action -ne "align_business_template_corpus_metadata" -or
     [string]$stepsMetadataWarning.action -ne "align_business_template_corpus_metadata" -or
     [int]$handoffMetadataWarning.mismatched_corpus_metadata_count -ne 1 -or
+    [int]$handoffMetadataWarning.mismatched_business_document_type_count -ne 1 -or
+    [int]$handoffMetadataWarning.mismatched_corpus_role_count -ne 1 -or
     -not [bool]$handoffMetadataWarning.business_document_type_mismatch -or
     -not [bool]$handoffMetadataWarning.corpus_role_mismatch -or
     [string]$handoffMetadataWarning.business_document_type -ne "invoice" -or
     [string]$handoffMetadataWarning.source_business_document_type -ne "notice" -or
     [string]$handoffMetadataWarning.corpus_role -ne "experimental-business-template" -or
     [string]$handoffMetadataWarning.source_corpus_role -ne "registered-business-template" -or
+    [string]$handoffMetadataWarning.candidate_name -ne "notice.invoice_number" -or
+    [string]$handoffMetadataWarning.schema_update_candidate -ne "invoice_number" -or
     [int]$stepsMetadataWarning.mismatched_corpus_metadata_count -ne 1 -or
+    [int]$stepsMetadataWarning.mismatched_business_document_type_count -ne 1 -or
+    [int]$stepsMetadataWarning.mismatched_corpus_role_count -ne 1 -or
     -not [bool]$stepsMetadataWarning.business_document_type_mismatch -or
     -not [bool]$stepsMetadataWarning.corpus_role_mismatch) {
     throw "Release candidate summary did not preserve schema calibration corpus metadata warning fields through handoff."
