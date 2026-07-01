@@ -427,6 +427,16 @@ foreach ($document in $releaseGovernanceReportIssueDocuments) {
         'next_action_summary:',
         'next_action_group_count: 1'
     ) -Label $document.Label
+    Assert-MarkdownListBlockContainsAll -Path $document.Path -Anchor 'document_skeleton.style_merge_suggestions_pending: action=review_style_merge_suggestions' -ExpectedFragments @(
+        'source_schema=featherdoc.document_skeleton_governance_rollup_report.v1',
+        'source_report_display: .\output\document-skeleton-governance-rollup\summary.json',
+        'source_json_display: .\output\document-skeleton-governance\contract\style-merge-suggestion-review.json',
+        'style_merge_suggestion_count: 2',
+        'style_merge_suggestion_pending_count: 2',
+        'style_merge_manual_review_reason_count: 1',
+        'manual_review_reason_count: 1',
+        'manual_review_reason: source=DuplicateBodyB target=DuplicateBodyA reason_code=confidence_below_recommended_minimum recommended_action=manual_review_before_apply confidence=82 recommended_min_confidence=90'
+    ) -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'catalog_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'baseline_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
     Assert-Contains -Path $document.Path -ExpectedText 'matched_document_keys: contract-template,invoice-template,report-template,long-doc-template' -Label $document.Label
