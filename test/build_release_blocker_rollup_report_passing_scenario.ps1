@@ -29,7 +29,7 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should aggregate all blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 7 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 4 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 5 `
         -Message "Rollup should aggregate warning items."
     Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
@@ -81,6 +81,11 @@ if (Test-Scenario -Name "passing") {
         -Name "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
         -ExpectedCount 1 `
         -Message "Rollup should summarize PDF preflight warnings by source schema."
+    Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -ExpectedCount 2 `
+        -Message "Rollup should summarize document skeleton warnings by source schema."
     Assert-Equal -Actual (@($summary.informational_action_item_source_schema_summary).Count) -Expected 0 `
         -Message "Rollup should expose an empty informational action source-schema summary when no informational actions are present."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n"
@@ -630,6 +635,17 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve warning action."
     Assert-ContainsText -Text ([string]$skeletonWarning.message) -ExpectedText "exemplar catalog" `
         -Message "Rollup should preserve warning message."
+    $skeletonStyleMergeWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } |
+        Select-Object -First 1)
+    Assert-True -Condition ($null -ne $skeletonStyleMergeWarning) `
+        -Message "Rollup should include document skeleton style merge warnings."
+    Assert-Equal -Actual ([int]$skeletonStyleMergeWarning.style_merge_suggestion_count) -Expected 2 `
+        -Message "Rollup should preserve style merge suggestion counts on warnings."
+    Assert-Equal -Actual ([int]$skeletonStyleMergeWarning.style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Rollup should preserve style merge manual review reason counts on warnings."
+    Assert-Equal -Actual ([string]$skeletonStyleMergeWarning.manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Rollup should preserve style merge manual review reason details on warnings."
     $calibrationBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" } |
         Select-Object -First 1)
@@ -759,6 +775,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
         -Message "Markdown should include PDF preflight warning ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_manual_review_reason_count: ``1``" `
+        -Message "Markdown should include style merge manual review reason counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "manual_review_before_apply" `
+        -Message "Markdown should include style merge manual review recommended action."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled-visual-smoke-failed.json" `
         -Message "Markdown should include PDF preflight warning source JSON display paths."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict" `

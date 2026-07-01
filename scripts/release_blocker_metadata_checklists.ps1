@@ -275,6 +275,32 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
                         -Lines $guidanceLines `
                         -Text ('Current pending style merge suggestion count is `{0}`.' -f [string]$pendingCount)
                 }
+                $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "style_merge_manual_review_reason_count"
+                if ($null -eq $manualReviewReasonCount -or [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+                    $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "manual_review_reason_count"
+                }
+                if ($null -ne $manualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+                    Add-ReleaseBlockerActionGuidanceLine `
+                        -Lines $guidanceLines `
+                        -Text ('Current style merge manual review reason count is `{0}`.' -f [string]$manualReviewReasonCount)
+                }
+                foreach ($reason in @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "manual_review_reasons")) {
+                    $sourceStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "source_style_id"
+                    $targetStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "target_style_id"
+                    $reasonCode = Get-ReleaseBlockerPropertyValue -Object $reason -Name "reason_code"
+                    $recommendedAction = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_action"
+                    $confidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "confidence"
+                    $recommendedMinConfidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_min_confidence"
+                    Add-ReleaseBlockerActionGuidanceLine `
+                        -Lines $guidanceLines `
+                        -Text ('Style merge manual review reason: source_style_id=`{0}` target_style_id=`{1}` reason_code=`{2}` recommended_action=`{3}` confidence=`{4}` recommended_min_confidence=`{5}`.' -f
+                            $sourceStyleId,
+                            $targetStyleId,
+                            $reasonCode,
+                            $recommendedAction,
+                            $confidence,
+                            $recommendedMinConfidence)
+                }
             }
 
             $actionLabel = if ([string]::Equals($ItemKind, "warning", [System.StringComparison]::OrdinalIgnoreCase)) {

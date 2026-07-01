@@ -36,7 +36,7 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
         }
     )
-    warning_count = 1
+    warning_count = 2
     warnings = @(
         [ordered]@{
             id = "document_skeleton.exemplar_catalog_missing"
@@ -46,6 +46,31 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance-rollup/summary.json"
             source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+        },
+        [ordered]@{
+            id = "document_skeleton.style_merge_suggestions_pending"
+            action = "review_style_merge_suggestions"
+            message = "Document skeleton governance reports duplicate style merge suggestion(s) awaiting review."
+            source_report = "output/document-skeleton-governance-rollup/summary.json"
+            source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+            source_json = "output/document-skeleton-governance/contract/style-merge-suggestion-review.json"
+            source_json_display = ".\output\document-skeleton-governance\contract\style-merge-suggestion-review.json"
+            style_merge_suggestion_count = 2
+            style_merge_suggestion_pending_count = 2
+            style_merge_manual_review_required = $true
+            style_merge_manual_review_reason_count = 1
+            manual_review_required = $true
+            manual_review_reason_count = 1
+            manual_review_reasons = @(
+                [ordered]@{
+                    source_style_id = "DuplicateBodyB"
+                    target_style_id = "DuplicateBodyA"
+                    confidence = 82
+                    recommended_min_confidence = 90
+                    reason_code = "confidence_below_recommended_minimum"
+                    recommended_action = "manual_review_before_apply"
+                }
+            )
         }
     )
 })

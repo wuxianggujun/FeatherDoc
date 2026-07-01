@@ -445,6 +445,29 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
             }
+            $styleMergeSuggestionCount = Get-JsonString -Object $warning -Name "style_merge_suggestion_count"
+            $styleMergeSuggestionPendingCount = Get-JsonString -Object $warning -Name "style_merge_suggestion_pending_count"
+            $styleMergeManualReviewReasonCount = Get-JsonString -Object $warning -Name "style_merge_manual_review_reason_count"
+            $manualReviewReasonCount = Get-JsonString -Object $warning -Name "manual_review_reason_count"
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeSuggestionCount)) {
+                $lines.Add("  - style_merge_suggestion_count: ``$styleMergeSuggestionCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeSuggestionPendingCount)) {
+                $lines.Add("  - style_merge_suggestion_pending_count: ``$styleMergeSuggestionPendingCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeManualReviewReasonCount)) {
+                $lines.Add("  - style_merge_manual_review_reason_count: ``$styleMergeManualReviewReasonCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($manualReviewReasonCount)) {
+                $lines.Add("  - manual_review_reason_count: ``$manualReviewReasonCount``") | Out-Null
+            }
+            foreach ($reason in @(Get-JsonArray -Object $warning -Name "manual_review_reasons")) {
+                $sourceStyleId = Get-JsonString -Object $reason -Name "source_style_id"
+                $targetStyleId = Get-JsonString -Object $reason -Name "target_style_id"
+                $reasonCode = Get-JsonString -Object $reason -Name "reason_code"
+                $recommendedAction = Get-JsonString -Object $reason -Name "recommended_action"
+                $lines.Add("  - manual_review_reason: source=``$sourceStyleId`` target=``$targetStyleId`` reason_code=``$reasonCode`` recommended_action=``$recommendedAction``") | Out-Null
+            }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $warning
             $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"
             $repairHint = Get-JsonString -Object $warning -Name "repair_hint"

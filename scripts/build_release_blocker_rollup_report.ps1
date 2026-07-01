@@ -353,7 +353,14 @@ foreach ($path in @($inputPaths)) {
                     "mismatched_business_document_type_count",
                     "mismatched_corpus_role_count",
                     "candidate_name",
-                    "schema_update_candidate"
+                    "schema_update_candidate",
+                    "style_merge_suggestion_count",
+                    "style_merge_suggestion_pending_count",
+                    "style_merge_manual_review_required",
+                    "style_merge_manual_review_reason_count",
+                    "manual_review_required",
+                    "manual_review_reason_count",
+                    "manual_review_reasons"
                 )
             Normalize-ReadinessActionEvidence `
                 -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `
@@ -434,7 +441,14 @@ foreach ($path in @($inputPaths)) {
                     "mismatched_business_document_type_count",
                     "mismatched_corpus_role_count",
                     "candidate_name",
-                    "schema_update_candidate"
+                    "schema_update_candidate",
+                    "style_merge_suggestion_count",
+                    "style_merge_suggestion_pending_count",
+                    "style_merge_manual_review_required",
+                    "style_merge_manual_review_reason_count",
+                    "manual_review_required",
+                    "manual_review_reason_count",
+                    "manual_review_reasons"
                 )
             $warnings.Add($rollupWarning) | Out-Null
         }

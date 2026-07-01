@@ -107,6 +107,26 @@ function Get-NormalizedReleaseGovernanceWarnings {
         if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
             $entry.style_merge_suggestion_pending_count = [int]$styleMergeSuggestionPendingCount
         }
+        $styleMergeManualReviewRequired = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_manual_review_required"
+        if ($null -ne $styleMergeManualReviewRequired -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeManualReviewRequired)) {
+            $entry.style_merge_manual_review_required = ConvertTo-ReleaseGovernanceBool -Value $styleMergeManualReviewRequired
+        }
+        $styleMergeManualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "style_merge_manual_review_reason_count"
+        if ($null -ne $styleMergeManualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeManualReviewReasonCount)) {
+            $entry.style_merge_manual_review_reason_count = [int]$styleMergeManualReviewReasonCount
+        }
+        $manualReviewRequired = Get-ReleaseBlockerPropertyObject -Object $warning -Name "manual_review_required"
+        if ($null -ne $manualReviewRequired -and -not [string]::IsNullOrWhiteSpace([string]$manualReviewRequired)) {
+            $entry.manual_review_required = ConvertTo-ReleaseGovernanceBool -Value $manualReviewRequired
+        }
+        $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $warning -Name "manual_review_reason_count"
+        if ($null -ne $manualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+            $entry.manual_review_reason_count = [int]$manualReviewReasonCount
+        }
+        $manualReviewReasons = @(Get-ReleaseBlockerArrayProperty -Object $warning -Name "manual_review_reasons")
+        if ($manualReviewReasons.Count -gt 0) {
+            $entry.manual_review_reasons = @($manualReviewReasons)
+        }
 
         [void]$normalizedWarnings.Add([pscustomobject]$entry)
     }
@@ -127,6 +147,19 @@ function Get-ReleaseGovernanceWarningCount {
     }
 
     return @(Get-NormalizedReleaseGovernanceWarnings -Warnings (Get-ReleaseBlockerArrayProperty -Object $SummaryObject -Name "warnings")).Count
+}
+
+function ConvertTo-ReleaseGovernanceBool {
+    param($Value)
+
+    if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        return $false
+    }
+    if ($Value -is [bool]) {
+        return [bool]$Value
+    }
+
+    return ([string]$Value) -in @("true", "True", "1", "yes", "Yes")
 }
 
 function Get-NormalizedReleaseGovernanceActionItems {
@@ -235,6 +268,39 @@ function Get-ReleaseGovernanceActionItemSummaryText {
     return $summaryText
 }
 
+function Get-ReleaseGovernanceManualReviewReasonSummaryParts {
+    param([AllowNull()]$Item)
+
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($reason in @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "manual_review_reasons")) {
+        $sourceStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "source_style_id"
+        $targetStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "target_style_id"
+        $reasonCode = Get-ReleaseBlockerPropertyValue -Object $reason -Name "reason_code"
+        $recommendedAction = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_action"
+        $confidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "confidence"
+        $recommendedMinConfidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_min_confidence"
+
+        $detailParts = New-Object 'System.Collections.Generic.List[string]'
+        if (-not [string]::IsNullOrWhiteSpace($sourceStyleId) -or -not [string]::IsNullOrWhiteSpace($targetStyleId)) {
+            [void]$detailParts.Add("$sourceStyleId->$targetStyleId")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($recommendedAction)) {
+            [void]$detailParts.Add("action=$recommendedAction")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($reasonCode)) {
+            [void]$detailParts.Add("reason=$reasonCode")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($confidence) -or -not [string]::IsNullOrWhiteSpace($recommendedMinConfidence)) {
+            [void]$detailParts.Add("confidence=$confidence/$recommendedMinConfidence")
+        }
+        if ($detailParts.Count -gt 0) {
+            [void]$parts.Add($detailParts -join " ")
+        }
+    }
+
+    return @($parts.ToArray())
+}
+
 function Get-ReleaseGovernanceWarningSummaryText {
     param([AllowNull()]$Warning)
 
@@ -279,6 +345,18 @@ function Get-ReleaseGovernanceWarningSummaryText {
     $styleMergeSuggestionPendingCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_suggestion_pending_count"
     if ($null -ne $styleMergeSuggestionPendingCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeSuggestionPendingCount)) {
         $summaryText += ('; style_merge_suggestion_pending_count: `{0}`' -f [string]$styleMergeSuggestionPendingCount)
+    }
+    $styleMergeManualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "style_merge_manual_review_reason_count"
+    if ($null -ne $styleMergeManualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$styleMergeManualReviewReasonCount)) {
+        $summaryText += ('; style_merge_manual_review_reason_count: `{0}`' -f [string]$styleMergeManualReviewReasonCount)
+    }
+    $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Warning -Name "manual_review_reason_count"
+    if ($null -ne $manualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+        $summaryText += ('; manual_review_reason_count: `{0}`' -f [string]$manualReviewReasonCount)
+    }
+    $manualReviewReasonParts = @(Get-ReleaseGovernanceManualReviewReasonSummaryParts -Item $Warning)
+    if ($manualReviewReasonParts.Count -gt 0) {
+        $summaryText += ('; manual_review_reasons: `{0}`' -f ($manualReviewReasonParts -join '; '))
     }
 
     return $summaryText

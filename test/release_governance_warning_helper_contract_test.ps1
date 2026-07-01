@@ -53,6 +53,10 @@ Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion
     -Message "Markdown section should render optional style merge counts."
 Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
     -Message "Markdown section should render optional pending style merge counts."
+Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'style_merge_manual_review_reason_count: `1`' `
+    -Message "Markdown section should render optional style merge manual review reason counts."
+Assert-ContainsText -Text $sectionMarkdown -ExpectedText 'manual_review_before_apply' `
+    -Message "Markdown section should render style merge manual review reasons."
 
 $blockerSectionLines = New-Object 'System.Collections.Generic.List[string]'
 Add-ReleaseGovernanceBlockersMarkdownSection `
@@ -805,6 +809,10 @@ Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Use action `review_
     -Message "Style-merge warning guidance should mention its action."
 Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Current pending style merge suggestion count is `2`' `
     -Message "Style-merge warning guidance should preserve pending suggestion count."
+Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'Current style merge manual review reason count is `1`' `
+    -Message "Style-merge warning guidance should preserve manual review reason count."
+Assert-ContainsText -Text $styleMergeGuidance -ExpectedText 'recommended_action=`manual_review_before_apply`' `
+    -Message "Style-merge warning guidance should preserve manual review recommended action."
 
 $plainGuidance = (Get-ReleaseGovernanceWarningActionGuidanceLines `
         -Warning $warningWithoutStyleMergeCount `
