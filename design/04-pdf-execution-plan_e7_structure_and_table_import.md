@@ -22,8 +22,9 @@
 - 已知限制：当前只完成 `PDFium -> 中间结构`，还没有 `PDFium -> Document` AST 转换；
   段落识别是启发式，不承诺复杂 PDF、扫描件或任意版面精确还原。
 - 后续继续 E7 前，已再次阅读 `src/pdf/pdfium_parser.cpp`、`src/paragraph.cpp`、
-  `src/document.cpp`、`include/featherdoc.hpp`、`test/basic_tests.cpp`、`test/CMakeLists.txt`
-  和 PDF import target 的 CMake 配置，确认 `Document::create_empty()`、`Paragraph::set_text()`、
+  `src/document.cpp`、`include/featherdoc.hpp`、`test/pdf_import_structure_tests.cpp`、
+  `test/pdf_import_failure_tests.cpp`、`test/CMakeLists.txt` 和 PDF import target 的
+  CMake 配置，确认 `Document::create_empty()`、`Paragraph::set_text()`、
   `Paragraph::insert_paragraph_after()` 是当前最小 DOCX AST 写入路径。
 - 已新增 `PdfDocumentImporter` 和 `import_pdf_text_document()`，作为实验性
   `PDFium -> PdfParsedDocument -> Document` facade；第一版只导入文本段落，不导入样式、
@@ -712,4 +713,3 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_word_visual_smoke.ps1 -In
 - `output/pdf-e7-touching-multiline-note-visual/merged-docx/evidence/contact_sheet.png`
 - `output/pdf-e7-touching-multiline-note-visual/merged-docx/report/summary.json`
 - `output/pdf-e7-touching-multiline-note-visual/merged-docx/report/final_review.md`
-

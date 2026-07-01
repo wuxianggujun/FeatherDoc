@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-06-28
+状态日期：2026-07-01
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -484,11 +484,15 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. ``P1-RELEASE-01`` 的本轮发布材料收口已完成：release body / summary、GitHub
+2. 本轮 ``P3`` 文档与索引治理清理已收口：活跃文档已避免继续把 CLI 描述成旧的
+   集中式入口，也不再把 Linux / macOS / Windows CI 基线描述成尚未建立。PDF 执行计划中
+   涉及 CLI、PDF parse/export/import 和 PDF import 结构测试的引用已对齐到当前拆分后的
+   ``cli/featherdoc_cli_*`` 与 ``test/pdf_*`` 文件。
+3. ``P1-RELEASE-01`` 的本轮发布材料收口已完成：release body / summary、GitHub
    Release 同步路径、release blocker rollup、governance handoff、final review、
    bundle / checklist、packaged ``release_assets_manifest.json`` 与 release material
    safety 负例已由值级回归锁住。
-3. ``P1-SCHEMA-01`` 已继续补 schema patch confidence 的
+4. ``P1-SCHEMA-01`` 已继续补 schema patch confidence 的
    ``business_document_type`` / ``corpus_role`` 缺失与来源不一致治理：报告会输出
    ``missing_business_document_type_count`` / ``missing_corpus_role_count`` /
    ``mismatched_corpus_metadata_count``，生成
@@ -520,7 +524,11 @@ P3：文档、测试与索引治理
    count 契约；``final_review.md`` 若只保留修复动作、来源路径和候选字段，却丢失
    ``mismatched_corpus_metadata_count``，审计会失败，避免 reviewer-facing 最终材料
    丢失 schema/corpus metadata mismatch 的数量上下文。
-4. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
+5. 后续文档清理收口时至少复跑 ``git diff --check``、
+   ``test/script_task_index_docs_contract_test.ps1`` 和
+   ``test/current_direction_docs_contract_test.ps1``；若改到 PDF 执行计划或 PDF import
+   说明，再补 ``test/pdf_import_docs_contract_test.ps1``。
+6. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
    dashboard、schema approval 与 schema/corpus metadata missing / mismatch 的来源路径、

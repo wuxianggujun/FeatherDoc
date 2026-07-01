@@ -4,7 +4,7 @@
 评估结论
 --------
 
-FeatherDoc 当前综合评分为 **83 / 100**。
+FeatherDoc 当前综合评分为 **84 / 100**。
 
 这是一次基于仓库内容的静态评估。评估范围包括项目结构、CMake
 工程化、公开 API、核心源码体量、CLI 组织、测试组织、文档与发布
@@ -12,8 +12,8 @@ FeatherDoc 当前综合评分为 **83 / 100**。
 
 总体判断：FeatherDoc 已经不是玩具项目，而是一个具备明确产品方向、
 较完整工程链路和丰富验证资产的中高级 C++ 开源库项目。当前最主要
-的改进空间不在功能数量，而在大规模代码后的模块化、可维护性和跨
-平台验证信心。
+的改进空间不在功能数量，而在 release governance 证据链、一致性的
+脚本契约治理，以及大规模代码后的长期维护成本。
 
 
 分项评分
@@ -24,10 +24,12 @@ FeatherDoc 当前综合评分为 **83 / 100**。
   项目定位清晰，聚焦 Microsoft Word ``.docx`` 的创建、读取、编辑、
   模板填充和可视化验证。目标用户和核心场景明确。
 
-- **工程化：8.5 / 10**
+- **工程化：9 / 10**
 
   CMake 项目结构、安装导出、``find_package`` 消费、CI 和发布脚本
-  都比较完整。对 MSVC / Windows 的支持尤其扎实。
+  都比较完整。Linux / macOS / Windows 三条 GitHub Actions 路径已经
+  具备稳定的 configure、build、test 和 smoke 入口；Windows 还承担
+  安装验证、release metadata bundle 和 public release asset preview。
 
 - **功能完整度：8.5 / 10**
 
@@ -40,15 +42,20 @@ FeatherDoc 当前综合评分为 **83 / 100**。
   中英文 README、视觉验证说明、发布策略、路线说明和自动化流程文档
   较完整，对新用户和维护者都有帮助。
 
-- **测试与验证：8 / 10**
+- **测试与验证：8.5 / 10**
 
-  测试、脚本和视觉回归资产数量充足，说明项目重视质量。但测试文件
-  体量偏大，后续定位失败、拆分责任和并行维护会有压力。
+  测试、脚本和视觉回归资产数量充足，说明项目重视质量。Linux 和
+  macOS 已经固定运行 ``cli_smoke`` / ``release_smoke``，Windows 还会
+  继续跑样例文档、安装 smoke 和发布材料预览。当前压力主要转移到
+  大型 PowerShell fixture、release governance 契约测试和 reviewer-facing
+  材料的一致性维护。
 
-- **代码可维护性：6.5 / 10**
+- **代码可维护性：7 / 10**
 
-  最大短板是部分文件过大，尤其 CLI 单文件已经达到数万行级别。继续
-  添加命令时，理解成本、冲突概率和回归风险都会上升。
+  主要短板已经不再是 CLI 入口过度集中，而是 CLI、测试和脚本都进入
+  “文件很多、契约很多”的阶段。CLI 主入口已很轻，命令实现也拆成了
+  大量 parse / command / output 单元；当前更需要治理的是跨文件
+  discoverability、命令注册索引和脚本契约的重复定义。
 
 - **公开 API 设计：7.5 / 10**
 
@@ -56,10 +63,12 @@ FeatherDoc 当前综合评分为 **83 / 100**。
   但部分返回 ``bool`` 的接口语义还不够自解释，未来可以考虑更统一的
   ``result`` / ``expected`` 风格。
 
-- **跨平台与发布成熟度：7 / 10**
+- **跨平台与发布成熟度：8 / 10**
 
-  Windows/MSVC 路线很强。若要提升到工业级长期维护库的信心，需要让
-  Linux、Clang、GCC 等环境也进入稳定 CI 路径。
+  Linux GCC/Clang、macOS 和 Windows MSVC 都已经进入稳定 GitHub
+  Actions。当前短板已经转为覆盖深度不对称：
+  Word visual validation、部分 release material preview 和 reviewer-facing
+  bundle 仍主要依赖 Windows 路线。
 
 
 功能评分
@@ -239,30 +248,36 @@ CLI 自动化方面比较突出。但如果按商业级完整 Word SDK 的标准
 主要风险
 --------
 
-1. **CLI 单文件过大**
+1. **CLI 与命令索引的可发现性压力仍然偏高**
 
-   ``cli/featherdoc_cli.cpp`` 约三万四千行，命令分发和命令实现集中在
-   一个文件中。短期能快速堆功能，长期会显著增加维护成本。
+   CLI 主入口已经收敛成轻量壳，命令实现也从单体文件拆到了大量
+   parse / command / output 单元。但复杂度并没有消失，而是转移到
+   dispatch、usage、CMake target 列表和跨领域命令家族的组织方式上。
 
-2. **测试文件集中度偏高**
+2. **测试与脚本夹具的复杂度正在取代旧的大文件风险**
 
-   ``test/cli_tests.cpp`` 和 ``test/basic_tests.cpp`` 都接近两万行。
-   测试覆盖值得肯定，但组织结构需要跟上项目规模。
+   基础 C++ 测试文件已经明显拆分，当前维护压力更多来自大型
+   PowerShell fixture、release governance / material safety 契约测试和
+   多平台 smoke 标签矩阵。
 
 3. **公开头文件职责偏重**
 
    ``include/featherdoc.hpp`` 暴露了大量类型和能力。随着功能继续扩展，
    编译依赖、API 稳定性和用户理解成本都会提高。
 
-4. **跨平台证据还不够硬**
+4. **跨平台验证仍有覆盖深度不对称**
 
-   当前工程明显偏 Windows/MSVC 强项。若面向更广泛 C++ 用户，应补足
-   Linux、Clang、GCC 的持续验证。
+   Linux、Clang、GCC 和 macOS 已经进入常规 CI，但 Word visual
+   validation、release metadata bundle 预览和部分 reviewer-facing 材料
+   仍然主要依赖 Windows。后续更需要守的是“平台间证据一致性”，而不
+   是单纯再补一条 CI。
 
-5. **大脚本资产需要治理**
+5. **大脚本与发布治理资产仍需持续收口**
 
-   ``scripts`` 目录能力非常多，但脚本数量和体量较大。后续需要统一
-   命名、公共函数、错误输出和入口说明，避免维护者迷路。
+   ``scripts`` 目录能力非常多，reviewer-facing bundle、handoff、
+   manifest signoff 和 release material safety 之间还存在大量同字段、
+   同语义的重复透传逻辑。后续需要继续统一 helper、错误输出和入口说明，
+   并让 ``docs/script_task_index_zh.rst`` 保持对齐。
 
 
 优先改进建议
@@ -270,20 +285,24 @@ CLI 自动化方面比较突出。但如果按商业级完整 Word SDK 的标准
 
 短期建议优先做三件事：
 
-1. **拆分 CLI 命令模块**
+1. **继续收口 release governance / schema calibration 证据链**
 
-   将命令注册、参数解析、JSON 输出、文档加载保存、具体业务命令拆开。
-   第一阶段不需要重写行为，只做无行为变化的物理拆分。
+   优先继续做 ``P1-SCHEMA-01``，把 ``business_document_type`` /
+   ``corpus_role`` 的 missing / mismatch 计数、warning、action 和
+   reviewer runbook 继续稳定透传到 handoff、final review、bundle 和
+   material safety 负例。
 
-2. **拆分测试文件**
+2. **治理大脚本资产和 reviewer-facing bundle 契约**
 
-   按功能域拆分为表格、样式、模板、图片、编号、页眉页脚、CLI 参数等
-   测试文件。这样失败定位更快，也能降低单文件编译压力。
+   当前最值得做的不是再做一轮“拆文件”，而是把 release metadata、
+   reviewer checklist、artifact guide、final review、material safety
+   之间重复的字段 contract 和 helper 继续收拢。
 
-3. **建立跨平台 CI 最小闭环**
+3. **继续提升多平台 smoke 与 Windows 专属 gate 的一致性**
 
-   先让 Linux + Clang/GCC 完成核心库编译和基础单元测试，不必一开始
-   覆盖 Word 视觉验证。视觉验证仍可保留在 Windows 专属路径。
+   Linux / macOS / Windows 的 build、test、``cli_smoke``、
+   ``release_smoke`` 已经跑起来了；下一步更该确保 workflow、CTest label、
+   发布材料契约和 Windows visual / release preview 的分层边界继续清晰。
 
 中期可以继续推进：
 
@@ -301,10 +320,12 @@ CLI 自动化方面比较突出。但如果按商业级完整 Word SDK 的标准
 如果按个人或独立开发项目标准看，FeatherDoc 已经非常优秀。它有明确
 定位、真实功能、工程链路、文档资产和质量验证意识。
 
-如果按工业级长期维护库标准看，当前主要差距是模块化和跨平台验证。
-只要把 CLI、测试和大模块逐步拆开，并补上稳定的非 Windows CI，项目
-有机会从 **83 分** 提升到 **90 分以上**。
+如果按工业级长期维护库标准看，当前主要差距已经从“CLI 入口集中”和
+“平台 CI 基线”转移到 release governance 契约复杂度、脚本资产治理和
+跨平台覆盖深度一致性。只要继续收拢 reviewer-facing bundle 字段
+contract、减少重复脚本逻辑，并守住多平台 smoke 与 Windows visual
+gate 的分层验证，项目有机会从 **84 分** 提升到 **90 分以上**。
 
 一句话评价：
 
-    功能和工程化已经很强，下一阶段的关键是让架构拆分跟上项目规模。
+    功能和工程化已经很强，下一阶段的关键是让治理证据链和维护复杂度一起收口。
