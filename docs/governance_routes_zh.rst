@@ -114,6 +114,10 @@ Style Merge Confidence
 * ``--min-confidence <0-100>``
 * ``--fail-on-suggestion``
 * ``recommended_min_confidence``
+* ``manual_review_required``
+* ``manual_review_reason_count``
+* ``manual_review_reasons``
+* ``manual_review_before_apply``
 
 Document Skeleton Governance
 ----------------------------

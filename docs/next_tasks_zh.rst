@@ -348,6 +348,11 @@ P2：样式与编号治理
    * 对 style merge / rename suggestion 增加更多真实文档验证。
    * 继续收敛 ``recommended``、``strict``、``review``、``exploratory`` profile。
    * 对低置信度建议输出人工复核原因，而不是直接进入自动修复。
+   * ``write_style_merge_suggestion_review.ps1`` 已开始把低于
+     ``recommended_min_confidence`` 的建议派生为 ``manual_review_reasons``，并固定输出
+     ``manual_review_required``、``manual_review_reason_count`` 和
+     ``manual_review_before_apply``，让 reviewer 可以直接看到 source / target style、
+     confidence、阈值和 reason code。
 
 3. 面向 heading / list / theme 的稳定重构入口：
 
@@ -528,7 +533,10 @@ P3：文档、测试与索引治理
    ``test/script_task_index_docs_contract_test.ps1`` 和
    ``test/current_direction_docs_contract_test.ps1``；若改到 PDF 执行计划或 PDF import
    说明，再补 ``test/pdf_import_docs_contract_test.ps1``。
-6. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
+6. ``P2-STYLE-01`` 已补 style merge 低置信度人工复核原因：下一轮若继续这一项，
+   优先把 ``manual_review_reasons`` 接入 document skeleton governance / release
+   blocker rollup，而不是直接扩大自动 apply 范围。
+7. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
    dashboard、schema approval 与 schema/corpus metadata missing / mismatch 的来源路径、

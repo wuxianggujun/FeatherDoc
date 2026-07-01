@@ -73,12 +73,31 @@ if (Test-Scenario -Name "valid") {
         operation_count = 2
         suggestion_confidence_summary = [ordered]@{
             suggestion_count = 2
-            min_confidence = 92
+            min_confidence = 82
             max_confidence = 96
+            recommended_min_confidence = 90
         }
         operations = @(
-            [ordered]@{ action = "merge"; source_style_id = "DuplicateBodyB"; target_style_id = "DuplicateBodyA" },
-            [ordered]@{ action = "merge"; source_style_id = "DuplicateBodyC"; target_style_id = "DuplicateBodyA" }
+            [ordered]@{
+                action = "merge"
+                source_style_id = "DuplicateBodyB"
+                target_style_id = "DuplicateBodyA"
+                suggestion = [ordered]@{
+                    confidence = 96
+                    reason_code = "matching_style_signature_and_xml"
+                    reason = "Exact style XML match."
+                }
+            },
+            [ordered]@{
+                action = "merge"
+                source_style_id = "DuplicateBodyC"
+                target_style_id = "DuplicateBodyA"
+                suggestion = [ordered]@{
+                    confidence = 82
+                    reason_code = "matching_style_signature_with_xml_differences"
+                    reason = "Style signatures match but XML differences require reviewer confirmation."
+                }
+            }
         )
     })
     Write-JsonFile -Path $rollbackPath -Value ([ordered]@{
@@ -117,6 +136,20 @@ if (Test-Scenario -Name "valid") {
         -Message "Review JSON should store the plan path relative to the output JSON."
     Assert-ContainsText -Text ([string]$summary.rollback_plan_file) -ExpectedText "style-merge.rollback.json" `
         -Message "Review JSON should store the rollback plan path relative to the output JSON."
+    Assert-Equal -Actual ([bool]$summary.manual_review_required) -Expected $true `
+        -Message "Review JSON should flag low-confidence style merge suggestions for manual review."
+    Assert-Equal -Actual ([int]$summary.manual_review_reason_count) -Expected 1 `
+        -Message "Review JSON should count low-confidence style merge manual-review reasons."
+    Assert-Equal -Actual ([string]$summary.manual_review_reasons[0].source_style_id) -Expected "DuplicateBodyC" `
+        -Message "Review JSON should point the manual-review reason at the source style."
+    Assert-Equal -Actual ([string]$summary.manual_review_reasons[0].target_style_id) -Expected "DuplicateBodyA" `
+        -Message "Review JSON should point the manual-review reason at the target style."
+    Assert-Equal -Actual ([int]$summary.manual_review_reasons[0].confidence) -Expected 82 `
+        -Message "Review JSON should preserve the low confidence score."
+    Assert-Equal -Actual ([int]$summary.manual_review_reasons[0].recommended_min_confidence) -Expected 90 `
+        -Message "Review JSON should preserve the recommended confidence threshold."
+    Assert-Equal -Actual ([string]$summary.manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Review JSON should expose the manual-review action."
 
     $defaultResult = Invoke-ReviewScript -Arguments @(
         "-PlanFile", $planPath,
@@ -137,6 +170,8 @@ if (Test-Scenario -Name "valid") {
         -Message "Default output review JSON should still resolve the plan path."
     Assert-Equal -Actual ([bool]$defaultSummary.rollback_plan_exists) -Expected $false `
         -Message "Default output review JSON should report missing rollback evidence as absent."
+    Assert-Equal -Actual ([int]$defaultSummary.manual_review_reason_count) -Expected 1 `
+        -Message "Default output review JSON should preserve low-confidence manual-review reasons."
 }
 
 if (Test-Scenario -Name "invalid_count") {

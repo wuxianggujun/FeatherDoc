@@ -90,7 +90,11 @@ foreach ($marker in @(
         "confidence-profile recommended|strict|review|exploratory",
         "--min-confidence <0-100>",
         "--fail-on-suggestion",
-        "recommended_min_confidence"
+        "recommended_min_confidence",
+        "manual_review_required",
+        "manual_review_reason_count",
+        "manual_review_reasons",
+        "manual_review_before_apply"
     )) {
     Assert-ContainsText -Text $governanceRoutesDoc -ExpectedText $marker `
         -Message "Governance routes docs should preserve style merge confidence route marker '$marker'."
@@ -174,6 +178,10 @@ foreach ($assertion in @(
                 "reviewed_suggestion_count",
                 "style_merge_suggestion_count",
                 "rollback_plan_file",
+                "manual_review_required",
+                "manual_review_reason_count",
+                "manual_review_reasons",
+                "manual_review_before_apply",
                 "cannot exceed suggestion count"
             )
             label = "style merge review writer"
@@ -271,6 +279,10 @@ foreach ($assertion in @(
                 "featherdoc.style_merge_suggestion_review.v1",
                 "suggestion_confidence_summary",
                 "reviewed_suggestion_count",
+                "manual_review_required",
+                "manual_review_reason_count",
+                "manual_review_reasons",
+                "manual_review_before_apply",
                 "cannot exceed suggestion count"
             )
             label = "style merge review writer regression"

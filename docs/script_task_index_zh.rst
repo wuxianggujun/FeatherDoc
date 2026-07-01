@@ -212,7 +212,8 @@
   patch 置信度校准报告，并把 reviewer 分流固定为 ``source_report_display``、
   ``source_json_display`` 和 ``open_command`` 三段入口。
 - ``scripts/write_style_merge_suggestion_review.ps1``：生成 style merge 建议复核
-  材料。
+  材料，并为低于 ``recommended_min_confidence`` 的建议写出
+  ``manual_review_reasons``。
 - ``scripts/apply_reviewed_style_merge_suggestions.ps1``：应用已复核的 style merge
   建议。
 - ``scripts/audit_style_merge_restore_plan.ps1``：只读审计 style merge restore plan，
