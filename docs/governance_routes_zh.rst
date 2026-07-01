@@ -136,6 +136,9 @@ Document Skeleton Governance
 * ``style-merge-suggestions.json``
 * ``style_numbering_issue_count``
 * ``style_merge_suggestion_count``
+* ``style_merge_manual_review_reason_count``
+* ``manual_review_reasons``
+* ``manual_review_before_apply``
 * ``document skeleton governance``
 * ``exemplar catalog``
 * ``release blockers``

@@ -155,6 +155,8 @@ function New-SkeletonSummary {
         [int]$IssueCount = 0,
         [int]$SuggestionCount = 0,
         [int]$StyleMergeSuggestionCount = 0,
+        [int]$StyleMergeManualReviewReasonCount = 0,
+        [object[]]$StyleMergeManualReviewReasons = @(),
         [int]$UsageTotal = 0,
         [object[]]$IssueSummary = @(),
         [object[]]$ReleaseBlockers = @(),
@@ -178,6 +180,9 @@ function New-SkeletonSummary {
         style_numbering_issue_count = $IssueCount
         style_numbering_suggestion_count = $SuggestionCount
         style_merge_suggestion_count = $StyleMergeSuggestionCount
+        style_merge_manual_review_required = ($StyleMergeManualReviewReasonCount -gt 0)
+        style_merge_manual_review_reason_count = $StyleMergeManualReviewReasonCount
+        style_merge_manual_review_reasons = @($StyleMergeManualReviewReasons)
         numbered_style_count = 2
         issue_summary = @($IssueSummary)
         style_usage = [ordered]@{
@@ -230,6 +235,17 @@ if (Test-Scenario -Name "aggregate") {
         -IssueCount 3 `
         -SuggestionCount 2 `
         -StyleMergeSuggestionCount 2 `
+        -StyleMergeManualReviewReasonCount 1 `
+        -StyleMergeManualReviewReasons @(
+            [ordered]@{
+                source_style_id = "DuplicateBodyB"
+                target_style_id = "DuplicateBodyA"
+                confidence = 82
+                recommended_min_confidence = 90
+                reason_code = "confidence_below_recommended_minimum"
+                recommended_action = "manual_review_before_apply"
+            }
+        ) `
         -UsageTotal 9 `
         -IssueSummary @(
             [ordered]@{ issue = "missing_numbering_definition"; count = 2 },
@@ -256,6 +272,25 @@ if (Test-Scenario -Name "aggregate") {
                 id = "preview_style_numbering_repair"
                 title = "Preview contract style numbering repair"
                 command = "featherdoc_cli repair-style-numbering samples/contract.docx --plan-only --json"
+            },
+            [ordered]@{
+                id = "review_style_merge_suggestions"
+                title = "Review contract duplicate style merge suggestions"
+                command = "featherdoc_cli suggest-style-merges samples/contract.docx --confidence-profile recommended --output-plan output/document-skeleton-governance/contract/style-merge-suggestions.json --json"
+                source_json = "output/document-skeleton-governance/contract/style-merge-suggestion-review.json"
+                source_json_display = ".\output\document-skeleton-governance\contract\style-merge-suggestion-review.json"
+                manual_review_required = $true
+                manual_review_reason_count = 1
+                manual_review_reasons = @(
+                    [ordered]@{
+                        source_style_id = "DuplicateBodyB"
+                        target_style_id = "DuplicateBodyA"
+                        confidence = 82
+                        recommended_min_confidence = 90
+                        reason_code = "confidence_below_recommended_minimum"
+                        recommended_action = "manual_review_before_apply"
+                    }
+                )
             }
         ))
 
@@ -290,6 +325,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should sum style-numbering suggestions."
     Assert-Equal -Actual ([int]$summary.total_style_merge_suggestion_count) -Expected 3 `
         -Message "Aggregate rollup should sum style merge suggestions."
+    Assert-Equal -Actual ([int]$summary.total_style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Aggregate rollup should sum style merge manual review reasons."
     Assert-Equal -Actual ([int]$summary.total_numbering_definition_count) -Expected 6 `
         -Message "Aggregate rollup should sum catalog definition counts."
     Assert-Equal -Actual ([int]$summary.total_numbering_instance_count) -Expected 9 `
@@ -298,7 +335,7 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should sum style usage totals."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 1 `
         -Message "Aggregate rollup should preserve release blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 4 `
         -Message "Aggregate rollup should preserve action items."
     Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 2 `
         -Message "Aggregate rollup should expose per-document exemplar catalogs."
@@ -316,6 +353,8 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Aggregate rollup should expose invoice style merge suggestion counts."
     Assert-Equal -Actual ([int]$contractEntry.style_merge_suggestion_count) -Expected 2 `
         -Message "Aggregate rollup should expose contract style merge suggestion counts."
+    Assert-Equal -Actual ([int]$contractEntry.style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Aggregate rollup should expose contract style merge manual review reason counts."
     Assert-ContainsText -Text (($summary.catalog_exemplars | ForEach-Object { [string]$_.exemplar_catalog_path }) -join "`n") `
         -ExpectedText "contract/exemplar.numbering-catalog.json" `
         -Message "Aggregate rollup should include contract exemplar catalog path."
@@ -363,6 +402,22 @@ if (Test-Scenario -Name "aggregate") {
     Assert-ContainsText -Text ([string]$previewRepairAction.open_command) `
         -ExpectedText "repair-style-numbering" `
         -Message "Action items should expose an open_command fallback from command."
+    $styleMergeReviewAction = @(
+        $summary.action_items |
+            Where-Object { [string]$_.id -eq "review_style_merge_suggestions" } |
+            Select-Object -First 1
+    )
+    Assert-True -Condition ($null -ne $styleMergeReviewAction) `
+        -Message "Aggregate rollup should include the style merge review action."
+    Assert-ContainsText -Text ([string]$styleMergeReviewAction.source_json_display) `
+        -ExpectedText "style-merge-suggestion-review.json" `
+        -Message "Style merge review action should preserve review evidence JSON."
+    Assert-Equal -Actual ([bool]$styleMergeReviewAction.manual_review_required) -Expected $true `
+        -Message "Style merge review action should preserve manual review status."
+    Assert-Equal -Actual ([int]$styleMergeReviewAction.manual_review_reason_count) -Expected 1 `
+        -Message "Style merge review action should preserve manual review reason count."
+    Assert-Equal -Actual ([string]$styleMergeReviewAction.manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Style merge review action should preserve manual review reason detail."
 
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Catalog Exemplars" `
@@ -375,6 +430,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown report should expose a machine-readable source failure count."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestions=``2``" `
         -Message "Markdown report should include per-document style merge suggestion counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_manual_review_reasons=``1``" `
+        -Message "Markdown report should include per-document style merge manual review reason counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "manual_review_before_apply" `
+        -Message "Markdown report should include manual review recommended action."
     Assert-ContainsText -Text $markdown -ExpectedText "source_json_display:" `
         -Message "Markdown report should expose source_json_display for reviewer traceability."
     Assert-ContainsText -Text $markdown -ExpectedText "origin_source_schema:" `

@@ -205,9 +205,10 @@
 - ``scripts/build_numbering_catalog_governance_report.ps1``：生成 numbering
   catalog governance 报告。
 - ``scripts/build_document_skeleton_governance_report.ps1``：生成单文档骨架治理
-  报告。
+  报告，可通过 ``-StyleMergeReviewJson`` 接入 style merge review JSON，并透传
+  ``style_merge_manual_review_reason_count`` 与 ``manual_review_reasons``。
 - ``scripts/build_document_skeleton_governance_rollup_report.ps1``：汇总多份骨架
-  治理报告。
+  治理报告，并聚合 ``total_style_merge_manual_review_reason_count``。
 - ``scripts/write_schema_patch_confidence_calibration_report.ps1``：生成 schema
   patch 置信度校准报告，并把 reviewer 分流固定为 ``source_report_display``、
   ``source_json_display`` 和 ``open_command`` 三段入口。

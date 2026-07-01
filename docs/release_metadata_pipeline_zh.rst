@@ -334,6 +334,9 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 相同的 blocker / warning / action item 来源。
 历史样式合并建议计数字段 ``style_merge_suggestion_count`` 仍保留为机器字段，
 并在文档中写作 ``style_merge_suggestion_count``，避免旧 release 面板丢失该计数。
+当 document skeleton governance 传入 style merge review JSON 时，release 链路还应保留
+``style_merge_manual_review_reason_count``，并继续携带 ``manual_review_reasons`` 中的
+``manual_review_before_apply`` 建议，避免 reviewer 只能看到数量而看不到为什么需要人工复核。
 样式合并恢复审计会写出 ``featherdoc.style_merge_restore_audit.v1``。当
 ``audit_style_merge_restore_plan.ps1`` 发现 restore dry-run issue 时，
 ``release_blockers`` 会保留 ``review_handoff_steps``、``next_handoff_step``、
@@ -361,8 +364,9 @@ schema confidence calibration 和 content-control data-binding governance 的治
 ``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
 其中 document skeleton governance rollup 的重复样式建议会以稳定 warning
 ``document_skeleton.style_merge_suggestions_pending`` 暴露，并保留
-``style_merge_suggestion_count``、``source_schema``、``source_report_display``、
-``source_json_display`` 与 ``open_command``，让 reviewer 能先打开 rollup summary，
+``style_merge_suggestion_count``、``style_merge_manual_review_reason_count``、
+``source_schema``、``source_report_display``、``source_json_display`` 与
+``open_command``，让 reviewer 能先打开 rollup summary，
 再回到单文档 skeleton source 或更窄的 style merge evidence。
 其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
 ``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，

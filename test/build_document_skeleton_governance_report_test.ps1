@@ -127,8 +127,8 @@ switch (`$command) {
         }
         `$planPath = `$Args[`$outputIndex + 1]
         New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName(`$planPath)) -Force | Out-Null
-        Set-Content -LiteralPath `$planPath -Encoding UTF8 -Value '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":95,"max_confidence":95,"exact_xml_match_count":1,"xml_difference_count":0,"recommended_min_confidence":95,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_and_xml","confidence":95}}]}'
-        Write-Output '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":95,"max_confidence":95,"exact_xml_match_count":1,"xml_difference_count":0,"recommended_min_confidence":95,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_and_xml","confidence":95}}]}'
+        Set-Content -LiteralPath `$planPath -Encoding UTF8 -Value '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":82,"max_confidence":82,"exact_xml_match_count":0,"xml_difference_count":1,"recommended_min_confidence":90,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_with_xml_differences","confidence":82}}]}'
+        Write-Output '{"command":"suggest-style-merges","clean":true,"operation_count":1,"applyable_count":1,"issue_count":0,"suggestion_confidence_summary":{"suggestion_count":1,"min_confidence":82,"max_confidence":82,"exact_xml_match_count":0,"xml_difference_count":1,"recommended_min_confidence":90,"recommendation":"review duplicate style merge suggestions before automation gates"},"operations":[{"action":"merge","source_style_id":"DuplicateBodyB","target_style_id":"DuplicateBodyA","applyable":true,"suggestion":{"reason_code":"matching_style_signature_with_xml_differences","confidence":82}}]}'
         exit 0
     }
 $auditBlock
@@ -154,10 +154,31 @@ $passingOutputDir = Join-Path $resolvedWorkingDir "passing-report"
 Write-MockCli -Path $mockCli
 
 if (Test-Scenario -Name "passing") {
+    $styleMergeReviewPath = Join-Path $passingOutputDir "style-merge-suggestion-review.json"
+    New-Item -ItemType Directory -Path $passingOutputDir -Force | Out-Null
+    Set-Content -LiteralPath $styleMergeReviewPath -Encoding UTF8 -Value @'
+{
+  "schema": "featherdoc.style_merge_suggestion_review.v1",
+  "manual_review_required": true,
+  "manual_review_reason_count": 1,
+  "manual_review_reasons": [
+    {
+      "source_style_id": "DuplicateBodyB",
+      "target_style_id": "DuplicateBodyA",
+      "confidence": 82,
+      "recommended_min_confidence": 90,
+      "reason_code": "confidence_below_recommended_minimum",
+      "review_reason": "Style merge suggestion confidence is below the recommended automation threshold.",
+      "recommended_action": "manual_review_before_apply"
+    }
+  ]
+}
+'@
     $passingResult = Invoke-GovernanceReportScript -Arguments @(
         "-InputDocx", $sampleDocx,
         "-OutputDir", $passingOutputDir,
         "-CliPath", $mockCli,
+        "-StyleMergeReviewJson", $styleMergeReviewPath,
         "-SkipBuild"
     )
     Assert-Equal -Actual $passingResult.ExitCode -Expected 0 `
@@ -189,10 +210,20 @@ if (Test-Scenario -Name "passing") {
         -Message "Summary should include style-numbering audit issue count."
     Assert-Equal -Actual ([int]$summary.style_merge_suggestion_count) -Expected 1 `
         -Message "Summary should include style merge suggestion count."
-    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_confidence_summary.recommended_min_confidence) -Expected 95 `
+    Assert-Equal -Actual ([int]$summary.style_merge_suggestion_confidence_summary.recommended_min_confidence) -Expected 90 `
         -Message "Summary should include style merge confidence summary."
     Assert-ContainsText -Text ([string]$summary.style_merge_suggestion_plan_relative_path) -ExpectedText "style-merge-suggestions.json" `
         -Message "Summary should expose the style merge plan path."
+    Assert-ContainsText -Text ([string]$summary.style_merge_review_json_relative_path) -ExpectedText "style-merge-suggestion-review.json" `
+        -Message "Summary should expose the style merge review JSON path."
+    Assert-Equal -Actual ([bool]$summary.style_merge_manual_review_required) -Expected $true `
+        -Message "Summary should surface style merge manual review status."
+    Assert-Equal -Actual ([int]$summary.style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Summary should include style merge manual review reason count."
+    Assert-Equal -Actual ([string]$summary.style_merge_manual_review_reasons[0].source_style_id) -Expected "DuplicateBodyB" `
+        -Message "Summary should preserve manual review source style."
+    Assert-Equal -Actual ([string]$summary.style_merge_manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Summary should preserve manual review recommended action."
     Assert-Equal -Actual ([int]$summary.issue_summary[0].count) -Expected 2 `
         -Message "Summary should group style-numbering issues."
     Assert-Equal -Actual ([int]$summary.next_steps.Count) -Expected 5 `
@@ -201,6 +232,19 @@ if (Test-Scenario -Name "passing") {
         -Message "Next steps should include repair preview command."
     Assert-ContainsText -Text (($summary.next_steps | ForEach-Object { [string]$_.id }) -join "`n") -ExpectedText "review_style_merge_suggestions" `
         -Message "Next steps should include style merge review command."
+    $styleMergeReviewAction = @(
+        $summary.next_steps |
+            Where-Object { [string]$_.id -eq "review_style_merge_suggestions" } |
+            Select-Object -First 1
+    )
+    Assert-Equal -Actual ([bool]$styleMergeReviewAction.manual_review_required) -Expected $true `
+        -Message "Style merge review action should preserve manual review status."
+    Assert-Equal -Actual ([int]$styleMergeReviewAction.manual_review_reason_count) -Expected 1 `
+        -Message "Style merge review action should preserve manual review reason count."
+    Assert-Equal -Actual ([string]$styleMergeReviewAction.manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Style merge review action should preserve manual review reason detail."
+    Assert-ContainsText -Text ([string]$styleMergeReviewAction.source_json_display) -ExpectedText "style-merge-suggestion-review.json" `
+        -Message "Style merge review action should point at review evidence JSON."
     Assert-ContainsText -Text (($summary.commands | ForEach-Object { [string]$_.command }) -join "`n") -ExpectedText "suggest-style-merges" `
         -Message "Summary should include suggest-style-merges command results."
 
@@ -209,6 +253,10 @@ if (Test-Scenario -Name "passing") {
         -Message "Markdown report should show exemplar catalog path."
     Assert-ContainsText -Text $markdown -ExpectedText "style_merge_suggestion_count:" `
         -Message "Markdown report should show style merge suggestion count."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_manual_review_reason_count:" `
+        -Message "Markdown report should show style merge manual review reason count."
+    Assert-ContainsText -Text $markdown -ExpectedText "manual_review_before_apply" `
+        -Message "Markdown report should show manual review recommended action."
     Assert-ContainsText -Text $markdown -ExpectedText "Issue Summary" `
         -Message "Markdown report should include issue summary section."
     Assert-ContainsText -Text $markdown -ExpectedText "repair-style-numbering" `

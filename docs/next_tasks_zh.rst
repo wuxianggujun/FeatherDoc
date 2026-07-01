@@ -353,6 +353,11 @@ P2：样式与编号治理
      ``manual_review_required``、``manual_review_reason_count`` 和
      ``manual_review_before_apply``，让 reviewer 可以直接看到 source / target style、
      confidence、阈值和 reason code。
+   * ``build_document_skeleton_governance_report.ps1`` 已接收 ``-StyleMergeReviewJson``，
+     并把 ``style_merge_manual_review_reason_count`` 与 ``manual_review_reasons``
+     透传到 summary、Markdown 和 ``review_style_merge_suggestions`` action item；
+     ``build_document_skeleton_governance_rollup_report.ps1`` 会继续聚合
+     ``total_style_merge_manual_review_reason_count``。
 
 3. 面向 heading / list / theme 的稳定重构入口：
 
@@ -533,9 +538,9 @@ P3：文档、测试与索引治理
    ``test/script_task_index_docs_contract_test.ps1`` 和
    ``test/current_direction_docs_contract_test.ps1``；若改到 PDF 执行计划或 PDF import
    说明，再补 ``test/pdf_import_docs_contract_test.ps1``。
-6. ``P2-STYLE-01`` 已补 style merge 低置信度人工复核原因：下一轮若继续这一项，
-   优先把 ``manual_review_reasons`` 接入 document skeleton governance / release
-   blocker rollup，而不是直接扩大自动 apply 范围。
+6. ``P2-STYLE-01`` 已把 style merge 低置信度人工复核原因接入 document skeleton
+   governance 与 skeleton rollup：下一轮若继续这一项，优先让 release blocker
+   warning helper 展示 ``manual_review_reasons`` 的摘要，而不是直接扩大自动 apply 范围。
 7. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
    registered 的基础上，继续跑 project-template smoke / schema approval history /
    schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
