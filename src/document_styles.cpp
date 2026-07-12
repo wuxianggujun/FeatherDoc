@@ -1,4 +1,6 @@
 #include "featherdoc.hpp"
+#include <featherdoc/detail/path.hpp>
+#include "numeric_helpers.hpp"
 
 #include "document_table_style_helpers.hpp"
 
@@ -16,6 +18,14 @@
 #include <utility>
 
 #include <zip.h>
+
+namespace featherdoc::detail {
+[[nodiscard]] auto next_named_sibling(pugi::xml_node node,
+                                      std::string_view name)
+    -> pugi::xml_node;
+[[nodiscard]] auto collect_plain_text_from_xml(pugi::xml_node node)
+    -> std::string;
+} // namespace featherdoc::detail
 
 namespace {
 constexpr auto document_xml_entry = std::string_view{"word/document.xml"};
@@ -343,13 +353,15 @@ std::error_code Document::ensure_styles_loaded() {
     }
 
     int source_zip_error = 0;
-    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
+    const auto source_archive_path =
+        featherdoc::detail::path_to_utf8(this->document_path);
+    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(
             this->last_error_info, document_errc::source_archive_open_failed,
-            "failed to reopen source archive '" + this->document_path.string() +
+            "failed to reopen source archive '" + source_archive_path +
                 "' while loading word/styles.xml: " +
                 zip_error_text(source_zip_error));
     }

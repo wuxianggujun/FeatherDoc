@@ -65,6 +65,37 @@ Word 文档处理工作流
        return doc.save_as("filled.docx") ? 1 : 0;
    }
 
+``open()`` 默认执行严格 OPC 结构校验，并在解压前应用条目数、部件大小、总量和
+压缩比限制。只有在修复已知损坏的历史文档时，才显式使用
+``document_open_options`` 的 ``tolerant`` 模式。调用 ``set_path()``、再次
+``open()`` 或 ``create_empty()`` 后，必须重新获取段落、Run、表格和模板部件句柄。
+
+修复损坏 DOCX 时，不要把 tolerant 打开成功当成文档已经合法。先读取诊断，再显式
+修复并另存；修复成功后也必须重新获取 XML-backed 句柄。
+
+.. code-block:: cpp
+
+   featherdoc::Document damaged{"legacy.docx"};
+   featherdoc::document_open_options options;
+   options.validation = featherdoc::package_validation_mode::tolerant;
+   if (damaged.open(options)) {
+       return 1;
+   }
+
+   for (const auto &diagnostic : damaged.package_diagnostics()) {
+       if (!diagnostic.repairable) {
+           return 1;
+       }
+   }
+   if (!damaged.repair_package()) {
+       return 1;
+   }
+   return damaged.save_as("legacy-repaired.docx") ? 1 : 0;
+
+对应 CLI 流程为 ``featherdoc_cli inspect-package legacy.docx --json``，确认所有问题
+可修复后执行 ``featherdoc_cli repair-package legacy.docx --output
+legacy-repaired.docx --json``。修复命令强制要求输出路径，不会覆盖输入文件。
+
 模板填充
 --------
 

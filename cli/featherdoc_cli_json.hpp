@@ -1,5 +1,7 @@
 #pragma once
 
+#include <featherdoc/detail/path.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <iosfwd>

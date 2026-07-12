@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_bookmark_text_options_parse.hpp"
 #include "featherdoc_cli_errors.hpp"
+#include "featherdoc_cli_input.hpp"
 #include "featherdoc_cli_section_options_parse.hpp"
 #include "featherdoc_cli_table_cell_options_parse.hpp"
 
@@ -29,14 +30,10 @@ auto read_text_source_value(const std::optional<std::string> &inline_text,
         return false;
     }
 
-    std::ifstream stream(*text_file, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read text file: " + text_file->string();
+    if (!read_bounded_utf8_file(*text_file, "text file", text,
+                                error_message)) {
         return false;
     }
-
-    text.assign(std::istreambuf_iterator<char>(stream),
-                std::istreambuf_iterator<char>());
     text = strip_utf8_bom(std::move(text));
     return true;
 }

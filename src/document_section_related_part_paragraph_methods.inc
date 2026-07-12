@@ -2,7 +2,7 @@ Paragraph &Document::ensure_related_part_paragraphs(
     std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
     const char *reference_name, const char *relationship_type,
     const char *content_type) {
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
 
     const auto count = this->section_count();
     const auto last_section_index = count == 0U ? 0U : count - 1U;
@@ -16,7 +16,7 @@ Paragraph &Document::ensure_section_related_part_paragraphs(
     std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
     const char *reference_name, const char *relationship_type,
     const char *content_type) {
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
 
     const auto section_properties = this->ensure_section_properties(section_index);
     if (section_properties == pugi::xml_node{}) {
@@ -42,7 +42,8 @@ Paragraph &Document::ensure_section_related_part_paragraphs(
         if (!relationship_id.empty()) {
             for (const auto &part : parts) {
                 if (part->relationship_id == relationship_id) {
-                    part->paragraph.set_parent(part->xml.child(part_root_name));
+                    part->paragraph.set_parent(
+                        this->tracked_node(part->xml.child(part_root_name)));
                     this->last_error_info.clear();
                     return part->paragraph;
                 }
@@ -218,7 +219,8 @@ Paragraph &Document::ensure_section_related_part_paragraphs(
 
     parts.push_back(std::move(part));
     auto &created_part = *parts.back();
-    created_part.paragraph.set_parent(created_part.xml.child(part_root_name));
+    created_part.paragraph.set_parent(
+        this->tracked_node(created_part.xml.child(part_root_name)));
 
     this->has_document_relationships_part = true;
     this->document_relationships_dirty = true;
@@ -232,7 +234,7 @@ Paragraph &Document::assign_section_related_part_paragraphs(
     featherdoc::section_reference_kind reference_kind,
     std::vector<std::unique_ptr<xml_part_state>> &parts, const char *part_root_name,
     const char *reference_name) {
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
 
     if (part_index >= parts.size()) {
         set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
@@ -307,7 +309,8 @@ Paragraph &Document::assign_section_related_part_paragraphs(
     }
     relationship_attribute.set_value(part.relationship_id.c_str());
 
-    part.paragraph.set_parent(part.xml.child(part_root_name));
+    part.paragraph.set_parent(
+        this->tracked_node(part.xml.child(part_root_name)));
     this->last_error_info.clear();
     return part.paragraph;
 }

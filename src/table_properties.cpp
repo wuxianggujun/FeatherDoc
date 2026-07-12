@@ -1,3 +1,7 @@
+#include "table_method_dependencies.hpp"
+
+namespace featherdoc {
+
 std::optional<std::uint32_t> Table::width_twips() const {
     if (this->current == pugi::xml_node{}) {
         return std::nullopt;
@@ -660,3 +664,5 @@ bool Table::clear_border(featherdoc::table_border_edge edge) {
     remove_empty_container(table_properties, "w:tblBorders");
     return true;
 }
+
+} // namespace featherdoc

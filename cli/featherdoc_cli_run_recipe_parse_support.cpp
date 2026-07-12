@@ -1,6 +1,7 @@
 #include "featherdoc_cli_run_recipe_parse_support.hpp"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -10,22 +11,7 @@ namespace featherdoc_cli {
 auto read_run_recipe_utf8_text_file(
     const std::filesystem::path &path, std::string_view label,
     std::string &content, std::string &error_message) -> bool {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) {
-        error_message = "failed to open " + std::string(label) + ": " +
-                        path.string();
-        return false;
-    }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
-    if (stream.bad()) {
-        error_message = "failed to read " + std::string(label) + ": " +
-                        path.string();
-        return false;
-    }
-
-    return true;
+    return read_bounded_utf8_file(path, label, content, error_message);
 }
 
 auto consume_run_recipe_json_object_separator(

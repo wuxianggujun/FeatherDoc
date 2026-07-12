@@ -112,7 +112,8 @@
         std::cout << ",\"ok\":true";
         write_json_selected_image_part(std::cout, selected);
         std::cout << ",\"output_path\":";
-        write_json_string(std::cout, output_path.string());
+        write_json_string(std::cout,
+                          featherdoc::detail::path_to_utf8(output_path));
         write_json_inspect_image_filters(std::cout, options);
         std::cout << ",\"image\":";
         write_json_drawing_image_summary(std::cout, target_image);

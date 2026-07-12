@@ -94,7 +94,7 @@ void write_json_bookmark_image_result(
     stream << ",\"bookmark\":";
     write_json_bookmark_support_summary(stream, bookmark);
     stream << ",\"image_path\":";
-    write_json_string(stream, image_path.string());
+    write_json_string(stream, featherdoc::detail::path_to_utf8(image_path));
     stream << ",\"replaced\":" << inserted_images.size() << ",\"images\":[";
     for (std::size_t index = 0; index < inserted_images.size(); ++index) {
         if (index != 0U) {
@@ -111,7 +111,8 @@ void print_bookmark_image_result(
     const std::optional<path_type> &output_path,
     const std::vector<featherdoc::drawing_image_info> &inserted_images) {
     print_bookmark_identity(selected, bookmark);
-    std::cout << "image_path: " << image_path.string() << '\n';
+    std::cout << "image_path: "
+              << featherdoc::detail::path_to_utf8(image_path) << '\n';
     if (output_path.has_value()) {
         std::cout << "output_path: " << output_path->string() << '\n';
     } else {

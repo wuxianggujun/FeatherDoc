@@ -4,8 +4,12 @@ Document::Document(std::filesystem::path file_path)
     : document_path(std::move(file_path)) {}
 
 std::error_code Document::create_empty() {
+    this->invalidate_xml_handles();
     this->flag_is_open = false;
     this->has_source_archive = false;
+    this->package_relationships_loaded = false;
+    this->package_relationships_dirty = false;
+    this->package_repair_pending = false;
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
@@ -33,7 +37,10 @@ std::error_code Document::create_empty() {
     this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
+    this->package_diagnostic_list.clear();
+    this->opened_archive_limits = {};
     this->document.reset();
+    this->package_relationships.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
@@ -46,7 +53,7 @@ std::error_code Document::create_empty() {
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
     this->last_error_info.clear();
 
     const auto parse_result =
@@ -83,18 +90,22 @@ std::error_code Document::create_empty() {
     }
 
     auto body = this->document.child("w:document").child("w:body");
-    this->paragraph.set_parent(body);
+    this->paragraph.set_parent(this->tracked_node(body));
     this->table.set_owner(this);
-    this->table.set_parent(body);
+    this->table.set_parent(this->tracked_node(body));
     this->content_types_loaded = true;
     this->flag_is_open = true;
     return {};
 }
 
 void Document::set_path(std::filesystem::path file_path) {
+    this->invalidate_xml_handles();
     this->document_path = std::move(file_path);
     this->flag_is_open = false;
     this->has_source_archive = false;
+    this->package_relationships_loaded = false;
+    this->package_relationships_dirty = false;
+    this->package_repair_pending = false;
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
@@ -122,7 +133,10 @@ void Document::set_path(std::filesystem::path file_path) {
     this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
+    this->package_diagnostic_list.clear();
+    this->opened_archive_limits = {};
     this->document.reset();
+    this->package_relationships.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
@@ -135,15 +149,21 @@ void Document::set_path(std::filesystem::path file_path) {
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
     this->last_error_info.clear();
 }
 
 const std::filesystem::path &Document::path() const { return this->document_path; }
 
-std::error_code Document::open() {
+std::error_code Document::open() { return this->open(document_open_options{}); }
+
+std::error_code Document::open(const document_open_options &options) {
+    this->invalidate_xml_handles();
     this->flag_is_open = false;
     this->has_source_archive = false;
+    this->package_relationships_loaded = false;
+    this->package_relationships_dirty = false;
+    this->package_repair_pending = false;
     this->has_document_relationships_part = false;
     this->has_settings_part = false;
     this->has_numbering_part = false;
@@ -171,7 +191,10 @@ std::error_code Document::open() {
     this->comments_extended_dirty = false;
     this->removed_related_part_entries.clear();
     this->removed_archive_entries.clear();
+    this->package_diagnostic_list.clear();
+    this->opened_archive_limits = options.limits;
     this->document.reset();
+    this->package_relationships.reset();
     this->document_relationships.reset();
     this->content_types.reset();
     this->settings.reset();
@@ -184,7 +207,7 @@ std::error_code Document::open() {
     this->header_parts.clear();
     this->footer_parts.clear();
     this->image_parts.clear();
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
     this->last_error_info.clear();
 
     if (this->document_path.empty()) {
@@ -201,11 +224,11 @@ std::error_code Document::open() {
                                   std::make_error_code(
                                       std::errc::no_such_file_or_directory),
                                   "document file does not exist: " +
-                                      this->document_path.string());
+                                      featherdoc::detail::path_to_utf8(this->document_path));
         }
         return set_last_error(this->last_error_info, filesystem_error,
                               "failed to inspect document path: " +
-                                  this->document_path.string());
+                                  featherdoc::detail::path_to_utf8(this->document_path));
     }
 
     if (!std::filesystem::exists(file_status)) {
@@ -213,7 +236,7 @@ std::error_code Document::open() {
                               std::make_error_code(
                                   std::errc::no_such_file_or_directory),
                               "document file does not exist: " +
-                                  this->document_path.string());
+                                  featherdoc::detail::path_to_utf8(this->document_path));
     }
 
     if (!std::filesystem::is_regular_file(file_status)) {
@@ -221,15 +244,15 @@ std::error_code Document::open() {
             return set_last_error(this->last_error_info,
                                   std::make_error_code(std::errc::is_a_directory),
                                   "document path points to a directory: " +
-                                      this->document_path.string());
+                                      featherdoc::detail::path_to_utf8(this->document_path));
         }
         return set_last_error(this->last_error_info,
                               std::make_error_code(std::errc::invalid_argument),
                               "document path is not a regular file: " +
-                                  this->document_path.string());
+                                  featherdoc::detail::path_to_utf8(this->document_path));
     }
 
-    const auto archive_path = this->document_path.string();
+    const auto archive_path = featherdoc::detail::path_to_utf8(this->document_path);
     void *buf = nullptr;
     size_t bufsize = 0;
     int zip_error = 0;
@@ -242,6 +265,12 @@ std::error_code Document::open() {
                               document_errc::archive_open_failed,
                               "failed to open archive '" + archive_path +
                                   "': " + zip_error_text(zip_error));
+    }
+
+    if (const auto limit_error =
+            validate_archive_limits(zip, options.limits, this->last_error_info)) {
+        zip_close(zip);
+        return limit_error;
     }
 
     if (zip_entry_open(zip, document_xml_entry.data()) != 0) {
@@ -286,8 +315,7 @@ std::error_code Document::open() {
     std::free(buf);
     buf = nullptr;
 
-    this->flag_is_open = static_cast<bool>(parse_result);
-    if (!this->flag_is_open) {
+    if (!parse_result) {
         zip_close(zip);
         this->document.reset();
         return set_last_error(
@@ -295,6 +323,53 @@ std::error_code Document::open() {
             parse_result.description(), std::string{document_xml_entry},
             parse_result.offset >= 0 ? std::optional<std::ptrdiff_t>{parse_result.offset}
                                      : std::nullopt);
+    }
+
+    const auto document_root = this->document.child("w:document");
+    std::optional<package_diagnostic> document_diagnostic;
+    if (document_root == pugi::xml_node{} ||
+        std::string_view{document_root.attribute("xmlns:w").value()} !=
+            wordprocessingml_namespace) {
+        document_diagnostic = package_diagnostic{
+            package_diagnostic_code::invalid_document_root,
+            package_diagnostic_severity::error, std::string{document_xml_entry},
+            "word/document.xml does not contain a valid w:document root and namespace",
+            false};
+    } else if (document_root.child("w:body") == pugi::xml_node{}) {
+        document_diagnostic = package_diagnostic{
+            package_diagnostic_code::missing_document_body,
+            package_diagnostic_severity::warning, std::string{document_xml_entry},
+            "word/document.xml does not contain w:body", true};
+    }
+
+    if (document_diagnostic.has_value()) {
+        if (options.validation == package_validation_mode::strict) {
+            zip_close(zip);
+            this->document.reset();
+            return set_last_error(
+                this->last_error_info,
+                document_errc::invalid_package_structure,
+                document_diagnostic->detail,
+                std::string{document_xml_entry});
+        }
+        this->package_diagnostic_list.push_back(*document_diagnostic);
+    }
+
+    const auto root_relationships_diagnostic =
+        inspect_root_relationships(zip, this->package_relationships);
+    this->package_relationships_loaded =
+        this->package_relationships.child("Relationships") != pugi::xml_node{};
+    if (root_relationships_diagnostic.has_value()) {
+        if (options.validation == package_validation_mode::strict) {
+            zip_close(zip);
+            this->document.reset();
+            this->package_relationships.reset();
+            return set_last_error(
+                this->last_error_info, document_errc::invalid_package_structure,
+                root_relationships_diagnostic->detail,
+                root_relationships_diagnostic->entry_name);
+        }
+        this->package_diagnostic_list.push_back(*root_relationships_diagnostic);
     }
 
     const auto related_parts = load_document_relationships_part(
@@ -319,9 +394,60 @@ std::error_code Document::open() {
             this->content_types.load_buffer(content_types_text.data(), content_types_text.size());
         if (content_types_parse_result) {
             this->content_types_loaded = true;
+            if (const auto content_type_diagnostic =
+                    inspect_main_content_type(this->content_types)) {
+                if (options.validation == package_validation_mode::strict) {
+                    zip_close(zip);
+                    this->document.reset();
+                    this->package_relationships.reset();
+                    this->content_types.reset();
+                    return set_last_error(
+                        this->last_error_info,
+                        document_errc::invalid_package_structure,
+                        content_type_diagnostic->detail,
+                        content_type_diagnostic->entry_name);
+                }
+                this->package_diagnostic_list.push_back(*content_type_diagnostic);
+            }
         } else {
             this->content_types.reset();
+            if (options.validation == package_validation_mode::strict) {
+                zip_close(zip);
+                this->document.reset();
+                return set_last_error(
+                    this->last_error_info,
+                    document_errc::content_types_xml_parse_failed,
+                    content_types_parse_result.description(),
+                    std::string{content_types_xml_entry},
+                    content_types_parse_result.offset >= 0
+                        ? std::optional<std::ptrdiff_t>{
+                              content_types_parse_result.offset}
+                        : std::nullopt);
+            }
+            this->package_diagnostic_list.push_back(package_diagnostic{
+                package_diagnostic_code::malformed_content_types,
+                package_diagnostic_severity::error,
+                std::string{content_types_xml_entry},
+                content_types_parse_result.description(), false});
         }
+    } else if (options.validation == package_validation_mode::strict) {
+        zip_close(zip);
+        this->document.reset();
+        return set_last_error(
+            this->last_error_info, document_errc::content_types_xml_read_failed,
+            "required [Content_Types].xml part is missing or unreadable",
+            std::string{content_types_xml_entry});
+    } else {
+        this->package_diagnostic_list.push_back(package_diagnostic{
+            package_diagnostic_code::missing_content_types,
+            content_types_status == zip_entry_read_status::missing
+                ? package_diagnostic_severity::warning
+                : package_diagnostic_severity::error,
+            std::string{content_types_xml_entry},
+            content_types_status == zip_entry_read_status::missing
+                ? "required [Content_Types].xml part is missing"
+                : "required [Content_Types].xml part is unreadable",
+            content_types_status == zip_entry_read_status::missing});
     }
 
     for (const auto &related_part : *related_parts) {
@@ -373,14 +499,16 @@ std::error_code Document::open() {
     zip_close(zip);
 
     auto body = this->document.child("w:document").child("w:body");
-    this->paragraph.set_parent(body);
+    this->paragraph.set_parent(this->tracked_node(body));
     this->table.set_owner(this);
-    this->table.set_parent(body);
+    this->table.set_parent(this->tracked_node(body));
     this->has_source_archive = true;
+    this->flag_is_open = true;
     this->last_error_info.clear();
     return {};
 }
 
+#include "document_package_repair_methods.inc"
 #include "document_save_methods.inc"
 bool Document::is_open() const { return this->flag_is_open; }
 

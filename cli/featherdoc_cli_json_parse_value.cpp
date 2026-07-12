@@ -1,11 +1,13 @@
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 
 #include <string>
 
 namespace featherdoc_cli {
 
-auto skip_json_patch_value(std::string_view text, std::size_t &index,
-                           std::string &error_message) -> bool;
+auto skip_json_patch_value_impl(std::string_view text, std::size_t &index,
+                                std::size_t depth,
+                                std::string &error_message) -> bool;
 
 auto parse_json_patch_number(std::string_view text, std::size_t &index,
                              std::string &value, std::string &error_message)
@@ -66,6 +68,7 @@ auto parse_json_patch_number(std::string_view text, std::size_t &index,
 }
 
 auto skip_json_patch_array(std::string_view text, std::size_t &index,
+                           std::size_t depth,
                            std::string &error_message) -> bool {
     if (index >= text.size() || text[index] != '[') {
         return report_json_patch_error(index, "expected array", error_message);
@@ -79,7 +82,7 @@ auto skip_json_patch_array(std::string_view text, std::size_t &index,
     }
 
     while (index < text.size()) {
-        if (!skip_json_patch_value(text, index, error_message)) {
+        if (!skip_json_patch_value_impl(text, index, depth, error_message)) {
             return false;
         }
 
@@ -105,6 +108,7 @@ auto skip_json_patch_array(std::string_view text, std::size_t &index,
 }
 
 auto skip_json_patch_object(std::string_view text, std::size_t &index,
+                            std::size_t depth,
                             std::string &error_message) -> bool {
     if (index >= text.size() || text[index] != '{') {
         return report_json_patch_error(index, "expected object", error_message);
@@ -131,7 +135,7 @@ auto skip_json_patch_object(std::string_view text, std::size_t &index,
         }
 
         ++index;
-        if (!skip_json_patch_value(text, index, error_message)) {
+        if (!skip_json_patch_value_impl(text, index, depth, error_message)) {
             return false;
         }
 
@@ -155,8 +159,9 @@ auto skip_json_patch_object(std::string_view text, std::size_t &index,
     return report_json_patch_error(index, "unterminated object", error_message);
 }
 
-auto skip_json_patch_value(std::string_view text, std::size_t &index,
-                           std::string &error_message) -> bool {
+auto skip_json_patch_value_impl(std::string_view text, std::size_t &index,
+                                std::size_t depth,
+                                std::string &error_message) -> bool {
     skip_json_patch_whitespace(text, index);
     if (index >= text.size()) {
         return report_json_patch_error(index, "expected JSON value",
@@ -168,10 +173,20 @@ auto skip_json_patch_value(std::string_view text, std::size_t &index,
         return parse_json_patch_string(text, index, ignored, error_message);
     }
     if (text[index] == '{') {
-        return skip_json_patch_object(text, index, error_message);
+        if (depth >= max_json_nesting_depth) {
+            return report_json_patch_error(index,
+                                           "JSON nesting depth exceeds 128",
+                                           error_message);
+        }
+        return skip_json_patch_object(text, index, depth + 1U, error_message);
     }
     if (text[index] == '[') {
-        return skip_json_patch_array(text, index, error_message);
+        if (depth >= max_json_nesting_depth) {
+            return report_json_patch_error(index,
+                                           "JSON nesting depth exceeds 128",
+                                           error_message);
+        }
+        return skip_json_patch_array(text, index, depth + 1U, error_message);
     }
     if (text[index] == 't') {
         if (text.substr(index, 4U) != "true") {
@@ -204,6 +219,11 @@ auto skip_json_patch_value(std::string_view text, std::size_t &index,
 
     return report_json_patch_error(index, "unexpected JSON token",
                                    error_message);
+}
+
+auto skip_json_patch_value(std::string_view text, std::size_t &index,
+                           std::string &error_message) -> bool {
+    return skip_json_patch_value_impl(text, index, 0U, error_message);
 }
 
 } // namespace featherdoc_cli

@@ -1,6 +1,42 @@
 #include "table_xml_helpers.hpp"
+#include "xml_helpers.hpp"
 
 namespace featherdoc::detail {
+
+auto replace_table_cell_text(pugi::xml_node cell, const char *text) -> bool {
+    if (cell == pugi::xml_node{} || text == nullptr) {
+        return false;
+    }
+
+    for (auto child = cell.first_child(); child != pugi::xml_node{};) {
+        const auto next_child = child.next_sibling();
+        if (std::string_view{child.name()} != "w:tcPr") {
+            cell.remove_child(child);
+        }
+        child = next_child;
+    }
+
+    return append_plain_text_paragraph(cell, text);
+}
+
+auto replace_table_cell_text(tracked_xml_node cell, const char *text)
+    -> bool {
+    if (!cell.has_node() || text == nullptr) {
+        return false;
+    }
+
+    for (auto child = cell.first_child(); child != pugi::xml_node{};) {
+        const auto next_child = child.next_sibling();
+        if (std::string_view{child.name()} != "w:tcPr") {
+            if (!cell.remove_child(child)) {
+                return false;
+            }
+        }
+        child = next_child;
+    }
+
+    return append_plain_text_paragraph(cell, text);
+}
 
 auto ensure_cell_properties_node(pugi::xml_node cell) -> pugi::xml_node {
     if (cell == pugi::xml_node{}) {

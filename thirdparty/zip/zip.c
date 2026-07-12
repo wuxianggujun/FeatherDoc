@@ -536,6 +536,9 @@ static int zip_archive_truncate(mz_zip_archive *pzip) {
   if (pzip->m_zip_mode == MZ_ZIP_MODE_WRITING_HAS_BEEN_FINALIZED) {
     if (pState->m_pFile) {
       int fd = fileno(pState->m_pFile);
+      if (fflush(pState->m_pFile) != 0) {
+        return -1;
+      }
       return ftruncate(fd, pState->m_file_archive_start_ofs + file_size);
     }
   }
@@ -1405,27 +1408,95 @@ cleanup:
   return NULL;
 }
 
-void zip_close(struct zip_t *zip) {
+#if defined(ZIP_ENABLE_TEST_FAILURES)
+enum zip_test_close_failure_stage {
+  ZIP_TEST_CLOSE_FAILURE_FINALIZE = 1,
+  ZIP_TEST_CLOSE_FAILURE_TRUNCATE = 2,
+  ZIP_TEST_CLOSE_FAILURE_WRITER_END = 3
+};
+
+static int zip_test_close_failure_stage = 0;
+static int zip_test_write_failure_pending = 0;
+
+void zip_test_fail_next_close_stage(int stage) {
+  switch (stage) {
+  case ZIP_TEST_CLOSE_FAILURE_FINALIZE:
+  case ZIP_TEST_CLOSE_FAILURE_TRUNCATE:
+  case ZIP_TEST_CLOSE_FAILURE_WRITER_END:
+    zip_test_close_failure_stage = stage;
+    break;
+  default:
+    zip_test_close_failure_stage = 0;
+    break;
+  }
+}
+
+void zip_test_fail_next_write(void) { zip_test_write_failure_pending = 1; }
+
+static int zip_test_consume_close_failure(int stage) {
+  if (zip_test_close_failure_stage != stage) {
+    return 0;
+  }
+  zip_test_close_failure_stage = 0;
+  return 1;
+}
+
+static int zip_test_consume_write_failure(void) {
+  if (!zip_test_write_failure_pending) {
+    return 0;
+  }
+  zip_test_write_failure_pending = 0;
+  return 1;
+}
+#else
+#define zip_test_consume_close_failure(stage) (0)
+#define zip_test_consume_write_failure() (0)
+#endif
+
+int zip_close_ex(struct zip_t *zip) {
+  int result = 0;
   if (zip) {
     mz_zip_archive *pZip = &(zip->archive);
 #if ZIP_ENABLE_DEFLATE
     if (pZip->m_zip_mode == MZ_ZIP_MODE_WRITING) {
-      mz_zip_writer_finalize_archive(pZip);
+      const mz_bool finalize_ok = mz_zip_writer_finalize_archive(pZip);
+      const int injected_failure = zip_test_consume_close_failure(
+          ZIP_TEST_CLOSE_FAILURE_FINALIZE);
+      if (!finalize_ok || injected_failure) {
+        result = ZIP_ECLSZIP;
+      }
     }
 
     if (pZip->m_zip_mode == MZ_ZIP_MODE_WRITING ||
         pZip->m_zip_mode == MZ_ZIP_MODE_WRITING_HAS_BEEN_FINALIZED) {
-      zip_archive_truncate(pZip);
-      mz_zip_writer_end(pZip);
+      const int truncate_result = zip_archive_truncate(pZip);
+      const int injected_truncate_failure = zip_test_consume_close_failure(
+          ZIP_TEST_CLOSE_FAILURE_TRUNCATE);
+      if ((truncate_result != 0 || injected_truncate_failure) && result == 0) {
+        result = ZIP_ECLSZIP;
+      }
+      const mz_bool writer_end_ok = mz_zip_writer_end(pZip);
+      const int injected_writer_end_failure = zip_test_consume_close_failure(
+          ZIP_TEST_CLOSE_FAILURE_WRITER_END);
+      if ((!writer_end_ok || injected_writer_end_failure) && result == 0) {
+        result = ZIP_ECLSZIP;
+      }
     } else
 #endif
         if (pZip->m_zip_mode == MZ_ZIP_MODE_READING) {
-      mz_zip_reader_end(pZip);
+      if (!mz_zip_reader_end(pZip)) {
+        result = ZIP_ECLSZIP;
+      }
     }
 
     CLEANUP(zip->password);
     CLEANUP(zip);
   }
+  return result;
+}
+
+void zip_close(struct zip_t *zip) {
+  (void)zip_close_ex(zip);
 }
 
 int zip_is64(struct zip_t *zip) {
@@ -2080,6 +2151,9 @@ int zip_entry_write(struct zip_t *zip, const void *buf, size_t bufsize) {
 
   if (!zip) {
     return ZIP_ENOINIT;
+  }
+  if (zip_test_consume_write_failure()) {
+    return ZIP_EWRTENT;
   }
 
   pzip = &(zip->archive);

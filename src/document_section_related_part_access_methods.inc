@@ -1,22 +1,22 @@
 Paragraph &Document::header_paragraphs(std::size_t index) {
     if (index >= this->header_parts.size()) {
-        this->detached_paragraph.set_parent({});
+        this->detached_paragraph.set_parent(detail::tracked_xml_node{});
         return this->detached_paragraph;
     }
 
     auto &part = *this->header_parts[index];
-    part.paragraph.set_parent(part.xml.child("w:hdr"));
+    part.paragraph.set_parent(this->tracked_node(part.xml.child("w:hdr")));
     return part.paragraph;
 }
 
 Paragraph &Document::footer_paragraphs(std::size_t index) {
     if (index >= this->footer_parts.size()) {
-        this->detached_paragraph.set_parent({});
+        this->detached_paragraph.set_parent(detail::tracked_xml_node{});
         return this->detached_paragraph;
     }
 
     auto &part = *this->footer_parts[index];
-    part.paragraph.set_parent(part.xml.child("w:ftr"));
+    part.paragraph.set_parent(this->tracked_node(part.xml.child("w:ftr")));
     return part.paragraph;
 }
 
@@ -24,18 +24,19 @@ Paragraph &Document::related_part_paragraphs_by_relationship_id(
     std::string_view relationship_id, std::vector<std::unique_ptr<xml_part_state>> &parts,
     const char *part_root_name) {
     if (relationship_id.empty()) {
-        this->detached_paragraph.set_parent({});
+        this->detached_paragraph.set_parent(detail::tracked_xml_node{});
         return this->detached_paragraph;
     }
 
     for (auto &part : parts) {
         if (part->relationship_id == relationship_id) {
-            part->paragraph.set_parent(part->xml.child(part_root_name));
+            part->paragraph.set_parent(
+                this->tracked_node(part->xml.child(part_root_name)));
             return part->paragraph;
         }
     }
 
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
     return this->detached_paragraph;
 }
 
@@ -45,7 +46,7 @@ Paragraph &Document::section_related_part_paragraphs(
     const char *part_root_name) {
     auto section_properties = this->section_properties(section_index);
     if (section_properties == pugi::xml_node{}) {
-        this->detached_paragraph.set_parent({});
+        this->detached_paragraph.set_parent(detail::tracked_xml_node{});
         return this->detached_paragraph;
     }
 
@@ -61,7 +62,7 @@ Paragraph &Document::section_related_part_paragraphs(
             reference.attribute("r:id").value(), parts, part_root_name);
     }
 
-    this->detached_paragraph.set_parent({});
+    this->detached_paragraph.set_parent(detail::tracked_xml_node{});
     return this->detached_paragraph;
 }
 

@@ -348,7 +348,7 @@ auto write_style_refactor_plan_file(
     if (!stream.good()) {
         error_message =
             "failed to open style refactor plan output path: " +
-            output_path.string();
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -360,7 +360,7 @@ auto write_style_refactor_plan_file(
     if (!stream.good()) {
         error_message =
             "failed to write style refactor plan output path: " +
-            output_path.string();
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -375,7 +375,7 @@ auto write_style_refactor_rollback_plan_file(
     if (!stream.good()) {
         error_message =
             "failed to open style refactor rollback output path: " +
-            output_path.string();
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -389,7 +389,7 @@ auto write_style_refactor_rollback_plan_file(
     if (!stream.good()) {
         error_message =
             "failed to write style refactor rollback output path: " +
-            output_path.string();
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 

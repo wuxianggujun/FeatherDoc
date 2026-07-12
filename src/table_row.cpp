@@ -1,12 +1,16 @@
+#include "table_method_dependencies.hpp"
+
+namespace featherdoc {
+
 TableRow::TableRow() = default;
 
-TableRow::TableRow(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
+TableRow::TableRow(detail::tracked_xml_node parent, pugi::xml_node current) {
+    this->set_parent(std::move(parent));
     this->set_current(current);
 }
 
-void TableRow::set_parent(pugi::xml_node node) {
-    this->parent = node;
+void TableRow::set_parent(detail::tracked_xml_node node) {
+    this->parent = std::move(node);
     this->current = this->parent.child("w:tr");
     this->cell.set_parent(this->current);
 }
@@ -15,6 +19,8 @@ void TableRow::set_current(pugi::xml_node node) {
     this->current = node;
     this->cell.set_parent(this->current);
 }
+
+bool TableRow::valid() const noexcept { return this->current.has_node(); }
 
 TableCell &TableRow::cells() {
     this->cell.set_parent(this->current);
@@ -301,3 +307,5 @@ bool TableRow::set_texts(const std::vector<std::string> &texts) {
 bool TableRow::set_texts(std::initializer_list<std::string> texts) {
     return this->set_texts(std::vector<std::string>{texts});
 }
+
+} // namespace featherdoc

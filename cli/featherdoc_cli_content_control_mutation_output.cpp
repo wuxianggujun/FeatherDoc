@@ -153,7 +153,7 @@ void write_json_content_control_image_result(
     write_json_content_control_part_result(stream, selected, options.tag,
                                            options.alias);
     stream << ",\"image_path\":";
-    write_json_string(stream, image_path.string());
+    write_json_string(stream, featherdoc::detail::path_to_utf8(image_path));
     stream << ",\"replaced\":" << inserted_images.size() << ",\"images\":[";
     for (std::size_t index = 0; index < inserted_images.size(); ++index) {
         if (index != 0U) {
@@ -172,7 +172,8 @@ void print_content_control_image_result(
     print_content_control_common_result(selected, options.tag, options.alias,
                                         options.output_path,
                                         inserted_images.size());
-    std::cout << "image_path: " << image_path.string() << '\n';
+    std::cout << "image_path: "
+              << featherdoc::detail::path_to_utf8(image_path) << '\n';
     for (std::size_t index = 0; index < inserted_images.size(); ++index) {
         std::cout << "image[" << index << "]: ";
         print_drawing_image_summary(std::cout, inserted_images[index]);

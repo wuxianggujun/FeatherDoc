@@ -216,6 +216,15 @@ zip_open_with_password_and_error(const char *zipname, int level, char mode,
 extern ZIP_EXPORT void zip_close(struct zip_t *zip);
 
 /**
+ * Closes the zip archive and reports finalization or close failures.
+ *
+ * @param zip zip archive handler.
+ *
+ * @return 0 on success, negative number (< 0) on error.
+ */
+extern ZIP_EXPORT int zip_close_ex(struct zip_t *zip);
+
+/**
  * Determines if the archive has a zip64 end of central directory headers.
  *
  * @param zip zip archive handler.

@@ -353,14 +353,14 @@ auto write_table_position_preset_plan_file(
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
         error_message = "failed to open table position plan output path: " +
-                        output_path.string();
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
     write_json_table_position_preset_plan(stream, plan, options);
     if (!stream.good()) {
         error_message = "failed to write table position plan output path: " +
-                        output_path.string();
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 

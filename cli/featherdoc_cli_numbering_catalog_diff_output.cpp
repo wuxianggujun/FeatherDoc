@@ -201,7 +201,8 @@ void print_checked_numbering_catalog_result(
                   << "\"matches\":" << json_bool(diff.equal())
                   << ",\"clean\":" << json_bool(clean)
                   << ",\"catalog_file\":";
-        write_json_string(std::cout, catalog_path.string());
+        write_json_string(std::cout,
+                          featherdoc::detail::path_to_utf8(catalog_path));
         if (output_path.has_value()) {
             std::cout << ",\"generated_output_path\":";
             write_json_string(std::cout, output_path->string());
@@ -254,7 +255,8 @@ void print_checked_numbering_catalog_result(
 
     std::cout << "matches: " << yes_no(diff.equal()) << '\n'
               << "clean: " << yes_no(clean) << '\n'
-              << "catalog_file: " << catalog_path.string() << '\n';
+              << "catalog_file: "
+              << featherdoc::detail::path_to_utf8(catalog_path) << '\n';
     if (output_path.has_value()) {
         std::cout << "generated_output_path: " << output_path->string()
                   << '\n';

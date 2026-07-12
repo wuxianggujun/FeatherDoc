@@ -1,6 +1,9 @@
 #include "featherdoc.hpp"
+#include <featherdoc/detail/path.hpp>
+#include "numeric_helpers.hpp"
 #include "image_helpers.hpp"
 #include "document_template_content_control_replacement.hpp"
+#include "table_xml_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <algorithm>

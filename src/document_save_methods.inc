@@ -17,27 +17,38 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     const std::filesystem::path output_file{std::move(target_path)};
     const std::filesystem::path source_file{this->document_path};
 
-    auto temp_file = output_file;
-    temp_file += ".tmp";
-    auto backup_file = output_file;
-    backup_file += ".bak";
+    std::filesystem::path temp_file;
+    std::FILE *temp_stream = nullptr;
+    if (const auto reserve_error =
+            reserve_unique_temp_file(output_file, temp_file, temp_stream)) {
+        return set_last_error(
+            this->last_error_info, document_errc::output_archive_open_failed,
+            "failed to reserve a temporary output beside '" +
+                featherdoc::detail::path_to_utf8(output_file) + "': " +
+                reserve_error.message());
+    }
 
-    std::error_code filesystem_error;
-    std::filesystem::remove(temp_file, filesystem_error);
-    filesystem_error.clear();
-    std::filesystem::remove(backup_file, filesystem_error);
-    filesystem_error.clear();
+    const auto temp_file_utf8 = featherdoc::detail::path_to_utf8(temp_file);
+    const auto output_file_utf8 = featherdoc::detail::path_to_utf8(output_file);
+    const auto source_file_utf8 = featherdoc::detail::path_to_utf8(source_file);
 
     int output_zip_error = 0;
-    zip_t *new_zip = zip_openwitherror(temp_file.string().c_str(),
-                                       docx_output_compression_level, 'w',
-                                       &output_zip_error);
+    zip_t *new_zip = zip_cstream_openwitherror(
+        temp_stream, docx_output_compression_level, 'w', &output_zip_error);
     if (!new_zip) {
+        const auto stream_close_result = std::fclose(temp_stream);
+        temp_stream = nullptr;
+        std::error_code cleanup_error;
+        std::filesystem::remove(temp_file, cleanup_error);
         return set_last_error(this->last_error_info,
                               document_errc::output_archive_open_failed,
                               "failed to create output archive '" +
-                                  temp_file.string() + "': " +
-                                  zip_error_text(output_zip_error));
+                                  temp_file_utf8 + "': " +
+                                  zip_error_text(output_zip_error) +
+                                  (stream_close_result == 0
+                                       ? std::string{}
+                                       : std::string{
+                                             "; failed to close reserved temporary file"}));
     }
 
     std::error_code result;
@@ -172,6 +183,9 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     const bool write_content_types =
         this->content_types_dirty || !this->has_source_archive ||
         (prune_unused_related_parts && this->content_types_loaded);
+    const bool write_package_relationships =
+        this->package_relationships_loaded &&
+        (this->package_relationships_dirty || !this->has_source_archive);
     if (write_content_types && this->content_types_loaded && prune_unused_related_parts) {
         content_types_to_write.reset(this->content_types);
         auto types = content_types_to_write.child("Types");
@@ -197,6 +211,9 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
     std::unordered_set<std::string> rewritten_entries;
     rewritten_entries.insert(std::string{document_xml_entry});
+    if (write_package_relationships) {
+        rewritten_entries.insert(std::string{relationships_xml_entry});
+    }
     if (write_content_types) {
         rewritten_entries.insert(std::string{content_types_xml_entry});
     }
@@ -305,7 +322,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         record_first_document_error(
             document_errc::output_document_xml_open_failed,
             "failed to create 'word/document.xml' in output archive '" +
-                temp_file.string() + "'",
+                temp_file_utf8 + "'",
             std::string{document_xml_entry});
     } else {
         xml_zip_writer writer{new_zip};
@@ -315,7 +332,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             record_first_document_error(
                 document_errc::output_document_xml_write_failed,
                 "failed while streaming 'word/document.xml' into output archive '" +
-                    temp_file.string() + "'",
+                    temp_file_utf8 + "'",
                 std::string{document_xml_entry});
         }
     }
@@ -326,6 +343,10 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         } else {
             write_text_entry(content_types_xml_entry, content_types_xml);
         }
+    }
+
+    if (!result && write_package_relationships) {
+        write_xml_entry(relationships_xml_entry, this->package_relationships);
     }
 
     if (!result && write_document_relationships) {
@@ -413,13 +434,13 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
     if (!result && this->has_source_archive) {
         int source_zip_error = 0;
-        zip_t *orig_zip = zip_openwitherror(source_file.string().c_str(),
+        zip_t *orig_zip = zip_openwitherror(source_file_utf8.c_str(),
                                             ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                             &source_zip_error);
         if (!orig_zip) {
             record_first_document_error(
                 document_errc::source_archive_open_failed,
-                "failed to reopen source archive '" + source_file.string() +
+                "failed to reopen source archive '" + source_file_utf8 +
                     "': " + zip_error_text(source_zip_error));
         }
 
@@ -429,7 +450,7 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
                 record_first_document_error(
                     document_errc::source_archive_entries_failed,
                     "failed to enumerate entries in source archive '" +
-                        source_file.string() + "'");
+                        source_file_utf8 + "'");
             }
             for (ssize_t i = 0; !result && i < orig_zip_entry_count; ++i) {
                 if (zip_entry_openbyindex(orig_zip, static_cast<size_t>(i)) != 0) {
@@ -501,55 +522,52 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             zip_close(orig_zip);
         }
     }
-    zip_close(new_zip);
+    const auto close_result = zip_close_ex(new_zip);
+    const auto stream_close_result = std::fclose(temp_stream);
+    temp_stream = nullptr;
+    if (!result && (close_result != 0 || stream_close_result != 0)) {
+        record_first_document_error(
+            document_errc::output_archive_finalize_failed,
+            "failed to finalize temporary output archive '" + temp_file_utf8 +
+                "': " +
+                (close_result != 0
+                     ? zip_error_text(close_result)
+                     : std::string{"failed to flush or close temporary file"}));
+    }
+
+    if (!result && this->package_repair_pending) {
+        document_open_options verification_options;
+        verification_options.limits = this->opened_archive_limits;
+        Document verification_document(temp_file);
+        if (const auto verification_error =
+                verification_document.open(verification_options)) {
+            const auto &verification_detail = verification_document.last_error();
+            record_first_document_error(
+                document_errc::package_repair_validation_failed,
+                "strict validation of repaired output failed: " +
+                    (verification_detail.detail.empty()
+                         ? verification_error.message()
+                         : verification_detail.detail),
+                verification_detail.entry_name,
+                verification_detail.xml_offset);
+        }
+    }
 
     if (result) {
-        std::filesystem::remove(temp_file, filesystem_error);
+        std::error_code cleanup_error;
+        std::filesystem::remove(temp_file, cleanup_error);
         return result;
     }
 
-    if (std::filesystem::exists(output_file, filesystem_error)) {
-        if (filesystem_error) {
-            std::filesystem::remove(temp_file, filesystem_error);
-            return set_last_error(this->last_error_info, filesystem_error,
-                                  "failed to inspect output target '" +
-                                      output_file.string() + "'");
-        }
-
-        std::filesystem::rename(output_file, backup_file, filesystem_error);
-        if (filesystem_error) {
-            std::filesystem::remove(temp_file, filesystem_error);
-            return set_last_error(this->last_error_info, filesystem_error,
-                                  "failed to move output file '" +
-                                      output_file.string() + "' to backup '" +
-                                      backup_file.string() + "'");
-        }
-    }
-
-    std::filesystem::rename(temp_file, output_file, filesystem_error);
-    if (filesystem_error) {
-        std::error_code restore_error;
-        if (std::filesystem::exists(backup_file, restore_error)) {
-            std::filesystem::rename(backup_file, output_file, restore_error);
-        }
-        std::filesystem::remove(temp_file, restore_error);
-        if (restore_error) {
-            return set_last_error(
-                this->last_error_info, restore_error,
-                "failed to restore original file after rename failure; backup was '" +
-                    backup_file.string() + "'");
-        }
-        return set_last_error(this->last_error_info, filesystem_error,
-                              "failed to replace output file '" +
-                                  output_file.string() + "' with temporary file '" +
-                                  temp_file.string() + "'");
-    }
-
-    std::filesystem::remove(backup_file, filesystem_error);
-    if (filesystem_error) {
-        return set_last_error(this->last_error_info, filesystem_error,
-                              "saved document but failed to remove backup file '" +
-                                  backup_file.string() + "'");
+    if (const auto replace_error =
+            replace_file_atomically(temp_file, output_file)) {
+        std::error_code cleanup_error;
+        std::filesystem::remove(temp_file, cleanup_error);
+        return set_last_error(
+            this->last_error_info, document_errc::output_replace_failed,
+            "failed to atomically replace output document '" + output_file_utf8 +
+                "' with temporary archive '" + temp_file_utf8 + "': " +
+                replace_error.message());
     }
 
     this->last_error_info.clear();

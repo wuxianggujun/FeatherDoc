@@ -29,7 +29,8 @@ auto write_numbering_catalog_file(const path_type &output_path,
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
         error_message =
-            "failed to open numbering catalog output path: " + output_path.string();
+            "failed to open numbering catalog output path: " +
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -37,7 +38,8 @@ auto write_numbering_catalog_file(const path_type &output_path,
     stream << '\n';
     if (!stream.good()) {
         error_message =
-            "failed to write numbering catalog output path: " + output_path.string();
+            "failed to write numbering catalog output path: " +
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 

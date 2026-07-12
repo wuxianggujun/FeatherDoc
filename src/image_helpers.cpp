@@ -1,4 +1,5 @@
 #include "image_helpers.hpp"
+#include <featherdoc/detail/path.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -428,7 +429,8 @@ bool load_image_file(const std::filesystem::path &image_path, image_file_info &i
     std::ifstream stream(image_path, std::ios::binary);
     if (!stream) {
         error_code = featherdoc::document_errc::image_file_read_failed;
-        detail = "failed to open image file '" + image_path.string() + "'";
+        detail = "failed to open image file '" +
+                 featherdoc::detail::path_to_utf8(image_path) + "'";
         return false;
     }
 
@@ -436,11 +438,13 @@ bool load_image_file(const std::filesystem::path &image_path, image_file_info &i
                            std::istreambuf_iterator<char>{});
     if (!stream.good() && !stream.eof()) {
         error_code = featherdoc::document_errc::image_file_read_failed;
-        detail = "failed while reading image file '" + image_path.string() + "'";
+        detail = "failed while reading image file '" +
+                 featherdoc::detail::path_to_utf8(image_path) + "'";
         return false;
     }
 
-    image_info.extension = image_path.extension().string();
+    image_info.extension =
+        featherdoc::detail::path_to_utf8(image_path.extension());
     if (!image_info.extension.empty() && image_info.extension.front() == '.') {
         image_info.extension.erase(image_info.extension.begin());
     }
@@ -448,7 +452,8 @@ bool load_image_file(const std::filesystem::path &image_path, image_file_info &i
     image_info.content_type = image_content_type_for_extension(image_info.extension);
     if (image_info.content_type.empty()) {
         error_code = featherdoc::document_errc::image_format_unsupported;
-        detail = "unsupported image extension for '" + image_path.string() +
+        detail = "unsupported image extension for '" +
+                 featherdoc::detail::path_to_utf8(image_path) +
                  "'; supported extensions are .png, .jpg, .jpeg, .gif, .bmp, .svg, .webp, .tif, and .tiff";
         return false;
     }
@@ -456,7 +461,8 @@ bool load_image_file(const std::filesystem::path &image_path, image_file_info &i
     if (!detect_image_dimensions(image_info.extension, image_info.data,
                                  image_info.width_px, image_info.height_px)) {
         error_code = featherdoc::document_errc::image_size_read_failed;
-        detail = "failed to parse image dimensions for '" + image_path.string() + "'";
+        detail = "failed to parse image dimensions for '" +
+                 featherdoc::detail::path_to_utf8(image_path) + "'";
         return false;
     }
 

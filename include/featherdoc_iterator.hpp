@@ -10,26 +10,25 @@
 #define FEATHERDOC_ITERATOR_HPP
 
 #include <cstddef>
+#include <featherdoc/detail/xml_handle.hpp>
 #include <iterator>
 #include <type_traits>
 #include <utility>
 
-namespace pugi {
-class xml_node;
-}
-
 namespace featherdoc {
-template <class T, class = void> struct is_iterator_handle : std::false_type {};
+class Run;
+class Paragraph;
+class Table;
+class TableRow;
+class TableCell;
 
 template <class T>
-struct is_iterator_handle<
-    T, std::void_t<
-           decltype(std::declval<T &>().set_parent(std::declval<pugi::xml_node>())),
-           decltype(std::declval<T &>().set_current(std::declval<pugi::xml_node>()))>>
-    : std::true_type {};
-
-template <class T>
-inline constexpr bool is_iterator_handle_v = is_iterator_handle<T>::value;
+inline constexpr bool is_iterator_handle_v =
+    std::is_same_v<std::remove_cv_t<T>, Run> ||
+    std::is_same_v<std::remove_cv_t<T>, Paragraph> ||
+    std::is_same_v<std::remove_cv_t<T>, Table> ||
+    std::is_same_v<std::remove_cv_t<T>, TableRow> ||
+    std::is_same_v<std::remove_cv_t<T>, TableCell>;
 
 template <class T, class P, class C = P> class Iterator {
   private:
@@ -82,26 +81,30 @@ template <class T, class P, class C = P> class Iterator {
 
 class IteratorHelper {
   public:
-    using P = pugi::xml_node;
-    template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+    using P = detail::tracked_xml_node;
+    template <class T>
+        requires is_iterator_handle_v<T>
     static auto make_begin(T const &obj) -> Iterator<T, P> {
         return Iterator<T, P>(obj.parent, obj.current);
     }
 
-    template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
+    template <class T>
+        requires is_iterator_handle_v<T>
     static auto make_end(T const &obj) -> Iterator<T, P> {
         return Iterator<T, P>(obj.parent, decltype(obj.current){});
     }
 };
 
 // Entry point
-template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
-auto begin(T const &obj) -> Iterator<T, pugi::xml_node> {
+template <class T>
+    requires is_iterator_handle_v<T>
+auto begin(T const &obj) -> Iterator<T, detail::tracked_xml_node> {
     return IteratorHelper::make_begin(obj);
 }
 
-template <class T, std::enable_if_t<is_iterator_handle_v<T>, int> = 0>
-auto end(T const &obj) -> Iterator<T, pugi::xml_node> {
+template <class T>
+    requires is_iterator_handle_v<T>
+auto end(T const &obj) -> Iterator<T, detail::tracked_xml_node> {
     return IteratorHelper::make_end(obj);
 }
 } // namespace featherdoc

@@ -85,7 +85,8 @@ void print_checked_template_schema_result(
     if (json_output) {
         std::cout << "{\"command\":\"check-template-schema\",\"matches\":"
                   << json_bool(result.equal()) << ",\"schema_file\":";
-        write_json_string(std::cout, schema_path.string());
+        write_json_string(std::cout,
+                          featherdoc::detail::path_to_utf8(schema_path));
         if (output_path.has_value()) {
             std::cout << ",\"generated_output_path\":";
             write_json_string(std::cout, output_path->string());
@@ -126,7 +127,8 @@ void print_checked_template_schema_result(
         return;
     }
 
-    std::cout << "schema_file: " << schema_path.string() << '\n';
+    std::cout << "schema_file: "
+              << featherdoc::detail::path_to_utf8(schema_path) << '\n';
     if (output_path.has_value()) {
         std::cout << "generated_output_path: " << output_path->string() << '\n';
     }

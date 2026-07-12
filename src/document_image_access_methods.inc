@@ -153,14 +153,16 @@ bool Document::extract_drawing_image_from_part(
         }
 
         int zip_error = 0;
-        zip_t *archive = zip_openwitherror(this->document_path.string().c_str(),
+        const auto archive_path =
+            featherdoc::detail::path_to_utf8(this->document_path);
+        zip_t *archive = zip_openwitherror(archive_path.c_str(),
                                            ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                            &zip_error);
         if (archive == nullptr) {
             set_last_error(this->last_error_info, document_errc::source_archive_open_failed,
                            "failed to reopen source archive '" +
-                               this->document_path.string() + "' for drawing image extraction",
-                           this->document_path.string());
+                               archive_path + "' for drawing image extraction",
+                           archive_path);
             return false;
         }
 
@@ -189,9 +191,9 @@ bool Document::extract_drawing_image_from_part(
         if (filesystem_error) {
             set_last_error(this->last_error_info, filesystem_error,
                            "failed to create output directory '" +
-                               parent_path.string() +
+                               featherdoc::detail::path_to_utf8(parent_path) +
                                "' for drawing image extraction",
-                           output_path.string());
+                           featherdoc::detail::path_to_utf8(output_path));
             return false;
         }
     }
@@ -201,7 +203,7 @@ bool Document::extract_drawing_image_from_part(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::io_error),
                        "failed to open output file for drawing image extraction",
-                       output_path.string());
+                       featherdoc::detail::path_to_utf8(output_path));
         return false;
     }
 
@@ -210,7 +212,7 @@ bool Document::extract_drawing_image_from_part(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::io_error),
                        "failed while writing extracted drawing image data",
-                       output_path.string());
+                       featherdoc::detail::path_to_utf8(output_path));
         return false;
     }
 
@@ -271,7 +273,7 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
     std::string detail;
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 

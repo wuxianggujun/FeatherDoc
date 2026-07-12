@@ -56,14 +56,16 @@ std::error_code Document::ensure_numbering_loaded() {
     }
 
     int source_zip_error = 0;
-    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
+    const auto source_archive_path =
+        featherdoc::detail::path_to_utf8(this->document_path);
+    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  this->document_path.string() +
+                                  source_archive_path +
                                   "' while loading word/numbering.xml: " +
                                   zip_error_text(source_zip_error));
     }
@@ -229,10 +231,17 @@ std::optional<std::uint32_t> Document::ensure_numbering_definition(
 
     const auto abstract_num_id = ensure_custom_abstract_numbering(numbering_root, definition);
     if (!abstract_num_id.has_value()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create or update the requested numbering definition",
-                       std::string{numbering_xml_entry});
+        if (numbering_identifier_space_exhausted(numbering_root)) {
+            set_last_error(this->last_error_info,
+                           document_errc::identifier_space_exhausted,
+                           "abstract numbering id has reached UINT32_MAX",
+                           std::string{numbering_xml_entry});
+        } else {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to create or update the requested numbering definition",
+                           std::string{numbering_xml_entry});
+        }
         return std::nullopt;
     }
 
@@ -443,10 +452,17 @@ featherdoc::numbering_catalog_import_summary Document::import_numbering_catalog(
         const auto abstract_num_id = ensure_custom_abstract_numbering(
             numbering_root, catalog_definition.definition);
         if (!abstract_num_id.has_value()) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to import numbering catalog definition",
-                           std::string{numbering_xml_entry});
+            if (numbering_identifier_space_exhausted(numbering_root)) {
+                set_last_error(this->last_error_info,
+                               document_errc::identifier_space_exhausted,
+                               "abstract numbering id has reached UINT32_MAX",
+                               std::string{numbering_xml_entry});
+            } else {
+                set_last_error(this->last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to import numbering catalog definition",
+                               std::string{numbering_xml_entry});
+            }
             return summary;
         }
 
@@ -458,10 +474,17 @@ featherdoc::numbering_catalog_import_summary Document::import_numbering_catalog(
             const auto num_id = append_numbering_instance_for_abstract(
                 numbering_root, *abstract_num_id, instance.level_overrides);
             if (!num_id.has_value()) {
-                set_last_error(this->last_error_info,
-                               std::make_error_code(std::errc::not_enough_memory),
-                               "failed to import numbering catalog instance",
-                               std::string{numbering_xml_entry});
+                if (numbering_identifier_space_exhausted(numbering_root)) {
+                    set_last_error(this->last_error_info,
+                                   document_errc::identifier_space_exhausted,
+                                   "numbering instance id has reached UINT32_MAX",
+                                   std::string{numbering_xml_entry});
+                } else {
+                    set_last_error(this->last_error_info,
+                                   std::make_error_code(std::errc::not_enough_memory),
+                                   "failed to import numbering catalog instance",
+                                   std::string{numbering_xml_entry});
+                }
                 return summary;
             }
             imported_definition.instance_ids.push_back(*num_id);

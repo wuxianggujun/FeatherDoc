@@ -9,6 +9,7 @@
 #include "doctest.h"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 
 namespace {
 
@@ -174,4 +175,59 @@ TEST_CASE("cli JSON parse reads files and skips UTF-8 BOM") {
     CHECK_EQ(content.substr(index), "{\"ok\":true}");
 
     std::filesystem::remove(path);
+}
+
+TEST_CASE("cli input accepts the 16 MiB boundary and rejects the next byte") {
+    const auto exact_path = temp_json_path("_exact_limit.json");
+    const auto oversized_path = temp_json_path("_over_limit.json");
+    const std::string exact(featherdoc_cli::max_cli_input_bytes, 'a');
+    write_binary_file(exact_path, exact);
+    write_binary_file(oversized_path, exact + "b");
+
+    std::string content;
+    std::string error_message;
+    CHECK(featherdoc_cli::read_bounded_utf8_file(
+        exact_path, "test input", content, error_message));
+    CHECK_EQ(content.size(), featherdoc_cli::max_cli_input_bytes);
+
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        oversized_path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK(error_message.find("input limit") != std::string::npos);
+
+    std::filesystem::remove(exact_path);
+    std::filesystem::remove(oversized_path);
+}
+
+TEST_CASE("cli input rejects malformed raw UTF-8") {
+    const auto path = temp_json_path("_invalid_utf8.json");
+    write_binary_file(path, std::string{"\xF0\x28\x8C\x28", 4U});
+
+    std::string content;
+    std::string error_message;
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK(error_message.find("valid UTF-8") != std::string::npos);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("cli JSON skip enforces a maximum nesting depth of 128") {
+    const auto nested_array = [](std::size_t depth) {
+        return std::string(depth, '[') + "0" + std::string(depth, ']');
+    };
+
+    auto text = nested_array(featherdoc_cli::max_json_nesting_depth);
+    std::size_t index = 0U;
+    std::string error_message;
+    CHECK(featherdoc_cli::skip_json_patch_value(text, index, error_message));
+    CHECK_EQ(index, text.size());
+
+    text = nested_array(featherdoc_cli::max_json_nesting_depth + 1U);
+    index = 0U;
+    error_message.clear();
+    CHECK_FALSE(
+        featherdoc_cli::skip_json_patch_value(text, index, error_message));
+    CHECK(error_message.find("nesting depth") != std::string::npos);
 }

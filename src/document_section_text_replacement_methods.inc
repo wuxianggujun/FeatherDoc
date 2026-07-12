@@ -35,7 +35,7 @@ bool Document::replace_section_header_text(
         }
     }
 
-    part->paragraph.set_parent(root);
+    part->paragraph.set_parent(this->tracked_node(root));
     this->last_error_info.clear();
     return true;
 }
@@ -77,7 +77,7 @@ bool Document::replace_section_footer_text(
         }
     }
 
-    part->paragraph.set_parent(root);
+    part->paragraph.set_parent(this->tracked_node(root));
     this->last_error_info.clear();
     return true;
 }

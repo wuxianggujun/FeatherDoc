@@ -75,6 +75,20 @@ std::string document_error_category::message(int condition) const {
         return "failed to copy archive entry data";
     case document_errc::source_entry_close_failed:
         return "failed to close source archive entry";
+    case document_errc::invalid_package_structure:
+        return "invalid DOCX package structure";
+    case document_errc::archive_limit_exceeded:
+        return "DOCX archive resource limit exceeded";
+    case document_errc::output_archive_finalize_failed:
+        return "failed to finalize output archive";
+    case document_errc::output_replace_failed:
+        return "failed to replace output document";
+    case document_errc::identifier_space_exhausted:
+        return "document identifier space exhausted";
+    case document_errc::package_repair_not_possible:
+        return "DOCX package cannot be repaired safely";
+    case document_errc::package_repair_validation_failed:
+        return "repaired DOCX package failed strict validation";
     }
 
     return "unknown FeatherDoc document error";

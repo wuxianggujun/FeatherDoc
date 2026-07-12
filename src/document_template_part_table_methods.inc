@@ -19,8 +19,9 @@ Table TemplatePart::tables() {
     }
 
     this->last_error_info->clear();
-    auto table = Table(container, container.child("w:tbl"));
-    table.set_owner(this->owner);
+    auto table =
+        Table(this->owner->tracked_node(container), container.child("w:tbl"));
+    table.set_owner(this->owner.get());
     return table;
 }
 
@@ -45,8 +46,9 @@ Table TemplatePart::append_table(std::size_t row_count, std::size_t column_count
     }
 
     const auto table_node = detail::append_table_node(container);
-    auto created_table = Table(container, table_node);
-    created_table.set_owner(this->owner);
+    auto created_table =
+        Table(this->owner->tracked_node(container), table_node);
+    created_table.set_owner(this->owner.get());
 
     for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
         created_table.append_row(column_count);

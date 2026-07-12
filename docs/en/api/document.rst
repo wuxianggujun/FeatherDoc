@@ -163,7 +163,21 @@ Open, create, save, and inspect the current package state.
    * - ``open()``
      - None.
      - ``std::error_code``
-     - Load the current ``.docx`` package.
+     - Load the current ``.docx`` package with strict OPC validation.
+   * - ``open(const document_open_options &options)``
+     - ``options``: validation mode and ZIP resource limits.
+     - ``std::error_code``
+     - Load with the requested policy; use ``tolerant`` only for repair input.
+   * - ``package_diagnostics() const noexcept``
+     - None.
+     - ``const std::vector<package_diagnostic> &``
+     - Return package issues, severity, entry names, and repairability recorded
+       during tolerant open.
+   * - ``repair_package(const document_repair_options &options = {})``
+     - ``options``: deterministic issue categories that may be repaired.
+     - ``std::optional<package_repair_report>``
+     - Repair package state transactionally; no partial mutation occurs when an
+       unsafe or disabled issue is present.
    * - ``save() const``
      - None.
      - ``std::error_code``
@@ -194,6 +208,72 @@ Open, create, save, and inspect the current package state.
      - ``std::optional<bool>``
      - Inspect the update-fields-on-open setting; empty means the setting could
        not be read.
+
+Open Validation And Resource Limits
+-----------------------------------
+
+The parameterless ``open()`` uses the default ``document_open_options``. The
+default is ``package_validation_mode::strict`` and requires valid
+``[Content_Types].xml``, root relationships, ``word/document.xml``, and a
+``w:document/w:body`` structure. Callers repairing known legacy damage must
+explicitly select ``package_validation_mode::tolerant``. Tolerant validation
+does not disable archive resource limits and never silently repairs the input.
+Inspect ``package_diagnostics()``, call ``repair_package()`` explicitly, and
+write the result to a new file with ``save_as()``.
+
+Default ``archive_limits`` allow 10,000 entries, 64 MiB per XML part, 256 MiB
+per binary part, 512 MiB total uncompressed data, and a compression ratio of
+200. These limits are checked from ZIP metadata before extraction. Raise them
+only when the application has a concrete need and a trusted input boundary.
+
+Explicit Package Repair
+-----------------------
+
+The default repair policy handles only deterministic changes that preserve
+unknown metadata: create ``w:body`` under a valid ``w:document``, create missing
+root or main-document relationships, and create missing content types or correct
+the main-document MIME. Malformed XML, invalid roots or namespaces, duplicate
+main-document declarations, and external main-document relationships return
+``package_repair_not_possible`` without applying other changes.
+
+After a successful repair, ``save()`` and ``save_as()`` write a sibling temporary
+archive and reopen it with strict validation before replacing the target. A
+failed check returns ``package_repair_validation_failed`` and preserves the
+original. The CLI exposes ``inspect-package <input.docx> --json`` and
+``repair-package <input.docx> --output <repaired.docx> --json``.
+
+Handle Invalidation
+-------------------
+
+``Paragraph``, ``Run``, ``Table``, ``TableRow``, ``TableCell``, and
+``TemplatePart`` are tracked, non-owning handles into the current DOM. Each
+handle records a package generation and a node epoch, so it neither extends
+the ``Document`` lifetime nor dereferences a pugixml node after the package or
+node has been retired.
+
+* ``set_path(...)``, ``open(...)``, and ``create_empty()`` reset the package and
+  invalidate every XML-backed handle previously returned by that ``Document``.
+* A successful ``repair_package(...)`` that changes the package replaces repaired
+  DOM state, so previously retained XML-backed handles must be reacquired.
+* Removing a node invalidates handles to that node and all descendants.
+* Rebuilding a table, paragraph, content control, or template-part structure
+  invalidates handles into the replaced subtree.
+
+Use ``valid()`` for ``Paragraph``, ``Run``, ``Table``, ``TableRow``, and
+``TableCell``; use the explicit ``bool`` conversion for ``TemplatePart``.
+Reads through an invalid handle return an empty result, while mutations return
+``false`` or an empty handle. Unaffected sibling subtrees remain valid.
+Reacquire affected handles from ``Document`` or an unaffected parent.
+
+Breaking API migration
+~~~~~~~~~~~~~~~~~~~~~~
+
+Older releases exposed two-``pugi::xml_node`` constructors and public
+``set_parent`` / ``set_current`` methods for the XML-backed handle classes.
+Those entry points could not carry lifetime metadata and have been removed.
+Obtain handles only from ``Document``, ``TemplatePart``, or a parent handle;
+application code no longer needs direct pugixml DOM access through the public
+API.
 
 Template Part Access
 --------------------

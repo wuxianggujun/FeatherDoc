@@ -167,7 +167,9 @@ auto run_apply_table_position_plan_command(
             std::cout << "{\"command\":\"apply-table-position-plan\""
                       << ",\"ok\":true,\"dry_run\":true"
                       << ",\"input_path\":";
-            write_json_string(std::cout, plan.input_path.string());
+            write_json_string(
+                std::cout,
+                featherdoc::detail::path_to_utf8(plan.input_path));
             std::cout << ",\"preset\":";
             write_json_string(std::cout,
                               table_position_preset_name(plan.preset));
@@ -190,7 +192,9 @@ auto run_apply_table_position_plan_command(
         } else {
             std::cout << "table_position_plan_validation: ok\n"
                       << "dry_run: true\n"
-                      << "input_path: " << plan.input_path.string() << '\n'
+                      << "input_path: "
+                      << featherdoc::detail::path_to_utf8(plan.input_path)
+                      << '\n'
                       << "preset: "
                       << table_position_preset_name(plan.preset) << '\n'
                       << "table_count: " << plan.table_count << '\n'
@@ -238,7 +242,9 @@ auto run_apply_table_position_plan_command(
             [&plan, &mutated_table_indices,
              &target_position](std::ostream &stream) {
                 stream << ",\"input_path\":";
-                write_json_string(stream, plan.input_path.string());
+                write_json_string(
+                    stream,
+                    featherdoc::detail::path_to_utf8(plan.input_path));
                 stream << ",\"preset\":";
                 write_json_string(stream,
                                   table_position_preset_name(plan.preset));

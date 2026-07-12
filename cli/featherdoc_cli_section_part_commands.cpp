@@ -1,5 +1,7 @@
 #include "featherdoc_cli_section_part_commands.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include "featherdoc_cli_command_support.hpp"
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_inspect_style_options_parse.hpp"
@@ -135,11 +137,12 @@ struct inspected_part_entry {
     parts.clear();
 
     int zip_error = 0;
-    zip_t *archive = zip_openwitherror(input_path.string().c_str(),
+    const auto input_path_utf8 = featherdoc::detail::path_to_utf8(input_path);
+    zip_t *archive = zip_openwitherror(input_path_utf8.c_str(),
                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                        &zip_error);
     if (archive == nullptr) {
-        error_message = "failed to open source archive '" + input_path.string() + "'";
+        error_message = "failed to open source archive '" + input_path_utf8 + "'";
         return false;
     }
 

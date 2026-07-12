@@ -1,6 +1,7 @@
 #pragma once
 
 #include <constants.hpp>
+#include <featherdoc/detail/xml_handle.hpp>
 #include <featherdoc/text.hpp>
 #include <featherdoc_iterator.hpp>
 
@@ -17,6 +18,7 @@
 namespace featherdoc {
 
 class Document;
+class TemplatePart;
 
 struct border_inspection_summary {
     featherdoc::border_style style{featherdoc::border_style::single};
@@ -45,17 +47,22 @@ struct table_position {
 class TableCell {
   private:
     friend class IteratorHelper;
-    pugi::xml_node parent;
-    pugi::xml_node current;
+    template <class, class, class> friend class Iterator;
+    friend class TemplatePart;
+    friend class Table;
+    friend class TableRow;
+    detail::tracked_xml_node parent;
+    detail::tracked_xml_node current;
 
     Paragraph paragraph;
 
+    TableCell(detail::tracked_xml_node, pugi::xml_node);
+    void set_parent(detail::tracked_xml_node);
+    void set_current(pugi::xml_node);
+
   public:
     TableCell();
-    TableCell(pugi::xml_node, pugi::xml_node);
-
-    void set_parent(pugi::xml_node);
-    void set_current(pugi::xml_node);
+    [[nodiscard]] bool valid() const noexcept;
 
     Paragraph &paragraphs();
     [[nodiscard]] std::string get_text() const;
@@ -106,16 +113,20 @@ class TableCell {
 // TableRow consists of one or more TableCells
 class TableRow {
     friend class IteratorHelper;
-    pugi::xml_node parent;
-    pugi::xml_node current;
+    template <class, class, class> friend class Iterator;
+    friend class Table;
+    detail::tracked_xml_node parent;
+    detail::tracked_xml_node current;
 
     TableCell cell;
 
+    TableRow(detail::tracked_xml_node, pugi::xml_node);
+    void set_parent(detail::tracked_xml_node);
+    void set_current(pugi::xml_node);
+
   public:
     TableRow();
-    TableRow(pugi::xml_node, pugi::xml_node);
-    void set_parent(pugi::xml_node);
-    void set_current(pugi::xml_node);
+    [[nodiscard]] bool valid() const noexcept;
 
     TableCell &cells();
     [[nodiscard]] std::optional<TableCell> find_cell(std::size_t cell_index);
@@ -149,18 +160,23 @@ class TableRow {
 class Table {
   private:
     friend class IteratorHelper;
+    template <class, class, class> friend class Iterator;
+    friend class Document;
+    friend class TemplatePart;
     Document *owner{nullptr};
-    pugi::xml_node parent;
-    pugi::xml_node current;
+    detail::tracked_xml_node parent;
+    detail::tracked_xml_node current;
 
     TableRow row;
 
+    Table(detail::tracked_xml_node, pugi::xml_node);
+    void set_owner(Document *);
+    void set_parent(detail::tracked_xml_node);
+    void set_current(pugi::xml_node);
+
   public:
     Table();
-    Table(pugi::xml_node, pugi::xml_node);
-    void set_owner(Document *);
-    void set_parent(pugi::xml_node);
-    void set_current(pugi::xml_node);
+    [[nodiscard]] bool valid() const noexcept;
 
     Table &next();
     [[nodiscard]] bool has_next() const;

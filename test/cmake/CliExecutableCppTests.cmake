@@ -46,6 +46,13 @@ if(TARGET featherdoc_cli)
     featherdoc_set_test_labels(cli cli heavy)
 
     featherdoc_add_cli_cpp_test(
+        cli_package_repair_tests
+        cli_package_repair
+        cli_package_repair_tests.cpp
+    )
+    featherdoc_set_test_labels(cli_package_repair cli package repair heavy)
+
+    featherdoc_add_cli_cpp_test(
         cli_header_footer_tests
         cli_header_footer
         cli_header_footer_tests.cpp

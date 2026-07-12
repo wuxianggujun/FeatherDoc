@@ -81,7 +81,8 @@
             [&selected, &appended_image, &image_path](std::ostream &stream) {
                 write_json_selected_image_part(stream, selected);
                 stream << ",\"image_path\":";
-                write_json_string(stream, image_path.string());
+                write_json_string(
+                    stream, featherdoc::detail::path_to_utf8(image_path));
                 stream << ",\"floating\":"
                        << json_bool(appended_image.floating_options.has_value());
                 stream << ",\"image\":";

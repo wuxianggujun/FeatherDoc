@@ -63,7 +63,7 @@ std::size_t Document::replace_bookmark_with_image_in_part(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "image width and height must both be greater than zero",
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return 0U;
     }
 
@@ -80,7 +80,7 @@ std::size_t Document::replace_bookmark_with_image_in_part(
 
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return 0U;
     }
 
@@ -120,7 +120,8 @@ std::size_t Document::replace_bookmark_with_image_in_part(
                 relationships_entry_name, *has_relationships_part, *relationships_dirty,
                 parent, placeholder.paragraph, std::string{image_info.data},
                 std::string{image_info.extension}, std::string{image_info.content_type},
-                image_path.filename().string(), replacement_width,
+                featherdoc::detail::path_to_utf8(image_path.filename()),
+                replacement_width,
                 replacement_height)) {
             return 0U;
         }
@@ -169,7 +170,7 @@ std::size_t Document::replace_bookmark_with_floating_image_in_part(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "image width and height must both be greater than zero",
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return 0U;
     }
 
@@ -186,7 +187,7 @@ std::size_t Document::replace_bookmark_with_floating_image_in_part(
 
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return 0U;
     }
 
@@ -226,7 +227,8 @@ std::size_t Document::replace_bookmark_with_floating_image_in_part(
                 relationships_entry_name, *has_relationships_part, *relationships_dirty,
                 parent, placeholder.paragraph, std::string{image_info.data},
                 std::string{image_info.extension}, std::string{image_info.content_type},
-                image_path.filename().string(), replacement_width,
+                featherdoc::detail::path_to_utf8(image_path.filename()),
+                replacement_width,
                 replacement_height, options)) {
             return 0U;
         }

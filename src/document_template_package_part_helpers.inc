@@ -54,11 +54,12 @@ auto read_docx_entry_text(const std::filesystem::path &document_path,
                           featherdoc::document_error_info &last_error_info)
     -> bool {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(document_path.string().c_str(), 0, 'r', &zip_error);
+    const auto archive_path = featherdoc::detail::path_to_utf8(document_path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(), 0, 'r', &zip_error);
     if (zip == nullptr) {
         set_last_error(last_error_info, std::make_error_code(std::errc::io_error),
                        "failed to open source DOCX archive",
-                       document_path.string());
+                       archive_path);
         return false;
     }
 

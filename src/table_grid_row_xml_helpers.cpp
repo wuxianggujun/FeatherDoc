@@ -324,7 +324,7 @@ auto insert_empty_clone_row(pugi::xml_node table, pugi::xml_node source_row,
 
     for (auto row_cell = inserted_row.child("w:tc"); row_cell != pugi::xml_node{};
          row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
-        if (!TableCell(inserted_row, row_cell).set_text("")) {
+        if (!replace_table_cell_text(row_cell, "")) {
             table.remove_child(inserted_row);
             return {};
         }
@@ -342,7 +342,7 @@ auto clear_table_cell_contents(pugi::xml_node table) -> bool {
          row = detail::next_named_sibling(row, "w:tr")) {
         for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
              cell = detail::next_named_sibling(cell, "w:tc")) {
-            if (!TableCell(row, cell).set_text("")) {
+            if (!replace_table_cell_text(cell, "")) {
                 return false;
             }
         }

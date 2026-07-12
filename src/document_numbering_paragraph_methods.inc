@@ -285,10 +285,17 @@ bool Document::set_paragraph_list(Paragraph target_paragraph, featherdoc::list_k
     const auto num_id =
         apply_list_numbering(target_paragraph.current, numbering_root, kind, level, false);
     if (!num_id.has_value()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create or reuse a managed numbering definition",
-                       std::string{numbering_xml_entry});
+        if (numbering_identifier_space_exhausted(numbering_root)) {
+            set_last_error(this->last_error_info,
+                           document_errc::identifier_space_exhausted,
+                           "numbering id has reached UINT32_MAX",
+                           std::string{numbering_xml_entry});
+        } else {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to create or reuse a managed numbering definition",
+                           std::string{numbering_xml_entry});
+        }
         return false;
     }
 
@@ -345,10 +352,17 @@ bool Document::restart_paragraph_list(Paragraph target_paragraph, featherdoc::li
     const auto num_id =
         apply_list_numbering(target_paragraph.current, numbering_root, kind, level, true);
     if (!num_id.has_value()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create a restarted managed numbering definition",
-                       std::string{numbering_xml_entry});
+        if (numbering_identifier_space_exhausted(numbering_root)) {
+            set_last_error(this->last_error_info,
+                           document_errc::identifier_space_exhausted,
+                           "numbering id has reached UINT32_MAX",
+                           std::string{numbering_xml_entry});
+        } else {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::not_enough_memory),
+                           "failed to create a restarted managed numbering definition",
+                           std::string{numbering_xml_entry});
+        }
         return false;
     }
 

@@ -147,19 +147,19 @@ auto insert_table_before_placeholder(
         return false;
     }
 
-    featherdoc::Table table(parent, table_node);
     for (const auto &row_values : rows) {
-        auto row = table.append_row(row_values.size());
-        if (!row.has_next()) {
+        const auto row =
+            featherdoc::detail::append_row_node(table_node, row_values.size());
+        if (row == pugi::xml_node{}) {
             set_last_error(last_error_info, std::make_error_code(std::errc::not_enough_memory),
                            "failed to append a replacement table row",
                            std::string{entry_name});
             return false;
         }
 
-        auto cell = row.cells();
+        auto cell = row.child("w:tc");
         for (const auto &cell_text : row_values) {
-            if (!cell.has_next()) {
+            if (cell == pugi::xml_node{}) {
                 set_last_error(last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to resolve a replacement table cell",
@@ -167,7 +167,9 @@ auto insert_table_before_placeholder(
                 return false;
             }
 
-            if (!cell_text.empty() && !cell.paragraphs().add_run(cell_text).has_next()) {
+            if (!cell_text.empty() &&
+                !featherdoc::detail::replace_table_cell_text(
+                    cell, cell_text.c_str())) {
                 set_last_error(last_error_info,
                                std::make_error_code(std::errc::not_enough_memory),
                                "failed to append replacement table text",
@@ -175,7 +177,7 @@ auto insert_table_before_placeholder(
                 return false;
             }
 
-            cell.next();
+            cell = featherdoc::detail::next_named_sibling(cell, "w:tc");
         }
     }
 

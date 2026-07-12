@@ -65,14 +65,16 @@ std::error_code Document::ensure_content_types_loaded() {
     }
 
     int source_zip_error = 0;
-    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
+    const auto source_archive_path =
+        featherdoc::detail::path_to_utf8(this->document_path);
+    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  this->document_path.string() +
+                                  source_archive_path +
                                   "' while loading [Content_Types].xml: " +
                                   zip_error_text(source_zip_error));
     }
@@ -161,14 +163,16 @@ std::error_code Document::ensure_settings_loaded() {
     }
 
     int source_zip_error = 0;
-    zip_t *source_zip = zip_openwitherror(this->document_path.string().c_str(),
+    const auto source_archive_path =
+        featherdoc::detail::path_to_utf8(this->document_path);
+    zip_t *source_zip = zip_openwitherror(source_archive_path.c_str(),
                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                           &source_zip_error);
     if (!source_zip) {
         return set_last_error(this->last_error_info,
                               document_errc::source_archive_open_failed,
                               "failed to reopen source archive '" +
-                                  this->document_path.string() +
+                                  source_archive_path +
                                   "' while loading word/settings.xml: " +
                                   zip_error_text(source_zip_error));
     }

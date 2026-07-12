@@ -70,6 +70,15 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
+    const auto drawing_id = this->next_drawing_object_id();
+    if (!drawing_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       document_errc::identifier_space_exhausted,
+                       "drawing object id has reached UINT32_MAX",
+                       std::string{xml_entry_name});
+        return false;
+    }
+
     auto relationships_namespace = part_root.attribute("xmlns:r");
     if (relationships_namespace == pugi::xml_attribute{}) {
         relationships_namespace = part_root.append_attribute("xmlns:r");
@@ -172,8 +181,7 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(relationship, "Target",
                            make_part_relationship_target(xml_entry_name, entry_name));
 
-    const auto drawing_id = this->next_drawing_object_id();
-    const auto drawing_id_text = std::to_string(drawing_id);
+    const auto drawing_id_text = std::to_string(*drawing_id);
     const auto width_emu_text =
         std::to_string(featherdoc::detail::pixels_to_emu(width_px));
     const auto height_emu_text =

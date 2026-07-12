@@ -61,11 +61,11 @@ void collect_revision_ids(pugi::xml_node node, long &next_id) {
             featherdoc::revision_kind::unknown) {
             const auto id_text = std::string_view{child.attribute("w:id").value()};
             if (!id_text.empty()) {
-                char *end = nullptr;
-                const auto id_storage = std::string{id_text};
-                const auto id = std::strtol(id_storage.c_str(), &end, 10);
-                if (end != nullptr && *end == '\0' && id >= next_id) {
-                    next_id = id + 1;
+                const auto id =
+                    featherdoc::detail::parse_integer_strict<long>(id_text);
+                if (id.has_value() && *id >= next_id &&
+                    *id < std::numeric_limits<long>::max()) {
+                    next_id = *id + 1;
                 }
             }
         }

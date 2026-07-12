@@ -2,7 +2,11 @@ TemplatePart::TemplatePart() = default;
 
 TemplatePart::TemplatePart(Document *owner, pugi::xml_document *xml_document,
                            document_error_info *last_error_info, std::string entry_name)
-    : owner(owner), xml_document(xml_document), last_error_info(last_error_info),
+    : owner(owner, owner != nullptr ? owner->xml_handle_lifetime : nullptr),
+      xml_document(xml_document,
+                   owner != nullptr ? owner->xml_handle_lifetime : nullptr),
+      last_error_info(last_error_info,
+                      owner != nullptr ? owner->xml_handle_lifetime : nullptr),
       entry_name_storage(std::move(entry_name)) {}
 
 TemplatePart::operator bool() const noexcept { return this->xml_document != nullptr; }
@@ -32,7 +36,7 @@ Paragraph TemplatePart::paragraphs() {
     }
 
     this->last_error_info->clear();
-    return {container, container.child("w:p")};
+    return {this->owner->tracked_node(container), container.child("w:p")};
 }
 
 Paragraph TemplatePart::append_paragraph(const std::string &text,
@@ -65,7 +69,8 @@ Paragraph TemplatePart::append_paragraph(const std::string &text,
         return {};
     }
 
-    auto paragraph = Paragraph(container, paragraph_node);
+    auto paragraph =
+        Paragraph(this->owner->tracked_node(container), paragraph_node);
     if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
         set_last_error(*this->last_error_info,
                        std::make_error_code(std::errc::io_error),

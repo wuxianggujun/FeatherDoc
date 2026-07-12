@@ -212,7 +212,8 @@ auto load_custom_xml_package_parts(
     }
 
     int zip_error = 0;
-    zip_t *archive = zip_openwitherror(document_path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_utf8(document_path);
+    zip_t *archive = zip_openwitherror(archive_path.c_str(),
                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                        &zip_error);
     if (archive == nullptr) {

@@ -474,11 +474,11 @@ long next_numeric_id(pugi::xml_node root, const char *node_name, long minimum_id
         if (value_text.empty()) {
             continue;
         }
-        char *end = nullptr;
-        const auto value_storage = std::string{value_text};
-        const auto value = std::strtol(value_storage.c_str(), &end, 10);
-        if (end != nullptr && *end == '\0' && value >= next_id) {
-            next_id = value + 1;
+        const auto value =
+            featherdoc::detail::parse_integer_strict<long>(value_text);
+        if (value.has_value() && *value >= next_id &&
+            *value < std::numeric_limits<long>::max()) {
+            next_id = *value + 1;
         }
     }
     return next_id;

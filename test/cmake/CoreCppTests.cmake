@@ -25,6 +25,7 @@ featherdoc_add_cpp_test(
     document_core_run_tests.cpp
     document_core_paragraph_tests.cpp
     document_core_bookmark_section_tests.cpp
+    document_security_tests.cpp
 )
 featherdoc_set_test_labels(document_core_unit core heavy document)
 

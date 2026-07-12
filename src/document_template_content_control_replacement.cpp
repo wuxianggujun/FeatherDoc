@@ -3,6 +3,8 @@
 #include "featherdoc.hpp"
 #include "xml_helpers.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

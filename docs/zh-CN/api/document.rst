@@ -153,7 +153,19 @@ Document
    * - ``open()``
      - 无。
      - ``std::error_code``
-     - 加载当前路径对应的 ``.docx`` 文档包。
+     - 以严格 OPC 校验加载当前路径对应的 ``.docx`` 文档包。
+   * - ``open(const document_open_options &options)``
+     - ``options``：校验模式和 ZIP 资源限制。
+     - ``std::error_code``
+     - 按指定策略加载文档；仅在修复历史损坏包时选择 ``tolerant``。
+   * - ``package_diagnostics() const noexcept``
+     - 无。
+     - ``const std::vector<package_diagnostic> &``
+     - 返回宽容打开期间发现的包结构问题、严重度、部件名和可修复标记。
+   * - ``repair_package(const document_repair_options &options = {})``
+     - ``options``：允许修复的确定性问题类别。
+     - ``std::optional<package_repair_report>``
+     - 事务式修复内存中的包结构；遇到不安全或被选项禁用的问题时不做部分修改。
    * - ``save() const``
      - 无。
      - ``std::error_code``
@@ -183,6 +195,64 @@ Document
      - 无。
      - ``std::optional<bool>``
      - 检查“打开时更新域”设置；为空表示当前无法读取该设置。
+
+打开校验与资源限制
+------------------
+
+无参数 ``open()`` 等价于传入默认 ``document_open_options``。默认使用
+``package_validation_mode::strict``，并要求 ``[Content_Types].xml``、根关系、
+``word/document.xml`` 和 ``w:document/w:body`` 结构有效。需要读取历史损坏包做
+修复时，调用方必须显式选择 ``package_validation_mode::tolerant``；宽容模式不会
+关闭 ZIP 资源限制，也不会静默修改文档。调用方应读取 ``package_diagnostics()``，
+再显式调用 ``repair_package()``，并使用 ``save_as()`` 写入新文件。
+
+默认 ``archive_limits`` 为 10,000 个条目、单个 XML 64 MiB、单个二进制部件
+256 MiB、总解压量 512 MiB、最大压缩比 200。限制在解压前依据 ZIP metadata
+检查。业务确有需要时可以调高，但应保留与输入来源相匹配的上限。
+
+显式包修复
+----------
+
+默认修复策略只处理能够确定恢复且不会覆盖未知元数据的问题：在合法
+``w:document`` 下补建 ``w:body``，补建缺失的根关系或主文档关系，以及补建缺失的
+``[Content_Types].xml`` 或修正主文档 MIME。已有 XML 损坏、根节点/namespace
+错误、重复主文档声明和 external 主文档关系会返回
+``package_repair_not_possible``，不会先修改其他部件。
+
+修复成功后，``save()``/``save_as()`` 会先把结果写入同目录临时文件，再用 strict
+模式重新打开该临时包；复验失败返回 ``package_repair_validation_failed``，原目标
+保持不变。CLI 可使用 ``inspect-package <input.docx> --json`` 查看诊断，使用
+``repair-package <input.docx> --output <repaired.docx> --json`` 安全地另存修复结果。
+
+句柄失效规则
+------------
+
+``Paragraph``、``Run``、``Table``、``TableRow``、``TableCell`` 和
+``TemplatePart`` 等对象是指向当前 DOM 的受跟踪非拥有句柄。句柄同时记录包级
+generation 和节点级 epoch；因此它不会延长 ``Document`` 生命周期，也不会在
+DOM 已重置或节点已删除后继续解引用悬空的 pugixml 节点。
+
+* ``set_path(...)``、``open(...)`` 和 ``create_empty()`` 会重置整个包，因此使
+  该 ``Document`` 先前返回的全部 XML 句柄失效。
+* 成功且实际发生修改的 ``repair_package(...)`` 会替换被修复的 DOM，因此也必须
+  重新获取此前保存的 XML-backed 句柄。
+* 删除节点会使该节点及其后代句柄失效。
+* 表格、段落、内容控件或模板部件的结构重建，会使被替换子树上的句柄失效。
+
+``Paragraph``、``Run``、``Table``、``TableRow`` 和 ``TableCell`` 可通过
+``valid()`` 检查；``TemplatePart`` 使用显式 ``bool`` 转换检查。失效句柄的读取
+返回空结果，修改返回 ``false`` 或空句柄，不会访问已释放内存。未被删除的兄弟
+子树保持有效。完成上述操作后，应从 ``Document`` 或仍有效的父级入口重新获取
+需要继续使用的句柄。
+
+破坏性 API 迁移说明
+~~~~~~~~~~~~~~~~~~~~
+
+旧版允许调用方用两个 ``pugi::xml_node`` 直接构造 ``Paragraph``、``Run``、
+``Table``、``TableRow`` 或 ``TableCell``，也公开了 ``set_parent`` /
+``set_current``。这些入口无法携带生命周期信息，现已彻底删除。调用方应只从
+``Document``、``TemplatePart`` 或父级句柄获取子句柄；公开 API 不再要求业务
+代码直接依赖 pugixml DOM。
 
 模板部件入口
 ------------

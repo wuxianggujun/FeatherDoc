@@ -1,5 +1,7 @@
 #include "featherdoc_cli_text.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include <algorithm>
 #include <cctype>
 
@@ -113,11 +115,13 @@ auto lower_ascii_copy(std::string value) -> std::string {
 }
 
 auto is_docx_path(const std::filesystem::path &path) -> bool {
-    return lower_ascii_copy(path.extension().string()) == ".docx";
+    return lower_ascii_copy(
+               featherdoc::detail::path_to_utf8(path.extension())) == ".docx";
 }
 
 auto is_word_temporary_path(const std::filesystem::path &path) -> bool {
-    const auto filename = path.filename().string();
+    const auto filename =
+        featherdoc::detail::path_to_utf8(path.filename());
     return filename.size() >= 2U && filename[0] == '~' && filename[1] == '$';
 }
 

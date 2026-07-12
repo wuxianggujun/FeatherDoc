@@ -354,9 +354,9 @@ bool Document::move_section(std::size_t source_section_index,
         return false;
     }
 
-    this->paragraph.set_parent(body);
+    this->paragraph.set_parent(this->tracked_node(body));
     this->table.set_owner(this);
-    this->table.set_parent(body);
+    this->table.set_parent(this->tracked_node(body));
     this->cleanup_first_page_section_markers();
 
     const auto even_page_reference_type =

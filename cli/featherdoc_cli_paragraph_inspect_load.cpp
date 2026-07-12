@@ -1,5 +1,7 @@
 #include "featherdoc_cli_paragraph_inspect_load.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include "featherdoc_cli_parse.hpp"
 
 #include <pugixml.hpp>
@@ -169,12 +171,13 @@ auto load_body_paragraph_summaries(
     paragraphs.clear();
 
     int zip_error = 0;
-    zip_t *archive = zip_openwitherror(input_path.string().c_str(),
+    const auto input_path_utf8 = featherdoc::detail::path_to_utf8(input_path);
+    zip_t *archive = zip_openwitherror(input_path_utf8.c_str(),
                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                        &zip_error);
     if (archive == nullptr) {
         error_message =
-            "failed to open source archive '" + input_path.string() + "'";
+            "failed to open source archive '" + input_path_utf8 + "'";
         return false;
     }
 
@@ -284,12 +287,13 @@ auto load_body_run_summaries(const path_type &input_path,
     paragraph_found = false;
 
     int zip_error = 0;
-    zip_t *archive = zip_openwitherror(input_path.string().c_str(),
+    const auto input_path_utf8 = featherdoc::detail::path_to_utf8(input_path);
+    zip_t *archive = zip_openwitherror(input_path_utf8.c_str(),
                                        ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                        &zip_error);
     if (archive == nullptr) {
         error_message =
-            "failed to open source archive '" + input_path.string() + "'";
+            "failed to open source archive '" + input_path_utf8 + "'";
         return false;
     }
 

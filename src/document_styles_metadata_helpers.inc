@@ -128,19 +128,7 @@ auto decode_style_kind(std::string_view type_name) -> featherdoc::style_kind {
 
 auto parse_u32_attribute_value(const char *text)
     -> std::optional<std::uint32_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoul(text, &end, 10);
-    if (end == text || *end != '\0' ||
-        value > static_cast<unsigned long>(
-                    std::numeric_limits<std::uint32_t>::max())) {
-        return std::nullopt;
-    }
-
-    return static_cast<std::uint32_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::uint32_t>(text);
 }
 
 auto parse_half_point_size(const char *text) -> std::optional<double> {

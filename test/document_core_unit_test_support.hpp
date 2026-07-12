@@ -40,6 +40,16 @@ inline constexpr bool supports_featherdoc_adl_begin_end<
 
 static_assert(supports_featherdoc_adl_begin_end<featherdoc::Paragraph>);
 static_assert(!supports_featherdoc_adl_begin_end<featherdoc::template_schema>);
+static_assert(!std::is_constructible_v<featherdoc::Run, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::Paragraph, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::Table, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::TableRow, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::TableCell, pugi::xml_node,
+                                       pugi::xml_node>);
 
 std::unordered_set<void *> tracked_pugi_allocations;
 bool saw_unexpected_pugi_deallocation = false;

@@ -1,4 +1,6 @@
 #include "featherdoc.hpp"
+#include <featherdoc/detail/path.hpp>
+#include "numeric_helpers.hpp"
 
 #include <algorithm>
 #include <array>
@@ -173,18 +175,17 @@ void ensure_attribute_value(pugi::xml_node node, const char *name, std::string_v
 }
 
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
+    return featherdoc::detail::parse_integer_strict<std::uint32_t>(text);
+}
 
-    char *end = nullptr;
-    const auto value = std::strtoul(text, &end, 10);
-    if (end == text || *end != '\0' ||
-        value > static_cast<unsigned long>(std::numeric_limits<std::uint32_t>::max())) {
-        return std::nullopt;
-    }
+auto max_numbering_id(pugi::xml_node numbering_root, const char *child_name,
+                      const char *attribute_name) -> std::uint32_t;
 
-    return static_cast<std::uint32_t>(value);
+auto numbering_identifier_space_exhausted(pugi::xml_node numbering_root) -> bool {
+    constexpr auto maximum = std::numeric_limits<std::uint32_t>::max();
+    return max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId") ==
+               maximum ||
+           max_numbering_id(numbering_root, "w:num", "w:numId") == maximum;
 }
 
 auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_node {

@@ -80,7 +80,9 @@
              &options](std::ostream &stream) {
                 write_json_selected_image_part(stream, selected);
                 stream << ",\"replacement_path\":";
-                write_json_string(stream, replacement_path.string());
+                write_json_string(
+                    stream,
+                    featherdoc::detail::path_to_utf8(replacement_path));
                 write_json_inspect_image_filters(stream, options);
                 stream << ",\"image\":";
                 write_json_drawing_image_summary(stream, *updated_image_it);

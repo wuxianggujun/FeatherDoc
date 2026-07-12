@@ -1,4 +1,5 @@
 #include "document_image_helpers.hpp"
+#include "numeric_helpers.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -26,46 +27,15 @@ auto initialize_xml_document(pugi::xml_document &xml_document,
 }
 
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoul(text, &end, 10);
-    if (end == text || *end != '\0' ||
-        value > static_cast<unsigned long>(std::numeric_limits<std::uint32_t>::max())) {
-        return std::nullopt;
-    }
-
-    return static_cast<std::uint32_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::uint32_t>(text);
 }
 
 auto parse_u64_attribute_value(const char *text) -> std::optional<std::uint64_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoull(text, &end, 10);
-    if (end == text || *end != '\0') {
-        return std::nullopt;
-    }
-
-    return static_cast<std::uint64_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::uint64_t>(text);
 }
 
 auto parse_i64_attribute_value(const char *text) -> std::optional<std::int64_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoll(text, &end, 10);
-    if (end == text || *end != '\0') {
-        return std::nullopt;
-    }
-
-    return static_cast<std::int64_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::int64_t>(text);
 }
 
 auto to_lower_ascii(std::string text) -> std::string {
@@ -75,22 +45,38 @@ auto to_lower_ascii(std::string text) -> std::string {
     return text;
 }
 
-auto emu_to_pixels(std::uint64_t emu) -> std::uint32_t {
+auto rounded_emu_to_pixels(std::uint64_t emu) -> std::uint64_t {
     constexpr std::uint64_t emu_per_pixel = 9525U;
-    const auto rounded_pixels = (emu + (emu_per_pixel / 2U)) / emu_per_pixel;
+    const auto whole_pixels = emu / emu_per_pixel;
+    const auto remaining_emu = emu % emu_per_pixel;
+    return whole_pixels +
+           (remaining_emu > emu_per_pixel / 2U ? 1U : 0U);
+}
+
+auto emu_to_pixels(std::uint64_t emu) -> std::uint32_t {
+    const auto rounded_pixels = rounded_emu_to_pixels(emu);
     return static_cast<std::uint32_t>(
         std::min<std::uint64_t>(rounded_pixels,
                                 std::numeric_limits<std::uint32_t>::max()));
 }
 
 auto signed_emu_to_pixels(std::int64_t emu) -> std::int32_t {
-    constexpr std::int64_t emu_per_pixel = 9525;
-    const auto absolute_emu = emu < 0 ? -emu : emu;
-    const auto rounded_pixels = (absolute_emu + (emu_per_pixel / 2)) / emu_per_pixel;
-    const auto signed_pixels = emu < 0 ? -rounded_pixels : rounded_pixels;
-    return static_cast<std::int32_t>(std::clamp<std::int64_t>(
-        signed_pixels, std::numeric_limits<std::int32_t>::min(),
-        std::numeric_limits<std::int32_t>::max()));
+    const auto magnitude = emu < 0
+                               ? static_cast<std::uint64_t>(-(emu + 1)) + 1U
+                               : static_cast<std::uint64_t>(emu);
+    const auto rounded_pixels = rounded_emu_to_pixels(magnitude);
+    if (emu < 0) {
+        const auto minimum_magnitude =
+            static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()) +
+            1U;
+        if (rounded_pixels >= minimum_magnitude) {
+            return std::numeric_limits<std::int32_t>::min();
+        }
+        return -static_cast<std::int32_t>(rounded_pixels);
+    }
+    return static_cast<std::int32_t>(std::min<std::uint64_t>(
+        rounded_pixels,
+        static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max())));
 }
 
 auto parse_horizontal_reference(

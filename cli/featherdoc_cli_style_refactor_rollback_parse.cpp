@@ -1,6 +1,7 @@
 #include "featherdoc_cli_style_refactor_rollback_parse.hpp"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 #include "featherdoc_cli_parse.hpp"
 #include "featherdoc_cli_style_refactor_plan_parse.hpp"
 

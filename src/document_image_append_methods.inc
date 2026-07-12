@@ -100,14 +100,15 @@ bool Document::append_image(const std::filesystem::path &image_path) {
     std::string detail;
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
     return this->append_inline_image_part(std::move(image_info.data),
                                           std::move(image_info.extension),
                                           std::move(image_info.content_type),
-                                          image_path.filename().string(),
+                                          featherdoc::detail::path_to_utf8(
+                                              image_path.filename()),
                                           image_info.width_px, image_info.height_px);
 }
 
@@ -124,7 +125,7 @@ bool Document::append_image(const std::filesystem::path &image_path,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "image width and height must both be greater than zero",
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
@@ -133,14 +134,15 @@ bool Document::append_image(const std::filesystem::path &image_path,
     std::string detail;
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
     return this->append_inline_image_part(std::move(image_info.data),
                                           std::move(image_info.extension),
                                           std::move(image_info.content_type),
-                                          image_path.filename().string(),
+                                          featherdoc::detail::path_to_utf8(
+                                              image_path.filename()),
                                           width_px, height_px);
 }
 
@@ -158,14 +160,15 @@ bool Document::append_floating_image(
     std::string detail;
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
     return this->append_floating_image_part(std::move(image_info.data),
                                             std::move(image_info.extension),
                                             std::move(image_info.content_type),
-                                            image_path.filename().string(),
+                                            featherdoc::detail::path_to_utf8(
+                                                image_path.filename()),
                                             image_info.width_px,
                                             image_info.height_px,
                                             std::move(options));
@@ -184,7 +187,7 @@ bool Document::append_floating_image(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "image width and height must both be greater than zero",
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
@@ -193,14 +196,15 @@ bool Document::append_floating_image(
     std::string detail;
     if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
 
     return this->append_floating_image_part(std::move(image_info.data),
                                             std::move(image_info.extension),
                                             std::move(image_info.content_type),
-                                            image_path.filename().string(),
+                                            featherdoc::detail::path_to_utf8(
+                                                image_path.filename()),
                                             width_px, height_px,
                                             std::move(options));
 }

@@ -528,7 +528,7 @@ auto insert_empty_clone_cell(pugi::xml_node row, pugi::xml_node source_cell,
     }
 
     normalize_inserted_table_cell(inserted_cell);
-    if (!TableCell(row, inserted_cell).set_text("")) {
+    if (!replace_table_cell_text(inserted_cell, "")) {
         row.remove_child(inserted_cell);
         return {};
     }

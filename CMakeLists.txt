@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.12.4
+    VERSION 1.13.0
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -32,6 +32,10 @@ if(MSVC)
         $<$<COMPILE_LANGUAGE:C>:/utf-8>
         $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
     )
+    # MSVC 19.50 can report intermittent LNK1236 errors when several
+    # incremental linkers consume a static library containing bigobj COFF
+    # members. Keep debug information, but use deterministic full links.
+    add_link_options(/INCREMENTAL:NO)
 endif()
 
 set(HEADERS
@@ -61,6 +65,10 @@ set(FEATHERDOC_MODULE_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/template_part.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/templates.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/text.hpp"
+)
+set(FEATHERDOC_DETAIL_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/path.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/xml_handle.hpp"
 )
 set(PDF_COMMON_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
@@ -98,12 +106,16 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_column_edit_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_grid_row_xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_properties.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_row.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_conversion_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_handle.cpp"
 )
 
 set(PUGIXML_HEADERS
@@ -158,6 +170,10 @@ target_include_directories(FeatherDoc
 
 if(WIN32)
     target_compile_definitions(FeatherDoc PRIVATE ZIP_ENABLE_SHARABLE_FILE_OPEN)
+endif()
+
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    target_compile_definitions(FeatherDoc PRIVATE ZIP_ENABLE_TEST_FAILURES)
 endif()
 
 if(MSVC)
@@ -400,6 +416,11 @@ install(
 install(
     FILES ${FEATHERDOC_MODULE_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc
+)
+
+install(
+    FILES ${FEATHERDOC_DETAIL_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/detail
 )
 
 if(FEATHERDOC_BUILD_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)

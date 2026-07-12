@@ -48,8 +48,9 @@ auto make_table_position_plan_output_path(
     }
 
     auto output_path = *input_path;
-    const auto stem = output_path.stem().string();
-    const auto extension = output_path.extension().string();
+    const auto stem = featherdoc::detail::path_to_utf8(output_path.stem());
+    const auto extension =
+        featherdoc::detail::path_to_utf8(output_path.extension());
     output_path.replace_filename(
         stem + "-table-position-" + std::string(table_position_preset_name(preset)) +
         (extension.empty() ? std::string{".docx"} : extension));

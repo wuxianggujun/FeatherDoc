@@ -12,6 +12,74 @@
 
 namespace featherdoc {
 
+enum class package_validation_mode : std::uint8_t {
+    strict = 0U,
+    tolerant,
+};
+
+struct archive_limits {
+    std::size_t max_entries{10'000U};
+    std::uint64_t max_xml_part_bytes{64U * 1024U * 1024U};
+    std::uint64_t max_binary_part_bytes{256U * 1024U * 1024U};
+    std::uint64_t max_total_uncompressed_bytes{512U * 1024U * 1024U};
+    std::uint32_t max_compression_ratio{200U};
+};
+
+struct document_open_options {
+    package_validation_mode validation{package_validation_mode::strict};
+    archive_limits limits{};
+};
+
+enum class package_diagnostic_severity : std::uint8_t {
+    warning = 0U,
+    error,
+};
+
+enum class package_diagnostic_code : std::uint8_t {
+    missing_document_body = 0U,
+    invalid_document_root,
+    missing_root_relationships,
+    malformed_root_relationships,
+    invalid_root_relationships_root,
+    missing_main_document_relationship,
+    invalid_main_document_relationship,
+    ambiguous_main_document_relationship,
+    missing_content_types,
+    malformed_content_types,
+    invalid_content_types_root,
+    missing_main_document_content_type,
+    invalid_main_document_content_type,
+    ambiguous_main_document_content_type,
+};
+
+struct package_diagnostic {
+    package_diagnostic_code code{package_diagnostic_code::invalid_document_root};
+    package_diagnostic_severity severity{package_diagnostic_severity::error};
+    std::string entry_name;
+    std::string detail;
+    bool repairable{false};
+};
+
+struct document_repair_options {
+    bool repair_document_body{true};
+    bool repair_root_relationships{true};
+    bool repair_content_types{true};
+};
+
+struct package_repair_action {
+    package_diagnostic_code diagnostic_code{
+        package_diagnostic_code::invalid_document_root};
+    std::string entry_name;
+    std::string detail;
+};
+
+struct package_repair_report {
+    std::vector<package_diagnostic> diagnostics_before;
+    std::vector<package_repair_action> actions;
+
+    [[nodiscard]] bool changed() const noexcept { return !this->actions.empty(); }
+};
+
 struct document_error_info {
     std::error_code code{};
     std::string detail;

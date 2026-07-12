@@ -1,12 +1,16 @@
+#include "table_method_dependencies.hpp"
+
+namespace featherdoc {
+
 TableCell::TableCell() = default;
 
-TableCell::TableCell(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
+TableCell::TableCell(detail::tracked_xml_node parent, pugi::xml_node current) {
+    this->set_parent(std::move(parent));
     this->set_current(current);
 }
 
-void TableCell::set_parent(pugi::xml_node node) {
-    this->parent = node;
+void TableCell::set_parent(detail::tracked_xml_node node) {
+    this->parent = std::move(node);
     this->current = this->parent.child("w:tc");
     this->paragraph.set_parent(this->current);
 }
@@ -15,6 +19,8 @@ void TableCell::set_current(pugi::xml_node node) {
     this->current = node;
     this->paragraph.set_parent(this->current);
 }
+
+bool TableCell::valid() const noexcept { return this->current.has_node(); }
 
 Paragraph &TableCell::paragraphs() {
     this->paragraph.set_parent(this->current);
@@ -43,20 +49,7 @@ std::string TableCell::get_text() const {
 bool TableCell::set_text(const std::string &text) const { return this->set_text(text.c_str()); }
 
 bool TableCell::set_text(const char *text) const {
-    if (this->current == pugi::xml_node{} || text == nullptr) {
-        return false;
-    }
-
-    auto cell_node = this->current;
-    for (auto child = cell_node.first_child(); child != pugi::xml_node{};) {
-        const auto next_child = child.next_sibling();
-        if (std::string_view{child.name()} != "w:tcPr") {
-            cell_node.remove_child(child);
-        }
-        child = next_child;
-    }
-
-    return detail::append_plain_text_paragraph(cell_node, text);
+    return detail::replace_table_cell_text(this->current, text);
 }
 
 bool TableCell::remove() {
@@ -85,6 +78,9 @@ bool TableCell::remove() {
     for (auto &target : removal_plan->targets) {
         if (target.cell == this->current) {
             continue;
+        }
+        if (!this->parent.retire_subtree(target.cell)) {
+            return false;
         }
         if (!target.row.remove_child(target.cell)) {
             return false;
@@ -726,3 +722,5 @@ TableCell &TableCell::next() {
 }
 
 bool TableCell::has_next() const { return this->current != pugi::xml_node{}; }
+
+} // namespace featherdoc

@@ -254,19 +254,29 @@ auto table_row_cell_texts(pugi::xml_node container, pugi::xml_node table_node,
         return std::nullopt;
     }
 
-    auto table = featherdoc::Table{container, table_node};
-    auto row = table.rows();
-    for (std::size_t current_row_index = 0U; row.has_next();
-         ++current_row_index, row.next()) {
+    auto row = table_node.child("w:tr");
+    for (std::size_t current_row_index = 0U; row != pugi::xml_node{};
+         ++current_row_index,
+             row = featherdoc::detail::next_named_sibling(row, "w:tr")) {
         if (current_row_index != row_index) {
             continue;
         }
 
         auto cell_texts = std::vector<std::string>{};
-        auto cell = row.cells();
-        while (cell.has_next()) {
-            cell_texts.push_back(cell.get_text());
-            cell.next();
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = featherdoc::detail::next_named_sibling(cell, "w:tc")) {
+            auto cell_text = std::string{};
+            for (auto paragraph = cell.child("w:p");
+                 paragraph != pugi::xml_node{};
+                 paragraph = featherdoc::detail::next_named_sibling(
+                     paragraph, "w:p")) {
+                if (!cell_text.empty()) {
+                    cell_text.push_back('\n');
+                }
+                cell_text +=
+                    featherdoc::detail::collect_plain_text_from_xml(paragraph);
+            }
+            cell_texts.push_back(std::move(cell_text));
         }
         return cell_texts;
     }

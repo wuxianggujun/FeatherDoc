@@ -243,6 +243,13 @@ enum class document_errc {
     output_entry_open_failed,
     output_entry_write_failed,
     source_entry_close_failed,
+    invalid_package_structure,
+    archive_limit_exceeded,
+    output_archive_finalize_failed,
+    output_replace_failed,
+    identifier_space_exhausted,
+    package_repair_not_possible,
+    package_repair_validation_failed,
 };
 
 class document_error_category final : public std::error_category {

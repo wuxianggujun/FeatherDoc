@@ -5,7 +5,7 @@
         std::string data;
     };
 
-    [[nodiscard]] std::uint32_t next_drawing_object_id() const;
+    [[nodiscard]] std::optional<std::uint32_t> next_drawing_object_id() const;
     [[nodiscard]] bool
     append_inline_image_part(std::string image_data, std::string extension,
                              std::string content_type, std::string display_name,

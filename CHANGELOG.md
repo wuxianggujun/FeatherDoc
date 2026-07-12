@@ -8,8 +8,46 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-07-12
+
+### Breaking Changes
+
+- Removed the public raw-XML constructors and node rebinding setters from
+  `Run`, `Paragraph`, `Table`, `TableRow`, and `TableCell`. Callers must now
+  obtain these handles from `Document`, `TemplatePart`, or their parent handle.
+  Although this release remains in the 1.x series, this is an intentional
+  source-compatibility break that permanently removes the unsafe legacy API.
+- Changed no-argument `Document::open()` to perform strict OPC package
+  validation by default. Historical damaged packages must explicitly opt into
+  tolerant validation through `document_open_options`.
+
+### Security
+
+- Added bounded DOCX archive processing with limits for entry count, per-entry
+  XML and binary sizes, total uncompressed size, and compression ratio.
+- Added bounded UTF-8 CLI input handling with a 16 MiB file limit and a maximum
+  JSON nesting depth of 128.
+- Replaced permissive integer parsing and overflowing identifier allocation
+  with strict range-checked parsing and structured exhaustion errors.
+
+### Changed
+
+- Replaced non-owning raw XML handles with generation- and node-epoch-tracked
+  handles. Package reloads invalidate all previous handles, while subtree
+  removal invalidates only handles that refer to removed nodes.
+- Split the table, table-row, table-cell, and table-property implementations
+  from stitched `.inc` sources into independent translation units.
+- Added a shared CLI core library so the executable and CLI tests reuse parsing,
+  validation, and output implementations instead of compiling duplicate copies.
+- Moved XML handle lifetime bookkeeping behind an implementation boundary to
+  reduce MSVC COFF section pressure and make parallel links deterministic.
+
 ### Added
 
+- Added strict and tolerant package validation modes, configurable archive
+  limits, structured DOCX package errors, and package-repair CLI support.
+- Added lifecycle, malformed-package, archive-limit, numeric-boundary, atomic
+  save, Unicode-path, CLI UTF-8, and install-consumer regression coverage.
 - Added planned project-template business corpus registration actions to the
   project-template smoke manifest check JSON/text reports so contract and
   tender template blockers remain machine-readable without reparsing the
@@ -34,6 +72,15 @@ performance.
 
 ### Fixed
 
+- Fixed DOCX saves so they use unique same-directory temporary files, verify ZIP
+  finalization and truncation, and atomically replace the destination without
+  deleting user-owned `.tmp` or `.bak` files.
+- Fixed Windows paths containing Chinese, Japanese, emoji, spaces, or long path
+  components by consistently converting filesystem paths to UTF-8 before calls
+  into miniz and CLI serialization.
+- Fixed stale document handles after reopen, repair, subtree deletion, and
+  document destruction so they fail safely instead of retaining dangling
+  `pugi::xml_node` references.
 - Fixed DOCX functional smoke readiness so default runs can fall back to the
   current release asset visual gallery and release evidence ZIPs when legacy
   Word visual smoke directories are missing or stale, while still preserving

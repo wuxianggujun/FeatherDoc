@@ -30,6 +30,7 @@ namespace featherdoc {
 class Document {
   private:
     friend class Table;
+    friend class TemplatePart;
 
     struct xml_part_state {
         std::string relationship_id;
@@ -86,6 +87,7 @@ class Document {
     Paragraph detached_paragraph;
     Table table;
     pugi::xml_document document;
+    pugi::xml_document package_relationships;
     pugi::xml_document document_relationships;
     pugi::xml_document content_types;
     pugi::xml_document settings;
@@ -95,11 +97,16 @@ class Document {
     pugi::xml_document endnotes;
     pugi::xml_document comments;
     pugi::xml_document comments_extended;
+    std::shared_ptr<detail::xml_handle_lifetime> xml_handle_lifetime{
+        std::make_shared<detail::xml_handle_lifetime>()};
     std::vector<std::unique_ptr<xml_part_state>> header_parts;
     std::vector<std::unique_ptr<xml_part_state>> footer_parts;
     std::vector<image_part_state> image_parts;
     bool flag_is_open{false};
     bool has_source_archive{false};
+    bool package_relationships_loaded{false};
+    bool package_relationships_dirty{false};
+    bool package_repair_pending{false};
     bool has_document_relationships_part{false};
     bool has_settings_part{false};
     bool has_numbering_part{false};
@@ -127,7 +134,18 @@ class Document {
     bool comments_extended_dirty{false};
     mutable std::unordered_set<std::string> removed_related_part_entries;
     std::unordered_set<std::string> removed_archive_entries;
+    std::vector<package_diagnostic> package_diagnostic_list;
+    archive_limits opened_archive_limits{};
     mutable document_error_info last_error_info;
+
+    [[nodiscard]] auto tracked_node(pugi::xml_node node) const
+        -> detail::tracked_xml_node {
+        return {node, this->xml_handle_lifetime};
+    }
+
+    void invalidate_xml_handles() {
+        this->xml_handle_lifetime->invalidate();
+    }
 
   public:
     Document();
@@ -135,7 +153,14 @@ class Document {
     [[nodiscard]] std::error_code create_empty();
     void set_path(std::filesystem::path);
     [[nodiscard]] const std::filesystem::path &path() const;
+    // Reloading/resetting the package invalidates all previously returned
+    // Paragraph, Run, Table, and TemplatePart handles.
     [[nodiscard]] std::error_code open();
+    [[nodiscard]] std::error_code open(const document_open_options &options);
+    [[nodiscard]] const std::vector<package_diagnostic> &
+    package_diagnostics() const noexcept;
+    [[nodiscard]] std::optional<package_repair_report>
+    repair_package(const document_repair_options &options = {});
     [[nodiscard]] bool enable_update_fields_on_open();
     [[nodiscard]] bool clear_update_fields_on_open();
     [[nodiscard]] std::optional<bool> update_fields_on_open_enabled();

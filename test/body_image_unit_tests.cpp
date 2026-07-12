@@ -1,6 +1,7 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -217,6 +218,97 @@ TEST_CASE("append_floating_image rejects crop values that remove the visible ima
     CHECK_FALSE(doc.append_floating_image(image_path, 20U, 10U, options));
     CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
     CHECK_NE(doc.last_error().detail.find("crop"), std::string::npos);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("drawing ID allocation rejects UINT32_MAX") {
+    namespace fs = std::filesystem;
+    const auto target = fs::current_path() / "drawing_id_exhausted.docx";
+    const auto image_path = fs::current_path() / "drawing_id_exhausted.png";
+    fs::remove(target);
+    fs::remove(image_path);
+    write_binary_file(image_path, tiny_png_data());
+    write_test_docx(
+        target,
+        R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body><w:p><w:r><w:drawing><wp:inline><wp:docPr id="4294967295"/></wp:inline></w:drawing></w:r></w:p></w:body></w:document>)");
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open());
+    CHECK_FALSE(document.append_image(image_path));
+    CHECK_EQ(document.last_error().code,
+             featherdoc::document_errc::identifier_space_exhausted);
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("floating image parsing handles INT64_MIN EMU offsets without overflow") {
+    namespace fs = std::filesystem;
+    const auto target = fs::current_path() / "floating_int64_min.docx";
+    const auto image_path = fs::current_path() / "floating_int64_min.png";
+    fs::remove(target);
+    fs::remove(image_path);
+    write_binary_file(image_path, tiny_png_data());
+
+    featherdoc::floating_image_options options;
+    options.horizontal_offset_px = 0;
+    options.vertical_offset_px = 0;
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE(document.append_floating_image(image_path, 1U, 1U, options));
+    REQUIRE_FALSE(document.save());
+
+    auto document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    const auto zero_offset = std::string{"<wp:posOffset>0</wp:posOffset>"};
+    const auto offset_position = document_xml.find(zero_offset);
+    REQUIRE_NE(offset_position, std::string::npos);
+    document_xml.replace(
+        offset_position, zero_offset.size(),
+        "<wp:posOffset>-9223372036854775808</wp:posOffset>");
+    rewrite_test_docx_entry(target, test_document_xml_entry,
+                            std::move(document_xml));
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    const auto images = reopened.drawing_images();
+    REQUIRE_EQ(images.size(), 1U);
+    REQUIRE(images[0].floating_options.has_value());
+    CHECK_EQ(images[0].floating_options->horizontal_offset_px,
+             std::numeric_limits<std::int32_t>::min());
+
+    fs::remove(target);
+    fs::remove(image_path);
+}
+
+TEST_CASE("image parsing handles UINT64_MAX EMU extents without overflow") {
+    namespace fs = std::filesystem;
+    const auto target = fs::current_path() / "image_uint64_max_extent.docx";
+    const auto image_path = fs::current_path() / "image_uint64_max_extent.png";
+    fs::remove(target);
+    fs::remove(image_path);
+    write_binary_file(image_path, tiny_png_data());
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE(document.append_image(image_path, 1U, 1U));
+    REQUIRE_FALSE(document.save());
+
+    auto document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    const auto original_extent = std::string{"cx=\"9525\""};
+    const auto extent_position = document_xml.find(original_extent);
+    REQUIRE_NE(extent_position, std::string::npos);
+    document_xml.replace(extent_position, original_extent.size(),
+                         "cx=\"18446744073709551615\"");
+    rewrite_test_docx_entry(target, test_document_xml_entry,
+                            std::move(document_xml));
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    const auto images = reopened.drawing_images();
+    REQUIRE_EQ(images.size(), 1U);
+    CHECK_EQ(images[0].width_px, std::numeric_limits<std::uint32_t>::max());
 
     fs::remove(target);
     fs::remove(image_path);

@@ -4,15 +4,18 @@ auto ensure_managed_abstract_numbering(pugi::xml_node numbering_root, featherdoc
 
     auto abstract_num = find_abstract_numbering_by_name(numbering_root, managed_name);
     if (abstract_num == pugi::xml_node{}) {
-        const auto abstract_num_id =
-            max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId") + 1U;
+        const auto abstract_num_id = featherdoc::detail::increment_identifier(
+            max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId"));
+        if (!abstract_num_id.has_value()) {
+            return std::nullopt;
+        }
         abstract_num = numbering_root.append_child("w:abstractNum");
         if (abstract_num == pugi::xml_node{}) {
             return std::nullopt;
         }
 
         ensure_attribute_value(abstract_num, "w:abstractNumId",
-                               std::to_string(abstract_num_id));
+                               std::to_string(*abstract_num_id));
 
         auto multi_level_type = abstract_num.append_child("w:multiLevelType");
         auto name_node = abstract_num.append_child("w:name");
@@ -39,8 +42,11 @@ auto ensure_custom_abstract_numbering(
     auto abstract_num = find_abstract_numbering_by_name(numbering_root, definition.name);
     auto abstract_num_id = std::optional<std::uint32_t>{};
     if (abstract_num == pugi::xml_node{}) {
-        abstract_num_id =
-            max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId") + 1U;
+        abstract_num_id = featherdoc::detail::increment_identifier(
+            max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId"));
+        if (!abstract_num_id.has_value()) {
+            return std::nullopt;
+        }
         abstract_num = numbering_root.append_child("w:abstractNum");
         if (abstract_num == pugi::xml_node{}) {
             return std::nullopt;
@@ -49,9 +55,13 @@ auto ensure_custom_abstract_numbering(
         abstract_num_id =
             parse_u32_attribute_value(abstract_num.attribute("w:abstractNumId").value());
         if (!abstract_num_id.has_value()) {
-            abstract_num_id =
-                max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId") + 1U;
+            abstract_num_id = featherdoc::detail::increment_identifier(
+                max_numbering_id(numbering_root, "w:abstractNum", "w:abstractNumId"));
         }
+    }
+
+    if (!abstract_num_id.has_value()) {
+        return std::nullopt;
     }
 
     ensure_attribute_value(abstract_num, "w:abstractNumId", std::to_string(*abstract_num_id));
@@ -88,13 +98,17 @@ auto append_numbering_instance_for_abstract(pugi::xml_node numbering_root,
                                             std::optional<std::uint32_t> restart_level =
                                                 std::nullopt)
     -> std::optional<std::uint32_t> {
-    const auto num_id = max_numbering_id(numbering_root, "w:num", "w:numId") + 1U;
+    const auto num_id = featherdoc::detail::increment_identifier(
+        max_numbering_id(numbering_root, "w:num", "w:numId"));
+    if (!num_id.has_value()) {
+        return std::nullopt;
+    }
     auto numbering_instance = numbering_root.append_child("w:num");
     if (numbering_instance == pugi::xml_node{}) {
         return std::nullopt;
     }
 
-    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(num_id));
+    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(*num_id));
 
     auto abstract_num_id_node = numbering_instance.append_child("w:abstractNumId");
     if (abstract_num_id_node == pugi::xml_node{}) {
@@ -116,7 +130,7 @@ auto append_numbering_instance_for_abstract(pugi::xml_node numbering_root,
         ensure_attribute_value(start_override, "w:val", "1");
     }
 
-    return num_id;
+    return *num_id;
 }
 
 auto append_numbering_level_override(
@@ -155,13 +169,17 @@ auto append_numbering_instance_for_abstract(
     pugi::xml_node numbering_root, std::uint32_t abstract_num_id,
     const std::vector<featherdoc::numbering_level_override_summary> &level_overrides)
     -> std::optional<std::uint32_t> {
-    const auto num_id = max_numbering_id(numbering_root, "w:num", "w:numId") + 1U;
+    const auto num_id = featherdoc::detail::increment_identifier(
+        max_numbering_id(numbering_root, "w:num", "w:numId"));
+    if (!num_id.has_value()) {
+        return std::nullopt;
+    }
     auto numbering_instance = numbering_root.append_child("w:num");
     if (numbering_instance == pugi::xml_node{}) {
         return std::nullopt;
     }
 
-    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(num_id));
+    ensure_attribute_value(numbering_instance, "w:numId", std::to_string(*num_id));
 
     auto abstract_num_id_node = numbering_instance.append_child("w:abstractNumId");
     if (abstract_num_id_node == pugi::xml_node{}) {
@@ -175,7 +193,7 @@ auto append_numbering_instance_for_abstract(
         }
     }
 
-    return num_id;
+    return *num_id;
 }
 
 auto ensure_numbering_instance_for_abstract(

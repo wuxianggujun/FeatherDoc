@@ -369,17 +369,19 @@ auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
 
 Run::Run() = default;
 
-Run::Run(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
+Run::Run(detail::tracked_xml_node parent, pugi::xml_node current) {
+    this->set_parent(std::move(parent));
     this->set_current(current);
 }
 
-void Run::set_parent(pugi::xml_node node) {
-    this->parent = node;
+void Run::set_parent(detail::tracked_xml_node node) {
+    this->parent = std::move(node);
     this->current = this->parent.child("w:r");
 }
 
 void Run::set_current(pugi::xml_node node) { this->current = node; }
+
+bool Run::valid() const noexcept { return this->current.has_node(); }
 
 std::string Run::get_text() const { return detail::collect_plain_text_from_xml(this->current); }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <constants.hpp>
+#include <featherdoc/detail/xml_handle.hpp>
 #include <featherdoc_iterator.hpp>
 
 #include <cstdint>
@@ -19,17 +20,21 @@ class TemplatePart;
 class Run {
   private:
     friend class IteratorHelper;
+    template <class, class, class> friend class Iterator;
     friend class Document;
+    friend class Paragraph;
     // Store the parent node (a paragraph)
-    pugi::xml_node parent;
+    detail::tracked_xml_node parent;
     // And store current node also
-    pugi::xml_node current;
+    detail::tracked_xml_node current;
+
+    Run(detail::tracked_xml_node, pugi::xml_node);
+    void set_parent(detail::tracked_xml_node);
+    void set_current(pugi::xml_node);
 
   public:
     Run();
-    Run(pugi::xml_node, pugi::xml_node);
-    void set_parent(pugi::xml_node);
-    void set_current(pugi::xml_node);
+    [[nodiscard]] bool valid() const noexcept;
 
     [[nodiscard]] std::string get_text() const;
     [[nodiscard]] bool set_text(const std::string &) const;
@@ -82,20 +87,25 @@ class Run {
 class Paragraph {
   private:
     friend class IteratorHelper;
+    template <class, class, class> friend class Iterator;
     friend class Document;
     friend class TemplatePart;
+    friend class TableCell;
+    friend class Table;
     // Store parent node (usually the body node)
-    pugi::xml_node parent;
+    detail::tracked_xml_node parent;
     // And store current node also
-    pugi::xml_node current;
+    detail::tracked_xml_node current;
     // A paragraph consists of runs
     Run run;
 
+    Paragraph(detail::tracked_xml_node, pugi::xml_node);
+    void set_parent(detail::tracked_xml_node);
+    void set_current(pugi::xml_node);
+
   public:
     Paragraph();
-    Paragraph(pugi::xml_node, pugi::xml_node);
-    void set_parent(pugi::xml_node);
-    void set_current(pugi::xml_node);
+    [[nodiscard]] bool valid() const noexcept;
 
     Paragraph &next();
     [[nodiscard]] bool has_next() const;

@@ -14,7 +14,7 @@ std::vector<featherdoc::paragraph_inspection_summary> TemplatePart::inspect_para
     for (std::size_t paragraph_index = 0U; paragraph_handle.has_next();
          ++paragraph_index, paragraph_handle.next()) {
         auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
-        enrich_part_paragraph_numbering(this->owner, summary);
+        enrich_part_paragraph_numbering(this->owner.get(), summary);
         summaries.push_back(std::move(summary));
     }
 
@@ -46,7 +46,7 @@ TemplatePart::inspect_paragraph(std::size_t paragraph_index) {
     }
 
     auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
-    enrich_part_paragraph_numbering(this->owner, summary);
+    enrich_part_paragraph_numbering(this->owner.get(), summary);
     this->last_error_info->clear();
     return summary;
 }

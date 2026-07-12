@@ -1,4 +1,6 @@
 #include "featherdoc.hpp"
+#include <featherdoc/detail/path.hpp>
+#include "numeric_helpers.hpp"
 #include "document_image_helpers.hpp"
 #include "image_helpers.hpp"
 #include "xml_helpers.hpp"
@@ -51,7 +53,7 @@ using detail::to_xml_reference;
 using detail::wordprocessing_drawing_namespace_uri;
 using detail::zip_entry_binary_read_status;
 
-std::uint32_t Document::next_drawing_object_id() const {
+std::optional<std::uint32_t> Document::next_drawing_object_id() const {
     std::uint32_t max_drawing_id = 0U;
 
     if (const auto document_root = this->document.document_element();
@@ -71,7 +73,7 @@ std::uint32_t Document::next_drawing_object_id() const {
         }
     }
 
-    return max_drawing_id + 1U;
+    return featherdoc::detail::increment_identifier(max_drawing_id);
 }
 
 #include "document_image_access_methods.inc"

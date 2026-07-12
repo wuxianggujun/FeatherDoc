@@ -1,4 +1,5 @@
 #include "featherdoc.hpp"
+#include "numeric_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <cstdlib>
@@ -90,19 +91,7 @@ auto ensure_paragraph_indentation_node(pugi::xml_node paragraph_properties)
 
 auto parse_u32_attribute_value(const char *text)
     -> std::optional<std::uint32_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoul(text, &end, 10);
-    if (end == text || *end != '\0' ||
-        value > static_cast<unsigned long>(
-                    std::numeric_limits<std::uint32_t>::max())) {
-        return std::nullopt;
-    }
-
-    return static_cast<std::uint32_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::uint32_t>(text);
 }
 
 auto read_paragraph_alignment_node(pugi::xml_node node)
@@ -304,18 +293,20 @@ auto insert_paragraph_like_node(pugi::xml_node parent, pugi::xml_node anchor,
 
 Paragraph::Paragraph() = default;
 
-Paragraph::Paragraph(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
+Paragraph::Paragraph(detail::tracked_xml_node parent, pugi::xml_node current) {
+    this->set_parent(std::move(parent));
     this->set_current(current);
 }
 
-void Paragraph::set_parent(pugi::xml_node node) {
-    this->parent = node;
+void Paragraph::set_parent(detail::tracked_xml_node node) {
+    this->parent = std::move(node);
     this->current = this->parent.child("w:p");
     this->run.set_parent(this->current);
 }
 
 void Paragraph::set_current(pugi::xml_node node) { this->current = node; }
+
+bool Paragraph::valid() const noexcept { return this->current.has_node(); }
 
 Paragraph &Paragraph::next() {
     this->current = detail::next_named_sibling(this->current, "w:p");

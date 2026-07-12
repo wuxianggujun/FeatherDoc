@@ -1,4 +1,5 @@
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 
 #include <cctype>
 #include <filesystem>
@@ -31,15 +32,10 @@ auto report_json_patch_error(std::size_t offset, std::string_view detail,
 auto read_template_table_json_content(const std::filesystem::path &patch_path,
                                       std::string &content, std::size_t &index,
                                       std::string &error_message) -> bool {
-    std::ifstream stream(patch_path, std::ios::binary);
-    if (!stream.good()) {
-        error_message =
-            "failed to read JSON patch file: " + patch_path.string();
+    if (!read_bounded_utf8_file(patch_path, "JSON patch file", content,
+                                error_message)) {
         return false;
     }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
     index = 0U;
     if (content.size() >= 3U &&
         static_cast<unsigned char>(content[0]) == 0xEFU &&

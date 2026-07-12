@@ -9,6 +9,9 @@ namespace featherdoc_cli {
 void print_usage(std::ostream &stream) {
     stream
         << "Usage:\n"
+        << "  featherdoc_cli inspect-package <input.docx> [--json]\n"
+        << "  featherdoc_cli repair-package <input.docx>"
+           " --output <repaired.docx> [--json]\n"
         << "  featherdoc_cli run-recipe --recipe <recipe.json>"
            " --inputs <inputs.json> --output <output-dir> [--json]\n"
         << "  featherdoc_cli export-pdf <input.docx> --output <output.pdf>"

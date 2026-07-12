@@ -98,6 +98,60 @@ TEST_CASE(
     fs::remove(target);
 }
 
+TEST_CASE("numbering ID allocation rejects UINT32_MAX and ignores invalid unsigned IDs") {
+    namespace fs = std::filesystem;
+
+    const auto make_numbering_document = [](const fs::path &path,
+                                             std::string_view numbering_xml) {
+        const auto content_types = std::string{R"(<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>)"};
+        const auto document_relationships = std::string{R"(<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+</Relationships>)"};
+        write_test_archive_entries(
+            path,
+            {{test_content_types_xml_entry, content_types},
+             {test_relationships_xml_entry, test_relationships_xml},
+             {test_document_xml_entry,
+              R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/></w:body></w:document>)"},
+             {"word/_rels/document.xml.rels", document_relationships},
+             {"word/numbering.xml", std::string{numbering_xml}}});
+    };
+
+    auto definition = featherdoc::numbering_definition{};
+    definition.name = "BoundaryDefinition";
+    definition.levels = {featherdoc::numbering_level_definition{
+        featherdoc::list_kind::decimal, 1U, 0U, "%1."}};
+
+    const auto exhausted_path = fs::current_path() / "numbering_id_exhausted.docx";
+    make_numbering_document(
+        exhausted_path,
+        R"(<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="4294967295"><w:name w:val="Existing"/></w:abstractNum></w:numbering>)");
+    featherdoc::Document exhausted(exhausted_path);
+    REQUIRE_FALSE(exhausted.open());
+    CHECK_FALSE(exhausted.ensure_numbering_definition(definition).has_value());
+    CHECK_EQ(exhausted.last_error().code,
+             featherdoc::document_errc::identifier_space_exhausted);
+    fs::remove(exhausted_path);
+
+    const auto invalid_path = fs::current_path() / "numbering_invalid_ids.docx";
+    make_numbering_document(
+        invalid_path,
+        R"(<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="-1"><w:name w:val="Negative"/></w:abstractNum><w:abstractNum w:abstractNumId="4294967296"><w:name w:val="Overflow"/></w:abstractNum><w:abstractNum w:abstractNumId="7x"><w:name w:val="Trailing"/></w:abstractNum></w:numbering>)");
+    featherdoc::Document invalid_ids(invalid_path);
+    REQUIRE_FALSE(invalid_ids.open());
+    const auto allocated_id = invalid_ids.ensure_numbering_definition(definition);
+    REQUIRE(allocated_id.has_value());
+    CHECK_EQ(*allocated_id, 1U);
+    fs::remove(invalid_path);
+}
+
 TEST_CASE(
     "set_paragraph_style_numbering links custom numbering definitions to paragraph styles") {
     namespace fs = std::filesystem;

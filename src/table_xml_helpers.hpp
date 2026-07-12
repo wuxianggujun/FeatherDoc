@@ -92,6 +92,10 @@ void ensure_table_grid_columns(pugi::xml_node table, std::size_t column_count);
 [[nodiscard]] auto ensure_cell_properties_node(pugi::xml_node cell)
     -> pugi::xml_node;
 void ensure_default_cell_properties(pugi::xml_node cell);
+[[nodiscard]] auto replace_table_cell_text(pugi::xml_node cell,
+                                           const char *text) -> bool;
+[[nodiscard]] auto replace_table_cell_text(tracked_xml_node cell,
+                                           const char *text) -> bool;
 [[nodiscard]] auto ensure_cell_width_node(pugi::xml_node cell)
     -> pugi::xml_node;
 auto clear_cell_width_node(pugi::xml_node cell) -> bool;

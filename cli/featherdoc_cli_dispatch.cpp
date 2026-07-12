@@ -10,6 +10,7 @@
 #include "featherdoc_cli_numbering_catalog_commands.hpp"
 #include "featherdoc_cli_numbering_inspect_commands.hpp"
 #include "featherdoc_cli_page_setup_commands.hpp"
+#include "featherdoc_cli_package_commands.hpp"
 #include "featherdoc_cli_paragraph_inspect_commands.hpp"
 #include "featherdoc_cli_pdf_commands.hpp"
 #include "featherdoc_cli_review_commands.hpp"
@@ -38,6 +39,10 @@ auto run_featherdoc_cli_command(
 
     if (command == "run-recipe") {
         return run_recipe_command(command, arguments);
+    }
+
+    if (is_package_command(command)) {
+        return run_package_command(command, arguments, doc);
     }
 
     if (command == "export-pdf") {

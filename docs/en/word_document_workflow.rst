@@ -66,6 +66,40 @@ Use ``last_error()`` when an operation returns a non-empty ``std::error_code``.
        return doc.save_as("filled.docx") ? 1 : 0;
    }
 
+``open()`` performs strict OPC structure validation by default and applies
+entry-count, part-size, total-size, and compression-ratio limits before
+extraction. Use ``document_open_options`` with ``tolerant`` only to repair known
+legacy damage. Reacquire paragraph, run, table, and template-part handles after
+``set_path()``, another ``open()``, or ``create_empty()``.
+
+A successful tolerant open does not mean the package is valid. Inspect the
+diagnostics, repair explicitly, and save to a new path. Reacquire XML-backed
+handles after a repair that changes the package.
+
+.. code-block:: cpp
+
+   featherdoc::Document damaged{"legacy.docx"};
+   featherdoc::document_open_options options;
+   options.validation = featherdoc::package_validation_mode::tolerant;
+   if (damaged.open(options)) {
+       return 1;
+   }
+
+   for (const auto &diagnostic : damaged.package_diagnostics()) {
+       if (!diagnostic.repairable) {
+           return 1;
+       }
+   }
+   if (!damaged.repair_package()) {
+       return 1;
+   }
+   return damaged.save_as("legacy-repaired.docx") ? 1 : 0;
+
+The equivalent CLI flow is ``featherdoc_cli inspect-package legacy.docx
+--json`` followed by ``featherdoc_cli repair-package legacy.docx --output
+legacy-repaired.docx --json``. The repair command requires an output path and
+never overwrites its input.
+
 Template Filling
 ----------------
 
