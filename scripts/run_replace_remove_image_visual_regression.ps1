@@ -293,7 +293,7 @@ Invoke-Capture `
 
 Write-Base64Fixture `
     -Path $replacementImagePath `
-    -Base64 "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+    -Base64 "iVBORw0KGgoAAAANSUhEUgAAAEAAAAAgCAIAAAAt/+nTAAAATElEQVR4nNXOQREAMAjAsK7+PTMRPLhGQd7QJnESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ESJ3ES53Vg6wMklgE/bGCelwAAAABJRU5ErkJggg=="
 
 $floatingFixturePath = Join-Path $resolvedOutputDir "sample_floating_image.bmp"
 $inlineFixturePath = Join-Path $resolvedOutputDir "sample_inline_image.bmp"
@@ -373,7 +373,7 @@ $cases = @(
         mutation_expected = @(
             '"command":"replace-image"',
             '"part":"body"',
-            ('"replacement_path":"' + $replacementImagePath.Replace('\', '\\') + '"'),
+            ('"replacement_path":"' + $replacementImagePath.Replace('\', '/') + '"'),
             ('"filters":{"relationship_id":"' + $anchoredImage.relationship_id + '"}'),
             '"placement":"anchored"',
             '"content_type":"image/png"',

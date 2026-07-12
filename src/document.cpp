@@ -209,9 +209,15 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
     temp_stream = nullptr;
 
     for (std::uint32_t attempt = 0; attempt < 64U; ++attempt) {
-        temp_file = output_file;
-        temp_file += ".featherdoc-" + std::to_string(timestamp) + "-" +
-                     std::to_string(sequence.fetch_add(1U)) + ".tmp";
+        // Keep the temporary basename independent of the destination basename.
+        // Appending the transaction suffix to a long DOCX filename can exceed
+        // the Windows legacy path limit even when the destination itself is
+        // valid. The file remains beside the destination, so the final rename
+        // is still an atomic same-filesystem replacement.
+        const auto temp_name =
+            ".featherdoc-" + std::to_string(timestamp) + "-" +
+            std::to_string(sequence.fetch_add(1U)) + ".tmp";
+        temp_file = output_file.parent_path() / temp_name;
 
 #ifdef _WIN32
         int descriptor = -1;

@@ -56,6 +56,10 @@ Assert-ContainsText -Text $scriptText -ExpectedText '$smokeArgs += @("-ReviewVer
     -Message "Release gate should pass SmokeReviewVerdict into run_word_visual_smoke.ps1."
 Assert-ContainsText -Text $scriptText -ExpectedText '$smokeArgs += @("-ReviewNote", $SmokeReviewNote)' `
     -Message "Release gate should pass SmokeReviewNote into run_word_visual_smoke.ps1."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewVerdict", $SmokeReviewVerdict)' `
+    -Message "Release gate should pass SmokeReviewVerdict into the document review task."
+Assert-ContainsText -Text $scriptText -ExpectedText '$prepareTaskArgs += @("-ReviewNote", $SmokeReviewNote)' `
+    -Message "Release gate should pass SmokeReviewNote into the document review task."
 Assert-ContainsText -Text $scriptText -ExpectedText 'review_verdict = Get-OptionalPropertyValue -Object $smokeReviewResult -Name "verdict"' `
     -Message "Release gate summary should capture the smoke review verdict."
 Assert-ContainsText -Text $scriptText -ExpectedText 'Smoke review verdict:' `

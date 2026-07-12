@@ -49,8 +49,7 @@ void write_tiny_png(const std::filesystem::path &path) {
 }
 
 auto unique_temp_files_for(const std::filesystem::path &target) -> std::size_t {
-    const auto prefix = target.filename().native() +
-                        std::filesystem::path{L".featherdoc-"}.native();
+    const auto prefix = std::filesystem::path{L".featherdoc-"}.native();
     std::size_t count = 0U;
     for (const auto &entry :
          std::filesystem::directory_iterator(target.parent_path())) {
@@ -502,6 +501,37 @@ TEST_CASE("temporary output creation failure is reported before ZIP writing") {
     CHECK_EQ(document.last_error().code,
              featherdoc::document_errc::output_archive_open_failed);
     CHECK_FALSE(fs::exists(missing_parent));
+}
+
+TEST_CASE("transactional save keeps temporary names short beside long targets") {
+    namespace fs = std::filesystem;
+
+    const auto directory = fs::current_path() / "save_long_target_name";
+    fs::remove_all(directory);
+    REQUIRE(fs::create_directories(directory));
+
+    constexpr std::size_t desired_target_length = 230U;
+    constexpr std::size_t extension_length = 5U;
+    const auto directory_length = directory.native().size() + 1U;
+    const auto available_stem_length =
+        desired_target_length > directory_length + extension_length
+            ? desired_target_length - directory_length - extension_length
+            : 80U;
+    const auto stem_length =
+        std::clamp<std::size_t>(available_stem_length, 80U, 180U);
+    const auto target = directory / (std::string(stem_length, 'x') + ".docx");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE(document.paragraphs().add_run("long target save").has_next());
+    REQUIRE_FALSE(document.save_as(target));
+    CHECK_EQ(unique_temp_files_for(target), 0U);
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "long target save\n");
+
+    fs::remove_all(directory);
 }
 
 TEST_CASE("ZIP entry write failure preserves the original target and allows retry") {
