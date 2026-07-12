@@ -321,7 +321,7 @@ TEST_CASE("cli plans table position preset application") {
              std::string::npos);
     CHECK_NE(apply_json.find(R"("applied_count":2)"), std::string::npos);
     CHECK_NE(apply_json.find(R"("table_indices":[0,1])"), std::string::npos);
-    CHECK_NE(apply_json.find("\"input_path\":" + json_quote(source.string())),
+    CHECK_NE(apply_json.find("\"input_path\":" + json_quote_path(source)),
              std::string::npos);
     CHECK_NE(apply_json.find(R"("preset":"paragraph-callout")"),
              std::string::npos);

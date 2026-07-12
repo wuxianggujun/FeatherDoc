@@ -302,7 +302,7 @@ TEST_CASE("cli extract-image exports a filtered anchored body image") {
     const auto json = read_text_file(output);
     CHECK_NE(json.find("\"command\":\"extract-image\""), std::string::npos);
     CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
-    CHECK_NE(json.find("\"output_path\":" + json_quote(extracted.string())),
+    CHECK_NE(json.find("\"output_path\":" + json_quote_path(extracted)),
              std::string::npos);
     CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
                            anchored_image.relationship_id + "\"}"),
@@ -372,7 +372,7 @@ TEST_CASE("cli replace-image replaces a filtered anchored body image") {
     const auto json = read_text_file(output);
     CHECK_NE(json.find("\"command\":\"replace-image\""), std::string::npos);
     CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
-    CHECK_NE(json.find("\"replacement_path\":" + json_quote(replacement.string())),
+    CHECK_NE(json.find("\"replacement_path\":" + json_quote_path(replacement)),
              std::string::npos);
     CHECK_NE(json.find("\"filters\":{\"relationship_id\":\"" +
                            anchored_image.relationship_id + "\"}"),
@@ -521,7 +521,7 @@ TEST_CASE("cli append-image appends a scaled inline body image") {
     const auto json = read_text_file(output);
     CHECK_NE(json.find("\"command\":\"append-image\""), std::string::npos);
     CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
-    CHECK_NE(json.find("\"image_path\":" + json_quote(image.string())),
+    CHECK_NE(json.find("\"image_path\":" + json_quote_path(image)),
              std::string::npos);
     CHECK_NE(json.find("\"floating\":false"), std::string::npos);
     CHECK_NE(json.find("\"placement\":\"inline\""), std::string::npos);
@@ -545,6 +545,63 @@ TEST_CASE("cli append-image appends a scaled inline body image") {
     remove_if_exists(image);
     remove_if_exists(updated);
     remove_if_exists(output);
+}
+
+TEST_CASE("cli append-image preserves UTF-8 paths with Chinese characters") {
+    const fs::path working_directory = fs::current_path();
+    const fs::path unicode_directory =
+        working_directory /
+        featherdoc::detail::path_from_utf8("cli-中文-日本語-🙂 空格");
+
+    std::error_code cleanup_error;
+    fs::remove_all(unicode_directory, cleanup_error);
+    cleanup_error.clear();
+    REQUIRE(fs::create_directories(unicode_directory, cleanup_error));
+    REQUIRE_FALSE(cleanup_error);
+
+    const fs::path source =
+        unicode_directory /
+        featherdoc::detail::path_from_utf8("输入 文档-中文.docx");
+    const fs::path image =
+        unicode_directory /
+        featherdoc::detail::path_from_utf8("图片-日本語-🙂.png");
+    const fs::path updated =
+        unicode_directory /
+        featherdoc::detail::path_from_utf8("输出 文档-中文.docx");
+    const fs::path output =
+        unicode_directory /
+        featherdoc::detail::path_from_utf8("结果-UTF-8.json");
+
+    create_cli_empty_document_fixture(source);
+    write_binary_file(image, tiny_png_data());
+
+    CHECK_EQ(run_cli({"append-image",
+                      cli_path_text(source),
+                      cli_path_text(image),
+                      "--width",
+                      "32",
+                      "--height",
+                      "16",
+                      "--output",
+                      cli_path_text(updated),
+                      "--json"},
+                     output),
+             0);
+
+    const auto json = read_text_file(output);
+    CHECK_NE(json.find("\"image_path\":" + json_quote_path(image)),
+             std::string::npos);
+    CHECK_EQ(json.find("\xEF\xBF\xBD"), std::string::npos);
+
+    featherdoc::Document reopened(updated);
+    REQUIRE_FALSE(reopened.open());
+    const auto images = reopened.body_template().drawing_images();
+    REQUIRE_EQ(images.size(), 1U);
+    CHECK_EQ(images[0].width_px, 32U);
+    CHECK_EQ(images[0].height_px, 16U);
+
+    fs::remove_all(unicode_directory, cleanup_error);
+    CHECK_FALSE(cleanup_error);
 }
 
 TEST_CASE("cli append-image materializes a section header floating image") {

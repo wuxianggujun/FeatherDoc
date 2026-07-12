@@ -193,7 +193,7 @@ TEST_CASE("cli check-template-schema matches resolved section baseline and write
              std::string{
                  "{\"command\":\"check-template-schema\",\"matches\":true,"
                  "\"schema_file\":\"" +
-                 json_escape_text(schema_file.string()) +
+                 json_escape_path(schema_file) +
                  "\",\"generated_output_path\":\"" +
                  json_escape_text(generated_output.string()) +
                  "\",\"added_target_count\":0,\"removed_target_count\":0,"
@@ -261,7 +261,7 @@ TEST_CASE("cli check-template-schema fails when generated schema drifts from bas
              std::string{
                  "{\"command\":\"check-template-schema\",\"matches\":false,"
                  "\"schema_file\":\"" +
-                 json_escape_text(schema_file.string()) +
+                 json_escape_path(schema_file) +
                  "\",\"added_target_count\":0,\"removed_target_count\":0,"
                  "\"changed_target_count\":1,\"added_targets\":[],"
                  "\"removed_targets\":[],\"changed_targets\":[{\"left\":"
