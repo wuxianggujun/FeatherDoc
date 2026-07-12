@@ -10,6 +10,10 @@
 
 #include "zip_failure_test_support.hpp"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 namespace {
 
 constexpr auto valid_document_xml = R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -49,7 +53,14 @@ void write_tiny_png(const std::filesystem::path &path) {
 }
 
 auto unique_temp_files_for(const std::filesystem::path &target) -> std::size_t {
-    const auto prefix = std::filesystem::path{L".featherdoc-"}.native();
+#ifdef _WIN32
+    const auto process_id = static_cast<std::uint64_t>(GetCurrentProcessId());
+#else
+    const auto process_id = static_cast<std::uint64_t>(getpid());
+#endif
+    const auto prefix = std::filesystem::path{
+                            ".featherdoc-" + std::to_string(process_id) + "-"}
+                            .native();
     std::size_t count = 0U;
     for (const auto &entry :
          std::filesystem::directory_iterator(target.parent_path())) {

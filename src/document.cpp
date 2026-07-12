@@ -206,6 +206,11 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
     static std::atomic<std::uint64_t> sequence{0U};
     const auto timestamp = static_cast<std::uint64_t>(
         std::chrono::steady_clock::now().time_since_epoch().count());
+#ifdef _WIN32
+    const auto process_id = static_cast<std::uint64_t>(GetCurrentProcessId());
+#else
+    const auto process_id = static_cast<std::uint64_t>(getpid());
+#endif
     temp_stream = nullptr;
 
     for (std::uint32_t attempt = 0; attempt < 64U; ++attempt) {
@@ -215,7 +220,8 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
         // valid. The file remains beside the destination, so the final rename
         // is still an atomic same-filesystem replacement.
         const auto temp_name =
-            ".featherdoc-" + std::to_string(timestamp) + "-" +
+            ".featherdoc-" + std::to_string(process_id) + "-" +
+            std::to_string(timestamp) + "-" +
             std::to_string(sequence.fetch_add(1U)) + ".tmp";
         temp_file = output_file.parent_path() / temp_name;
 
