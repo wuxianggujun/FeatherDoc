@@ -909,6 +909,7 @@ if ([string]$optionalGovernanceManifest.release_governance_handoff_status -ne "n
 }
 
 $uploadOutputRoot = Join-Path $resolvedWorkingDir "release-assets-upload"
+$global:FeatherDocTestReleaseCreated = $false
 function global:gh {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 
@@ -920,6 +921,11 @@ function global:gh {
     if ($Arguments[1] -eq "view") {
         if ($Arguments[2] -ne "v1.6.4") {
             throw "Unexpected gh release view tag: $($Arguments[2])"
+        }
+
+        if (-not $global:FeatherDocTestReleaseCreated) {
+            $global:LASTEXITCODE = 1
+            return
         }
 
         $argumentText = $Arguments -join " "
@@ -985,6 +991,19 @@ function global:gh {
         return
     }
 
+    if ($Arguments[1] -eq "create") {
+        if ($Arguments[2] -ne "v1.6.4" -or
+            $Arguments -notcontains "--draft" -or
+            $Arguments -notcontains "--target" -or
+            $Arguments -notcontains "--title" -or
+            $Arguments -notcontains "--notes") {
+            throw "Unexpected gh release create invocation: $($Arguments -join ' ')"
+        }
+
+        $global:FeatherDocTestReleaseCreated = $true
+        return
+    }
+
     if ($Arguments[1] -eq "upload") {
         if ($Arguments[2] -ne "v1.6.4" -or $Arguments.Count -lt 4) {
             throw "Unexpected gh release upload invocation: $($Arguments -join ' ')"
@@ -1002,6 +1021,7 @@ try {
         -UploadReleaseTag v1.6.4
 } finally {
     Remove-Item Function:\gh -ErrorAction SilentlyContinue
+    Remove-Variable -Name FeatherDocTestReleaseCreated -Scope Global -ErrorAction SilentlyContinue
 }
 
 $uploadManifestPath = Join-Path $uploadOutputRoot "v1.6.4\release_assets_manifest.json"

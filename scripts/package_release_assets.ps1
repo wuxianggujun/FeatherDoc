@@ -360,11 +360,10 @@ if (-not [string]::IsNullOrWhiteSpace($UploadReleaseTag)) {
     }
 
     $assetPaths = @($installZipPath, $galleryZipPath, $evidenceZipPath)
-    $existingReleaseViewJson = & gh release view $UploadReleaseTag --json assets
-    if ($LASTEXITCODE -ne 0) {
-        throw "gh release view failed before upload."
-    }
-
+    $existingReleaseViewJson = Get-OrCreateGitHubDraftReleaseAssetsJson `
+        -RepoRoot $repoRoot `
+        -ReleaseTag $UploadReleaseTag `
+        -ReleaseVersion $releaseVersion
     $existingReleaseView = $existingReleaseViewJson | ConvertFrom-Json
     $assetNames = @($assetPaths | ForEach-Object { Split-Path -Leaf $_ })
     foreach ($assetPath in $assetPaths) {

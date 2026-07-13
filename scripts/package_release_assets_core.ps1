@@ -241,6 +241,41 @@ function New-ZipArchive {
     Compress-Archive -LiteralPath $SourcePaths -DestinationPath $ZipPath -CompressionLevel Optimal
 }
 
+function Get-OrCreateGitHubDraftReleaseAssetsJson {
+    param(
+        [string]$RepoRoot,
+        [string]$ReleaseTag,
+        [string]$ReleaseVersion
+    )
+
+    $releaseViewJson = & gh release view $ReleaseTag --json assets 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        return $releaseViewJson
+    }
+
+    $targetCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($targetCommit)) {
+        throw "Could not resolve the current Git commit before creating GitHub release '$ReleaseTag'."
+    }
+
+    Write-Step "Creating missing GitHub draft release $ReleaseTag at $targetCommit"
+    & gh release create $ReleaseTag `
+        --draft `
+        --target $targetCommit `
+        --title ("FeatherDoc v{0}" -f $ReleaseVersion) `
+        --notes "Release assets are being prepared and will be published after all release gates pass."
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release create failed for missing release '$ReleaseTag'."
+    }
+
+    $releaseViewJson = & gh release view $ReleaseTag --json assets
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release view failed after creating release '$ReleaseTag'."
+    }
+
+    return $releaseViewJson
+}
+
 function Get-BundledReleaseFontFiles {
     param([string[]]$RootPaths)
 
