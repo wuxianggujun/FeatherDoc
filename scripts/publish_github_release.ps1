@@ -394,9 +394,6 @@ if (-not [string]::IsNullOrWhiteSpace($BodyPath)) {
 if (-not [string]::IsNullOrWhiteSpace($Title)) {
     $syncArgs.Title = $Title
 }
-if ($Publish) {
-    $syncArgs.Publish = $true
-}
 if ($AllowCiArtifactPublish) {
     $syncArgs.AllowCiArtifactPublish = $true
 }
@@ -404,7 +401,7 @@ if ($AllowCiArtifactPublish) {
 Write-Step "Uploading release assets to GitHub release $resolvedReleaseTag"
 & $resolvedPackageScriptPath @packageArgs
 
-Write-Step "Syncing audited GitHub release notes to $resolvedReleaseTag"
+Write-Step "Syncing audited GitHub release notes to draft release $resolvedReleaseTag"
 & $resolvedSyncNotesScriptPath @syncArgs
 
 $updatedManifestPath = Update-UploadedAssetManifest `
@@ -416,6 +413,24 @@ $updatedManifestPath = Update-UploadedAssetManifest `
 Assert-RefreshedAssetManifest `
     -AuditScriptPath $resolvedReleaseMaterialAuditScriptPath `
     -ManifestPath $updatedManifestPath
+
+if ($Publish) {
+    $publishSyncArgs = $syncArgs.Clone()
+    $publishSyncArgs.Publish = $true
+
+    Write-Step "Publishing audited GitHub release $resolvedReleaseTag"
+    & $resolvedSyncNotesScriptPath @publishSyncArgs
+
+    $publishedManifestPath = Update-UploadedAssetManifest `
+        -RepoRoot $repoRoot `
+        -OutputRoot $OutputRoot `
+        -ReleaseVersion $resolvedReleaseVersion `
+        -ReleaseTag $resolvedReleaseTag
+
+    Assert-RefreshedAssetManifest `
+        -AuditScriptPath $resolvedReleaseMaterialAuditScriptPath `
+        -ManifestPath $publishedManifestPath
+}
 
 Write-Host "Release tag: $resolvedReleaseTag"
 Write-Host "Release version: $resolvedReleaseVersion"

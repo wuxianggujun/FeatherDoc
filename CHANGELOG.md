@@ -25,6 +25,12 @@ performance.
   from PDF configuration. Build-tree fallback dependencies no longer make the
   PDF writer appear as an installable component.
 
+### Fixed
+
+- Fixed the GitHub release transaction so CI-artifact manifests are audited
+  under their explicit skipped-visual boundary before a draft is published.
+  A failed manifest audit now leaves the release in draft state.
+
 ## [1.13.0] - 2026-07-12
 
 ### Breaking Changes

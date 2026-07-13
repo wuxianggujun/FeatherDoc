@@ -530,8 +530,34 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditCon
         return
     }
 
-    if ([string](Get-JsonPropertyValue -Object $audit -Name "status") -ne "passed") {
-        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.status must be passed."
+    $auditStatus = [string](Get-JsonPropertyValue -Object $audit -Name "status")
+    $isIncompleteCiPreview = $auditStatus -eq "skipped_allow_incomplete"
+    if ($auditStatus -ne "passed" -and -not $isIncompleteCiPreview) {
+        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.status must be passed or skipped_allow_incomplete."
+    }
+
+    if ($isIncompleteCiPreview) {
+        $executionStatus = [string](Get-JsonPropertyValue -Object $Json -Name "execution_status")
+        $visualVerdict = [string](Get-JsonPropertyValue -Object $Json -Name "visual_verdict")
+        $visualGateStatus = [string](Get-JsonPropertyValue -Object $Json -Name "visual_gate_status")
+        $visualGateEvidenceIncluded = [bool](Get-JsonPropertyValue -Object $Json -Name "visual_gate_evidence_included")
+        $releaseGovernanceHandoffStatus = [string](Get-JsonPropertyValue -Object $Json -Name "release_governance_handoff_status")
+
+        if ($executionStatus -ne "pass") {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete requires execution_status=pass."
+        }
+        if (@("", "visual_gate_skipped", "pending_manual_review") -notcontains $visualVerdict) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete requires a CI-only visual_verdict."
+        }
+        if (@("skipped", "visual_gate_skipped") -notcontains $visualGateStatus) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete requires visual_gate_status=skipped."
+        }
+        if ($visualGateEvidenceIncluded) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete requires visual_gate_evidence_included=false."
+        }
+        if ($releaseGovernanceHandoffStatus -ne "not_requested") {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete requires release_governance_handoff_status=not_requested."
+        }
     }
 
     $auditScript = [string](Get-JsonPropertyValue -Object $audit -Name "audit_script")
@@ -544,14 +570,23 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditCon
     $parsedAuditedEntrypointCount = $null
     if (-not (Test-StrictJsonInt64Value -Value $auditedEntrypointCount -ParsedValue ([ref]$parsedAuditedEntrypointCount))) {
         Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be an integer."
-    } elseif ($parsedAuditedEntrypointCount -ne 3) {
-        Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be 3."
+    } else {
+        $expectedAuditedEntrypointCount = if ($isIncompleteCiPreview) { 0 } else { 3 }
+        if ($parsedAuditedEntrypointCount -ne $expectedAuditedEntrypointCount) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count must be $expectedAuditedEntrypointCount."
+        }
     }
 
     $auditedEntrypoints = @(Get-JsonArray -Object $audit -Name "audited_entrypoints" | ForEach-Object { [string]$_ })
-    foreach ($requiredEntrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
-        if (-not ($auditedEntrypoints -contains $requiredEntrypointId)) {
-            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoints is missing $requiredEntrypointId."
+    if ($isIncompleteCiPreview) {
+        if ($auditedEntrypoints.Count -ne 0) {
+            Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "skipped_allow_incomplete must not claim audited entrypoints."
+        }
+    } else {
+        foreach ($requiredEntrypointId in @("start_here", "artifact_guide", "reviewer_checklist")) {
+            if (-not ($auditedEntrypoints -contains $requiredEntrypointId)) {
+                Add-AuditViolation -Violations $Violations -File $File -Label $label -Text "release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoints is missing $requiredEntrypointId."
+            }
         }
     }
 

@@ -63,6 +63,40 @@ $passManifest = [ordered]@{
 
 & $auditScript -Path @($passSummaryPath, $passManifestPath)
 
+$passIncompleteCiManifestDir = Join-Path $passDir "manifest-incomplete-ci-boundary"
+$passIncompleteCiManifestPath = Join-Path $passIncompleteCiManifestDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $passIncompleteCiManifestDir -Force | Out-Null
+$passIncompleteCiManifest = $passManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+Add-Member -InputObject $passIncompleteCiManifest -NotePropertyName visual_verdict -NotePropertyValue "visual_gate_skipped"
+$passIncompleteCiManifest.visual_gate_status = "skipped"
+$passIncompleteCiManifest.visual_gate_evidence_included = $false
+Add-Member -InputObject $passIncompleteCiManifest -NotePropertyName release_governance_handoff_status -NotePropertyValue "not_requested"
+$passIncompleteCiManifest.word_visual_standard_review_metadata_count = 0
+$passIncompleteCiManifest.word_visual_standard_review_metadata = @()
+$passIncompleteCiManifest.release_entry_project_template_readiness_checklist_material_safety_audit.status = "skipped_allow_incomplete"
+$passIncompleteCiManifest.release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoint_count = 0
+$passIncompleteCiManifest.release_entry_project_template_readiness_checklist_material_safety_audit.audited_entrypoints = @()
+($passIncompleteCiManifest | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $passIncompleteCiManifestPath -Encoding UTF8
+
+& $auditScript -Path $passIncompleteCiManifestPath
+
+$badIncompleteCiManifestDir = Join-Path $failDir "manifest-incomplete-ci-with-failed-execution"
+$badIncompleteCiManifestPath = Join-Path $badIncompleteCiManifestDir "release_assets_manifest.json"
+New-Item -ItemType Directory -Path $badIncompleteCiManifestDir -Force | Out-Null
+$badIncompleteCiManifest = $passIncompleteCiManifest | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+$badIncompleteCiManifest.execution_status = "fail"
+($badIncompleteCiManifest | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $badIncompleteCiManifestPath -Encoding UTF8
+
+$badIncompleteCiManifestFailedAsExpected = $false
+try {
+    & $auditScript -Path $badIncompleteCiManifestPath
+} catch {
+    $badIncompleteCiManifestFailedAsExpected = $true
+}
+if (-not $badIncompleteCiManifestFailedAsExpected) {
+    throw "assert_release_material_safety.ps1 unexpectedly accepted skipped_allow_incomplete with execution_status=fail."
+}
+
 $passManifestWarningOnlyReadinessDir = Join-Path $passDir "manifest-project-template-readiness-warning-only"
 $passManifestWarningOnlyReadinessPath = Join-Path $passManifestWarningOnlyReadinessDir "release_assets_manifest.json"
 New-Item -ItemType Directory -Path $passManifestWarningOnlyReadinessDir -Force | Out-Null
