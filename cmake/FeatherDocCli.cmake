@@ -271,12 +271,6 @@ if(BUILD_CLI)
         cli/featherdoc_cli_run_properties_common_options_parse.cpp
         cli/featherdoc_cli_run_properties_mutation_options_parse.cpp
         cli/featherdoc_cli_run_properties_options_parse.cpp
-        cli/featherdoc_cli_pdf_commands.cpp
-        cli/featherdoc_cli_pdf_export_commands.cpp
-        cli/featherdoc_cli_pdf_export_output.cpp
-        cli/featherdoc_cli_pdf_import_commands.cpp
-        cli/featherdoc_cli_pdf_import_output.cpp
-        cli/featherdoc_cli_pdf_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_parse.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_operation_finalize.cpp
         cli/featherdoc_cli_review_mutation_plan_build_request_operation_member_parse.cpp
@@ -402,11 +396,22 @@ if(BUILD_CLI)
         cli/featherdoc_cli_package_commands.cpp
         cli/featherdoc_cli.cpp)
     target_link_libraries(featherdoc_cli PRIVATE FeatherDocCliCore)
+    if((FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf) OR
+       (FEATHERDOC_BUILD_PDF_IMPORT AND TARGET FeatherDocPdfImport))
+        target_sources(featherdoc_cli PRIVATE
+            cli/featherdoc_cli_pdf_parse.cpp)
+    endif()
     if(FEATHERDOC_BUILD_PDF AND TARGET FeatherDocPdf)
+        target_sources(featherdoc_cli PRIVATE
+            cli/featherdoc_cli_pdf_export_commands.cpp
+            cli/featherdoc_cli_pdf_export_output.cpp)
         target_compile_definitions(featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1)
         target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::Pdf)
     endif()
     if(FEATHERDOC_BUILD_PDF_IMPORT AND TARGET FeatherDocPdfImport)
+        target_sources(featherdoc_cli PRIVATE
+            cli/featherdoc_cli_pdf_import_commands.cpp
+            cli/featherdoc_cli_pdf_import_output.cpp)
         target_compile_definitions(
             featherdoc_cli PRIVATE FEATHERDOC_CLI_ENABLE_PDF_IMPORT=1)
         target_link_libraries(featherdoc_cli PRIVATE FeatherDoc::PdfImport)

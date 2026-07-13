@@ -1,5 +1,7 @@
 #include <featherdoc/pdf/pdf_text_shaper.hpp>
 
+#include "pdf_file_io.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <memory>
@@ -153,7 +155,7 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
     }
     if (!std::filesystem::exists(options.font_file_path)) {
         run.error_message = "Font path does not exist: " +
-                            options.font_file_path.string();
+                            detail::path_for_diagnostic(options.font_file_path);
         return run;
     }
     if (text.size() >
@@ -166,12 +168,20 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
     run.error_message = "PDF text shaping is not enabled";
     return run;
 #else
-    const auto font_path = options.font_file_path.string();
+    const auto font_data = detail::read_binary_file(options.font_file_path);
     HbPtr<hb_blob_t, HbBlobCloser> source_blob(
-        hb_blob_create_from_file_or_fail(font_path.c_str()));
+        font_data.empty() ||
+                font_data.size() >
+                    static_cast<std::size_t>(
+                        std::numeric_limits<unsigned int>::max())
+            ? nullptr
+            : hb_blob_create(
+                  reinterpret_cast<const char *>(font_data.data()),
+                  static_cast<unsigned int>(font_data.size()),
+                  HB_MEMORY_MODE_DUPLICATE, nullptr, nullptr));
     if (!source_blob) {
         run.error_message = "Unable to load font for shaping: " +
-                            options.font_file_path.string();
+                            detail::path_for_diagnostic(options.font_file_path);
         return run;
     }
 
@@ -179,21 +189,21 @@ PdfGlyphRun shape_pdf_text(std::string_view text,
         hb_face_create_or_fail(source_blob.get(), 0));
     if (!face) {
         run.error_message = "Unable to create HarfBuzz face: " +
-                            options.font_file_path.string();
+                            detail::path_for_diagnostic(options.font_file_path);
         return run;
     }
 
     const auto units_per_em = hb_face_get_upem(face.get());
     if (units_per_em == 0U) {
         run.error_message = "HarfBuzz face has zero units per em: " +
-                            options.font_file_path.string();
+                            detail::path_for_diagnostic(options.font_file_path);
         return run;
     }
 
     HbPtr<hb_font_t, HbFontCloser> font(hb_font_create(face.get()));
     if (!font) {
         run.error_message = "Unable to create HarfBuzz font: " +
-                            options.font_file_path.string();
+                            detail::path_for_diagnostic(options.font_file_path);
         return run;
     }
 

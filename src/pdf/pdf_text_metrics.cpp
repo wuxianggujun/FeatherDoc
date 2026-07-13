@@ -1,11 +1,14 @@
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
 
+#include "pdf_file_io.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -61,6 +64,7 @@ using FreeTypeFacePtr =
 
 struct FreeTypeMetrics {
     FreeTypeLibraryPtr library;
+    std::shared_ptr<detail::binary_file_buffer> font_data;
     FreeTypeFacePtr face;
 };
 
@@ -227,14 +231,24 @@ load_freetype_metrics(const std::filesystem::path &font_file_path) {
         return std::nullopt;
     }
 
+    auto font_data = std::make_shared<detail::binary_file_buffer>(
+        detail::read_binary_file(font_file_path));
+    if (font_data->empty() ||
+        font_data->size() >
+            static_cast<std::size_t>(std::numeric_limits<FT_Long>::max())) {
+        return std::nullopt;
+    }
+
     FT_Face face = nullptr;
-    const auto font_path = font_file_path.string();
-    if (FT_New_Face(library->library, font_path.c_str(), 0, &face) != 0 ||
+    if (FT_New_Memory_Face(
+            library->library, reinterpret_cast<const FT_Byte *>(font_data->data()),
+            static_cast<FT_Long>(font_data->size()), 0, &face) != 0 ||
         face == nullptr) {
         return std::nullopt;
     }
 
-    return FreeTypeMetrics{library, FreeTypeFacePtr(face)};
+    return FreeTypeMetrics{library, std::move(font_data),
+                           FreeTypeFacePtr(face)};
 }
 
 [[nodiscard]] const FreeTypeMetrics *

@@ -5,6 +5,38 @@ struct PdfioErrorState {
     std::string message;
 };
 
+struct PdfOutputStream {
+    std::ofstream stream;
+    bool write_failed{false};
+
+    explicit PdfOutputStream(const std::filesystem::path &path)
+        : stream(path, std::ios::binary | std::ios::trunc) {}
+};
+
+[[nodiscard]] bool has_only_ascii_bytes(std::string_view value) noexcept {
+    return std::all_of(value.begin(), value.end(), [](char byte) {
+        return static_cast<unsigned char>(byte) <= 0x7FU;
+    });
+}
+
+ssize_t pdfio_output_callback(void *data, const void *buffer,
+                              std::size_t byte_count) {
+    auto *output = static_cast<PdfOutputStream *>(data);
+    if (output == nullptr || buffer == nullptr ||
+        byte_count > static_cast<std::size_t>(
+                         std::numeric_limits<std::streamsize>::max())) {
+        return -1;
+    }
+
+    output->stream.write(static_cast<const char *>(buffer),
+                         static_cast<std::streamsize>(byte_count));
+    if (!output->stream) {
+        output->write_failed = true;
+        return -1;
+    }
+    return static_cast<ssize_t>(byte_count);
+}
+
 bool pdfio_error_callback(pdfio_file_t *, const char *message, void *data) {
     auto *state = static_cast<PdfioErrorState *>(data);
     if (state != nullptr && message != nullptr) {
@@ -88,6 +120,7 @@ using GlyphFontResources = std::map<FontResourceKey, GlyphFontResource>;
 
 struct FreeTypeFaceOwner {
     FT_Library library{nullptr};
+    detail::binary_file_buffer font_data;
     FT_Face face{nullptr};
 
     explicit FreeTypeFaceOwner(const std::filesystem::path &font_file_path) {
@@ -96,8 +129,14 @@ struct FreeTypeFaceOwner {
             return;
         }
 
-        const auto font_path = font_file_path.string();
-        if (FT_New_Face(library, font_path.c_str(), 0, &face) != 0) {
+        font_data = detail::read_binary_file(font_file_path);
+        if (font_data.empty() ||
+            font_data.size() >
+                static_cast<std::size_t>(
+                    std::numeric_limits<FT_Long>::max()) ||
+            FT_New_Memory_Face(
+                library, reinterpret_cast<const FT_Byte *>(font_data.data()),
+                static_cast<FT_Long>(font_data.size()), 0, &face) != 0) {
             face = nullptr;
         }
     }
@@ -242,13 +281,13 @@ needs_positioned_shaped_glyph_show(const PdfTextRun &text_run) noexcept {
 [[nodiscard]] std::string font_label(const FontResourceKey &key) {
     const std::string suffix = key.shaped_glyphs ? " shaped glyphs" : "";
     if (!key.file_path.empty()) {
-        return key.file_path.string() + suffix;
+        return detail::path_for_diagnostic(key.file_path) + suffix;
     }
     return base_font_family_name(key) + suffix;
 }
 
 [[nodiscard]] std::string image_label(const ImageResourceKey &key) {
-    return key.file_path.string();
+    return detail::path_for_diagnostic(key.file_path);
 }
 
 [[nodiscard]] std::uint32_t decode_utf8_codepoint(std::string_view text,
@@ -287,9 +326,14 @@ create_pdfio_font(pdfio_file_t *pdf, const FontResourceKey &key,
         (void)subset_unicode_fonts;
         (void)subset_storage;
 #endif
-        const auto font_path = key.file_path.string();
-        return pdfioFileCreateFontObjFromFile(pdf, font_path.c_str(),
-                                              key.unicode);
+        auto font_data = detail::read_binary_file(key.file_path);
+        if (font_data.empty()) {
+            return nullptr;
+        }
+        subset_storage.buffers.push_back(std::move(font_data));
+        const auto &stored_font_data = subset_storage.buffers.back();
+        return pdfioFileCreateFontObjFromData(
+            pdf, stored_font_data.data(), stored_font_data.size(), key.unicode);
     }
 
     const auto family = base_font_family_name(key);
@@ -415,15 +459,193 @@ void append_utf16be_hex_unit(std::string &output, std::uint16_t value) {
     return hex;
 }
 
-[[nodiscard]] std::vector<unsigned char>
-read_binary_file(const std::filesystem::path &path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return {};
+struct JpegImageInfo {
+    std::size_t width{0U};
+    std::size_t height{0U};
+    std::size_t color_components{0U};
+};
+
+[[nodiscard]] bool is_jpeg_start_of_frame(unsigned char marker) noexcept {
+    return (marker >= 0xC0U && marker <= 0xC3U) ||
+           (marker >= 0xC5U && marker <= 0xC7U) ||
+           (marker >= 0xC9U && marker <= 0xCBU) ||
+           (marker >= 0xCDU && marker <= 0xCFU);
+}
+
+[[nodiscard]] std::optional<JpegImageInfo>
+inspect_jpeg_image(const detail::binary_file_buffer &data) {
+    if (data.size() < 4U || data[0] != 0xFFU || data[1] != 0xD8U) {
+        return std::nullopt;
     }
 
-    return {std::istreambuf_iterator<char>(input),
-            std::istreambuf_iterator<char>()};
+    std::size_t offset = 2U;
+    while (offset < data.size()) {
+        while (offset < data.size() && data[offset] == 0xFFU) {
+            ++offset;
+        }
+        if (offset >= data.size()) {
+            return std::nullopt;
+        }
+
+        const auto marker = data[offset++];
+        if (marker == 0xD9U || marker == 0xDAU) {
+            break;
+        }
+        if (marker == 0x01U || (marker >= 0xD0U && marker <= 0xD8U)) {
+            continue;
+        }
+        if (offset + 2U > data.size()) {
+            return std::nullopt;
+        }
+
+        const std::size_t segment_size =
+            (static_cast<std::size_t>(data[offset]) << 8U) |
+            static_cast<std::size_t>(data[offset + 1U]);
+        if (segment_size < 2U || segment_size > data.size() - offset) {
+            return std::nullopt;
+        }
+
+        if (is_jpeg_start_of_frame(marker)) {
+            if (segment_size < 8U || data[offset + 2U] != 8U) {
+                return std::nullopt;
+            }
+            const auto height =
+                (static_cast<std::size_t>(data[offset + 3U]) << 8U) |
+                static_cast<std::size_t>(data[offset + 4U]);
+            const auto width =
+                (static_cast<std::size_t>(data[offset + 5U]) << 8U) |
+                static_cast<std::size_t>(data[offset + 6U]);
+            const auto color_components =
+                static_cast<std::size_t>(data[offset + 7U]);
+            if (width == 0U || height == 0U ||
+                (color_components != 1U && color_components != 3U &&
+                 color_components != 4U)) {
+                return std::nullopt;
+            }
+            return JpegImageInfo{width, height, color_components};
+        }
+
+        offset += segment_size;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] pdfio_obj_t *create_pdfio_jpeg_image(
+    pdfio_file_t *pdf, const detail::binary_file_buffer &data,
+    bool interpolate, std::string &error_message) {
+    const auto image_info = inspect_jpeg_image(data);
+    if (!image_info.has_value()) {
+        error_message = "Unable to inspect JPEG image data";
+        return nullptr;
+    }
+
+    auto *dict = pdfioDictCreate(pdf);
+    if (dict == nullptr) {
+        error_message = "Unable to create JPEG image dictionary";
+        return nullptr;
+    }
+    pdfioDictSetName(dict, "Type", "XObject");
+    pdfioDictSetName(dict, "Subtype", "Image");
+    pdfioDictSetBoolean(dict, "Interpolate", interpolate);
+    pdfioDictSetNumber(dict, "Width",
+                       static_cast<double>(image_info->width));
+    pdfioDictSetNumber(dict, "Height",
+                       static_cast<double>(image_info->height));
+    pdfioDictSetNumber(dict, "BitsPerComponent", 8.0);
+    pdfioDictSetName(dict, "Filter", "DCTDecode");
+    const auto color_space = image_info->color_components == 4U
+                                 ? PDFIO_CS_CGATS001
+                                 : PDFIO_CS_SRGB;
+    pdfioDictSetArray(
+        dict, "ColorSpace",
+        pdfioArrayCreateColorFromStandard(
+            pdf, image_info->color_components, color_space));
+
+    auto *object = pdfioFileCreateObj(pdf, dict);
+    if (object == nullptr) {
+        error_message = "Unable to create JPEG image object";
+        return nullptr;
+    }
+    std::unique_ptr<pdfio_stream_t, PdfioStreamCloser> stream(
+        pdfioObjCreateStream(object, PDFIO_FILTER_NONE));
+    if (!stream || !pdfioStreamWrite(stream.get(), data.data(), data.size()) ||
+        !pdfioStreamClose(stream.release())) {
+        error_message = "Unable to write JPEG image object";
+        return nullptr;
+    }
+    return object;
+}
+
+struct PngImageOwner {
+    png_image image{};
+
+    PngImageOwner() { image.version = PNG_IMAGE_VERSION; }
+    ~PngImageOwner() { png_image_free(&image); }
+};
+
+[[nodiscard]] pdfio_obj_t *create_pdfio_png_image(
+    pdfio_file_t *pdf, const detail::binary_file_buffer &data,
+    bool interpolate, std::string &error_message) {
+    PngImageOwner png;
+    if (!png_image_begin_read_from_memory(&png.image, data.data(),
+                                          data.size())) {
+        error_message = "Unable to decode PNG image header";
+        return nullptr;
+    }
+
+    png.image.format = PNG_FORMAT_RGBA;
+    const auto pixel_count = PNG_IMAGE_SIZE(png.image);
+    if (pixel_count == 0U) {
+        error_message = "Decoded PNG image is empty";
+        return nullptr;
+    }
+    detail::binary_file_buffer pixels(pixel_count);
+    if (!png_image_finish_read(&png.image, nullptr, pixels.data(), 0, nullptr)) {
+        error_message = "Unable to decode PNG image pixels";
+        return nullptr;
+    }
+
+    auto *object = pdfioFileCreateImageObjFromData(
+        pdf, pixels.data(), png.image.width, png.image.height, 3U, nullptr,
+        true, interpolate);
+    if (object == nullptr) {
+        error_message = "Unable to create PNG image object";
+    }
+    return object;
+}
+
+[[nodiscard]] pdfio_obj_t *create_pdfio_image_from_path(
+    pdfio_file_t *pdf, const std::filesystem::path &path, bool interpolate,
+    std::string &error_message) {
+    const auto utf8_path = detail::path_for_diagnostic(path);
+    if (has_only_ascii_bytes(utf8_path)) {
+        auto *image = pdfioFileCreateImageObjFromFile(
+            pdf, utf8_path.c_str(), interpolate);
+        if (image == nullptr) {
+            error_message = "Unable to create PDF image: " + utf8_path;
+        }
+        return image;
+    }
+
+    const auto data = detail::read_binary_file(path);
+    if (data.empty()) {
+        error_message = "Unable to read PDF image: " + utf8_path;
+        return nullptr;
+    }
+
+    constexpr unsigned char png_signature[] = {0x89U, 0x50U, 0x4EU, 0x47U,
+                                                0x0DU, 0x0AU, 0x1AU, 0x0AU};
+    if (data.size() >= sizeof(png_signature) &&
+        std::equal(std::begin(png_signature), std::end(png_signature),
+                   data.begin())) {
+        return create_pdfio_png_image(pdf, data, interpolate, error_message);
+    }
+    if (data.size() >= 2U && data[0] == 0xFFU && data[1] == 0xD8U) {
+        return create_pdfio_jpeg_image(pdf, data, interpolate, error_message);
+    }
+
+    error_message = "Unsupported PDF image format: " + utf8_path;
+    return nullptr;
 }
 
 [[nodiscard]] double font_unit_to_1000(FT_Face face, FT_Pos value) noexcept {

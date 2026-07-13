@@ -1,5 +1,8 @@
 #include <featherdoc/pdf/pdf_font_subset.hpp>
 
+#include "pdf_file_io.hpp"
+
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -59,12 +62,20 @@ subset_font_file_for_codepoints(const std::filesystem::path &font_file_path,
         return result;
     }
 
-    const auto font_path = font_file_path.string();
+    const auto font_data = detail::read_binary_file(font_file_path);
     HbPtr<hb_blob_t, HbBlobCloser> source_blob(
-        hb_blob_create_from_file_or_fail(font_path.c_str()));
+        font_data.empty() ||
+                font_data.size() >
+                    static_cast<std::size_t>(
+                        std::numeric_limits<unsigned int>::max())
+            ? nullptr
+            : hb_blob_create(
+                  reinterpret_cast<const char *>(font_data.data()),
+                  static_cast<unsigned int>(font_data.size()),
+                  HB_MEMORY_MODE_DUPLICATE, nullptr, nullptr));
     if (!source_blob) {
         result.error_message = "Unable to load font for subsetting: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 
@@ -72,7 +83,7 @@ subset_font_file_for_codepoints(const std::filesystem::path &font_file_path,
         hb_face_create_or_fail(source_blob.get(), 0));
     if (!source_face) {
         result.error_message = "Unable to create HarfBuzz face: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 
@@ -97,7 +108,7 @@ subset_font_file_for_codepoints(const std::filesystem::path &font_file_path,
         hb_subset_or_fail(source_face.get(), input.get()));
     if (!subset_face) {
         result.error_message = "HarfBuzz font subset failed: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 
@@ -140,12 +151,20 @@ subset_font_file_for_glyph_ids(const std::filesystem::path &font_file_path,
         return result;
     }
 
-    const auto font_path = font_file_path.string();
+    const auto font_data = detail::read_binary_file(font_file_path);
     HbPtr<hb_blob_t, HbBlobCloser> source_blob(
-        hb_blob_create_from_file_or_fail(font_path.c_str()));
+        font_data.empty() ||
+                font_data.size() >
+                    static_cast<std::size_t>(
+                        std::numeric_limits<unsigned int>::max())
+            ? nullptr
+            : hb_blob_create(
+                  reinterpret_cast<const char *>(font_data.data()),
+                  static_cast<unsigned int>(font_data.size()),
+                  HB_MEMORY_MODE_DUPLICATE, nullptr, nullptr));
     if (!source_blob) {
         result.error_message = "Unable to load font for subsetting: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 
@@ -153,7 +172,7 @@ subset_font_file_for_glyph_ids(const std::filesystem::path &font_file_path,
         hb_face_create_or_fail(source_blob.get(), 0));
     if (!source_face) {
         result.error_message = "Unable to create HarfBuzz face: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 
@@ -177,7 +196,7 @@ subset_font_file_for_glyph_ids(const std::filesystem::path &font_file_path,
         hb_subset_or_fail(source_face.get(), input.get()));
     if (!subset_face) {
         result.error_message = "HarfBuzz font subset failed: " +
-                               font_file_path.string();
+                               detail::path_for_diagnostic(font_file_path);
         return result;
     }
 

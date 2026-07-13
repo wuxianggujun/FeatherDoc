@@ -14,6 +14,7 @@ TEST_CASE("cli print_usage includes core command families") {
     CHECK_NE(text.find("Usage:\n"), std::string::npos);
     CHECK_NE(text.find("featherdoc_cli run-recipe --recipe <recipe.json>"),
              std::string::npos);
+#if defined(FEATHERDOC_CLI_ENABLE_PDF)
     CHECK_NE(text.find("featherdoc_cli export-pdf <input.docx>"),
              std::string::npos);
     CHECK_NE(text.find("--render-headers-and-footers"), std::string::npos);
@@ -26,6 +27,10 @@ TEST_CASE("cli print_usage includes core command families") {
     CHECK_NE(text.find("--no-font-subset"), std::string::npos);
     CHECK_NE(text.find("--no-system-font-fallbacks"), std::string::npos);
     CHECK_NE(text.find("--summary-json <path>"), std::string::npos);
+#else
+    CHECK_EQ(text.find("featherdoc_cli export-pdf <input.docx>"),
+             std::string::npos);
+#endif
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
     CHECK_NE(text.find("featherdoc_cli import-pdf <input.pdf> --output "
                        "<output.docx>"),

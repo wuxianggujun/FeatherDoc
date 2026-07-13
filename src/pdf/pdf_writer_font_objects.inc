@@ -52,10 +52,10 @@ create_stream_object_from_text(pdfio_file_t *pdf, pdfio_dict_t *dict,
 [[nodiscard]] pdfio_obj_t *
 create_font_file_object(pdfio_file_t *pdf, const FontResourceKey &key,
                         std::string &error_message) {
-    auto font_data = read_binary_file(key.file_path);
+    auto font_data = detail::read_binary_file(key.file_path);
     if (font_data.empty()) {
         error_message = "Unable to read PDF glyph font file: " +
-                        key.file_path.string();
+                        detail::path_for_diagnostic(key.file_path);
         return nullptr;
     }
 
@@ -193,7 +193,8 @@ create_shaped_glyph_font(pdfio_file_t *pdf, const FontResourceKey &key,
     FreeTypeFaceOwner face_owner(key.file_path);
     if (!face_owner.valid()) {
         error_message =
-            "Unable to load shaped PDF glyph font: " + key.file_path.string();
+            "Unable to load shaped PDF glyph font: " +
+            detail::path_for_diagnostic(key.file_path);
         return nullptr;
     }
 

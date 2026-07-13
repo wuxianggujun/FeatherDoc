@@ -830,6 +830,12 @@ featherdoc_add_cpp_test(
     ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_usage_table.cpp
 )
 target_include_directories(cli_usage_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+if(TARGET FeatherDocPdf)
+    target_compile_definitions(
+        cli_usage_tests
+        PRIVATE FEATHERDOC_CLI_ENABLE_PDF=1
+    )
+endif()
 if(TARGET FeatherDocPdfImport)
     target_compile_definitions(
         cli_usage_tests

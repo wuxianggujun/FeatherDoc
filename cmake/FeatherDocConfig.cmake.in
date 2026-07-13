@@ -7,6 +7,14 @@ set_and_check(FeatherDoc_PACKAGE_DATA_DIR "@PACKAGE_FEATHERDOC_INSTALL_DATADIR@"
 set(FeatherDoc_WITH_PDF "@FEATHERDOC_INSTALLS_PDF@")
 set(FeatherDoc_WITH_PDF_IMPORT "@FEATHERDOC_INSTALLS_PDF_IMPORT@")
 
+# Supported package components. Core and Word are equivalent names for the
+# DOCX library; Pdf and PdfImport are reported only when their targets were
+# exported by the installed package.
+set(FeatherDoc_Core_FOUND TRUE)
+set(FeatherDoc_Word_FOUND TRUE)
+set(FeatherDoc_Pdf_FOUND FALSE)
+set(FeatherDoc_PdfImport_FOUND FALSE)
+
 if(FeatherDoc_WITH_PDF_IMPORT)
     include(CMakeFindDependencyMacro)
     # Installed packages only need an external PDFium package when the import
@@ -15,5 +23,26 @@ if(FeatherDoc_WITH_PDF_IMPORT)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/FeatherDocTargets.cmake")
+
+if(TARGET FeatherDoc::FeatherDoc)
+    if(NOT TARGET FeatherDoc::Core)
+        add_library(FeatherDoc::Core INTERFACE IMPORTED)
+        set_property(TARGET FeatherDoc::Core PROPERTY
+            INTERFACE_LINK_LIBRARIES FeatherDoc::FeatherDoc)
+    endif()
+    if(NOT TARGET FeatherDoc::Word)
+        add_library(FeatherDoc::Word INTERFACE IMPORTED)
+        set_property(TARGET FeatherDoc::Word PROPERTY
+            INTERFACE_LINK_LIBRARIES FeatherDoc::FeatherDoc)
+    endif()
+endif()
+
+if(TARGET FeatherDoc::Pdf)
+    set(FeatherDoc_Pdf_FOUND TRUE)
+endif()
+
+if(TARGET FeatherDoc::PdfImport)
+    set(FeatherDoc_PdfImport_FOUND TRUE)
+endif()
 
 check_required_components(FeatherDoc)

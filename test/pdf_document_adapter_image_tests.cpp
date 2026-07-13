@@ -528,6 +528,83 @@ TEST_CASE("PDF writer accepts inline image layout blocks") {
 #endif
 }
 
+TEST_CASE("PDF writer supports Unicode output image and font paths") {
+    const auto unicode_directory =
+        std::filesystem::current_path() /
+        path_from_u8(u8"pdf-中文-日本語-🙂");
+    std::error_code error;
+    std::filesystem::remove_all(unicode_directory, error);
+    error.clear();
+    std::filesystem::create_directories(unicode_directory, error);
+    REQUIRE_FALSE(error);
+
+    const auto image_path =
+        unicode_directory / path_from_u8(u8"图片-🙂.png");
+    const auto output_path =
+        unicode_directory / path_from_u8(u8"输出-文档-🙂.pdf");
+    write_binary_file(image_path, tiny_png_data());
+
+    featherdoc::pdf::PdfTextRun text_run{
+        featherdoc::pdf::PdfPoint{72.0, 620.0},
+        "Unicode path PDF text",
+        "Helvetica",
+        {},
+        12.0,
+        featherdoc::pdf::PdfRgbColor{0.0, 0.0, 0.0},
+        false,
+        false,
+        false,
+        false,
+    };
+
+    const auto source_font = first_existing_path(candidate_latin_fonts());
+    if (!source_font.empty()) {
+        const auto copied_font =
+            unicode_directory / path_from_u8(u8"字体-🙂.ttf");
+        std::filesystem::copy_file(
+            source_font, copied_font,
+            std::filesystem::copy_options::overwrite_existing, error);
+        REQUIRE_FALSE(error);
+        text_run.font_family = "Unicode Path Test Font";
+        text_run.font_file_path = copied_font;
+    }
+
+    featherdoc::pdf::PdfDocumentLayout layout;
+    layout.metadata.title = utf8_from_u8(u8"中文路径 PDF 测试");
+    layout.metadata.creator = "FeatherDoc tests";
+
+    featherdoc::pdf::PdfPageLayout page;
+    page.images.push_back(featherdoc::pdf::PdfImage{
+        featherdoc::pdf::PdfRect{72.0, 640.0, 24.0, 24.0},
+        image_path,
+        "image/png",
+        utf8_from_u8(u8"中文图片"),
+        true,
+        false,
+    });
+    page.text_runs.push_back(std::move(text_run));
+    layout.pages.push_back(std::move(page));
+
+    featherdoc::pdf::PdfioGenerator generator;
+    const auto write_result = generator.write(
+        layout, output_path, featherdoc::pdf::PdfWriterOptions{});
+    REQUIRE_MESSAGE(write_result.success, write_result.error_message);
+    CHECK_GT(write_result.bytes_written, 0U);
+    REQUIRE(std::filesystem::exists(output_path));
+
+    const auto pdf_bytes = read_binary_file(output_path);
+    CHECK_EQ(pdf_bytes.substr(0U, 5U), "%PDF-");
+    CHECK_NE(pdf_bytes.find("/Subtype/Image"), std::string::npos);
+
+#if defined(FEATHERDOC_BUILD_PDF_IMPORT)
+    featherdoc::pdf::PdfiumParser parser;
+    const auto parse_result = parser.parse(output_path, {});
+    REQUIRE_MESSAGE(parse_result.success, parse_result.error_message);
+    CHECK_NE(collect_text(parse_result.document).find("Unicode path PDF text"),
+             std::string::npos);
+#endif
+}
+
 TEST_CASE("PDF writer draws foreground images after text") {
     const auto image_path = std::filesystem::current_path() /
                             "featherdoc-writer-foreground-image.png";

@@ -64,6 +64,7 @@ if(TARGET FeatherDocPdf)
         )
     endif()
     featherdoc_set_test_labels(pdf_document_adapter_font core smoke pdf)
+    set_tests_properties(pdf_document_adapter_font PROPERTIES TIMEOUT 120)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_document_adapter_font PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
@@ -111,6 +112,9 @@ if(TARGET FeatherDocPdf)
             )
         endif()
         featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)
+        # This integration executable launches the CLI repeatedly and can
+        # exceed two minutes in Windows Debug builds with real font fallback.
+        set_tests_properties(pdf_cli_export PROPERTIES TIMEOUT 180)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_export PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")

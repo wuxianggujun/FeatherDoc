@@ -4,6 +4,8 @@
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
 #include <featherdoc/pdf/pdf_writer.hpp>
 
+#include "pdf_file_io.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -14,6 +16,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -23,6 +26,8 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include <png.h>
 
 extern "C" {
 #include <pdfio-content.h>
@@ -107,14 +112,28 @@ PdfWriteResult write_pdfio_document(const std::filesystem::path &output_path,
         }
     }
 
-    const auto output_string = output_path.string();
     const PdfPageSize first_page_size = layout.pages.front().size;
     pdfio_rect_t media_box{0.0, 0.0, first_page_size.width_points,
                            first_page_size.height_points};
 
-    std::unique_ptr<pdfio_file_t, PdfioFileCloser> pdf(
-        pdfioFileCreate(output_string.c_str(), "1.7", &media_box, &media_box,
-                        pdfio_error_callback, &error_state));
+    const auto utf8_output_path = detail::path_for_diagnostic(output_path);
+    std::optional<PdfOutputStream> output_stream;
+    std::unique_ptr<pdfio_file_t, PdfioFileCloser> pdf;
+    if (has_only_ascii_bytes(utf8_output_path)) {
+        pdf.reset(pdfioFileCreate(utf8_output_path.c_str(), "1.7", &media_box,
+                                  &media_box, pdfio_error_callback,
+                                  &error_state));
+    } else {
+        output_stream.emplace(output_path);
+        if (!output_stream->stream) {
+            result.error_message =
+                "Unable to create PDF file: " + utf8_output_path;
+            return result;
+        }
+        pdf.reset(pdfioFileCreateOutput(
+            pdfio_output_callback, &*output_stream, "1.7", &media_box,
+            &media_box, pdfio_error_callback, &error_state));
+    }
     if (!pdf) {
         result.error_message =
             build_error("Unable to create PDF file", error_state);
@@ -144,6 +163,21 @@ PdfWriteResult write_pdfio_document(const std::filesystem::path &output_path,
         result.error_message =
             build_error("Unable to close PDF file", error_state);
         return result;
+    }
+
+    if (output_stream.has_value()) {
+        output_stream->stream.flush();
+        if (!output_stream->stream || output_stream->write_failed) {
+            result.error_message =
+                "Unable to finalize PDF file: " + utf8_output_path;
+            return result;
+        }
+        output_stream->stream.close();
+        if (output_stream->stream.fail()) {
+            result.error_message =
+                "Unable to close PDF output: " + utf8_output_path;
+            return result;
+        }
     }
 
     result.success = true;

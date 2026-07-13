@@ -14,6 +14,7 @@ void print_usage(std::ostream &stream) {
            " --output <repaired.docx> [--json]\n"
         << "  featherdoc_cli run-recipe --recipe <recipe.json>"
            " --inputs <inputs.json> --output <output-dir> [--json]\n"
+#if defined(FEATHERDOC_CLI_ENABLE_PDF)
         << "  featherdoc_cli export-pdf <input.docx> --output <output.pdf>"
            " [--render-headers-and-footers] [--render-inline-images]"
            " [--expand-header-footer-page-placeholders]"
@@ -22,6 +23,7 @@ void print_usage(std::ostream &stream) {
            " [--title <text>] [--creator <text>] [--no-font-subset]"
            " [--no-system-font-fallbacks]"
            " [--summary-json <path>] [--json]\n"
+#endif
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
         << "  featherdoc_cli import-pdf <input.pdf> --output <output.docx>"
            " [--import-table-candidates-as-tables]"

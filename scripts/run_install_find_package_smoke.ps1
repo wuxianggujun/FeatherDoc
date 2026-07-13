@@ -41,6 +41,9 @@ $resolvedBuildDir = (Resolve-RepoPath $BuildDir)
 $resolvedInstallDir = (Resolve-RepoPath $InstallDir)
 $resolvedConsumerSourceDir = (Resolve-RepoPath $ConsumerSourceDir)
 $resolvedConsumerBuildDir = (Resolve-RepoPath $ConsumerBuildDir)
+$missingPdfConsumerSourceDir =
+    (Resolve-RepoPath "test/install_find_package_missing_pdf")
+$missingPdfConsumerBuildDir = "$resolvedConsumerBuildDir-missing-pdf"
 
 if (-not (Test-Path -LiteralPath $resolvedBuildDir)) {
     throw "Build directory does not exist: $resolvedBuildDir"
@@ -82,6 +85,29 @@ $buildArguments = @(
 
 Invoke-Checked $buildArguments
 
+if (Test-Path -LiteralPath $missingPdfConsumerBuildDir) {
+    Remove-Item -LiteralPath $missingPdfConsumerBuildDir -Recurse -Force
+}
+
+$missingPdfConfigureArguments = @(
+    "cmake",
+    "-S",
+    $missingPdfConsumerSourceDir,
+    "-B",
+    $missingPdfConsumerBuildDir,
+    "-DCMAKE_PREFIX_PATH=$resolvedInstallDir",
+    "-DCMAKE_BUILD_TYPE=$Config"
+)
+if ($Generator) {
+    $missingPdfConfigureArguments += @("-G", $Generator)
+}
+
+& $missingPdfConfigureArguments[0] `
+    $missingPdfConfigureArguments[1..($missingPdfConfigureArguments.Length - 1)]
+if ($LASTEXITCODE -eq 0) {
+    throw "Core-only package unexpectedly satisfied the Pdf component."
+}
+
 $candidateExecutablePaths = @(
     (Join-Path $resolvedConsumerBuildDir "featherdoc_install_smoke.exe"),
     (Join-Path (Join-Path $resolvedConsumerBuildDir $Config) "featherdoc_install_smoke.exe")
@@ -94,7 +120,13 @@ if (-not $consumerExecutable) {
     throw "Consumer executable was not produced under $resolvedConsumerBuildDir"
 }
 
-$outputDocx = Join-Path $resolvedConsumerBuildDir "featherdoc-install-smoke.docx"
+$unicodeOutputName =
+    "FeatherDoc-" +
+    [char]0x4E2D + [char]0x6587 + "-" +
+    [char]0x65E5 + [char]0x672C + [char]0x8A9E + "-" +
+    [char]::ConvertFromUtf32(0x1F642) +
+    ".docx"
+$outputDocx = Join-Path $resolvedConsumerBuildDir $unicodeOutputName
 $installBinDir = Join-Path $resolvedInstallDir "bin"
 
 $originalPath = $env:PATH
@@ -116,5 +148,6 @@ if (-not (Test-Path -LiteralPath $outputDocx)) {
 }
 
 Write-Host "Install + find_package smoke test passed."
+Write-Host "Unavailable Pdf component was rejected as expected."
 Write-Host "Install prefix: $resolvedInstallDir"
 Write-Host "Consumer document: $outputDocx"

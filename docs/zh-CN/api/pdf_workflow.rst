@@ -27,6 +27,20 @@ PDF 支持仍是实验性、显式开启的能力。本页是 ``export-pdf`` 和
 
    cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON
 
+模块与发布边界
+--------------
+
+PDF 目前保留在 FeatherDoc 同一仓库中，但已通过独立的 ``FeatherDoc::Pdf``、
+``FeatherDoc::PdfImport`` target、条件编译的 CLI 源码和独立依赖提供器与 Word/Core
+隔离。默认构建不会下载或编译 PDFio、FreeType、HarfBuzz、PNG 或 PDFium，也不会
+注册 PDF CLI 命令。
+
+当前安装包只承诺 ``Core`` / ``Word`` 组件；PDF writer 的静态依赖尚未形成可迁移的
+安装导出前，构建树中的 ``FeatherDoc::Pdf`` 不会伪装成已发布组件。外部消费方请求
+``find_package(FeatherDoc REQUIRED COMPONENTS Pdf)`` 时会明确失败。这个边界允许继续
+在同仓库复用文档模型和端到端测试，未来若 PDF 的发布节奏、ABI 或依赖治理需要独立，
+可以再把该 target 迁出，而无需先拆分仓库。
+
 PDF 导出
 --------
 
@@ -90,9 +104,12 @@ LICENSE / NOTICE、Reserved Font Name 义务和打包审计证据。
      "command": "export-pdf",
      "ok": false,
      "stage": "export",
-     "message": "Operation not supported",
-     "detail": "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"
+     "message": "failed to write PDF output",
+     "detail": "Unable to create PDF file: output.pdf"
    }
+
+未启用 PDF writer 时，``export-pdf`` 不会注册，也不会出现在 CLI 帮助中。
+配置构建时启用 ``FEATHERDOC_BUILD_PDF`` 才会加入该命令。
 
 当前导出失败阶段包括 ``"stage": "parse"``、``"stage": "open"``、
 ``"stage": "export"`` 和 ``"stage": "summary"``。

@@ -12,7 +12,10 @@
 #include "featherdoc_cli_page_setup_commands.hpp"
 #include "featherdoc_cli_package_commands.hpp"
 #include "featherdoc_cli_paragraph_inspect_commands.hpp"
+#if defined(FEATHERDOC_CLI_ENABLE_PDF) ||                                      \
+    defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
 #include "featherdoc_cli_pdf_commands.hpp"
+#endif
 #include "featherdoc_cli_review_commands.hpp"
 #include "featherdoc_cli_run_recipe_commands.hpp"
 #include "featherdoc_cli_section_part_commands.hpp"
@@ -45,9 +48,11 @@ auto run_featherdoc_cli_command(
         return run_package_command(command, arguments, doc);
     }
 
+#if defined(FEATHERDOC_CLI_ENABLE_PDF)
     if (command == "export-pdf") {
         return run_export_pdf_command(command, arguments, doc);
     }
+#endif
 
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
     if (command == "import-pdf") {

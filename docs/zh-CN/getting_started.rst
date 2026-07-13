@@ -18,6 +18,17 @@
 PDF 支持仍是实验性、显式开启的能力。只有在需要 PDF 工作流页面和 CLI 入口时，
 才构建 ``FEATHERDOC_BUILD_PDF`` 和 ``FEATHERDOC_BUILD_PDF_IMPORT``。
 
+安装后的 CMake 消费方应显式请求 Word/Core 组件：
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Core)
+
+``Word`` 是 ``Core`` 的等价组件名。当前发布安装包不会导出实验性的 PDF writer；
+请求尚未安装的 ``Pdf`` 或 ``PdfImport`` 组件会在配置阶段明确失败，不会出现只有
+头文件却没有可链接实现的假可用状态。
+
 最小 C++ 用法
 -------------
 
