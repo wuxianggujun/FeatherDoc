@@ -191,11 +191,18 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocSamples.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCli.cmake")
 
-# PDF writer builds can use bundled PDFio/libpng helper targets that are not
-# exported as part of the public package yet. Keep install exports free of the
-# experimental writer until the dependency story is package-safe.
+# Export the PDF writer only when every static dependency has a discoverable
+# package target. Bundled/fallback dependencies remain valid for build-tree
+# development but must not create a non-relocatable installed component.
 set(FEATHERDOC_INSTALLS_PDF OFF)
 set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
+if(FEATHERDOC_BUILD_PDF AND FEATHERDOC_PDF_WRITER_PACKAGES_AVAILABLE)
+    set(FEATHERDOC_INSTALLS_PDF ON)
+elseif(FEATHERDOC_BUILD_PDF)
+    message(STATUS
+        "FeatherDoc::Pdf is buildable but will not be installed because "
+        "its package dependencies are not externally discoverable.")
+endif()
 if(FEATHERDOC_BUILD_PDF_IMPORT AND
    DEFINED FEATHERDOC_RESOLVED_PDFIUM_PROVIDER AND
    FEATHERDOC_RESOLVED_PDFIUM_PROVIDER STREQUAL "package")

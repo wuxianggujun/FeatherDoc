@@ -15,7 +15,27 @@ set(FeatherDoc_Word_FOUND TRUE)
 set(FeatherDoc_Pdf_FOUND FALSE)
 set(FeatherDoc_PdfImport_FOUND FALSE)
 
-if(FeatherDoc_WITH_PDF_IMPORT)
+set(_FeatherDoc_FIND_PDF_DEPENDENCIES FALSE)
+if("Pdf" IN_LIST FeatherDoc_FIND_COMPONENTS)
+    set(_FeatherDoc_FIND_PDF_DEPENDENCIES TRUE)
+endif()
+
+if(FeatherDoc_WITH_PDF AND _FeatherDoc_FIND_PDF_DEPENDENCIES)
+    include(CMakeFindDependencyMacro)
+    find_dependency(Freetype)
+    find_dependency(ZLIB)
+    find_dependency(PNG)
+    if("@FEATHERDOC_PDF_WITH_HARFBUZZ@")
+        find_dependency(harfbuzz CONFIG)
+    endif()
+endif()
+
+set(_FeatherDoc_FIND_PDF_IMPORT_DEPENDENCIES FALSE)
+if("PdfImport" IN_LIST FeatherDoc_FIND_COMPONENTS)
+    set(_FeatherDoc_FIND_PDF_IMPORT_DEPENDENCIES TRUE)
+endif()
+
+if(FeatherDoc_WITH_PDF_IMPORT AND _FeatherDoc_FIND_PDF_IMPORT_DEPENDENCIES)
     include(CMakeFindDependencyMacro)
     # Installed packages only need an external PDFium package when the import
     # target was exported. Source builds are resolved before installation.
@@ -46,3 +66,6 @@ if(TARGET FeatherDoc::PdfImport)
 endif()
 
 check_required_components(FeatherDoc)
+
+unset(_FeatherDoc_FIND_PDF_DEPENDENCIES)
+unset(_FeatherDoc_FIND_PDF_IMPORT_DEPENDENCIES)

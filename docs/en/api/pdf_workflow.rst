@@ -37,14 +37,23 @@ conditional CLI sources, and dedicated dependency providers. A default build
 does not download or compile PDFio, FreeType, HarfBuzz, PNG, or PDFium and does
 not register PDF CLI commands.
 
-Current installs promise only the ``Core`` / ``Word`` components. Until the
-PDF writer's static dependencies have a relocatable export contract, the
-build-tree ``FeatherDoc::Pdf`` target is not presented as an installed
-component. An external
-``find_package(FeatherDoc REQUIRED COMPONENTS Pdf)`` request therefore fails
-explicitly. This boundary keeps document-model reuse and end-to-end tests in
-one repository while leaving a future target extraction possible if PDF needs
-an independent release cadence, ABI, or dependency policy.
+The install exports the ``Pdf`` component when the writer's FreeType, ZLIB,
+PNG, and enabled HarfBuzz dependencies are discoverable CMake package targets.
+Consumers request and link it explicitly:
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+Dependency discovery runs only when ``Pdf`` is requested; ``Core`` / ``Word``
+consumers do not acquire PDF dependencies. A writer built with repository
+fallback dependencies remains build-tree-only and is not presented as an
+installed component. ``PdfImport`` is likewise installable only when PDFium
+comes from a discoverable package. This boundary keeps document-model reuse
+and end-to-end tests in one repository while leaving target extraction
+possible if PDF needs an independent release cadence, ABI, or dependency
+policy later.
 
 PDF Export
 ----------

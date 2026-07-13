@@ -8,6 +8,21 @@ performance.
 
 ## [Unreleased]
 
+### Added
+
+- Added a relocatable installed `Pdf` CMake component when FreeType, ZLIB,
+  PNG, and enabled HarfBuzz support come from discoverable packages, including
+  an external-consumer smoke test that writes to a Unicode Windows path.
+
+### Changed
+
+- Isolated optional PDF targets, headers, CLI sources, and dependencies from
+  the default Word/Core package. Core-only consumers do not discover PDF
+  dependencies even when the installed package also contains `Pdf`.
+- Removed machine-specific vcpkg paths and cross-triplet dependency scanning
+  from PDF configuration. Build-tree fallback dependencies no longer make the
+  PDF writer appear as an installable component.
+
 ## [1.13.0] - 2026-07-12
 
 ### Breaking Changes

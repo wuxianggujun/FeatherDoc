@@ -35,11 +35,20 @@ PDF 目前保留在 FeatherDoc 同一仓库中，但已通过独立的 ``Feather
 隔离。默认构建不会下载或编译 PDFio、FreeType、HarfBuzz、PNG 或 PDFium，也不会
 注册 PDF CLI 命令。
 
-当前安装包只承诺 ``Core`` / ``Word`` 组件；PDF writer 的静态依赖尚未形成可迁移的
-安装导出前，构建树中的 ``FeatherDoc::Pdf`` 不会伪装成已发布组件。外部消费方请求
-``find_package(FeatherDoc REQUIRED COMPONENTS Pdf)`` 时会明确失败。这个边界允许继续
-在同仓库复用文档模型和端到端测试，未来若 PDF 的发布节奏、ABI 或依赖治理需要独立，
-可以再把该 target 迁出，而无需先拆分仓库。
+当 PDF writer 的 FreeType、ZLIB、PNG 与启用的 HarfBuzz 都是可发现的 CMake package
+target 时，安装包会导出 ``Pdf`` 组件；消费方显式请求并链接它：
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+依赖查找只在请求 ``Pdf`` 时发生，只消费 ``Core`` / ``Word`` 不会引入 PDF 依赖。
+如果 writer 使用仓库内 fallback 依赖构建，它仍只在构建树可用，安装包不会伪装成
+已发布组件，外部消费方请求 ``Pdf`` 时会明确失败。``PdfImport`` 也只有在 PDFium
+来自可发现 package 时才允许安装。这个边界允许继续在同仓库复用文档模型和端到端
+测试；未来若 PDF 的发布节奏、ABI 或依赖治理需要独立，可以再迁出 target，无需现在
+拆分仓库。
 
 PDF 导出
 --------

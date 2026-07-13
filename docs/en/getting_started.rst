@@ -26,10 +26,21 @@ Installed CMake consumers should request the Word/Core component explicitly:
    find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core)
    target_link_libraries(my_app PRIVATE FeatherDoc::Core)
 
-``Word`` is an equivalent component name for ``Core``. Current release
-installs do not export the experimental PDF writer. Requesting an unavailable
-``Pdf`` or ``PdfImport`` component fails during configuration instead of
-presenting headers without a linkable implementation.
+``Word`` is an equivalent component name for ``Core``. When the PDF writer is
+enabled and FreeType, ZLIB, PNG, plus optional HarfBuzz all come from
+discoverable CMake packages, the install also exports the ``Pdf`` component:
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+Consume ``Pdf`` with the same dependency environment or toolchain used to
+build FeatherDoc. Requesting only ``Core`` / ``Word`` does not discover any PDF
+dependencies. A writer built with repository fallback dependencies remains
+build-tree-only. Requesting an unavailable ``Pdf`` or ``PdfImport`` component
+fails during configuration instead of presenting headers without a linkable
+implementation.
 
 Minimal C++ Usage
 -----------------

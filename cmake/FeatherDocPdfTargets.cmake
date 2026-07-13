@@ -3,16 +3,23 @@
 # from obscuring the DOCX core build graph in the top-level project file.
 include_guard(GLOBAL)
 
+set(FEATHERDOC_PDF_WRITER_PACKAGES_AVAILABLE FALSE)
+set(FEATHERDOC_PDF_WITH_HARFBUZZ FALSE)
+
 if(FEATHERDOC_BUILD_PDF)
     include("${CMAKE_CURRENT_LIST_DIR}/FeatherDocPdfio.cmake")
     include("${CMAKE_CURRENT_LIST_DIR}/FeatherDocPdfThirdParty.cmake")
+    featherdoc_find_pdf_writer_packages(
+        FEATHERDOC_PDF_BASE_PACKAGES_AVAILABLE
+        FEATHERDOC_PDF_HARFBUZZ_PACKAGE_AVAILABLE)
     featherdoc_add_pdfio_object_library(featherdoc_pdfio_objects)
     featherdoc_add_freetype_target()
     featherdoc_add_png_target(featherdoc_png)
     featherdoc_add_harfbuzz_targets()
 
     target_compile_definitions(featherdoc_pdfio_objects PRIVATE HAVE_LIBPNG=1)
-    target_link_libraries(featherdoc_pdfio_objects PRIVATE PNG::PNG zlibstatic)
+    target_link_libraries(
+        featherdoc_pdfio_objects PRIVATE PNG::PNG ZLIB::ZLIB)
 
     add_library(FeatherDocPdf
         "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter.cpp"
@@ -58,11 +65,13 @@ if(FEATHERDOC_BUILD_PDF)
     target_link_libraries(FeatherDocPdf
         PUBLIC
             FeatherDoc::Core
+        PRIVATE
             Freetype::Freetype
             PNG::PNG
-            zlibstatic
+            ZLIB::ZLIB
     )
     if(FEATHERDOC_HARFBUZZ_SUBSET_AVAILABLE)
+        set(FEATHERDOC_PDF_WITH_HARFBUZZ TRUE)
         target_compile_definitions(FeatherDocPdf
             PRIVATE
                 FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1
@@ -71,6 +80,12 @@ if(FEATHERDOC_BUILD_PDF)
             PRIVATE
                 harfbuzz::harfbuzz
                 harfbuzz::harfbuzz-subset)
+    endif()
+
+    if(FEATHERDOC_PDF_BASE_PACKAGES_AVAILABLE AND
+       (NOT FEATHERDOC_PDF_WITH_HARFBUZZ OR
+        FEATHERDOC_PDF_HARFBUZZ_PACKAGE_AVAILABLE))
+        set(FEATHERDOC_PDF_WRITER_PACKAGES_AVAILABLE TRUE)
     endif()
 
     if(MSVC)

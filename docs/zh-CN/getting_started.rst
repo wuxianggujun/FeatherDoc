@@ -25,9 +25,18 @@ PDF 支持仍是实验性、显式开启的能力。只有在需要 PDF 工作�
    find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core)
    target_link_libraries(my_app PRIVATE FeatherDoc::Core)
 
-``Word`` 是 ``Core`` 的等价组件名。当前发布安装包不会导出实验性的 PDF writer；
-请求尚未安装的 ``Pdf`` 或 ``PdfImport`` 组件会在配置阶段明确失败，不会出现只有
-头文件却没有可链接实现的假可用状态。
+``Word`` 是 ``Core`` 的等价组件名。启用 PDF writer 且 FreeType、ZLIB、PNG 与可选的
+HarfBuzz 都来自可发现的 CMake package 时，安装包还会导出 ``Pdf`` 组件：
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+消费 ``Pdf`` 时应使用与 FeatherDoc 构建时一致的依赖环境或 toolchain。只请求
+``Core`` / ``Word`` 不会查找任何 PDF 依赖。使用仓库内 fallback 依赖构建时，PDF
+writer 仍只在构建树可用；请求未安装的 ``Pdf`` 或 ``PdfImport`` 会在配置阶段明确
+失败，不会出现只有头文件却没有可链接实现的假可用状态。
 
 最小 C++ 用法
 -------------
