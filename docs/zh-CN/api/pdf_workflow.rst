@@ -23,6 +23,9 @@ PDF 支持仍是实验性、显式开启的能力。本页是 ``export-pdf`` 和
 
 使用 CLI 入口前，需要先构建 PDF 能力：
 
+PDF 导出必须使用 ``-DFEATHERDOC_BUILD_PDF=ON`` 配置；PDF 导入还必须启用
+``-DFEATHERDOC_BUILD_PDF_IMPORT=ON``。
+
 .. code-block:: sh
 
    cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON

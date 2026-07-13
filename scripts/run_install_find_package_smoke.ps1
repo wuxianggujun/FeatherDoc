@@ -75,6 +75,22 @@ if (Test-Path -LiteralPath $producerCache) {
                 "single-config producer '$producerBuildType': $resolvedBuildDir"
         }
     }
+
+    if (-not $resolvedToolchainFile) {
+        $toolchainEntry = Select-String `
+            -LiteralPath $producerCache `
+            -Pattern '^CMAKE_TOOLCHAIN_FILE:(?:FILEPATH|UNINITIALIZED)=(.*)$' |
+            Select-Object -First 1
+        if ($toolchainEntry) {
+            $producerToolchainFile =
+                $toolchainEntry.Matches[0].Groups[1].Value.Trim()
+            if ($producerToolchainFile -and
+                (Test-Path -LiteralPath $producerToolchainFile -PathType Leaf)) {
+                $resolvedToolchainFile =
+                    [System.IO.Path]::GetFullPath($producerToolchainFile)
+            }
+        }
+    }
 }
 
 Invoke-Checked @(

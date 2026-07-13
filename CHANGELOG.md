@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-07-13
+
 ### Added
 
 - Added a relocatable installed `Pdf` CMake component when FreeType, ZLIB,

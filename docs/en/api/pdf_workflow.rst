@@ -24,6 +24,9 @@ Build Flags
 
 Build PDF support before using the CLI entry points:
 
+PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON. PDF import
+additionally requires ``-DFEATHERDOC_BUILD_PDF_IMPORT=ON``.
+
 .. code-block:: sh
 
    cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON
