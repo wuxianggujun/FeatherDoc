@@ -248,8 +248,21 @@ function Get-OrCreateGitHubDraftReleaseAssetsJson {
         [string]$ReleaseVersion
     )
 
-    $releaseViewJson = & gh release view $ReleaseTag --json assets 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    # Windows PowerShell 5 promotes stderr from a native command to a
+    # NativeCommandError when the caller uses ErrorActionPreference=Stop.
+    # A missing release is the expected cold-start signal here, so contain
+    # that behavior around the probe and restore the caller's strict policy
+    # before taking any mutating action.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $releaseViewJson = & gh release view $ReleaseTag --json assets 2>$null
+        $releaseViewExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($releaseViewExitCode -eq 0) {
         return $releaseViewJson
     }
 

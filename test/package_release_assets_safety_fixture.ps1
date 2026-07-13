@@ -925,6 +925,7 @@ function global:gh {
 
         if (-not $global:FeatherDocTestReleaseCreated) {
             $global:LASTEXITCODE = 1
+            Write-Error "release not found"
             return
         }
 

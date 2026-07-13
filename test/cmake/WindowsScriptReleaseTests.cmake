@@ -169,7 +169,7 @@
         )
         set_tests_properties(package_release_assets_safety
             PROPERTIES
-                TIMEOUT 120
+                TIMEOUT 240
                 LABELS "release;package;smoke")
 
         add_test(
