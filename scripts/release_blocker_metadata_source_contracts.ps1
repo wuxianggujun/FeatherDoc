@@ -981,7 +981,43 @@ function Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEviden
     }
 
     if ($reports.Count -eq 0 -and $count -eq "0") {
-        return ""
+        $entrypointContract = Get-ReleaseBlockerPropertyObject `
+            -Object $Summary `
+            -Name "project_template_readiness_checklist_entrypoints"
+        if ($null -eq $entrypointContract) {
+            return ""
+        }
+
+        $entrypoints = @(Get-ReleaseBlockerArrayProperty -Object $entrypointContract -Name "entrypoints")
+        $entrypointIds = @(
+            $entrypoints |
+                ForEach-Object { Get-ReleaseBlockerPropertyValue -Object $_ -Name "id" } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        $entrypointPathParts = @(
+            $entrypoints |
+                ForEach-Object {
+                    $id = Get-ReleaseBlockerPropertyValue -Object $_ -Name "id"
+                    if (-not [string]::IsNullOrWhiteSpace($id)) {
+                        $required = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "required")
+                        $pathDisplay = Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $_ -Name "path_display")
+
+                        "${id}:required=${required}:path_display=${pathDisplay}"
+                    }
+                } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+
+        $sourceReport = Get-ReleaseBlockerPropertyValue -Object $Summary -Name "artifact_guide"
+        if (-not [string]::IsNullOrWhiteSpace($sourceReport)) {
+            $sourceReport = $sourceReport -replace '(?i)ARTIFACT_GUIDE\.md$', 'summary.json'
+        }
+        if ([string]::IsNullOrWhiteSpace($sourceReport)) {
+            $sourceReport = ".\release-candidate-checks\report\summary.json"
+        }
+
+        $schema = Get-ReleaseBlockerPropertyValue -Object $Summary -Name "schema"
+        return "Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypointContract -Name "status")), checklist_path=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypointContract -Name "checklist_path")), required_entrypoint_count=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypointContract -Name "required_entrypoint_count")), entrypoints=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointIds -join ', ')), entrypoint_paths=$(Get-ReleaseBlockerDisplayValue -Value ($entrypointPathParts -join '; ')), marker=$(Get-ReleaseBlockerDisplayValue -Value (Get-ReleaseBlockerPropertyValue -Object $entrypointContract -Name "checklist_marker")), source_schema=$(Get-ReleaseBlockerDisplayValue -Value $schema), source_report=$(Get-ReleaseBlockerDisplayValue -Value $sourceReport)"
     }
 
     $report = Select-ReleaseGovernancePreferredReleaseCandidateSourceReport -Reports $reports

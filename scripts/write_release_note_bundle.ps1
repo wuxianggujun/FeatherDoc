@@ -126,12 +126,7 @@ Assert-ReleaseGovernanceReviewerMetadataQuality -Summary $summary -Context $reso
 $reportDir = Split-Path -Parent $resolvedSummaryPath
 
 $resolvedHandoffPath = if ([string]::IsNullOrWhiteSpace($HandoffOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "release_handoff"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path $reportDir "release_handoff.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path $reportDir "release_handoff.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $HandoffOutputPath
 }
@@ -143,56 +138,31 @@ $resolvedReleaseVersion = Resolve-ReleaseVersion `
     -ExistingHandoffPath $resolvedHandoffPath
 
 $resolvedBodyPath = if ([string]::IsNullOrWhiteSpace($BodyOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "release_body_zh_cn"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path $reportDir "release_body.zh-CN.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path $reportDir "release_body.zh-CN.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $BodyOutputPath
 }
 
 $resolvedShortPath = if ([string]::IsNullOrWhiteSpace($ShortOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "release_summary_zh_cn"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path $reportDir "release_summary.zh-CN.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path $reportDir "release_summary.zh-CN.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $ShortOutputPath
 }
 
 $resolvedGuidePath = if ([string]::IsNullOrWhiteSpace($GuideOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "artifact_guide"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path $reportDir "ARTIFACT_GUIDE.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path $reportDir "ARTIFACT_GUIDE.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $GuideOutputPath
 }
 
 $resolvedChecklistPath = if ([string]::IsNullOrWhiteSpace($ChecklistOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "reviewer_checklist"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path $reportDir "REVIEWER_CHECKLIST.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path $reportDir "REVIEWER_CHECKLIST.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $ChecklistOutputPath
 }
 
 $resolvedStartHerePath = if ([string]::IsNullOrWhiteSpace($StartHereOutputPath)) {
-    $candidate = Get-OptionalPropertyValue -Object $summary -Name "start_here"
-    if ([string]::IsNullOrWhiteSpace($candidate)) {
-        Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
-    } else {
-        Resolve-FullPath -RepoRoot $repoRoot -InputPath $candidate
-    }
+    Join-Path (Split-Path -Parent $reportDir) "START_HERE.md"
 } else {
     Resolve-FullPath -RepoRoot $repoRoot -InputPath $StartHereOutputPath
 }

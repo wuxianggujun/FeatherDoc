@@ -246,6 +246,15 @@ function Test-ReleaseGovernanceContractTarget {
 
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
     if ($leafName -eq "release_assets_manifest.json") {
+        $handoffStatus = [string](Get-JsonPropertyValue -Object $Json -Name "release_governance_handoff_status")
+        $metricCount = Get-JsonPropertyValue -Object $Json -Name "governance_metric_count"
+        $parsedMetricCount = $null
+        if ([string]::Equals($handoffStatus, "not_requested", [System.StringComparison]::OrdinalIgnoreCase) -and
+            (Test-StrictJsonInt64Value -Value $metricCount -ParsedValue ([ref]$parsedMetricCount)) -and
+            $parsedMetricCount -eq 0) {
+            return $false
+        }
+
         return $true
     }
 
@@ -516,6 +525,9 @@ function Add-ProjectTemplateDeliveryReadinessContractViolations {
 
     $leafName = (Split-Path -Leaf $File).ToLowerInvariant()
     if ($leafName -ne "release_assets_manifest.json") {
+        return
+    }
+    if (-not (Test-ReleaseGovernanceContractTarget -File $File -Json $Json)) {
         return
     }
 

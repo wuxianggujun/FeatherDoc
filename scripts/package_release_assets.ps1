@@ -253,6 +253,13 @@ Write-Step "Staging release evidence bundle"
 New-Item -ItemType Directory -Path $stageReleaseCandidateRoot -Force | Out-Null
 Copy-FileToPath -Source $resolvedStartHerePath -Destination (Join-Path $stageReleaseCandidateRoot "START_HERE.md")
 Copy-PathTree -Source $reportDir -Destination (Join-Path $stageReleaseCandidateRoot "report")
+if ($releaseGovernanceHandoffStatus -eq "not_requested") {
+    $staleGovernanceOutputDir = Join-Path $stageReleaseCandidateRoot "report\release-governance-handoff"
+    if (Test-Path -LiteralPath $staleGovernanceOutputDir) {
+        Write-Step "Discarding stale optional release governance output from staging"
+        Remove-Item -LiteralPath $staleGovernanceOutputDir -Recurse -Force
+    }
+}
 
 New-Item -ItemType Directory -Path $stageWordVisualRoot -Force | Out-Null
 if ($hasVisualGateEvidence) {
@@ -298,10 +305,19 @@ if ($runStrictReleaseMaterialAudit) {
 }
 
 if ($wordVisualStandardReviewMetadata.Count -gt 0) {
-    Write-Step "Checking staged Word visual metadata handoff evidence"
-    Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence `
-        -ReleaseCandidateRoot $stageReleaseCandidateRoot `
-        -ExpectedMetadataCount $wordVisualStandardReviewMetadata.Count
+    Write-Step "Checking Word visual standard review metadata"
+    Assert-WordVisualStandardReviewMetadata `
+        -Metadata $wordVisualStandardReviewMetadata `
+        -ExpectedMetadataCount 4
+
+    if ($releaseGovernanceHandoffStatus -eq "not_requested") {
+        Write-Step "Using staged Word visual gate evidence because release governance handoff was not requested"
+    } else {
+        Write-Step "Checking staged Word visual metadata handoff evidence"
+        Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence `
+            -ReleaseCandidateRoot $stageReleaseCandidateRoot `
+            -ExpectedMetadataCount $wordVisualStandardReviewMetadata.Count
+    }
 }
 
 if ($runStrictReleaseMaterialAudit) {
@@ -459,6 +475,7 @@ $manifest = [ordered]@{
     pdf_bounded_ctest_evidence = $pdfBoundedCtestManifestEvidence
     word_visual_standard_review_metadata_count = $wordVisualStandardReviewMetadata.Count
     word_visual_standard_review_metadata = $wordVisualStandardReviewMetadata
+    release_governance_handoff_status = $releaseGovernanceHandoffStatus
     governance_metric_count = $governanceMetricCount
     governance_metrics = $governanceMetrics
     numbering_catalog_real_corpus_confidence = $numberingCatalogRealCorpusConfidence

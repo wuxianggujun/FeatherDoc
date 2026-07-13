@@ -34,6 +34,9 @@ function Add-ProjectTemplateOnboardingGovernanceContractViolations {
     if ($leafName -ne "release_assets_manifest.json") {
         return
     }
+    if (-not (Test-ReleaseGovernanceContractTarget -File $File -Json $Json)) {
+        return
+    }
 
     $label = "project template onboarding governance contract"
     $contract = Get-JsonPropertyValue -Object $Json -Name "project_template_onboarding_governance_contract"

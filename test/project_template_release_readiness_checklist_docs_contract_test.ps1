@@ -995,6 +995,41 @@ foreach ($marker in @(
 Assert-ContainsText -Text $cmakeLists -ExpectedText "project_template_release_readiness_checklist_docs_contract" `
     -Message "CTest should register the project-template readiness checklist contract."
 
+. (Join-Path $scriptRoot "release_blocker_metadata_helpers.ps1")
+$fallbackSummary = [pscustomobject]@{
+    schema = "featherdoc.release_candidate_summary"
+    artifact_guide = ".\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+    release_governance_handoff = [pscustomobject]@{
+        status = "not_requested"
+        project_template_readiness_checklist_entrypoints_source_report_count = 0
+        project_template_readiness_checklist_entrypoints_source_reports = @()
+    }
+    project_template_readiness_checklist_entrypoints = [pscustomobject]@{
+        status = "declared"
+        checklist_path = "docs/project_template_release_readiness_checklist_zh.rst"
+        required_entrypoint_count = 3
+        checklist_marker = "release_entry_project_template_readiness_checklist_trace"
+        entrypoints = @(
+            [pscustomobject]@{ id = "start_here"; required = $true; path_display = ".\release-candidate-checks\START_HERE.md" },
+            [pscustomobject]@{ id = "artifact_guide"; required = $true; path_display = ".\release-candidate-checks\report\ARTIFACT_GUIDE.md" },
+            [pscustomobject]@{ id = "reviewer_checklist"; required = $true; path_display = ".\release-candidate-checks\report\REVIEWER_CHECKLIST.md" }
+        )
+    }
+}
+$fallbackEvidenceLine = Get-ReleaseGovernanceProjectTemplateReadinessChecklistEntrypointsEvidenceLine `
+    -Summary $fallbackSummary
+foreach ($marker in @(
+    "project_template_readiness_checklist_entrypoints_source_reports=1",
+    "status=declared",
+    "required_entrypoint_count=3",
+    "entrypoints=start_here, artifact_guide, reviewer_checklist",
+    "source_schema=featherdoc.release_candidate_summary",
+    "source_report=.\release-candidate-checks\report\summary.json"
+)) {
+    Assert-ContainsText -Text $fallbackEvidenceLine -ExpectedText $marker `
+        -Message "Release metadata should derive checklist handoff evidence from the top-level contract when governance handoff is not requested."
+}
+
 foreach ($marker in @(
     "release_note_bundle_version",
     "release_note_bundle_version_test.ps1"

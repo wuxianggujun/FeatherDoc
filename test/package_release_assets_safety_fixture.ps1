@@ -865,6 +865,49 @@ $packageScript = Join-Path $resolvedRepoRoot "scripts\package_release_assets.ps1
     -OutputRoot $outputRoot `
     -KeepStaging
 
+$optionalGovernanceOutputRoot = Join-Path $resolvedWorkingDir "release-assets-optional-governance"
+$summary["release_governance_handoff"] = [ordered]@{
+    requested = $false
+    status = "not_requested"
+}
+$summary["governance_metric_count"] = 0
+$summary["governance_metrics"] = [object[]]@()
+$summary["project_template_delivery_readiness"] = ""
+$summary["project_template_onboarding_governance"] = ""
+$summary["empty_array_sanitization_probe"] = [object[]]@()
+($summary | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+Remove-Item -LiteralPath $releaseGovernanceHandoffPath -Force
+
+& $packageScript `
+    -SummaryJson $summaryPath `
+    -OutputRoot $optionalGovernanceOutputRoot `
+    -KeepStaging
+
+foreach ($assetName in @(
+        "FeatherDoc-v1.6.4-msvc-install.zip",
+        "FeatherDoc-v1.6.4-visual-validation-gallery.zip",
+        "FeatherDoc-v1.6.4-release-evidence.zip",
+        "release_assets_manifest.json"
+    )) {
+    $assetPath = Join-Path $optionalGovernanceOutputRoot "v1.6.4\$assetName"
+    if (-not (Test-Path -LiteralPath $assetPath)) {
+        throw "Optional governance packaging did not produce '$assetName'."
+    }
+}
+
+$optionalGovernanceStagedSummaryPath = Join-Path $optionalGovernanceOutputRoot "v1.6.4\staging\release-candidate-checks\report\summary.json"
+$optionalGovernanceStagedSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath $optionalGovernanceStagedSummaryPath | ConvertFrom-Json
+if (-not ($optionalGovernanceStagedSummary.empty_array_sanitization_probe -is [System.Array]) -or
+    @($optionalGovernanceStagedSummary.empty_array_sanitization_probe).Count -ne 0) {
+    throw "Release material sanitization must preserve an empty JSON array."
+}
+$optionalGovernanceManifestPath = Join-Path $optionalGovernanceOutputRoot "v1.6.4\release_assets_manifest.json"
+$optionalGovernanceManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $optionalGovernanceManifestPath | ConvertFrom-Json
+if ([string]$optionalGovernanceManifest.release_governance_handoff_status -ne "not_requested" -or
+    [int]$optionalGovernanceManifest.governance_metric_count -ne 0) {
+    throw "Optional governance manifest must preserve not_requested status with zero governance metrics."
+}
+
 $uploadOutputRoot = Join-Path $resolvedWorkingDir "release-assets-upload"
 function global:gh {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)

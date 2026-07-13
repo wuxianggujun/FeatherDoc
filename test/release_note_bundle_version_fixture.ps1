@@ -193,6 +193,12 @@ $summary = [ordered]@{
     workspace = $resolvedRepoRoot
     execution_status = "pass"
     release_version = "1.6.0"
+    release_handoff = ".\release-candidate-checks\report\release_handoff.md"
+    release_body_zh_cn = ".\release-candidate-checks\report\release_body.zh-CN.md"
+    release_summary_zh_cn = ".\release-candidate-checks\report\release_summary.zh-CN.md"
+    artifact_guide = ".\release-candidate-checks\report\ARTIFACT_GUIDE.md"
+    reviewer_checklist = ".\release-candidate-checks\report\REVIEWER_CHECKLIST.md"
+    start_here = ".\release-candidate-checks\START_HERE.md"
     release_blocker_count = 1
     release_blockers = @(
         [ordered]@{

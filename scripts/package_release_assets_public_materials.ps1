@@ -385,7 +385,10 @@ function Convert-StructuredValueToPublic {
                     -RepoRoot $RepoRoot `
                     -PreferEvidenceAnchor:$PreferEvidenceAnchor)
         }
-        return $result
+        # The unary comma keeps an empty array as an array when the function
+        # returns through PowerShell's pipeline. Without it, [] is emitted as
+        # no value and is serialized as {} after sanitization.
+        return ,$result
     }
 
     return $Value

@@ -184,6 +184,46 @@ function Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence {
     }
 }
 
+function Assert-WordVisualStandardReviewMetadata {
+    param(
+        [object[]]$Metadata,
+        [int]$ExpectedMetadataCount
+    )
+
+    $label = "Word visual standard review metadata"
+    if ($Metadata.Count -ne $ExpectedMetadataCount) {
+        throw "$label count must be $ExpectedMetadataCount, found $($Metadata.Count)."
+    }
+
+    $expectedTaskKeys = @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")
+    foreach ($taskKey in $expectedTaskKeys) {
+        $matches = @($Metadata | Where-Object {
+            (Get-OptionalPropertyValue -Object $_ -Name "task_key") -eq $taskKey
+        })
+        if ($matches.Count -ne 1) {
+            throw "$label must contain exactly one '$taskKey' entry, found $($matches.Count)."
+        }
+
+        $entry = $matches[0]
+        foreach ($fieldName in @("review_task_key", "review_method", "review_result_path", "final_review_path")) {
+            $value = Get-OptionalPropertyValue -Object $entry -Name $fieldName
+            if ([string]::IsNullOrWhiteSpace($value)) {
+                throw "$label '$taskKey' entry is missing '$fieldName'."
+            }
+        }
+
+        $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
+        if ($reviewStatus -ne "reviewed") {
+            throw "$label '$taskKey' entry must be reviewed, found '$reviewStatus'."
+        }
+
+        $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
+        if ($verdict -ne "pass") {
+            throw "$label '$taskKey' entry must pass, found '$verdict'."
+        }
+    }
+}
+
 function New-ZipArchive {
     param(
         [string[]]$SourcePaths,
