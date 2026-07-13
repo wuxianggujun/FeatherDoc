@@ -1002,6 +1002,7 @@ function global:gh {
         }
 
         $global:FeatherDocTestReleaseCreated = $true
+        "https://github.example/releases/tag/untagged-cold-start"
         return
     }
 

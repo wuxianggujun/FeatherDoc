@@ -272,7 +272,9 @@ function Get-OrCreateGitHubDraftReleaseAssetsJson {
     }
 
     Write-Step "Creating missing GitHub draft release $ReleaseTag at $targetCommit"
-    & gh release create $ReleaseTag `
+    # gh prints the new release URL to stdout. Capture it so the function's
+    # pipeline contains only the JSON returned by the release view below.
+    $releaseCreateOutput = & gh release create $ReleaseTag `
         --draft `
         --target $targetCommit `
         --title ("FeatherDoc v{0}" -f $ReleaseVersion) `
