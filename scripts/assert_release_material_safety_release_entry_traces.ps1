@@ -387,7 +387,7 @@ function Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTra
                 -Text $Content `
                 -Anchor "Project-template readiness checklist handoff evidence" `
                 -FieldName "source_report" `
-                -Needles @("release-candidate-checks", "release_candidate_summary"))) {
+                -Needles @("release-candidate-checks", "release_candidate_summary", "report\summary.json", "report/summary.json"))) {
         Add-AuditViolation `
             -Violations $Violations `
             -File $File `

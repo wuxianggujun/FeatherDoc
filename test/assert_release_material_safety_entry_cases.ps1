@@ -427,6 +427,17 @@ Set-Content -LiteralPath $passEntryProjectTemplateChecklistHandoffEvidencePath -
 
 & $auditScript -Path $passEntryProjectTemplateChecklistHandoffEvidencePath
 
+$passEntryProjectTemplateChecklistCustomSummaryDir = Join-Path $passDir "entry-project-template-checklist-custom-summary-dir"
+$passEntryProjectTemplateChecklistCustomSummaryPath = Join-Path $passEntryProjectTemplateChecklistCustomSummaryDir "START_HERE.md"
+New-Item -ItemType Directory -Path $passEntryProjectTemplateChecklistCustomSummaryDir -Force | Out-Null
+Set-Content -LiteralPath $passEntryProjectTemplateChecklistCustomSummaryPath -Encoding UTF8 -Value @"
+# START_HERE
+
+- Project-template readiness checklist handoff evidence: project_template_readiness_checklist_entrypoints_source_reports=1, status=declared, checklist_path=docs/project_template_release_readiness_checklist_zh.rst, required_entrypoint_count=3, entrypoints=start_here, artifact_guide, reviewer_checklist, entrypoint_paths=start_here:required=True:path_display=.\output\release-candidate-v1.13.2-publish\START_HERE.md; artifact_guide:required=True:path_display=.\output\release-candidate-v1.13.2-publish\report\ARTIFACT_GUIDE.md; reviewer_checklist:required=True:path_display=.\output\release-candidate-v1.13.2-publish\report\REVIEWER_CHECKLIST.md, marker=release_entry_project_template_readiness_checklist_trace, source_schema=featherdoc.release_candidate_summary, source_report=.\output\release-candidate-v1.13.2-publish\report\summary.json
+"@
+
+& $auditScript -Path $passEntryProjectTemplateChecklistCustomSummaryPath
+
 $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir = Join-Path $failDir "entry-project-template-checklist-handoff-evidence-missing-source-schema"
 $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaPath = Join-Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir "START_HERE.md"
 New-Item -ItemType Directory -Path $badEntryProjectTemplateChecklistHandoffEvidenceMissingSourceSchemaDir -Force | Out-Null

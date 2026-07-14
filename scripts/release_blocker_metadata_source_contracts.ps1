@@ -951,6 +951,7 @@ function Select-ReleaseGovernancePreferredReleaseCandidateSourceReport {
     foreach ($pathPattern in @(
             "release-candidate-checks[\\/]+report[\\/]+summary\.json$",
             "release-candidate-checks[\\/]+summary\.json$",
+            "[\\/]report[\\/]+summary\.json$",
             "release_candidate_summary"
         )) {
         $report = $reportItems |
