@@ -588,9 +588,11 @@
                 -Scenario
                 aggregate
             )
+            # This end-to-end governance fixture invokes the CLI repeatedly and
+            # can exceed one minute on Windows release hosts under load.
             set_tests_properties(build_content_control_data_binding_governance_report_aggregate
                 PROPERTIES
-                    TIMEOUT 60
+                    TIMEOUT 120
                     LABELS "docs;smoke;governance;content-control")
 
             add_test(
@@ -611,7 +613,7 @@
             )
             set_tests_properties(build_content_control_data_binding_governance_report_fail_on_blocker
                 PROPERTIES
-                    TIMEOUT 60
+                    TIMEOUT 120
                     LABELS "docs;smoke;governance;content-control")
 
             add_test(
@@ -632,7 +634,7 @@
             )
             set_tests_properties(build_content_control_data_binding_governance_report_fail_on_warning
                 PROPERTIES
-                    TIMEOUT 60
+                    TIMEOUT 120
                     LABELS "docs;smoke;governance;content-control")
 
             add_test(

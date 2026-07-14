@@ -29,6 +29,9 @@ performance.
 - Fixed material-safety CTest shards so their explicit timeout matches the
   release-candidate timeout budget. A successful shard that takes slightly
   longer than 60 seconds is no longer reported as a false release failure.
+- Fixed the content-control data-binding governance regressions to use their
+  measured Windows timeout budget. Successful end-to-end CLI scenarios are no
+  longer discarded at the previous 60-second boundary.
 
 ## [1.13.1] - 2026-07-13
 
