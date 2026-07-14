@@ -47,6 +47,45 @@ function Write-TestPng {
     }
 }
 
+function Write-SparseTestPng {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.Drawing
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
+    $bitmap = [System.Drawing.Bitmap]::new(1024, 1024)
+    try {
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+            $graphics.Clear([System.Drawing.Color]::White)
+            $graphics.FillRectangle([System.Drawing.Brushes]::Black, 7, 7, 2, 2)
+        } finally {
+            $graphics.Dispose()
+        }
+        $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $bitmap.Dispose()
+    }
+}
+
+function Write-BlankTestPng {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.Drawing
+    New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($Path)) -Force | Out-Null
+    $bitmap = [System.Drawing.Bitmap]::new(128, 128)
+    try {
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+            $graphics.Clear([System.Drawing.Color]::White)
+        } finally {
+            $graphics.Dispose()
+        }
+        $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    } finally {
+        $bitmap.Dispose()
+    }
+}
+
 $resolvedRepoRoot = (Resolve-Path $RepoRoot).Path
 $resolvedWorkingDir = [System.IO.Path]::GetFullPath($WorkingDir)
 New-Item -ItemType Directory -Path $resolvedWorkingDir -Force | Out-Null
@@ -56,10 +95,12 @@ $pageDir = Join-Path $evidenceDir "pages"
 $reportDir = Join-Path $resolvedWorkingDir "report"
 $contactSheet = Join-Path $evidenceDir "contact_sheet.png"
 $pageImage = Join-Path $pageDir "page-01.png"
+$sparsePageImage = Join-Path $pageDir "page-02.png"
 $reviewResult = Join-Path $reportDir "review_result.json"
 New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 Write-TestPng -Path $contactSheet
 Write-TestPng -Path $pageImage
+Write-SparseTestPng -Path $sparsePageImage
 
 ([ordered]@{
         document_path = Join-Path $resolvedWorkingDir "input.docx"
@@ -70,12 +111,12 @@ Write-TestPng -Path $pageImage
         generated_at = "2026-05-27T00:00:00"
         status = "pending_review"
         verdict = "pending_manual_review"
-        page_count = 1
+        page_count = 2
         evidence = [ordered]@{
             summary_json = Join-Path $reportDir "summary.json"
             checklist = Join-Path $reportDir "review_checklist.md"
             contact_sheet = $contactSheet
-            page_images = @($pageImage)
+            page_images = @($pageImage, $sparsePageImage)
         }
         findings = @()
         notes = @("fixture")
@@ -109,11 +150,39 @@ Assert-True -Condition ([bool]$review.visual_evidence_check.contact_sheet.non_em
     -Message "Recorder should sample a non-empty contact sheet."
 Assert-True -Condition ([bool]$review.visual_evidence_check.page_images[0].non_empty_visual) `
     -Message "Recorder should sample a non-empty page image."
+Assert-True -Condition ([bool]$review.visual_evidence_check.page_images[1].non_empty_visual) `
+    -Message "Recorder should detect sparse content between sampling-grid coordinates."
 
 $finalReview = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $reportDir "final_review.md")
 Assert-True -Condition ($finalReview -match "Current status: reviewed") `
     -Message "Final review should be refreshed with reviewed status."
 Assert-True -Condition ($finalReview -match "Verdict: pass") `
     -Message "Final review should be refreshed with pass verdict."
+
+$blankPageImage = Join-Path $pageDir "blank-page.png"
+Write-BlankTestPng -Path $blankPageImage
+$review.evidence.page_images = @($blankPageImage)
+$review.page_count = 1
+($review | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $reviewResult -Encoding UTF8
+
+$previousErrorActionPreference = $ErrorActionPreference
+$blankEvidenceOutput = @()
+$blankEvidenceExitCode = 0
+try {
+    $ErrorActionPreference = "Continue"
+    $blankEvidenceOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath `
+            -ReviewResultJson $reviewResult `
+            -Verdict pass `
+            -Reviewer "test-reviewer" `
+            -RequireNonEmptyEvidence 2>&1)
+    $blankEvidenceExitCode = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
+Assert-True -Condition ($blankEvidenceExitCode -ne 0) `
+    -Message "Recorder should reject a visually blank page image."
+Assert-True -Condition (($blankEvidenceOutput -join [System.Environment]::NewLine) -match `
+        "At least one page image has no sampled non-white pixels") `
+    -Message "Recorder should explain that blank page evidence was rejected."
 
 Write-Host "Word visual review result recorder regression passed."

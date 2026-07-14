@@ -52,6 +52,101 @@ if ($ToolchainFile) {
         throw "CMake toolchain file does not exist: $resolvedToolchainFile"
     }
 }
+
+function Convert-ToNativeProcessArgument {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
+        return $Value
+    }
+
+    $builder = [System.Text.StringBuilder]::new()
+    [void]$builder.Append('"')
+    $backslashCount = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq [char]0x5C) {
+            ++$backslashCount
+            continue
+        }
+
+        if ($character -eq '"') {
+            [void]$builder.Append([char]0x5C, 2 * $backslashCount + 1)
+            [void]$builder.Append('"')
+            $backslashCount = 0
+            continue
+        }
+
+        if ($backslashCount -gt 0) {
+            [void]$builder.Append([char]0x5C, $backslashCount)
+            $backslashCount = 0
+        }
+        [void]$builder.Append($character)
+    }
+
+    if ($backslashCount -gt 0) {
+        [void]$builder.Append([char]0x5C, 2 * $backslashCount)
+    }
+    [void]$builder.Append('"')
+    return $builder.ToString()
+}
+
+function Write-CapturedProcessStream {
+    param([AllowEmptyString()][string]$Text)
+
+    foreach ($line in ($Text -split "`r?`n")) {
+        if ($line.Length -gt 0) {
+            Write-Host $line
+        }
+    }
+}
+
+function Invoke-ExpectedFailure {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+
+        [Parameter(Mandatory = $true)]
+        [string]$UnexpectedSuccessMessage
+    )
+
+    # Keep the expected non-zero command outside PowerShell's native error
+    # pipeline. Windows PowerShell 5.1 otherwise turns redirected native stderr
+    # into a terminating NativeCommandError under ErrorActionPreference=Stop.
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $Arguments[0]
+    $startInfo.Arguments = ($Arguments[1..($Arguments.Length - 1)] |
+        ForEach-Object { Convert-ToNativeProcessArgument -Value $_ }) -join " "
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        [void]$process.Start()
+        $standardOutputTask = $process.StandardOutput.ReadToEndAsync()
+        $standardErrorTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+
+        $standardOutput = $standardOutputTask.Result
+        $standardError = $standardErrorTask.Result
+        $exitCode = $process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
+
+    Write-CapturedProcessStream -Text $standardOutput
+    Write-CapturedProcessStream -Text $standardError
+
+    if ($exitCode -eq 0) {
+        throw $UnexpectedSuccessMessage
+    }
+}
 $missingPdfConsumerSourceDir =
     (Resolve-RepoPath "test/install_find_package_missing_pdf")
 $missingPdfConsumerBuildDir = "$resolvedConsumerBuildDir-missing-pdf"
@@ -256,11 +351,10 @@ if ($pdfComponentInstalled) {
     if ($Generator) {
         $missingPdfConfigureArguments += @("-G", $Generator)
     }
-    & $missingPdfConfigureArguments[0] `
-        $missingPdfConfigureArguments[1..($missingPdfConfigureArguments.Length - 1)]
-    if ($LASTEXITCODE -eq 0) {
-        throw "Core-only package unexpectedly satisfied the Pdf component."
-    }
+    Invoke-ExpectedFailure `
+        -Arguments $missingPdfConfigureArguments `
+        -UnexpectedSuccessMessage `
+            "Core-only package unexpectedly satisfied the Pdf component."
 
     Write-Host "Unavailable Pdf component was rejected as expected."
 }

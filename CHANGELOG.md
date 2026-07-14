@@ -8,6 +8,20 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-07-14
+
+### Fixed
+
+- Fixed the standard Word visual smoke document so its result cell no longer
+  renders the existing `Completed` text twice before the explanatory line.
+- Fixed screenshot evidence validation so sparse Word pages are checked across
+  every pixel instead of a fixed sample grid, while genuinely blank pages are
+  still rejected.
+- Fixed the release install smoke wrapper so the expected rejection of an
+  unavailable `Pdf` component is reported as diagnostic output instead of a
+  fatal PowerShell native-command error. Core consumption and Unicode DOCX
+  output remain required before the smoke test passes.
+
 ## [1.13.1] - 2026-07-13
 
 ### Added
