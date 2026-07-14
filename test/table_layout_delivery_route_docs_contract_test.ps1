@@ -449,6 +449,15 @@ foreach ($marker in @(
         -Message "CMake test registration should keep table-layout delivery route contract wired."
 }
 
+$tableStyleVisualPropertiesPattern = '(?s)set_tests_properties\(\s*table_style_quality_visual_regression\s+PROPERTIES(?<properties>.*?)\)'
+$tableStyleVisualPropertiesMatch = [regex]::Match($cmakeLists, $tableStyleVisualPropertiesPattern)
+if (-not $tableStyleVisualPropertiesMatch.Success) {
+    throw "CMake should preserve explicit properties for the table-style quality visual regression."
+}
+if ($tableStyleVisualPropertiesMatch.Groups["properties"].Value -notmatch '(?m)^\s*TIMEOUT\s+180\s*$') {
+    throw "CMake should give the table-style quality visual regression its measured 180-second timeout."
+}
+
 foreach ($registration in @(
         [ordered]@{
             name = "build_table_layout_delivery_report_passing"

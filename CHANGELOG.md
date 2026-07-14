@@ -32,6 +32,9 @@ performance.
 - Fixed the content-control data-binding governance regressions to use their
   measured Windows timeout budget. Successful end-to-end CLI scenarios are no
   longer discarded at the previous 60-second boundary.
+- Fixed the table-style quality visual regression to use a dedicated
+  three-minute Windows budget. Its completed DOCX repair and review evidence is
+  no longer discarded at the generic two-minute candidate boundary.
 
 ## [1.13.1] - 2026-07-13
 
