@@ -128,6 +128,12 @@ Assert-ContainsText -Text $scriptText -ExpectedText 'function Test-ReviewTaskPre
     -Message "Release gate should ignore empty review task placeholders while counting tasks."
 Assert-ContainsText -Text $scriptText -ExpectedText '$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks' `
     -Message "Release gate should write review task summary metadata into gate_summary.json."
+Assert-ContainsText -Text $scriptText -ExpectedText '$syncVisualReviewVerdictScript = Join-Path $repoRoot "scripts\sync_visual_review_verdict.ps1"' `
+    -Message "Release gate should use the canonical screenshot-backed verdict synchronizer."
+Assert-ContainsText -Text $scriptText -ExpectedText 'Invoke-ChildPowerShell -ScriptPath $syncVisualReviewVerdictScript' `
+    -Message "Release gate should consolidate persisted task verdicts before it completes."
+Assert-ContainsText -Text $scriptText -ExpectedText '$gateSummary = Get-Content -Raw -LiteralPath $gateSummaryPath | ConvertFrom-Json' `
+    -Message "Release gate should reload the canonicalized gate summary before reporting completion."
 Assert-ContainsText -Text $scriptText -ExpectedText 'Review task count: $($gateSummary.review_task_summary.total_count) total' `
     -Message "Release gate final review should surface review task summary counts."
 

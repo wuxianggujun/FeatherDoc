@@ -35,6 +35,10 @@ performance.
 - Fixed the table-style quality visual regression to use a dedicated
   three-minute Windows budget. Its completed DOCX repair and review evidence is
   no longer discarded at the generic two-minute candidate boundary.
+- Fixed the Word visual release gate so persisted screenshot-backed task
+  verdicts are consolidated before the gate completes. A fully reviewed gate
+  now reports `pass` instead of retaining the initialization-only
+  `pending_manual_review` value.
 
 ## [1.13.1] - 2026-07-13
 
