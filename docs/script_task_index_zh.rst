@@ -295,6 +295,9 @@ Word 视觉验证与人工复核
 这组脚本需要真实 ``Microsoft Word``，默认不属于低资源阶段的自动验证。
 
 - ``scripts/run_word_visual_smoke.ps1``：生成基础 Word 渲染截图。
+- ``scripts/python_runtime.ps1``：统一解析并验证 Word 视觉脚本使用的 Python
+  解释器，支持 ``python``、``python3``、Windows ``py`` launcher 和显式
+  ``FEATHERDOC_PYTHON_EXECUTABLE`` 配置。
 - ``scripts/run_word_visual_release_gate.ps1``：运行完整 Word visual release gate。
 - ``scripts/check_word_visual_release_gate_preflight.ps1``：只读检查 release gate
   前置条件，不启动 Word。
