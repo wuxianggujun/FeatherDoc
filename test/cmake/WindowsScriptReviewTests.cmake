@@ -383,6 +383,25 @@
 
         add_test(
             NAME
+            word_visual_python_runtime
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/word_visual_python_runtime_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/word_visual_python_runtime
+        )
+        set_tests_properties(word_visual_python_runtime
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
+
+        add_test(
+            NAME
             check_word_visual_release_gate_preflight
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

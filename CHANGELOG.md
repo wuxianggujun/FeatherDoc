@@ -21,6 +21,11 @@ performance.
   unavailable `Pdf` component is reported as diagnostic output instead of a
   fatal PowerShell native-command error. Core consumption and Unicode DOCX
   output remain required before the smoke test passes.
+- Fixed the Word visual release gate on Windows hosts where Python is available
+  only through `py.exe`. All Word visual scripts now share one validated Python
+  resolver with `python`, `python3`, `py`, and
+  `FEATHERDOC_PYTHON_EXECUTABLE` support instead of carrying 49 divergent
+  command-name checks.
 
 ## [1.13.1] - 2026-07-13
 
