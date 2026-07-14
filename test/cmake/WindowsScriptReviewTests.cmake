@@ -132,7 +132,7 @@
             )
             set_tests_properties(${material_safety_test_name}
                 PROPERTIES
-                    TIMEOUT 60
+                    TIMEOUT 120
                     LABELS "release;smoke;release_smoke;material-safety")
         endforeach()
 

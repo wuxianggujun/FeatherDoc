@@ -26,6 +26,9 @@ performance.
   resolver with `python`, `python3`, `py`, and
   `FEATHERDOC_PYTHON_EXECUTABLE` support instead of carrying 49 divergent
   command-name checks.
+- Fixed material-safety CTest shards so their explicit timeout matches the
+  release-candidate timeout budget. A successful shard that takes slightly
+  longer than 60 seconds is no longer reported as a false release failure.
 
 ## [1.13.1] - 2026-07-13
 
