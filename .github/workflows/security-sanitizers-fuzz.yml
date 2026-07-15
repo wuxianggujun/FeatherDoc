@@ -1,6 +1,19 @@
 name: Security Sanitizers And Fuzzing
 
 on:
+  push:
+    branches:
+      - dev
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - include/**
+      - src/**
+      - cli/**
+      - fuzz/**
+      - test/**
+      - thirdparty/**
+      - .github/workflows/security-sanitizers-fuzz.yml
   pull_request:
     branches:
       - dev
