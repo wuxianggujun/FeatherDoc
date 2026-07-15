@@ -166,6 +166,7 @@ function Write-SummaryJson {
         [string[]]$DocumentGovernanceMarkers,
         [string[]]$PolicyMarkers,
         [string[]]$EntrypointMarkers,
+        [string[]]$SphinxIndexMarkers,
         [string]$ErrorMessage = ""
     )
 
@@ -205,12 +206,14 @@ function Write-SummaryJson {
         repo_root = $RepoRoot
         checked_document_count = $CheckedDocuments.Count
         required_marker_count = $PipelineMarkers.Count + $ChecklistMarkers.Count + `
-            $DocumentGovernanceMarkers.Count + $PolicyMarkers.Count + $EntrypointMarkers.Count
+            $DocumentGovernanceMarkers.Count + $PolicyMarkers.Count + `
+            $EntrypointMarkers.Count + $SphinxIndexMarkers.Count
         required_pipeline_marker_count = $PipelineMarkers.Count
         required_checklist_marker_count = $ChecklistMarkers.Count
         required_document_governance_marker_count = $DocumentGovernanceMarkers.Count
         required_policy_marker_count = $PolicyMarkers.Count
         required_entrypoint_marker_count = $EntrypointMarkers.Count
+        required_sphinx_index_marker_count = $SphinxIndexMarkers.Count
         checked_documents = $CheckedDocuments
         checked_document_labels = @($CheckedDocuments | ForEach-Object { $_.label })
         checked_document_relative_paths = @($CheckedDocuments | ForEach-Object { $_.relative_path })
@@ -219,6 +222,7 @@ function Write-SummaryJson {
         required_document_governance_markers = $DocumentGovernanceMarkers
         required_policy_markers = $PolicyMarkers
         required_entrypoint_markers = $EntrypointMarkers
+        required_sphinx_index_markers = $SphinxIndexMarkers
     }
 
     $json = $summary | ConvertTo-Json -Depth 6
@@ -696,6 +700,12 @@ $entrypointExpectedMarkers = @(
     "release_metadata_maintenance_checklist_zh",
     "pdf_release_readiness_checklist_zh"
 )
+$sphinxIndexExpectedMarkers = @(
+    "en/index",
+    "zh-CN/index",
+    "FDOC_DOCS_ROOT_ENGLISH_DOCUMENTATION_LABEL",
+    "FDOC_DOCS_ROOT_ZH_CN_DOCUMENTATION_LABEL"
+)
 $resolvedRepoRoot = ""
 $summaryJsonPath = ""
 $checkedDocuments = @()
@@ -817,16 +827,19 @@ try {
         -RuleId "release_metadata_docs.release_policy_execution_order"
 
     foreach ($expected in $entrypointExpectedMarkers) {
-        foreach ($entrypoint in @(
-                @{ Label = "documentation maintenance overview doc"; Text = $documentationMaintenanceText; Path = $documentationMaintenancePath },
-                @{ Label = "Sphinx index doc"; Text = $indexText; Path = $indexPath }
-            )) {
-            Assert-ContainsText `
-                -Text $entrypoint.Text `
-                -ExpectedText $expected `
-                -Label $entrypoint.Label `
-                -Path $entrypoint.Path
-        }
+        Assert-ContainsText `
+            -Text $documentationMaintenanceText `
+            -ExpectedText $expected `
+            -Label "documentation maintenance overview doc" `
+            -Path $documentationMaintenancePath
+    }
+
+    foreach ($expected in $sphinxIndexExpectedMarkers) {
+        Assert-ContainsText `
+            -Text $indexText `
+            -ExpectedText $expected `
+            -Label "Sphinx index doc" `
+            -Path $indexPath
     }
 
     Write-SummaryJson `
@@ -838,7 +851,8 @@ try {
         -ChecklistMarkers $checklistExpectedMarkers `
         -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
         -PolicyMarkers $policyExpectedMarkers `
-        -EntrypointMarkers $entrypointExpectedMarkers
+        -EntrypointMarkers $entrypointExpectedMarkers `
+        -SphinxIndexMarkers $sphinxIndexExpectedMarkers
 
     if (-not $Quiet) {
         Write-Host "Release metadata docs check passed."
@@ -862,6 +876,7 @@ try {
                 -DocumentGovernanceMarkers $documentGovernanceExpectedMarkers `
                 -PolicyMarkers $policyExpectedMarkers `
                 -EntrypointMarkers $entrypointExpectedMarkers `
+                -SphinxIndexMarkers $sphinxIndexExpectedMarkers `
                 -ErrorMessage $errorMessage
         } catch {
             Write-Warning "Unable to write release metadata docs failure summary: $($_.Exception.Message)"

@@ -41,6 +41,9 @@ performance.
   but crash durability could not be confirmed.
 - Fixed output-entry cleanup after ZIP write or close failures so retries do
   not retain entry resources and failed saves leave no transaction files.
+- Fixed the release metadata documentation checker so the repository's current
+  bilingual Sphinx index is validated independently from excluded internal
+  governance documents, with both contracts reported in its JSON summary.
 
 ## [1.13.2] - 2026-07-14
 

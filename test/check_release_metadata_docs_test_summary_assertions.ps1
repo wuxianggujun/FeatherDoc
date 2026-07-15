@@ -35,8 +35,11 @@ function Assert-PassingReleaseMetadataDocsSummary {
     if ($summary.required_entrypoint_marker_count -ne 3) {
         throw "Expected JSON summary entrypoint marker count 3, got: $($summary.required_entrypoint_marker_count)"
     }
-    if ($summary.required_marker_count -ne 330) {
-        throw "Expected JSON summary total marker count 330, got: $($summary.required_marker_count)"
+    if ($summary.required_sphinx_index_marker_count -ne 4) {
+        throw "Expected JSON summary Sphinx index marker count 4, got: $($summary.required_sphinx_index_marker_count)"
+    }
+    if ($summary.required_marker_count -ne 334) {
+        throw "Expected JSON summary total marker count 334, got: $($summary.required_marker_count)"
     }
     if ($summary.checked_documents.Count -ne 7) {
         throw "Expected JSON summary to list 7 checked documents, got: $($summary.checked_documents.Count)"
@@ -85,6 +88,14 @@ function Assert-PassingReleaseMetadataDocsSummary {
         -Values @($summary.required_entrypoint_markers) `
         -ExpectedValue "pdf_release_readiness_checklist_zh" `
         -Message "JSON summary should list PDF release readiness checklist entrypoint marker."
+    Assert-ArrayContains `
+        -Values @($summary.required_sphinx_index_markers) `
+        -ExpectedValue "en/index" `
+        -Message "JSON summary should list the English Sphinx navigation entrypoint."
+    Assert-ArrayContains `
+        -Values @($summary.required_sphinx_index_markers) `
+        -ExpectedValue "zh-CN/index" `
+        -Message "JSON summary should list the Chinese Sphinx navigation entrypoint."
     Assert-ArrayContains `
         -Values @($summary.required_checklist_markers) `
         -ExpectedValue "release_note_bundle_visual_verdict_metadata" `

@@ -138,6 +138,11 @@ function Assert-SummaryMarkerCountsConsistent {
             Label = "entrypoint"
             CountName = "required_entrypoint_marker_count"
             ValuesName = "required_entrypoint_markers"
+        },
+        [pscustomobject]@{
+            Label = "Sphinx index"
+            CountName = "required_sphinx_index_marker_count"
+            ValuesName = "required_sphinx_index_markers"
         }
     )
 
@@ -271,8 +276,8 @@ function Assert-SummaryFailure {
     Assert-SummaryAuditFields -Summary $summary
     Assert-SummaryMarkerCountsConsistent -Summary $summary
     Assert-SummaryCheckedDocumentsConsistent -Summary $summary
-    if ($summary.required_marker_count -ne 330) {
-        throw "Expected JSON summary to count 330 required markers, got: $($summary.required_marker_count)"
+    if ($summary.required_marker_count -ne 334) {
+        throw "Expected JSON summary to count 334 required markers, got: $($summary.required_marker_count)"
     }
 }
 
