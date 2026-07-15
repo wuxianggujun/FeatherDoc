@@ -58,6 +58,17 @@ Success And Failure Semantics
        are the next editing entry point.
      - Check handle-specific validity rules before assuming the target exists.
 
+For mutating ``bool`` APIs, ``false`` is a combined “no mutation completed”
+signal rather than a structured error code. It can mean an invalid target, an
+inapplicable argument, or that the requested state was already present. Use
+``last_error()`` to distinguish a failure only when that method explicitly
+documents that it sets the error; do not attribute a stale error from an older
+operation to the current ``false`` result. Callers that need an unambiguous
+outcome should validate ``is_open()``, handle ``valid()``, and the current
+target state, then inspect the state after the mutation. The ``1.13.x`` line
+keeps these signatures source-compatible; a future breaking API may introduce
+a uniform structured mutation result.
+
 Short C++ Example
 -----------------
 
@@ -208,6 +219,32 @@ Open, create, save, and inspect the current package state.
      - ``std::optional<bool>``
      - Inspect the update-fields-on-open setting; empty means the setting could
        not be read.
+
+Save Transaction And Durability
+-------------------------------
+
+``save()`` and ``save_as()`` exclusively create a unique sibling temporary
+file; fixed ``.tmp`` or ``.bak`` names are never used. After ZIP finalization,
+the temporary file is flushed and synchronized before an atomic same-filesystem
+replacement. POSIX then synchronizes the parent directory; Windows uses
+write-through replacement APIs. On POSIX, the temporary remains mode ``0600``
+while data is written. Replacing an existing target preserves its mode bits,
+while a new target receives permissions derived from the process ``umask``.
+
+The failure boundary is explicit:
+
+* ``output_archive_open_failed``, entry write errors,
+  ``output_archive_finalize_failed``, ``output_file_sync_failed``,
+  ``package_repair_validation_failed``, and ``output_replace_failed`` occur
+  before replacement completes, so the original target remains unchanged.
+* ``output_directory_sync_failed_after_replace`` is returned only after atomic
+  replacement succeeded but POSIX parent-directory durability could not be
+  confirmed. The new target is already visible and ``last_error().detail``
+  states that fact. Reopen and verify the target instead of assuming that the
+  old file remains.
+* A successful return means ZIP finalization, file synchronization, and the
+  platform replacement completed; on platforms that support directory
+  synchronization, it also confirms the directory entry was synchronized.
 
 Open Validation And Resource Limits
 -----------------------------------

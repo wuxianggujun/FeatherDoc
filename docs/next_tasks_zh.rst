@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-07-01
+状态日期：2026-07-15
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -33,10 +33,10 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * 截至本次任务清单刷新，最新 ``dev`` head
-     ``84b4fd0978f2a8c5ad4d4c8529f245ac6d393334`` 的 Docs Pages、
-     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
-     状态请以 ``gh run list --branch dev`` 为准。
+   * ``v1.13.2`` 已于北京时间 2026-07-15 正式发布。发布 tag 与当前远端
+     ``dev`` head 均为 ``e046fbb7310873c36adb55ac8c46e51f035a1220``；该提交的
+     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过，最近一次
+     Docs Pages 也为绿色。当前 live 状态请以 ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -60,6 +60,30 @@ P0：当前发布与 CI 守护
    * ``git diff --check``
    * 与当前改动直接相关的 PowerShell 契约测试
    * 必要时检查 ``gh run list --branch dev`` 的最新 CI 状态
+
+
+P0：Word/DOCX 安全与兼容性
+-------------------------
+
+本项只处理 Word/DOCX 核心，不扩展 PDF 主线。当前状态为 ``DOING``，所有改动仍在
+本地 ``Unreleased`` 阶段：
+
+1. POSIX 保存事务已补临时文件 ``0600``、目标 mode/``umask`` 继承、文件
+   ``fsync`` 和替换后父目录 ``fsync``；同步失败分成替换前
+   ``output_file_sync_failed`` 与替换后
+   ``output_directory_sync_failed_after_replace``。
+2. 保存失败路径已消除 ZIP entry 资源泄漏；PKWARE 字节算法已改为显式 32 位
+   无符号运算，避免 sanitizer 报有符号溢出。
+3. 已增加 Clang ASan/UBSan 和 libFuzzer 基础设施，覆盖 DOCX
+   ``open -> save_as -> strict reopen`` 与 CLI JSON value skip；默认构建不启用。
+4. ``1.13.x`` 已增加冻结的 ``v1.13.2`` source consumer 编译测试；shared ABI
+   明确按 ``major.minor`` 管理，跨 minor 升级要求下游重编译。
+5. 本地 Word-only 构建 ``518/518``、CTest ``83/83`` 已通过；WSL/ext4 sanitizer
+   ``document_core`` 已通过 61 个 case / 1039 个断言、source compatibility test、
+   DOCX 100 次短 fuzz 和 JSON 1000 次短 fuzz。install + ``find_package`` consumer
+   已用中文、日文和 emoji 路径完成保存与重开，shared library SONAME 已验证为
+   ``libFeatherDoc.so.1.13``。进入下一版本前仍需完成 Windows MSVC CI（或具备
+   toolset 的本机）Unicode 回归和远端 macOS 目录同步验证。
 
 
 P1：模板契约与项目模板工作流
@@ -494,56 +518,17 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 本轮 ``P3`` 文档与索引治理清理已收口：活跃文档已避免继续把 CLI 描述成旧的
-   集中式入口，也不再把 Linux / macOS / Windows CI 基线描述成尚未建立。PDF 执行计划中
-   涉及 CLI、PDF parse/export/import 和 PDF import 结构测试的引用已对齐到当前拆分后的
-   ``cli/featherdoc_cli_*`` 与 ``test/pdf_*`` 文件。
-3. ``P1-RELEASE-01`` 的本轮发布材料收口已完成：release body / summary、GitHub
-   Release 同步路径、release blocker rollup、governance handoff、final review、
-   bundle / checklist、packaged ``release_assets_manifest.json`` 与 release material
-   safety 负例已由值级回归锁住。
-4. ``P1-SCHEMA-01`` 已继续补 schema patch confidence 的
-   ``business_document_type`` / ``corpus_role`` 缺失与来源不一致治理：报告会输出
-   ``missing_business_document_type_count`` / ``missing_corpus_role_count`` /
-   ``mismatched_corpus_metadata_count``，生成
-   ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` 与
-   ``schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata`` /
-   ``schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata`` warning，
-   并把 ``add_business_template_document_type_metadata`` /
-   ``add_business_template_corpus_role_metadata`` /
-   ``align_business_template_corpus_metadata`` 注册进固定 reviewer runbook。
-   本轮继续把 ``add_business_template_document_type_metadata``、
-   ``add_business_template_corpus_role_metadata`` 和
-   ``align_business_template_corpus_metadata`` 的 warning / action fixture 接入
-   release blocker rollup、release governance handoff、release candidate
-   ``release_handoff.md`` 与 ``final_review.md`` 值级回归，锁住
-   ``missing_business_document_type_count``、``missing_corpus_role_count``、
-   ``mismatched_*_count``、候选 ``business_document_type`` / ``corpus_role`` 及来源语料
-   字段在发布治理出口和 reviewer-facing 最终材料中的传递。
-   release note bundle 回归也已补 schema calibration blocker / action / warning
-   fixture，要求 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
-   ``REVIEWER_CHECKLIST.md`` 与 ``START_HERE.md`` 的同一 Markdown list block
-   继续展示 ``business_document_type`` / ``source_business_document_type``、
-   ``corpus_role`` / ``source_corpus_role``、mismatch flag / count、``candidate_name``
-   和 ``schema_update_candidate``，避免公开入口材料只保留 source path 而丢失
-   schema/corpus metadata 缺口细节。
-   release material safety 也已补入口材料负例，专门拦截 schema calibration
-   blocker / action / warning 丢失来源 document type、来源 corpus role、
-   missing / mismatch count 或候选字段的回归。
-   final review 侧 material-safety 负例已继续补齐 schema calibration mismatch
-   count 契约；``final_review.md`` 若只保留修复动作、来源路径和候选字段，却丢失
-   ``mismatched_corpus_metadata_count``，审计会失败，避免 reviewer-facing 最终材料
-   丢失 schema/corpus metadata mismatch 的数量上下文。
-5. 后续文档清理收口时至少复跑 ``git diff --check``、
-   ``test/script_task_index_docs_contract_test.ps1`` 和
-   ``test/current_direction_docs_contract_test.ps1``；若改到 PDF 执行计划或 PDF import
-   说明，再补 ``test/pdf_import_docs_contract_test.ps1``。
-6. ``P2-STYLE-01`` 已把 style merge 低置信度人工复核原因接入 document skeleton
-   governance、skeleton rollup、release blocker warning helper 与 release note bundle
-   入口材料；下一轮若继续这一项，优先补真实语料校准，而不是直接扩大自动 apply 范围。
-7. 下一轮若继续新增功能，优先守护 release governance 证据链：在 6 类业务语料全部
-   registered 的基础上，继续跑 project-template smoke / schema approval history /
-   schema patch confidence 回归，并确认 release bundle 入口、handoff、final review 仍能看到
-   dashboard、schema approval 与 schema/corpus metadata missing / mismatch 的来源路径、
-   下一步命令和 blocker/action 明细。若继续做 ``P1-SCHEMA-01``，只补新的证据传递或负例契约，
-   不做大重构。
+2. 通过 Windows MSVC CI（或具备 toolset 的本机）运行 ``document_core_unit``、
+   ``source_compat_v1_13_2`` 和中文/日文/emoji 路径的打开、保存、重新打开回归。
+3. install + ``find_package`` consumer smoke 已通过：请求最低 ``1.13.2`` 的
+   consumer 可以使用当前 package config，``FeatherDoc_ABI_VERSION`` 为 ``1.13``。
+4. 复跑 WSL ASan/UBSan、DOCX/JSON 短 fuzz 和 ``git diff --check``；Clang 14 在
+   WSL 中偶发在 ASan 初始化完成前崩溃，业务测试和 fuzzer 成功运行时均无报告，最终
+   以原生 GitHub Ubuntu sanitizer job 为准。
+5. 当前 POSIX 父目录 ``fsync`` 需要由 macOS CI 实机验证；若 Darwin 返回平台不支持，
+   必须保留“目标已替换”的明确语义并增加平台专用实现或受控降级，不能静默成功。
+6. 运行中英文文档契约测试并审查错误信息，确保路径使用 UTF-8，日志不包含正文。
+7. 上述验证全部通过后才评估 ``v1.13.3``；当前阶段不改版本号、不提交 tag、
+   不创建 release。
+8. ``P0-WORD-SAFETY-01`` 收口后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；
+   该长期 backlog 保持 ``GUARDED``，本轮不与保存事务修复混合重构。

@@ -250,6 +250,8 @@ enum class document_errc {
     identifier_space_exhausted,
     package_repair_not_possible,
     package_repair_validation_failed,
+    output_file_sync_failed,
+    output_directory_sync_failed_after_replace,
 };
 
 class document_error_category final : public std::error_category {

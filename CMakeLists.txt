@@ -20,11 +20,27 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_SAMPLES "Build provided samples" OFF)
 option(BUILD_CLI "Build featherdoc_cli command line utility" ${PROJECT_IS_TOP_LEVEL})
+option(FEATHERDOC_ENABLE_SANITIZERS
+    "Instrument all targets with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(FEATHERDOC_BUILD_FUZZERS
+    "Build Clang libFuzzer targets for untrusted DOCX and JSON inputs" OFF)
 # PDF support is experimental future work and must remain opt-in.
 option(FEATHERDOC_BUILD_PDF
     "Build experimental PDF byte writer module backed by PDFio" OFF)
 option(FEATHERDOC_BUILD_PDF_IMPORT
     "Build experimental PDF parser module backed by PDFium" OFF)
+
+if(FEATHERDOC_ENABLE_SANITIZERS)
+    if(MSVC OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(FATAL_ERROR
+            "FEATHERDOC_ENABLE_SANITIZERS requires GCC or Clang with GNU-style flags")
+    endif()
+    add_compile_options(
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 if(MSVC)
     # 统一按 UTF-8 解析源码，避免中文字符串字面量在样例和测试里被误解码。
@@ -144,6 +160,8 @@ add_library(FeatherDoc::Core ALIAS FeatherDoc)
 add_library(FeatherDoc::Word ALIAS FeatherDoc)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocRuntimeDlls.cmake")
 
+set(FEATHERDOC_ABI_VERSION
+    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 
 target_compile_features(FeatherDoc PUBLIC cxx_std_20)
 set_target_properties(FeatherDoc PROPERTIES
@@ -151,7 +169,7 @@ set_target_properties(FeatherDoc PROPERTIES
     CXX_STANDARD_REQUIRED YES
     EXPORT_NAME FeatherDoc
     VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
+    SOVERSION ${FEATHERDOC_ABI_VERSION}
 )
 
 if(WIN32)
@@ -190,6 +208,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocPdfTargets.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocSamples.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCli.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocFuzz.cmake")
 
 # Export the PDF writer only when every static dependency has a discoverable
 # package target. Bundled/fallback dependencies remain valid for build-tree

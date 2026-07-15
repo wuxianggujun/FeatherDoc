@@ -175,7 +175,7 @@ static void zip_pkware_keys_update(struct zip_pkware_keys_t *keys, mz_uint8 c) {
 /* Derives the next keystream byte from the current cipher state. */
 static mz_uint8 zip_pkware_decrypt_byte(const struct zip_pkware_keys_t *keys) {
   mz_uint16 temp = (mz_uint16)(keys->key2 | 2);
-  return (mz_uint8)((temp * (temp ^ 1)) >> 8);
+  return (mz_uint8)(((mz_uint32)temp * (mz_uint32)(temp ^ 1U)) >> 8);
 }
 
 /* Initializes cipher keys and derives the key schedule from a password. */
@@ -1489,6 +1489,7 @@ int zip_close_ex(struct zip_t *zip) {
       }
     }
 
+    CLEANUP(zip->entry.name);
     CLEANUP(zip->password);
     CLEANUP(zip);
   }

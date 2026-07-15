@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(FeatherDocInstallSmoke LANGUAGES CXX)
 
-find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core)
+find_package(FeatherDoc 1.13.2 CONFIG REQUIRED COMPONENTS Core)
 
 add_executable(featherdoc_install_smoke main.cpp)
 target_link_libraries(featherdoc_install_smoke PRIVATE FeatherDoc::Core)

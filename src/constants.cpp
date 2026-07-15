@@ -89,6 +89,10 @@ std::string document_error_category::message(int condition) const {
         return "DOCX package cannot be repaired safely";
     case document_errc::package_repair_validation_failed:
         return "repaired DOCX package failed strict validation";
+    case document_errc::output_file_sync_failed:
+        return "failed to synchronize temporary output document";
+    case document_errc::output_directory_sync_failed_after_replace:
+        return "output document replaced but parent directory synchronization failed";
     }
 
     return "unknown FeatherDoc document error";

@@ -50,6 +50,14 @@ Document
      - 返回的 ``TemplatePart``、``Paragraph``、``Table`` 等句柄是下一步编辑入口。
      - 使用前应按对应对象页的有效性规则确认目标存在。
 
+``bool`` 修改方法的 ``false`` 是“未发生修改”的合并信号，不是结构化错误码；
+它可能表示目标无效、参数不适用，或目标本来已经处于请求状态。只有某个方法的
+文档明确承诺设置 ``last_error()`` 时，调用方才能用它区分失败原因，也不能把上一次
+操作遗留的错误当作当前 ``false`` 的原因。需要可靠区分这些状态时，应先检查
+``is_open()``、句柄 ``valid()`` 和目标当前值，再比较修改后的状态。``1.13.x`` 为保持
+源码兼容，不批量改变现有 ``bool`` 签名；下一次破坏性 API 版本再统一引入结构化
+mutation result。
+
 短 C++ 示例
 ------------
 
@@ -195,6 +203,27 @@ Document
      - 无。
      - ``std::optional<bool>``
      - 检查“打开时更新域”设置；为空表示当前无法读取该设置。
+
+保存事务与持久化语义
+----------------------
+
+``save()`` 和 ``save_as()`` 在目标同目录排他创建唯一临时文件，不使用固定
+``.tmp``/``.bak`` 名称。ZIP 完整 finalize 后，临时文件会先执行用户态 flush 和文件
+同步，再通过同文件系统原子替换发布为目标；POSIX 随后同步父目录，Windows 使用
+write-through 的替换 API。POSIX 写入期间临时文件保持 ``0600``；替换已有目标时
+保留其 mode bits，新目标使用进程 ``umask`` 计算后的权限。
+
+错误边界如下：
+
+* ``output_archive_open_failed``、条目写入错误、
+  ``output_archive_finalize_failed``、``output_file_sync_failed``、
+  ``package_repair_validation_failed`` 和 ``output_replace_failed`` 都发生在替换完成
+  之前；原目标保持不变。
+* ``output_directory_sync_failed_after_replace`` 只在原子替换已经成功、但 POSIX
+  父目录持久化无法确认时返回。此时新目标已经可见，``last_error().detail`` 会明确
+  说明该状态；调用方应重新打开目标核对内容，不能假设旧文件仍然存在。
+* 成功返回表示 ZIP finalize、文件同步和平台替换步骤均成功；在支持父目录同步的
+  平台上也表示目录项同步成功。
 
 打开校验与资源限制
 ------------------

@@ -19,8 +19,10 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
     std::filesystem::path temp_file;
     std::FILE *temp_stream = nullptr;
+    std::uint32_t new_file_permissions = 0U;
     if (const auto reserve_error =
-            reserve_unique_temp_file(output_file, temp_file, temp_stream)) {
+            reserve_unique_temp_file(output_file, temp_file, temp_stream,
+                                     new_file_permissions)) {
         return set_last_error(
             this->last_error_info, document_errc::output_archive_open_failed,
             "failed to reserve a temporary output beside '" +
@@ -52,17 +54,6 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
     }
 
     std::error_code result;
-    auto record_first_error =
-        [&](std::error_code code, std::string detail = {},
-            std::string entry_name = {},
-            std::optional<std::ptrdiff_t> xml_offset = std::nullopt) {
-            if (!result) {
-                result = set_last_error(this->last_error_info, code,
-                                        std::move(detail), std::move(entry_name),
-                                        xml_offset);
-            }
-        };
-
     auto record_first_document_error =
         [&](document_errc code, std::string detail = {},
             std::string entry_name = {},
@@ -273,8 +264,10 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             return;
         }
 
-        if (zip_entry_write(new_zip, entry_content.data(), entry_content.size()) < 0 ||
-            zip_entry_close(new_zip) != 0) {
+        const auto write_result =
+            zip_entry_write(new_zip, entry_content.data(), entry_content.size());
+        const auto close_result = zip_entry_close(new_zip);
+        if (write_result < 0 || close_result != 0) {
             record_first_document_error(document_errc::output_entry_write_failed,
                                         "failed to write output entry '" +
                                             std::string{entry_name} + "'",
@@ -298,7 +291,8 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
 
         xml_zip_writer writer{new_zip};
         xml_document.print(writer);
-        if (writer.failed || zip_entry_close(new_zip) != 0) {
+        const auto close_result = zip_entry_close(new_zip);
+        if (writer.failed || close_result != 0) {
             record_first_document_error(document_errc::output_entry_write_failed,
                                         "failed to write output entry '" +
                                             std::string{entry_name} + "'",
@@ -328,7 +322,8 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         xml_zip_writer writer{new_zip};
         this->document.print(writer);
 
-        if (writer.failed || zip_entry_close(new_zip) != 0) {
+        const auto close_result = zip_entry_close(new_zip);
+        if (writer.failed || close_result != 0) {
             record_first_document_error(
                 document_errc::output_document_xml_write_failed,
                 "failed while streaming 'word/document.xml' into output archive '" +
@@ -494,9 +489,11 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
                         }
                     } else {
                         zip_entry_copy_context context{new_zip};
-                        if (zip_entry_extract(orig_zip, copy_zip_entry_chunk,
-                                              &context) < 0 ||
-                            context.failed || zip_entry_close(new_zip) != 0) {
+                        const auto extract_result = zip_entry_extract(
+                            orig_zip, copy_zip_entry_chunk, &context);
+                        const auto close_result = zip_entry_close(new_zip);
+                        if (extract_result < 0 || context.failed ||
+                            close_result != 0) {
                             zip_entry_close(orig_zip);
                             record_first_document_error(
                                 document_errc::output_entry_write_failed,
@@ -523,9 +520,20 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
         }
     }
     const auto close_result = zip_close_ex(new_zip);
+    std::error_code sync_error;
+    if (!result && close_result == 0) {
+        sync_error = sync_temporary_output(temp_stream, output_file,
+                                           new_file_permissions);
+    }
     const auto stream_close_result = std::fclose(temp_stream);
     temp_stream = nullptr;
-    if (!result && (close_result != 0 || stream_close_result != 0)) {
+    if (!result && sync_error) {
+        record_first_document_error(
+            document_errc::output_file_sync_failed,
+            "failed to synchronize temporary output archive '" +
+                temp_file_utf8 + "' before replacement: " +
+                sync_error.message());
+    } else if (!result && (close_result != 0 || stream_close_result != 0)) {
         record_first_document_error(
             document_errc::output_archive_finalize_failed,
             "failed to finalize temporary output archive '" + temp_file_utf8 +
@@ -568,6 +576,17 @@ std::error_code Document::save_as(std::filesystem::path target_path) const {
             "failed to atomically replace output document '" + output_file_utf8 +
                 "' with temporary archive '" + temp_file_utf8 + "': " +
                 replace_error.message());
+    }
+
+    if (const auto directory_sync_error =
+            sync_output_parent_directory(output_file)) {
+        return set_last_error(
+            this->last_error_info,
+            document_errc::output_directory_sync_failed_after_replace,
+            "atomically replaced output document '" + output_file_utf8 +
+                "', but failed to synchronize its parent directory; the new "
+                "document is visible but crash durability is not confirmed: " +
+                directory_sync_error.message());
     }
 
     this->last_error_info.clear();

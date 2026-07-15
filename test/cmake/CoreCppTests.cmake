@@ -325,6 +325,13 @@ featherdoc_add_cpp_test(
 featherdoc_set_test_labels(public_header_entrypoint core smoke)
 
 featherdoc_add_cpp_test(
+    source_compat_v1_13_2_tests
+    source_compat_v1_13_2
+    source_compat_v1_13_2.cpp
+)
+featherdoc_set_test_labels(source_compat_v1_13_2 core smoke compatibility)
+
+featherdoc_add_cpp_test(
     public_header_self_contained_tests
     public_header_self_contained
     public_header_self_contained_main.cpp

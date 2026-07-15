@@ -1,7 +1,8 @@
 # featherdoc_cli target definition and install rules.
 # Kept in a module so the top-level build graph stays readable.
 
-if(BUILD_CLI OR (PROJECT_IS_TOP_LEVEL AND BUILD_TESTING))
+if(BUILD_CLI OR FEATHERDOC_BUILD_FUZZERS OR
+   (PROJECT_IS_TOP_LEVEL AND BUILD_TESTING))
     set(FEATHERDOC_CLI_CORE_SOURCES
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json.cpp
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse.cpp

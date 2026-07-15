@@ -1,0 +1,79 @@
+name: Security Sanitizers And Fuzzing
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - master
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - include/**
+      - src/**
+      - cli/**
+      - fuzz/**
+      - test/**
+      - thirdparty/**
+      - .github/workflows/security-sanitizers-fuzz.yml
+  schedule:
+    - cron: "23 18 * * 1"
+  workflow_dispatch:
+
+jobs:
+  clang-sanitizers-fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      ASAN_OPTIONS: detect_leaks=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: >
+          cmake -S . -B build-security -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DBUILD_TESTING=ON
+          -DBUILD_CLI=OFF
+          -DBUILD_SAMPLES=OFF
+          -DFEATHERDOC_ENABLE_SANITIZERS=ON
+          -DFEATHERDOC_BUILD_FUZZERS=ON
+
+      - name: Build focused security targets
+        run: >
+          cmake --build build-security --parallel 4 --target
+          document_core_unit_tests
+          source_compat_v1_13_2_tests
+          cli_json_parse_tests
+          featherdoc_docx_open_fuzzer
+          featherdoc_cli_json_fuzzer
+
+      - name: Run sanitizer regressions
+        run: >
+          ctest --test-dir build-security --output-on-failure
+          -R "^(document_core_unit|source_compat_v1_13_2|cli_json_parse)$"
+
+      - name: Prepare fuzz corpora
+        run: |
+          mkdir -p build-security/corpus/docx build-security/corpus/json
+          cp -R fuzz/corpus/docx/. build-security/corpus/docx/
+          cp -R fuzz/corpus/json/. build-security/corpus/json/
+          cp test/my_test.docx build-security/corpus/docx/valid.docx
+
+      - name: Fuzz DOCX open and save round-trip
+        run: >
+          build-security/featherdoc_docx_open_fuzzer
+          -max_total_time=30 -max_len=1048576 -timeout=5 -rss_limit_mb=2048
+          build-security/corpus/docx
+
+      - name: Fuzz CLI JSON parser
+        run: >
+          build-security/featherdoc_cli_json_fuzzer
+          -max_total_time=30 -max_len=1048576 -timeout=5 -rss_limit_mb=2048
+          build-security/corpus/json

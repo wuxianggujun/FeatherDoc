@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-07-01
+状态日期：2026-07-15
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -78,6 +78,25 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    git push origin dev
 
 
+当前专项：Word/DOCX 安全修复
+----------------------------
+
+``P0-WORD-SAFETY-01`` 当前状态为 ``DOING``，基线是已发布的 ``v1.13.2``，
+本轮不修改版本号、不打 tag：
+
+1. 保存事务：POSIX 临时文件权限、目标 mode/``umask``、文件与父目录同步已实现，
+   两类同步失败有独立错误码和故障注入测试。
+2. ZIP 安全：已修复 PKWARE 算术 UB 和写入失败后的 entry 资源泄漏。
+3. 动态分析：Clang ASan/UBSan、DOCX/JSON libFuzzer target 和定时 CI workflow
+   已建立；本地短 fuzz 已通过。
+4. 兼容性：``v1.13.2`` source consumer fixture 已通过，shared ABI 按
+   ``major.minor`` 版本化，跨 minor 要求重编译；本地 Word-only 构建
+   ``518/518``、CTest ``83/83`` 已通过。
+5. install consumer 已通过并验证 Unicode 路径和 ``FeatherDoc_ABI_VERSION=1.13``；
+   剩余收口条件是 Windows MSVC CI（或具备 toolset 的本机）Unicode 回归、macOS CI
+   目录同步行为和文档契约均通过，最后再决定是否准备 ``v1.13.3``。
+
+
 近期执行队列
 ------------
 
@@ -86,10 +105,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    * 状态：``GUARDED``。
    * 目标：确认最新 ``dev`` 的 Linux、Windows、macOS 和 Docs Pages 均绿色。
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
-   * 当前结果：截至本次台账刷新，最新 ``dev`` head
-     ``84b4fd0978f2a8c5ad4d4c8529f245ac6d393334`` 的 Docs Pages、
-     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
-     状态请以 ``gh run list --branch dev`` 为准。
+   * 当前结果：``v1.13.2`` 已于北京时间 2026-07-15 正式发布；发布 tag 与远端
+     ``dev`` head 均为 ``e046fbb7310873c36adb55ac8c46e51f035a1220``。该提交的
+     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过，最近一次
+     Docs Pages 也为绿色。当前 live 状态请以 ``gh run list --branch dev`` 为准。
    * 已修复：上一轮 Windows MSVC 在 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 中暴露的 release entry material
      safety 误判已解除。修复点包括让 material-safety helper 在同一 anchor 的
@@ -452,31 +471,16 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先回到 ``P0-CI-01`` 抓日志修失败。
-2. ``P3-DOCS-01`` 本轮清理已收口：活跃文档里不再残留旧的 CLI 集中式入口、
-   旧测试文件名、缺 CI 基线和过期 PDF 执行计划引用；历史归档文档继续只读保留。
-3. 后续文档清理至少复跑 ``git diff --check``、
-   ``test/script_task_index_docs_contract_test.ps1``、
-   ``test/current_direction_docs_contract_test.ps1``；涉及 PDF import / execution plan 的
-   变更再补 ``test/pdf_import_docs_contract_test.ps1``。
-4. ``P1-RELEASE-01`` 发布材料收口已完成：release body / summary、GitHub Release
-   同步路径、release blocker rollup、governance handoff、final review、bundle /
-   checklist、packaged ``release_assets_manifest.json`` 与 release material safety
-   负例已由值级回归锁定。
-5. ``P1-SCHEMA-01`` 本轮已补 ``business_document_type`` / ``corpus_role`` 缺失治理信号、
-   固定 reviewer action，以及 schema/corpus metadata missing / mismatch 在 rollup、
-   handoff、release candidate ``release_handoff.md`` / ``final_review.md`` 与 release
-   note bundle 入口材料中的 reviewer-facing 字段展示；``P1-TEMPLATE-01`` 已把 notice、policy、report、
-   contract、tender 从 planned 推进为 registered。下一轮优先守护 release governance
-   证据链，确认 project-template smoke、schema approval history、schema patch confidence、
-   dashboard、handoff、final review 与 release bundle 入口仍能完整传递来源路径、下一步命令、
-   schema/corpus metadata missing / mismatch 细节和 blocker/action 明细；本轮已补
-   final review 侧 material-safety 负例，锁住 schema calibration mismatch block 的
-   ``mismatched_corpus_metadata_count``；若继续扩展业务语料，
-   再按同样的注册薄片补脚本、测试和文档后提交到 ``dev``。
-6. ``P2-STYLE-01`` 已把低置信度 style merge manual-review reasons 透传到
-   document skeleton governance / skeleton rollup / release blocker warning helper /
-   release note bundle 入口材料；下一轮若继续该项，优先补真实语料校准。
-7. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。
+2. 通过 Windows MSVC CI（或具备 toolset 的本机）完成 ``document_core_unit``、
+   ``source_compat_v1_13_2`` 与 Unicode 路径回归，确认 MSVC ``/utf-8`` 和宽字符
+   路径入口无回归。
+3. install + ``find_package`` 最低 ``1.13.2`` consumer smoke 已通过，导出的
+   ``FeatherDoc_ABI_VERSION`` 为 ``1.13``。
+4. 复跑 WSL sanitizer/fuzz 与文档契约测试，执行 ``git diff --check`` 和工作树审查。
+5. 推送后观察原生 Ubuntu sanitizer job 与 macOS 目录同步行为；这两项未通过前，
+   ``P0-WORD-SAFETY-01`` 不得标记为 ``DONE``。
+6. 所有安全、Unicode、兼容性和三平台 CI 证据齐全后，再决定是否准备
+   ``v1.13.3``；本轮不提前修改版本号或发布元数据。
 
 
 不做清单

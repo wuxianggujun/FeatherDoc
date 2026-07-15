@@ -32,3 +32,4 @@ CMakeLists.txt text eol=lf
 *.gif binary
 *.ico binary
 *.zip binary
+fuzz/corpus/** binary

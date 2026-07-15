@@ -32,7 +32,26 @@
 #include <windows.h>
 #else
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#endif
+
+#if defined(ZIP_ENABLE_TEST_FAILURES)
+namespace {
+std::atomic<int> document_test_sync_failure_stage{0};
+std::atomic<std::uint32_t> document_test_reserved_temp_mode{0U};
+}
+
+extern "C" void document_test_fail_next_sync_stage(int stage) {
+    if (stage != 1 && stage != 2) {
+        stage = 0;
+    }
+    document_test_sync_failure_stage.store(stage, std::memory_order_release);
+}
+
+extern "C" std::uint32_t document_test_last_reserved_temp_mode() {
+    return document_test_reserved_temp_mode.load(std::memory_order_acquire);
+}
 #endif
 
 namespace {
@@ -199,9 +218,21 @@ auto zip_error_text(int error_number) -> std::string {
     return "unknown zip error";
 }
 
+auto consume_document_test_sync_failure(int stage) noexcept -> bool {
+#if defined(ZIP_ENABLE_TEST_FAILURES)
+    int expected = stage;
+    return document_test_sync_failure_stage.compare_exchange_strong(
+        expected, 0, std::memory_order_acq_rel);
+#else
+    (void)stage;
+    return false;
+#endif
+}
+
 auto reserve_unique_temp_file(const std::filesystem::path &output_file,
-                              std::filesystem::path &temp_file,
-                              std::FILE *&temp_stream)
+                               std::filesystem::path &temp_file,
+                               std::FILE *&temp_stream,
+                               std::uint32_t &new_file_permissions)
     -> std::error_code {
     static std::atomic<std::uint64_t> sequence{0U};
     const auto timestamp = static_cast<std::uint64_t>(
@@ -212,6 +243,10 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
     const auto process_id = static_cast<std::uint64_t>(getpid());
 #endif
     temp_stream = nullptr;
+    new_file_permissions = 0U;
+#if defined(ZIP_ENABLE_TEST_FAILURES)
+    document_test_reserved_temp_mode.store(0U, std::memory_order_release);
+#endif
 
     for (std::uint32_t attempt = 0; attempt < 64U; ++attempt) {
         // Keep the temporary basename independent of the destination basename.
@@ -251,25 +286,159 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
 #ifdef O_CLOEXEC
         open_flags |= O_CLOEXEC;
 #endif
-        const int descriptor = ::open(temp_file.c_str(), open_flags, 0600);
-        if (descriptor >= 0) {
-            temp_stream = ::fdopen(descriptor, "w+b");
-            if (temp_stream != nullptr) {
-                return {};
+        // Derive the process-umask result from an empty probe inode. The probe
+        // is unlinked before the real transaction file is created, so a
+        // process that opens the probe can never observe document bytes.
+        const int probe_descriptor =
+            ::open(temp_file.c_str(), open_flags, 0666);
+        if (probe_descriptor < 0) {
+            if (errno == EEXIST) {
+                continue;
             }
-            const auto stream_error = errno;
+            return {errno, std::generic_category()};
+        }
+
+        int probe_error = 0;
+        struct stat probe_status {};
+        if (::fstat(probe_descriptor, &probe_status) != 0) {
+            probe_error = errno;
+        } else {
+            new_file_permissions =
+                static_cast<std::uint32_t>(probe_status.st_mode & 07777);
+        }
+        if (::close(probe_descriptor) != 0 && probe_error == 0) {
+            probe_error = errno;
+        }
+        if (::unlink(temp_file.c_str()) != 0 && probe_error == 0) {
+            probe_error = errno;
+        }
+        if (probe_error != 0) {
+            return {probe_error, std::generic_category()};
+        }
+
+        const int descriptor = ::open(temp_file.c_str(), open_flags, 0600);
+        if (descriptor < 0) {
+            if (errno == EEXIST) {
+                continue;
+            }
+            return {errno, std::generic_category()};
+        }
+        if (::fchmod(descriptor, 0600) != 0) {
+            const auto permission_error = errno;
             ::close(descriptor);
             std::error_code cleanup_error;
             std::filesystem::remove(temp_file, cleanup_error);
-            return {stream_error, std::generic_category()};
+            return {permission_error, std::generic_category()};
         }
-        if (errno != EEXIST) {
-            return {errno, std::generic_category()};
+#if defined(ZIP_ENABLE_TEST_FAILURES)
+        struct stat transaction_status {};
+        if (::fstat(descriptor, &transaction_status) != 0) {
+            const auto status_error = errno;
+            ::close(descriptor);
+            std::error_code cleanup_error;
+            std::filesystem::remove(temp_file, cleanup_error);
+            return {status_error, std::generic_category()};
         }
+        document_test_reserved_temp_mode.store(
+            static_cast<std::uint32_t>(transaction_status.st_mode & 07777),
+            std::memory_order_release);
+#endif
+        temp_stream = ::fdopen(descriptor, "w+b");
+        if (temp_stream != nullptr) {
+            return {};
+        }
+        const auto stream_error = errno;
+        ::close(descriptor);
+        std::error_code cleanup_error;
+        std::filesystem::remove(temp_file, cleanup_error);
+        return {stream_error, std::generic_category()};
 #endif
     }
 
     return std::make_error_code(std::errc::file_exists);
+}
+
+auto sync_temporary_output(std::FILE *temp_stream,
+                           const std::filesystem::path &output_file,
+                           std::uint32_t new_file_permissions)
+    -> std::error_code {
+    if (std::fflush(temp_stream) != 0) {
+        return {errno, std::generic_category()};
+    }
+
+#ifdef _WIN32
+    (void)output_file;
+    (void)new_file_permissions;
+    if (consume_document_test_sync_failure(1)) {
+        return std::make_error_code(std::errc::io_error);
+    }
+    if (_commit(_fileno(temp_stream)) != 0) {
+        return {errno, std::generic_category()};
+    }
+#else
+    auto final_permissions = static_cast<mode_t>(new_file_permissions);
+    struct stat output_status {};
+    if (::stat(output_file.c_str(), &output_status) == 0) {
+        final_permissions = output_status.st_mode & 07777;
+    } else if (errno != ENOENT) {
+        return {errno, std::generic_category()};
+    }
+
+    const int descriptor = ::fileno(temp_stream);
+    if (descriptor < 0) {
+        return {errno, std::generic_category()};
+    }
+    if (::fchmod(descriptor, final_permissions) != 0) {
+        return {errno, std::generic_category()};
+    }
+    if (consume_document_test_sync_failure(1)) {
+        return std::make_error_code(std::errc::io_error);
+    }
+    if (::fsync(descriptor) != 0) {
+        return {errno, std::generic_category()};
+    }
+#endif
+
+    return {};
+}
+
+auto sync_output_parent_directory(const std::filesystem::path &output_file)
+    -> std::error_code {
+    if (consume_document_test_sync_failure(2)) {
+        return std::make_error_code(std::errc::io_error);
+    }
+
+#ifdef _WIN32
+    (void)output_file;
+    return {};
+#else
+    auto parent_path = output_file.parent_path();
+    if (parent_path.empty()) {
+        parent_path = ".";
+    }
+
+    int open_flags = O_RDONLY;
+#ifdef O_CLOEXEC
+    open_flags |= O_CLOEXEC;
+#endif
+#ifdef O_DIRECTORY
+    open_flags |= O_DIRECTORY;
+#endif
+    const int directory_descriptor = ::open(parent_path.c_str(), open_flags);
+    if (directory_descriptor < 0) {
+        return {errno, std::generic_category()};
+    }
+
+    if (::fsync(directory_descriptor) != 0) {
+        const auto sync_error = errno;
+        ::close(directory_descriptor);
+        return {sync_error, std::generic_category()};
+    }
+    if (::close(directory_descriptor) != 0) {
+        return {errno, std::generic_category()};
+    }
+    return {};
+#endif
 }
 
 auto replace_file_atomically(const std::filesystem::path &temp_file,

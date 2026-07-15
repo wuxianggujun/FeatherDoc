@@ -8,9 +8,11 @@
 #include <thread>
 #include <vector>
 
+#include "document_save_failure_test_support.hpp"
 #include "zip_failure_test_support.hpp"
 
 #ifndef _WIN32
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -51,6 +53,25 @@ void write_tiny_png(const std::filesystem::path &path) {
     stream.write(reinterpret_cast<const char *>(png), sizeof(png));
     REQUIRE(stream.good());
 }
+
+#ifndef _WIN32
+auto filesystem_supports_posix_mode_bits(
+    const std::filesystem::path &directory) -> bool {
+    const auto probe =
+        directory /
+        (".featherdoc-mode-probe-" +
+         std::to_string(static_cast<std::uint64_t>(getpid())));
+    std::filesystem::remove(probe);
+    write_file_text(probe, "mode probe");
+    REQUIRE_EQ(::chmod(probe.c_str(), 0640), 0);
+
+    struct stat probe_status {};
+    REQUIRE_EQ(::stat(probe.c_str(), &probe_status), 0);
+    const auto supports_mode_bits = (probe_status.st_mode & 07777) == 0640;
+    std::filesystem::remove(probe);
+    return supports_mode_bits;
+}
+#endif
 
 auto unique_temp_files_for(const std::filesystem::path &target) -> std::size_t {
 #ifdef _WIN32
@@ -614,6 +635,112 @@ TEST_CASE("ZIP close failures preserve the original target and allow retry") {
                       "writer-end");
     }
 }
+
+TEST_CASE("temporary output sync failure preserves the original target") {
+    namespace fs = std::filesystem;
+    const auto target = fs::current_path() / "save_file_sync_failure.docx";
+    fs::remove(target);
+    write_file_text(target, "original bytes");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE(document.paragraphs().add_run("unsynced replacement").has_next());
+
+    featherdoc_test::document_fail_next_sync_stage(
+        featherdoc_test::document_sync_failure_file);
+    const auto save_error = document.save_as(target);
+    CHECK_EQ(save_error, featherdoc::document_errc::output_file_sync_failed);
+    CHECK_EQ(document.last_error().code,
+             featherdoc::document_errc::output_file_sync_failed);
+    CHECK_EQ(read_file_text(target), "original bytes");
+    CHECK_EQ(unique_temp_files_for(target), 0U);
+
+    fs::remove(target);
+}
+
+TEST_CASE("parent directory sync failure reports that replacement completed") {
+    namespace fs = std::filesystem;
+    const auto target = fs::current_path() / "save_directory_sync_failure.docx";
+    fs::remove(target);
+    write_file_text(target, "original bytes");
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE(document.paragraphs().add_run("replacement completed").has_next());
+
+    featherdoc_test::document_fail_next_sync_stage(
+        featherdoc_test::document_sync_failure_parent_directory);
+    const auto save_error = document.save_as(target);
+    CHECK_EQ(save_error,
+             featherdoc::document_errc::output_directory_sync_failed_after_replace);
+    CHECK_EQ(
+        document.last_error().code,
+        featherdoc::document_errc::output_directory_sync_failed_after_replace);
+    CHECK_EQ(unique_temp_files_for(target), 0U);
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_EQ(collect_document_text(reopened), "replacement completed\n");
+
+    fs::remove(target);
+}
+
+#ifndef _WIN32
+TEST_CASE("POSIX save preserves permissions of an existing target") {
+    namespace fs = std::filesystem;
+    if (!filesystem_supports_posix_mode_bits(fs::current_path())) {
+        return;
+    }
+
+    const auto target = fs::current_path() / "save_existing_permissions.docx";
+    fs::remove(target);
+
+    featherdoc::Document initial_document;
+    REQUIRE_FALSE(initial_document.create_empty());
+    REQUIRE_FALSE(initial_document.save_as(target));
+    REQUIRE_EQ(::chmod(target.c_str(), 0640), 0);
+
+    featherdoc::Document replacement_document;
+    REQUIRE_FALSE(replacement_document.create_empty());
+    REQUIRE(replacement_document.paragraphs()
+                .add_run("preserve permissions")
+                .has_next());
+    REQUIRE_FALSE(replacement_document.save_as(target));
+
+    struct stat target_status {};
+    REQUIRE_EQ(::stat(target.c_str(), &target_status), 0);
+    CHECK_EQ(target_status.st_mode & 07777, 0640);
+
+    fs::remove(target);
+}
+
+TEST_CASE("POSIX save applies the process umask to a new target") {
+    namespace fs = std::filesystem;
+    if (!filesystem_supports_posix_mode_bits(fs::current_path())) {
+        return;
+    }
+
+    const auto target = fs::current_path() / "save_new_permissions.docx";
+    fs::remove(target);
+
+    struct scoped_umask final {
+        mode_t previous;
+        explicit scoped_umask(mode_t value) : previous(::umask(value)) {}
+        ~scoped_umask() { ::umask(this->previous); }
+    } mask{0027};
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    REQUIRE_FALSE(document.save_as(target));
+    CHECK_EQ(featherdoc_test::document_last_reserved_temp_mode(), 0600U);
+
+    struct stat target_status {};
+    REQUIRE_EQ(::stat(target.c_str(), &target_status), 0);
+    CHECK_EQ(target_status.st_mode & 07777, 0640);
+
+    fs::remove(target);
+}
+#endif
 
 TEST_CASE("concurrent saves use independent temporary archives") {
     namespace fs = std::filesystem;
