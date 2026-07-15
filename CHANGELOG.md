@@ -8,6 +8,40 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-07-15
+
+### Security
+
+- Hardened POSIX document saves so transaction files remain mode `0600` while
+  document bytes are being written. Existing destination permissions are
+  preserved, while new files receive the process `umask` result only before
+  synchronization and atomic replacement.
+- Fixed undefined signed arithmetic in the vendored ZIP PKWARE keystream
+  calculation and released ZIP entry state on failed output paths.
+
+### Added
+
+- Added optional ASan/UBSan instrumentation and Clang libFuzzer targets for
+  untrusted DOCX packages and CLI JSON values, with seed corpora and a dedicated
+  GitHub Actions workflow.
+- Added a frozen `v1.13.2` source-consumer check and exported
+  `FeatherDoc_ABI_VERSION=1.13`. Linux and macOS shared libraries now encode the
+  `1.13` ABI line in their `SOVERSION`.
+- Extended install-consumer coverage to save and reopen documents below paths
+  containing Chinese, Japanese, emoji, and spaces.
+
+### Fixed
+
+- Fixed atomic saves so the temporary archive is flushed and synchronized
+  before replacement, then the parent directory is synchronized after
+  replacement on POSIX systems.
+- Added distinct errors for pre-replacement file synchronization failure and
+  post-replacement directory synchronization failure. Callers can now tell
+  whether the original file was preserved or the new file is already visible
+  but crash durability could not be confirmed.
+- Fixed output-entry cleanup after ZIP write or close failures so retries do
+  not retain entry resources and failed saves leave no transaction files.
+
 ## [1.13.2] - 2026-07-14
 
 ### Fixed

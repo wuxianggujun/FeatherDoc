@@ -33,10 +33,11 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * ``v1.13.2`` 已于北京时间 2026-07-15 正式发布。发布 tag 与当前远端
-     ``dev`` head 均为 ``e046fbb7310873c36adb55ac8c46e51f035a1220``；该提交的
-     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过，最近一次
-     Docs Pages 也为绿色。当前 live 状态请以 ``gh run list --branch dev`` 为准。
+   * ``v1.13.2`` 已于北京时间 2026-07-15 正式发布。``v1.13.3`` 发布前功能基线
+     ``8159c819c177c39f55034cd10d8233fe205c92dd`` 的 Linux CMake CI、macOS
+     CMake CI、Windows MSVC CI 与 Security Sanitizers And Fuzzing 均已通过；
+     版本元数据提交后必须再次等待对应 CI 全绿再创建 tag。当前 live 状态请以
+     ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -65,8 +66,8 @@ P0：当前发布与 CI 守护
 P0：Word/DOCX 安全与兼容性
 -------------------------
 
-本项只处理 Word/DOCX 核心，不扩展 PDF 主线。当前状态为 ``DOING``，所有改动仍在
-本地 ``Unreleased`` 阶段：
+本项只处理 Word/DOCX 核心，不扩展 PDF 主线。当前状态为 ``DONE``，修复已进入
+``v1.13.3`` 发布收口：
 
 1. POSIX 保存事务已补临时文件 ``0600``、目标 mode/``umask`` 继承、文件
    ``fsync`` 和替换后父目录 ``fsync``；同步失败分成替换前
@@ -82,8 +83,8 @@ P0：Word/DOCX 安全与兼容性
    ``document_core`` 已通过 61 个 case / 1039 个断言、source compatibility test、
    DOCX 100 次短 fuzz 和 JSON 1000 次短 fuzz。install + ``find_package`` consumer
    已用中文、日文和 emoji 路径完成保存与重开，shared library SONAME 已验证为
-   ``libFeatherDoc.so.1.13``。进入下一版本前仍需完成 Windows MSVC CI（或具备
-   toolset 的本机）Unicode 回归和远端 macOS 目录同步验证。
+   ``libFeatherDoc.so.1.13``。Windows MSVC、Linux GCC/Clang、macOS 和原生 Ubuntu
+   sanitizer/fuzz CI 均已通过，Windows Unicode 回归与 Darwin 目录同步已收口。
 
 
 P1：模板契约与项目模板工作流
@@ -518,17 +519,13 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 通过 Windows MSVC CI（或具备 toolset 的本机）运行 ``document_core_unit``、
-   ``source_compat_v1_13_2`` 和中文/日文/emoji 路径的打开、保存、重新打开回归。
-3. install + ``find_package`` consumer smoke 已通过：请求最低 ``1.13.2`` 的
-   consumer 可以使用当前 package config，``FeatherDoc_ABI_VERSION`` 为 ``1.13``。
-4. 复跑 WSL ASan/UBSan、DOCX/JSON 短 fuzz 和 ``git diff --check``；Clang 14 在
-   WSL 中偶发在 ASan 初始化完成前崩溃，业务测试和 fuzzer 成功运行时均无报告，最终
-   以原生 GitHub Ubuntu sanitizer job 为准。
-5. 当前 POSIX 父目录 ``fsync`` 需要由 macOS CI 实机验证；若 Darwin 返回平台不支持，
-   必须保留“目标已替换”的明确语义并增加平台专用实现或受控降级，不能静默成功。
-6. 运行中英文文档契约测试并审查错误信息，确保路径使用 UTF-8，日志不包含正文。
-7. 上述验证全部通过后才评估 ``v1.13.3``；当前阶段不改版本号、不提交 tag、
-   不创建 release。
-8. ``P0-WORD-SAFETY-01`` 收口后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；
-   该长期 backlog 保持 ``GUARDED``，本轮不与保存事务修复混合重构。
+2. 完成 ``v1.13.3`` 版本号、CHANGELOG 与发布材料更新，运行版本一致性、文档契约、
+   ``git diff --check`` 和 UTF-8 审查。
+3. 提交并推送版本元数据后等待 Windows、Linux、macOS、Docs Pages 和 sanitizer CI
+   全绿；任一失败都先修复，不提前创建 tag 或 release。
+4. 下载并审计通过的 Windows CI release metadata 与 asset preview，核对安装包版本、
+   ``FeatherDoc_ABI_VERSION=1.13``、中文发布说明和 manifest。
+5. 创建 ``v1.13.3`` tag 与 GitHub Release，上传审计后的资产；发布后复核 tag、
+   release URL、assets 与远端 ``dev`` head。
+6. ``P0-WORD-SAFETY-01`` 发布后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；
+   该长期 backlog 保持 ``GUARDED``，不与本次 patch release 混合重构。
