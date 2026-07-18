@@ -19,6 +19,13 @@ Document::reserve_review_revision_identifiers(std::size_t count) {
             !this->ensure_review_notes_part(
                 featherdoc::review_note_kind::endnote, false) ||
             !this->ensure_comments_part(false)) {
+            if (this->last_error_info.code ==
+                std::make_error_code(std::errc::not_enough_memory)) {
+                (void)featherdoc::detail::set_xml_document_allocation_failure(
+                    this->last_error_info,
+                    "review revision identifier reservation ran out of memory",
+                    document_xml_entry);
+            }
             return std::nullopt;
         }
         collect_revision_ids(this->footnotes, identifier_allocator);
