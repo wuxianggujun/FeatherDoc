@@ -202,12 +202,17 @@ exemplar catalog 或只存在于 baseline manifest 时，会分别落到
 ``numbering_catalog_governance.missing_exemplar`` action item，指向原始
 ``source_schema``、``source_report_display``、``source_json_display`` 与可复跑的
 ``open_command``。
-后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
-patch 衔接。
+同一 ``document_key`` 出现多个不同 ``exemplar_catalog_path`` 时，治理报告现在会
+输出 ``exemplar_conflict_count`` / ``exemplar_conflicts``，生成
+``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 和
+``review_numbering_catalog_exemplar_conflict`` action，并在 ``open_command`` 中给出
+``diff-numbering-catalog`` 对比入口；这避免来源冲突被单纯的 document-key 对齐误判为
+干净匹配。后续对既有文档里的复杂 numbering catalog，仍可继续完善 catalog patch
+衔接。
 
 后续建议集中在：
 
-- 强化 exemplar 文档自动提取 numbering catalog 后的冲突审计报告
+- 将 exemplar 冲突审计结果进一步衔接到 catalog patch 计划
 - 把 ``repair-style-numbering`` 的安全修复建议进一步转成可复用 catalog patch
 - 对企业模板里的重复、孤儿、跨样式绑定冲突做更细的置信度分级
 - 继续打磨骨架治理 rollup 在 release blocker rollup 和发布面板里的消费体验

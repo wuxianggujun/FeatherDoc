@@ -440,8 +440,13 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
      ``numbering_catalog_governance.missing_baseline`` /
      ``numbering_catalog_governance.missing_exemplar`` action item，并携带
      ``source_schema``、``source_report_display``、``source_json_display`` 和
-     可复跑 ``open_command``。
-   * 验收：document skeleton governance rollup 保留 per-document source 与 action。
+     可复跑 ``open_command``。同一 ``document_key`` 的多个不同
+     ``exemplar_catalog_path`` 现在还会进入 ``exemplar_conflicts``，生成
+     ``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 与
+     ``review_numbering_catalog_exemplar_conflict`` action，并提供
+     ``diff-numbering-catalog`` 复核命令。
+   * 验收：document skeleton governance rollup 保留 per-document source 与 action；
+     exemplar catalog 来源冲突不能继续以 release-ready 通过。
 
 10. ``P2-TABLE-01``：表格与版式交付质量
 

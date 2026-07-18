@@ -166,6 +166,10 @@ Numbering Catalog Governance
 * ``numbering_catalog_governance.missing_baseline``
 * ``numbering_catalog_governance.missing_exemplar``
 * ``numbering_catalog_governance.real_corpus_alignment_gap``
+* ``exemplar_conflict_count``
+* ``exemplar_conflicts``
+* ``numbering_catalog_governance.exemplar_catalog_conflict``
+* ``review_numbering_catalog_exemplar_conflict``
 * ``source_schema``
 * ``source_report_display``
 * ``source_json_display``

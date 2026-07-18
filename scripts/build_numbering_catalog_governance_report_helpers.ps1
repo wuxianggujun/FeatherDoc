@@ -266,6 +266,7 @@ function New-RealCorpusConfidence {
     param(
         [int]$DocumentCount,
         [int]$CatalogExemplarCount,
+        [int]$CatalogDocumentCount = -1,
         [int]$BaselineEntryCount,
         [int]$MatchedDocumentCount,
         [int]$TotalStyleNumberingIssueCount,
@@ -276,10 +277,18 @@ function New-RealCorpusConfidence {
         [int]$TotalCommandFailureCount
     )
 
-    $catalogCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $DocumentCount
+    # A document may have multiple exemplar rows while the confidence metric
+    # measures document coverage. Keep the raw exemplar count for compatibility
+    # but use the unique document count for denominators and gap calculations.
+    $catalogDocumentCountForCoverage = if ($CatalogDocumentCount -ge 0) {
+        $CatalogDocumentCount
+    } else {
+        $CatalogExemplarCount
+    }
+    $catalogCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $catalogDocumentCountForCoverage
     $baselineCoveragePercent = Get-Percent -Numerator $MatchedDocumentCount -Denominator $BaselineEntryCount
     $coverageScore = [Math]::Min($catalogCoveragePercent, $baselineCoveragePercent)
-    $unmatchedCatalogDocumentCount = [Math]::Max(0, $CatalogExemplarCount - $MatchedDocumentCount)
+    $unmatchedCatalogDocumentCount = [Math]::Max(0, $catalogDocumentCountForCoverage - $MatchedDocumentCount)
     $unmatchedBaselineDocumentCount = [Math]::Max(0, $BaselineEntryCount - $MatchedDocumentCount)
 
     $styleIssuePenalty = [Math]::Min(25, $TotalStyleNumberingIssueCount * 5)
@@ -290,7 +299,7 @@ function New-RealCorpusConfidence {
     $level = Get-RealCorpusConfidenceLevel `
         -Score $score `
         -DocumentCount $DocumentCount `
-        -CatalogExemplarCount $CatalogExemplarCount `
+        -CatalogExemplarCount $catalogDocumentCountForCoverage `
         -BaselineEntryCount $BaselineEntryCount
 
     return [ordered]@{
@@ -298,6 +307,7 @@ function New-RealCorpusConfidence {
         level = $level
         document_count = $DocumentCount
         catalog_exemplar_count = $CatalogExemplarCount
+        catalog_document_count = $catalogDocumentCountForCoverage
         baseline_entry_count = $BaselineEntryCount
         matched_document_count = $MatchedDocumentCount
         unmatched_catalog_document_count = $unmatchedCatalogDocumentCount
@@ -508,6 +518,7 @@ function New-ReportMarkdown {
     $lines.Add("- Documents: ``$($Summary.document_count)``") | Out-Null
     $lines.Add("- Baseline entries: ``$($Summary.baseline_entry_count)``") | Out-Null
     $lines.Add("- Catalog exemplars: ``$($Summary.catalog_exemplar_count)``") | Out-Null
+    $lines.Add("- Exemplar catalog conflicts: ``$($Summary.exemplar_conflict_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
     $lines.Add("- Real corpus confidence: ``$($Summary.real_corpus_confidence_level)`` (score=``$($Summary.real_corpus_confidence_score)``)") | Out-Null
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
@@ -549,6 +560,30 @@ function New-ReportMarkdown {
     }
     $lines.Add("") | Out-Null
 
+    $lines.Add("## Exemplar Catalog Conflicts") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.exemplar_conflicts).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($conflict in @($Summary.exemplar_conflicts)) {
+            $paths = Format-MarkdownCodeList -Values @($conflict.exemplar_catalog_displays)
+            $lines.Add(("- ``{0}``: status=``{1}`` paths={2} action=``{3}`` source_report_display=``{4}`` source_json_display=``{5}``" -f
+                $conflict.document_key,
+                $conflict.status,
+                $paths,
+                $conflict.action,
+                $conflict.source_report_display,
+                $conflict.source_json_display)) | Out-Null
+            if (-not [string]::IsNullOrWhiteSpace([string]$conflict.message)) {
+                $lines.Add("  - message: $($conflict.message)") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$conflict.open_command)) {
+                $lines.Add("  - open_command: ``$($conflict.open_command)``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
     $lines.Add("## Real Corpus Alignment") | Out-Null
     $lines.Add("") | Out-Null
     if (@($Summary.real_corpus_alignment).Count -eq 0) {
@@ -559,9 +594,10 @@ function New-ReportMarkdown {
                 ForEach-Object { Get-FirstJsonString -Object $_ -Names @("input_docx_display", "input_docx", "document_name") })
             $baselineInputs = @($entry.baseline_entries |
                 ForEach-Object { Get-FirstJsonString -Object $_ -Names @("input_docx_display", "input_docx", "name") })
-            $lines.Add(("- ``{0}``: status=``{1}`` catalog_inputs={2} baseline_inputs={3} action=``{4}`` source_report_display=``{5}`` source_json_display=``{6}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` exemplar_conflict=``{2}`` catalog_inputs={3} baseline_inputs={4} action=``{5}`` source_report_display=``{6}`` source_json_display=``{7}``" -f
                 $entry.document_key,
                 $entry.status,
+                $entry.exemplar_conflict,
                 (Format-MarkdownCodeList -Values $catalogInputs),
                 (Format-MarkdownCodeList -Values $baselineInputs),
                 $entry.action,

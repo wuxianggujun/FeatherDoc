@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "malformed", "fail_on_blocker", "missing_inputs")]
+    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "exemplar_conflict", "malformed", "fail_on_blocker", "missing_inputs")]
     [string]$Scenario = "all"
 )
 
@@ -230,6 +230,32 @@ function New-SkeletonRollup {
             }
         )
     }
+}
+
+function New-ExemplarConflictSkeletonRollup {
+    $rollup = New-SkeletonRollup -Clean:$true
+    $rollup["catalog_exemplars"] = @(
+        @($rollup.catalog_exemplars)
+        [ordered]@{
+            document_name = "invoice.docx"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            exemplar_catalog_path = "output/document-skeleton-governance/invoice/exemplar.alternate.numbering-catalog.json"
+            exemplar_catalog_display = ".\output\document-skeleton-governance\invoice\exemplar.alternate.numbering-catalog.json"
+            definition_count = 3
+            instance_count = 4
+        },
+        [ordered]@{
+            document_name = "invoice.docx"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            exemplar_catalog_path = ".\OUTPUT\DOCUMENT-SKELETON-GOVERNANCE\INVOICE\EXEMPLAR.NUMBERING-CATALOG.JSON"
+            exemplar_catalog_display = ".\OUTPUT\DOCUMENT-SKELETON-GOVERNANCE\INVOICE\EXEMPLAR.NUMBERING-CATALOG.JSON"
+            definition_count = 2
+            instance_count = 3
+        }
+    )
+    return $rollup
 }
 
 function New-ManifestSummary {
@@ -749,6 +775,122 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Markdown should include the missing-baseline review command."
     Assert-ContainsText -Text $markdown -ExpectedText "build_document_skeleton_governance_report.ps1" `
         -Message "Markdown should include the missing-exemplar rebuild command."
+}
+
+if (Test-Scenario -Name "exemplar_conflict") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "exemplar-conflict-evidence"
+    $skeletonPath = Join-Path $evidenceRoot "skeleton\summary.json"
+    $manifestPath = Join-Path $evidenceRoot "manifest\summary.json"
+    Write-JsonFile -Path $skeletonPath -Value (New-ExemplarConflictSkeletonRollup)
+    Write-JsonFile -Path $manifestPath -Value (New-ManifestSummary -Clean:$true)
+
+    $outputDir = Join-Path $resolvedWorkingDir "exemplar-conflict-report"
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", "$skeletonPath,$manifestPath",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Exemplar conflict report should pass without fail switches. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "numbering_catalog_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Conflicting exemplar catalog paths should require review."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Conflicting exemplar catalog paths should block release readiness."
+    Assert-Equal -Actual ([int]$summary.exemplar_conflict_count) -Expected 1 `
+        -Message "Summary should count one exemplar catalog conflict."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.exemplar_conflict_count) -Expected 1 `
+        -Message "Real-corpus confidence details should expose exemplar conflict count."
+    Assert-Equal -Actual (@($summary.exemplar_conflicts).Count) -Expected 1 `
+        -Message "Summary should expose one exemplar catalog conflict record."
+
+    $conflict = @($summary.exemplar_conflicts)[0]
+    Assert-Equal -Actual ([string]$conflict.document_key) -Expected "invoice" `
+        -Message "Conflict should preserve the canonical document key."
+    Assert-Equal -Actual ([string]$conflict.status) -Expected "exemplar_catalog_conflict" `
+        -Message "Conflict should expose a stable status."
+    Assert-Equal -Actual ([int]$conflict.exemplar_catalog_path_count) -Expected 2 `
+        -Message "Conflict should count distinct exemplar catalog paths."
+    Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 3 `
+        -Message "Summary should preserve all exemplar rows even when paths normalize to the same value."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_document_count) -Expected 1 `
+        -Message "Confidence coverage should count unique exemplar document keys."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_coverage_percent) -Expected 100 `
+        -Message "Duplicate exemplar rows should not reduce catalog document coverage."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.unmatched_catalog_document_count) -Expected 0 `
+        -Message "Duplicate exemplar rows should not create unmatched catalog documents."
+    Assert-ContainsText -Text ((@($conflict.exemplar_catalog_paths) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.numbering-catalog.json" `
+        -Message "Conflict should preserve the original exemplar catalog path."
+    Assert-ContainsText -Text ((@($conflict.exemplar_catalog_paths) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.alternate.numbering-catalog.json" `
+        -Message "Conflict should preserve the alternate exemplar catalog path."
+    Assert-Equal -Actual ([string]$conflict.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Conflict should expose the reviewer action."
+    Assert-ContainsText -Text ([string]$conflict.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Conflict should provide a catalog diff command."
+    Assert-ContainsText -Text ([string]$conflict.open_command) -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Conflict diff command should include the alternate catalog."
+    Assert-Equal -Actual ([string]$conflict.source_schema) `
+        -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Conflict should route back to the skeleton rollup source."
+    Assert-ContainsText -Text ([string]$conflict.source_json_display) -ExpectedText "skeleton\summary.json" `
+        -Message "Conflict should expose its source JSON display path."
+
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 1 `
+        -Message "Conflict evidence should preserve the existing alignment row count."
+    $alignment = @($summary.real_corpus_alignment)[0]
+    Assert-Equal -Actual ([string]$alignment.status) -Expected "matched" `
+        -Message "Conflict detection should not change existing catalog/baseline alignment semantics."
+    Assert-Equal -Actual ([bool]$alignment.exemplar_conflict) -Expected $true `
+        -Message "Alignment row should expose the exemplar conflict flag."
+    Assert-Equal -Actual ([int]$alignment.exemplar_conflict_count) -Expected 2 `
+        -Message "Alignment row should expose the number of conflicting paths."
+
+    $conflictBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.exemplar_catalog_conflict" })[0]
+    Assert-True -Condition ($null -ne $conflictBlocker) `
+        -Message "Exemplar conflict should create a release blocker."
+    Assert-Equal -Actual ([string]$conflictBlocker.scope) -Expected "invoice" `
+        -Message "Exemplar conflict blocker should be scoped to the document key."
+    Assert-Equal -Actual ([string]$conflictBlocker.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Exemplar conflict blocker should expose the reviewer action."
+    Assert-Equal -Actual ([int]$conflictBlocker.exemplar_catalog_path_count) -Expected 2 `
+        -Message "Exemplar conflict blocker should preserve the conflicting path count."
+    Assert-ContainsText -Text ([string]$conflictBlocker.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Exemplar conflict blocker should preserve the catalog diff command."
+
+    $conflictAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.exemplar_catalog_conflict" })[0]
+    Assert-True -Condition ($null -ne $conflictAction) `
+        -Message "Exemplar conflict should create a release action item."
+    Assert-Equal -Actual ([string]$conflictAction.scope) -Expected "invoice" `
+        -Message "Exemplar conflict action should be scoped to the document key."
+    Assert-Equal -Actual ([string]$conflictAction.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Exemplar conflict action should expose the reviewer action."
+    Assert-Equal -Actual ([bool]$conflictAction.release_blocking) -Expected $true `
+        -Message "Exemplar conflict action should remain release-blocking."
+    Assert-ContainsText -Text ([string]$conflictAction.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Exemplar conflict action should provide a catalog diff command."
+
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Exemplar Catalog Conflicts" `
+        -Message "Markdown should include the exemplar conflict section."
+    Assert-ContainsText -Text $markdown -ExpectedText "exemplar_catalog_conflict" `
+        -Message "Markdown should expose the exemplar conflict status and blocker ID."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_numbering_catalog_exemplar_conflict" `
+        -Message "Markdown should expose the exemplar conflict action."
+    Assert-ContainsText -Text $markdown -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Markdown should expose the alternate exemplar path."
+    Assert-ContainsText -Text $markdown -ExpectedText "diff-numbering-catalog" `
+        -Message "Markdown should expose the catalog diff command."
 }
 
 if (Test-Scenario -Name "malformed") {

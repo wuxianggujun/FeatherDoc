@@ -408,7 +408,10 @@ P2：样式与编号治理
 
 4. 强化 document skeleton governance：
 
-   * exemplar catalog 冲突审计。
+   * exemplar catalog 冲突审计已落地：同一 ``document_key`` 出现多个不同
+     ``exemplar_catalog_path`` 时，报告会输出 ``exemplar_conflict_count`` /
+     ``exemplar_conflicts``，并生成 release blocker、review action 与可复跑的
+     ``diff-numbering-catalog`` 命令。
    * numbering catalog patch 衔接。
    * 多文档 rollup 中保留 per-document source 与 action。
    * numbering catalog governance 已开始输出 per-document ``real_corpus_alignment``

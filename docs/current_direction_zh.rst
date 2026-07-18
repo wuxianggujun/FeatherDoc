@@ -217,7 +217,9 @@
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. 在已有骨架治理报告和多文档 rollup 基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
+4. exemplar catalog 来源冲突审计已接入 numbering governance：同一 document key 的
+   多个不同 catalog 会生成 blocker、review action 与 diff 命令；下一步继续完善
+   catalog patch 衔接
 
 这条线的目标是：
 

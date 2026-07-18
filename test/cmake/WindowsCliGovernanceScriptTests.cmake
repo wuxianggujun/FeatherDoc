@@ -293,6 +293,23 @@
 
             add_test(
                 NAME
+                build_numbering_catalog_governance_report_exemplar_conflict
+                COMMAND
+                ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+                -ExecutionPolicy
+                Bypass
+                -File
+                ${CMAKE_CURRENT_SOURCE_DIR}/build_numbering_catalog_governance_report_test.ps1
+                -RepoRoot
+                ${PROJECT_SOURCE_DIR}
+                -WorkingDir
+                ${CMAKE_CURRENT_BINARY_DIR}/build_numbering_catalog_governance_report_exemplar_conflict
+                -Scenario
+                exemplar_conflict
+            )
+
+            add_test(
+                NAME
                 build_numbering_catalog_governance_report_malformed
                 COMMAND
                 ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
