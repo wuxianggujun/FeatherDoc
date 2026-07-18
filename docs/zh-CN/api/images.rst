@@ -75,12 +75,43 @@ FeatherDoc 没有单独的 ``featherdoc::Image`` 对象。图片相关能力分�
 ``WebP`` 和 ``TIFF`` 不属于本项目启用的 ``stb_image`` 解码集合，因此继续使用
 FeatherDoc 自有的尺寸读取逻辑。
 
+各格式读取器会拒绝非有限或不可表示的 SVG 尺寸/viewBox。WebP chunk 范围和 TIFF
+IFD/value offset 使用受检算术，损坏的 32 位 offset 不能回绕到输入缓冲区；浮动图片
+crop 转换在 ``std::uint32_t`` 边界也使用受检舍入。这些失败会在创建图片 XML 或
+媒体部件前返回 ``image_size_read_failed``。
+
 显式传入 ``width_px`` 和 ``height_px`` 时，布局尺寸不再依赖源尺寸推断；但图片
 文件仍必须可读取且格式可识别，这样才能正确写入包内媒体部件和内容类型。
 
 包内内容类型和媒体部件扩展名仍由源文件扩展名决定。请保持扩展名和真实图片字节
 一致；例如，生成的 DOCX 需要声明 ``image/png`` 时，不要在 ``.png`` 文件中存放
 JPEG 字节。
+
+外部图片输入必须解析到普通文件，且固定限制为 256 MiB。指向普通文件的符号链接继续
+受支持；目录、FIFO、socket、设备以及指向非普通文件的符号链接会在打开输入前被拒绝。
+不支持的扩展名会在类型检查后、``file_size`` 查询、内存分配、打开或读取内容前被拒绝；
+扩展名仍按 ASCII 大小写不敏感方式匹配。
+
+FeatherDoc 使用不抛异常的 ``error_code`` API 做路径预检，然后只打开一个原生句柄，
+并在同一已打开对象上复验类型、查询大小和读取。POSIX 会先以 ``O_NONBLOCK`` 打开再
+``fstat``，因此已检查路径即使被竞态替换成普通 FIFO，打开也不会等待 writer；Windows
+使用 ``CreateFileW`` 并通过 ``GetFileType`` 复验。这不承诺任意设备驱动、FUSE 实现
+或网络文件系统都具有有界延迟。读取仍以 64 KiB 分块并额外探测超过上限的第一个字节，
+因此文件在元数据检查后增长也不能绕过上限。原生读取失败的 detail 会保留数值形式的
+OS 错误和 category，但不会包含图片内容。如果路径预检或 POSIX ``fstat`` 返回
+``EOVERFLOW``，表示当前进程无法表示真实文件大小；此时返回
+``image_input_limit_exceeded``，并将
+``actual_bytes`` 标记为 ``unrepresentable``，而不是误报为普通状态查询失败。其他
+状态查询、非普通文件、大小查询、打开、读取、不支持格式和超限分别返回
+``image_file_status_failed``、``image_file_not_regular``、
+``image_file_size_read_failed``、``image_file_open_failed``、
+``image_file_read_failed``、``image_format_unsupported`` 和
+``image_input_limit_exceeded``。超限会在创建 drawing XML、relationship、
+Content Types 声明或媒体部件前被拒绝；detail 仅包含路径、``actual_bytes`` 和
+``limit_bytes`` 等诊断信息，不包含图片内容。
+
+图片提取需要重新打开原 DOCX 时，会在读取媒体字节前复验当前完整源包。因此在
+``open()`` 后替换源文件，也不能绕过 binary entry、总量、压缩比或物理名称限制。
 
 类型化签名导读
 --------------

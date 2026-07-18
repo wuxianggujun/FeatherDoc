@@ -85,7 +85,13 @@ auto read_table_position_plan_file(
                                                "'input_path' must not be empty",
                                                error_message);
             }
-            plan.input_path = path_type(std::move(input_path_text));
+            std::string path_error;
+            if (!parse_cli_path_utf8(input_path_text, "'input_path'",
+                                     plan.input_path, path_error)) {
+                return report_json_input_error("table position plan file",
+                                               index, path_error,
+                                               error_message);
+            }
         } else if (member_name == "preset") {
             if (saw_preset) {
                 error_message = "JSON table position plan root member 'preset' "

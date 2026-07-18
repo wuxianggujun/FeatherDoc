@@ -4,7 +4,7 @@ bool Document::set_style_run_language(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -13,7 +13,7 @@ bool Document::set_style_run_language(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -21,7 +21,7 @@ bool Document::set_style_run_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style run language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -33,8 +33,8 @@ bool Document::set_style_run_language(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -43,8 +43,8 @@ bool Document::set_style_run_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -62,7 +62,7 @@ bool Document::set_style_run_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:rPr for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -72,7 +72,7 @@ bool Document::set_style_run_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:lang for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -88,7 +88,7 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -97,7 +97,7 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -105,7 +105,7 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style eastAsia language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -117,8 +117,8 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -127,8 +127,8 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -146,7 +146,7 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:rPr for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -156,7 +156,7 @@ bool Document::set_style_run_east_asia_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:lang for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -172,7 +172,7 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -181,7 +181,7 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -189,7 +189,7 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style bidi language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -201,8 +201,8 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -211,8 +211,8 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -230,7 +230,7 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:rPr for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -240,7 +240,7 @@ bool Document::set_style_run_bidi_language(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:lang for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -255,7 +255,7 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run direction",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -264,7 +264,7 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run direction",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -276,8 +276,8 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -286,8 +286,8 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -305,7 +305,7 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:rPr for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -315,7 +315,7 @@ bool Document::set_style_run_rtl(std::string_view style_id, bool enabled) {
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:rtl for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -331,7 +331,7 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before editing style "
                        "paragraph direction",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -340,7 +340,7 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style paragraph direction",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -352,8 +352,8 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -362,8 +362,8 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -382,7 +382,7 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:pPr for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -392,7 +392,7 @@ bool Document::set_style_paragraph_bidi(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:bidi for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 

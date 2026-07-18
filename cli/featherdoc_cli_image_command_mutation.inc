@@ -37,7 +37,7 @@
         return 1;
     }
 
-    const auto replacement_path = path_type(std::string(arguments[2]));
+    const auto replacement_path = path_from_cli_utf8(arguments[2]);
     if (!selected.part.replace_drawing_image(target_image.index, replacement_path)) {
         report_document_error(command, "mutate", doc.last_error(),
                               options.json_output);

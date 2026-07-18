@@ -149,6 +149,11 @@ auto parse_image_options(const std::vector<std::string_view> &arguments,
                 error_message = "--image-entry-name must not be empty";
                 return false;
             }
+            if (!package_part_name_identity(value).has_value()) {
+                error_message =
+                    "--image-entry-name must be a valid OPC package PartName";
+                return false;
+            }
 
             options.image_entry_name = value;
             ++index;
@@ -169,7 +174,7 @@ auto parse_image_options(const std::vector<std::string_view> &arguments,
                 return false;
             }
 
-            *output_path = path_type(std::string(arguments[index + 1U]));
+            *output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

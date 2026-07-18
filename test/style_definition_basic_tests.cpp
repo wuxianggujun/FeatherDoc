@@ -147,6 +147,122 @@ TEST_CASE("ensure style definition APIs create paragraph character and table sty
     fs::remove(target);
 }
 
+TEST_CASE("style mutations save back to a non-default relationship target") {
+    namespace fs = std::filesystem;
+
+    const fs::path target = fs::current_path() / "styles_custom_target_roundtrip.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/WORD/CUSTOM/STYLES.XML"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>styled target</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rStyles"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+                Target="custom/styles.xml"/>
+</Relationships>
+)";
+    const std::string styles_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="SeedStyle">
+    <w:name w:val="Seed Style"/>
+  </w:style>
+</w:styles>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/custom/styles.xml", styles_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_FALSE(doc.find_style("").has_value());
+    CHECK_EQ(doc.last_error().entry_name, "word/custom/styles.xml");
+
+    auto paragraph_definition = featherdoc::paragraph_style_definition{};
+    paragraph_definition.name = "Custom Target Paragraph";
+    paragraph_definition.is_quick_format = true;
+    paragraph_definition.run_font_family = std::string{"Aptos"};
+    CHECK(doc.ensure_paragraph_style("CustomTargetParagraph",
+                                     paragraph_definition));
+
+    CHECK_FALSE(doc.find_style("MissingCustomTargetStyle").has_value());
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().entry_name, "word/custom/styles.xml");
+    CHECK_NE(doc.last_error().detail.find("word/custom/styles.xml"),
+             std::string::npos);
+    CHECK_EQ(doc.last_error().detail.find("'word/styles.xml'"),
+             std::string::npos);
+
+    CHECK_FALSE(doc.save());
+
+    CHECK_FALSE(test_docx_entry_exists(target, "word/styles.xml"));
+    const auto saved_content_types =
+        read_test_docx_entry(target, test_content_types_xml_entry);
+    CHECK_NE(saved_content_types.find(
+                 "PartName=\"/word/custom/styles.xml\""),
+             std::string::npos);
+    CHECK_EQ(saved_content_types.find(
+                 "PartName=\"/WORD/CUSTOM/STYLES.XML\""),
+             std::string::npos);
+    const auto saved_styles_xml =
+        read_test_docx_entry(target, "word/custom/styles.xml");
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"SeedStyle\""),
+             std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:styleId=\"CustomTargetParagraph\""),
+             std::string::npos);
+    CHECK_NE(saved_styles_xml.find("Custom Target Paragraph"),
+             std::string::npos);
+    CHECK_NE(saved_styles_xml.find("w:rFonts"), std::string::npos);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find("Target=\"custom/styles.xml\""),
+             std::string::npos);
+    CHECK_EQ(saved_relationships.find("Target=\"styles.xml\""),
+             std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_style = reopened.find_style("CustomTargetParagraph");
+    REQUIRE(reopened_style.has_value());
+    CHECK_EQ(reopened_style->name, "Custom Target Paragraph");
+    const auto reopened_font =
+        reopened.style_run_font_family("CustomTargetParagraph");
+    REQUIRE(reopened_font.has_value());
+    CHECK_EQ(*reopened_font, "Aptos");
+
+    fs::remove(target);
+}
+
 TEST_CASE("ensure style definition APIs update existing styles and preserve unrelated markup") {
     namespace fs = std::filesystem;
 

@@ -1,4 +1,7 @@
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -9,6 +12,97 @@
 #include "basic_document_xml_test_support.hpp"
 
 #include <featherdoc.hpp>
+
+TEST_CASE("run font size parsing rejects malformed unsigned half-point values") {
+    namespace fs = std::filesystem;
+
+    const auto target = fs::current_path() / "run_font_size_numeric_boundaries.docx";
+    fs::remove(target);
+    write_test_docx(
+        target,
+        R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:rPr><w:sz w:val="nan"/></w:rPr><w:t>nan</w:t></w:r><w:r><w:rPr><w:sz w:val="inf"/></w:rPr><w:t>inf</w:t></w:r><w:r><w:rPr><w:sz w:val="-1"/></w:rPr><w:t>negative</w:t></w:r><w:r><w:rPr><w:sz w:val="4294967296"/></w:rPr><w:t>overflow</w:t></w:r><w:r><w:rPr><w:sz w:val="7x"/></w:rPr><w:t>trailing</w:t></w:r><w:r><w:rPr><w:sz w:val="0"/></w:rPr><w:t>zero</w:t></w:r><w:r><w:rPr><w:sz w:val="4294967295"/></w:rPr><w:t>maximum</w:t></w:r></w:p></w:body></w:document>)");
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open());
+    auto run = document.paragraphs().runs();
+    for (std::size_t index = 0U; index < 6U; ++index) {
+        REQUIRE(run.has_next());
+        CHECK_FALSE(run.font_size_points().has_value());
+        run.next();
+    }
+    REQUIRE(run.has_next());
+    const auto maximum_size = run.font_size_points();
+    REQUIRE(maximum_size.has_value());
+    CHECK_EQ(*maximum_size,
+             static_cast<double>(std::numeric_limits<std::uint32_t>::max()) /
+                 2.0);
+
+    fs::remove(target);
+}
+
+TEST_CASE("style font size APIs reject non-finite and unrepresentable values before mutation") {
+    namespace fs = std::filesystem;
+
+    const auto target = fs::current_path() / "style_font_size_numeric_boundaries.docx";
+    fs::remove(target);
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.create_empty());
+    const auto maximum_size =
+        static_cast<double>(std::numeric_limits<std::uint32_t>::max()) / 2.0;
+    REQUIRE(document.set_style_run_font_size_points("Strong", maximum_size));
+    REQUIRE(document.set_style_run_font_size_points("Strong", 12.5));
+
+    for (const auto invalid_size : {
+             std::numeric_limits<double>::quiet_NaN(),
+             std::numeric_limits<double>::infinity(), maximum_size + 0.5, 0.1}) {
+        CHECK_FALSE(
+            document.set_style_run_font_size_points("Strong", invalid_size));
+        CHECK_EQ(document.last_error().code,
+                 std::make_error_code(std::errc::invalid_argument));
+        const auto retained_size =
+            document.style_run_font_size_points("Strong");
+        REQUIRE(retained_size.has_value());
+        CHECK_EQ(*retained_size, 12.5);
+    }
+
+    auto paragraph_definition = featherdoc::paragraph_style_definition{};
+    paragraph_definition.name = "Invalid paragraph size";
+    paragraph_definition.run_font_size_points =
+        std::numeric_limits<double>::quiet_NaN();
+    CHECK_FALSE(document.ensure_paragraph_style("InvalidParagraphSize",
+                                                paragraph_definition));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    auto character_definition = featherdoc::character_style_definition{};
+    character_definition.name = "Invalid character size";
+    character_definition.run_font_size_points =
+        std::numeric_limits<double>::infinity();
+    CHECK_FALSE(document.ensure_character_style("InvalidCharacterSize",
+                                                character_definition));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    REQUIRE_FALSE(document.save());
+    auto styles_xml = read_test_docx_entry(target, "word/styles.xml");
+    CHECK_EQ(styles_xml.find("InvalidParagraphSize"), std::string::npos);
+    CHECK_EQ(styles_xml.find("InvalidCharacterSize"), std::string::npos);
+    const auto strong_style = styles_xml.find("w:styleId=\"Strong\"");
+    REQUIRE_NE(strong_style, std::string::npos);
+    const auto size_value = styles_xml.find("w:sz w:val=\"25\"", strong_style);
+    REQUIRE_NE(size_value, std::string::npos);
+    styles_xml.replace(size_value, std::string{"w:sz w:val=\"25\""}.size(),
+                       "w:sz w:val=\"nan\"");
+    rewrite_test_docx_entry(target, "word/styles.xml", std::move(styles_xml));
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    CHECK_FALSE(reopened.style_run_font_size_points("Strong").has_value());
+
+    fs::remove(target);
+}
+
 TEST_CASE("run font family APIs write rFonts and clear removes empty run properties") {
     namespace fs = std::filesystem;
 

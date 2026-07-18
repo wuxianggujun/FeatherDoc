@@ -38,14 +38,14 @@ auto run_inspect_paragraphs_command(
         return 2;
     }
 
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = path_from_cli_utf8(arguments[1]);
     featherdoc::Document doc;
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
     }
 
     std::vector<inspected_body_paragraph> paragraphs;
-    if (!load_body_paragraph_summaries(input_path, paragraphs, error_message)) {
+    if (!load_body_paragraph_summaries(doc, paragraphs, error_message)) {
         if (options.json_output) {
             write_json_command_error(std::cerr, command, "inspect",
                                      error_message);
@@ -106,7 +106,7 @@ auto run_inspect_runs_command(
         return 2;
     }
 
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = path_from_cli_utf8(arguments[1]);
     featherdoc::Document doc;
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
@@ -114,7 +114,7 @@ auto run_inspect_runs_command(
 
     std::vector<inspected_body_run> runs;
     bool paragraph_found = false;
-    if (!load_body_run_summaries(input_path, paragraph_index, runs,
+    if (!load_body_run_summaries(doc, paragraph_index, runs,
                                  paragraph_found, error_message)) {
         if (options.json_output) {
             write_json_command_error(std::cerr, command, "inspect",

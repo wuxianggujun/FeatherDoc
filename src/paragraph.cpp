@@ -1,11 +1,14 @@
 #include "featherdoc.hpp"
 #include "numeric_helpers.hpp"
+#include "xml_document_clone_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <cstdlib>
 #include <limits>
+#include <new>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace featherdoc {
 namespace {
@@ -254,7 +257,13 @@ auto copy_paragraph_properties_without_section_break(pugi::xml_node source_parag
         return true;
     }
 
-    auto copied_properties = target_paragraph.append_copy(source_properties);
+    if (detail::checked_append_copy_xml_node(source_properties,
+                                             target_paragraph) !=
+        detail::xml_document_clone_status::success) {
+        return false;
+    }
+
+    auto copied_properties = target_paragraph.child("w:pPr");
     if (copied_properties == pugi::xml_node{}) {
         return false;
     }
@@ -462,21 +471,59 @@ bool Paragraph::set_text(const char *text) const {
         return false;
     }
 
-    auto paragraph_node = this->current;
-    for (auto child = paragraph_node.first_child(); child != pugi::xml_node{};) {
-        const auto next_child = child.next_sibling();
-        if (std::string_view{child.name()} != "w:pPr") {
-            paragraph_node.remove_child(child);
+    auto paragraph_node = this->current.node();
+    auto parent_node = paragraph_node.parent();
+    if (parent_node == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto retired_children = std::vector<pugi::xml_node>{};
+    try {
+        for (auto child = paragraph_node.first_child();
+             child != pugi::xml_node{}; child = child.next_sibling()) {
+            if (std::string_view{child.name()} != "w:pPr") {
+                retired_children.push_back(child);
+            }
         }
-        child = next_child;
+    } catch (const std::bad_alloc &) {
+        return false;
     }
 
-    if (text[0] == '\0') {
-        return true;
+    auto prepared_paragraph = featherdoc::detail::checked_insert_xml_element_before(
+        parent_node, "w:p", paragraph_node);
+    if (prepared_paragraph == pugi::xml_node{}) {
+        return false;
     }
 
-    Paragraph updated_paragraph(this->parent, this->current);
-    return updated_paragraph.add_run(text).has_next();
+    if (text[0] != '\0' &&
+        !detail::append_plain_text_run(prepared_paragraph, text)) {
+        (void)parent_node.remove_child(prepared_paragraph);
+        return false;
+    }
+
+    try {
+        if (!this->current.retire_subtrees(retired_children)) {
+            (void)parent_node.remove_child(prepared_paragraph);
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        (void)parent_node.remove_child(prepared_paragraph);
+        return false;
+    }
+
+    for (const auto child : retired_children) {
+        (void)paragraph_node.remove_child(child);
+    }
+    while (const auto child = prepared_paragraph.first_child()) {
+        // FeatherDoc vendors non-compact pugixml, making this same-document
+        // move a no-allocation publish operation after retirement succeeds.
+        if (paragraph_node.append_move(child) == pugi::xml_node{}) {
+            (void)parent_node.remove_child(prepared_paragraph);
+            return false;
+        }
+    }
+    (void)parent_node.remove_child(prepared_paragraph);
+    return true;
 }
 
 bool Paragraph::remove() {
@@ -515,49 +562,30 @@ Run Paragraph::add_run(const std::string &text, featherdoc::formatting_flag f) {
 }
 
 Run Paragraph::add_run(const char *text, featherdoc::formatting_flag f) {
+    if (text == nullptr) {
+        return {};
+    }
+
+    auto created_paragraph = false;
     if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
         this->current = detail::append_paragraph_node(this->parent);
+        if (this->current == pugi::xml_node{}) {
+            return {};
+        }
+        created_paragraph = true;
+        this->run.set_parent(this->current);
     }
 
-    pugi::xml_node new_run = this->current.append_child("w:r");
-    pugi::xml_node meta = new_run.append_child("w:rPr");
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::bold)) {
-        meta.append_child("w:b");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::italic)) {
-        meta.append_child("w:i");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::underline)) {
-        meta.append_child("w:u").append_attribute("w:val").set_value("single");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::strikethrough)) {
-        meta.append_child("w:strike").append_attribute("w:val").set_value("true");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::superscript)) {
-        meta.append_child("w:vertAlign")
-            .append_attribute("w:val")
-            .set_value("superscript");
-    } else if (featherdoc::has_flag(f, featherdoc::formatting_flag::subscript)) {
-        meta.append_child("w:vertAlign")
-            .append_attribute("w:val")
-            .set_value("subscript");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::smallcaps)) {
-        meta.append_child("w:smallCaps").append_attribute("w:val").set_value("true");
-    }
-
-    if (featherdoc::has_flag(f, featherdoc::formatting_flag::shadow)) {
-        meta.append_child("w:shadow").append_attribute("w:val").set_value("true");
-    }
-
-    if (!detail::set_plain_text_run_content(new_run, text)) {
-        return Run{};
+    const auto new_run = detail::insert_formatted_text_run(
+        this->current, pugi::xml_node{}, text, f);
+    if (new_run == pugi::xml_node{}) {
+        if (created_paragraph) {
+            auto parent_node = this->parent.node();
+            (void)parent_node.remove_child(this->current.node());
+            this->current.reset();
+            this->run.set_parent(this->current);
+        }
+        return {};
     }
 
     return Run(this->current, new_run);
@@ -565,24 +593,43 @@ Run Paragraph::add_run(const char *text, featherdoc::formatting_flag f) {
 
 Paragraph Paragraph::insert_paragraph_before(const std::string &text,
                                              featherdoc::formatting_flag f) {
-    const auto new_para = detail::insert_paragraph_node(this->parent, this->current);
-    Paragraph paragraph(this->parent, new_para);
-    paragraph.add_run(text, f);
-    return paragraph;
+    auto parent_node = this->parent.node();
+    const auto new_paragraph =
+        detail::insert_paragraph_node(parent_node, this->current);
+    if (new_paragraph == pugi::xml_node{}) {
+        return {};
+    }
+    if (detail::insert_formatted_text_run(new_paragraph, pugi::xml_node{},
+                                          text.c_str(), f) ==
+        pugi::xml_node{}) {
+        (void)parent_node.remove_child(new_paragraph);
+        return {};
+    }
+    return Paragraph(this->parent, new_paragraph);
 }
 
 Paragraph Paragraph::insert_paragraph_after(const std::string &text,
                                            featherdoc::formatting_flag f) {
-    pugi::xml_node new_para;
-    if (this->current == pugi::xml_node{}) {
-        new_para = detail::append_paragraph_node(this->parent);
-    } else {
-        new_para = this->parent.insert_child_after("w:p", this->current);
+    auto parent_node = this->parent.node();
+    if (parent_node == pugi::xml_node{}) {
+        return {};
     }
-
-    Paragraph paragraph(this->parent, new_para);
-    paragraph.add_run(text, f);
-    return paragraph;
+    const auto insert_before =
+        this->current == pugi::xml_node{}
+            ? pugi::xml_node{}
+            : this->current.node().next_sibling();
+    const auto new_paragraph =
+        detail::insert_paragraph_node(parent_node, insert_before);
+    if (new_paragraph == pugi::xml_node{}) {
+        return {};
+    }
+    if (detail::insert_formatted_text_run(new_paragraph, pugi::xml_node{},
+                                          text.c_str(), f) ==
+        pugi::xml_node{}) {
+        (void)parent_node.remove_child(new_paragraph);
+        return {};
+    }
+    return Paragraph(this->parent, new_paragraph);
 }
 
 Paragraph Paragraph::insert_paragraph_like_before() {

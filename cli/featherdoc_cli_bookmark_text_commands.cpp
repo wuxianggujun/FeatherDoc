@@ -88,7 +88,7 @@ auto run_replace_bookmark_paragraphs_command(
                                            error_message);
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -162,7 +162,7 @@ auto run_remove_bookmark_block_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -234,7 +234,7 @@ auto run_replace_bookmark_text_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -305,7 +305,7 @@ auto run_fill_bookmarks_command(
                                            error_message);
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }

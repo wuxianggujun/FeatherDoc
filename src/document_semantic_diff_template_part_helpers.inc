@@ -42,7 +42,9 @@ void append_resolved_semantic_section_template_part(
     }
 
     auto entry_name = std::string{part.entry_name()};
-    if (entry_name.empty() || entry_name != *resolved_entry_name) {
+    if (entry_name.empty() ||
+        !featherdoc::detail::package_part_names_equivalent(
+            entry_name, *resolved_entry_name)) {
         return;
     }
 

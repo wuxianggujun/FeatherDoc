@@ -31,7 +31,7 @@ auto parse_template_table_row_mutation_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -118,7 +118,7 @@ auto parse_template_table_row_texts_options(
             }
 
             options.output_path =
-                path_type(std::string(arguments[index + 1U]));
+                path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -210,7 +210,7 @@ auto parse_template_append_table_row_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

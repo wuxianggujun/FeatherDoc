@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
@@ -231,6 +232,180 @@ TEST_CASE("inspect paragraphs returns style bidi numbering run count and text me
     CHECK_EQ(reopened_paragraphs[2].text, "plain");
 
     fs::remove(target);
+}
+
+TEST_CASE("paragraph snapshot inspection avoids reopening the source archive") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "inspect_paragraph_snapshot_no_reopen.docx";
+    fs::remove(target);
+
+    featherdoc::Document source(target);
+    REQUIRE_FALSE(source.create_empty());
+    auto paragraph = source.paragraphs();
+    REQUIRE(paragraph.has_next());
+    REQUIRE(paragraph.add_run("中文前缀 ").has_next());
+    CHECK_EQ(source.append_hyperlink("链接", "https://example.com/zh"), 1U);
+    CHECK(source.set_paragraph_list(paragraph,
+                                    featherdoc::list_kind::decimal, 0U));
+    REQUIRE_FALSE(source.save());
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    REQUIRE(fs::remove(target));
+
+    auto options = featherdoc::paragraph_inspection_options{};
+    options.resolve_numbering_metadata = false;
+    const auto paragraphs = reopened.inspect_paragraphs_with_options(options);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE_EQ(paragraphs.size(), 2U);
+    CHECK_EQ(paragraphs[0].text, "中文前缀 ");
+    REQUIRE(paragraphs[0].numbering.has_value());
+    REQUIRE(paragraphs[0].numbering->num_id.has_value());
+    CHECK_FALSE(paragraphs[0].numbering->definition_id.has_value());
+    CHECK_FALSE(paragraphs[0].numbering->definition_name.has_value());
+    CHECK_EQ(paragraphs[1].text, "链接");
+
+    const auto resolved_paragraphs = reopened.inspect_paragraphs();
+    CHECK(resolved_paragraphs.empty());
+    CHECK(reopened.last_error());
+    CHECK_EQ(reopened.last_error().code,
+             featherdoc::make_error_code(
+                 featherdoc::document_errc::source_archive_changed));
+    CHECK_EQ(reopened.last_error().entry_name, "word/numbering.xml");
+
+    const auto resolved_paragraph = reopened.inspect_paragraph(0U);
+    CHECK_FALSE(resolved_paragraph.has_value());
+    CHECK(reopened.last_error());
+    CHECK_EQ(reopened.last_error().code,
+             featherdoc::make_error_code(
+                 featherdoc::document_errc::source_archive_changed));
+}
+
+TEST_CASE("paragraph inspection preserves unresolved numbering errors") {
+    namespace fs = std::filesystem;
+
+    const auto target =
+        fs::current_path() / "inspect_unresolved_numbering_instance.docx";
+    fs::remove(target);
+
+    const auto content_types_xml = std::string{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>
+)"};
+    const auto document_xml = std::string{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="99"/></w:numPr></w:pPr><w:r><w:t>orphan list item</w:t></w:r></w:p></w:body>
+</w:document>
+)"};
+    const auto document_relationships_xml = std::string{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdNumbering"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+                Target="numbering.xml"/>
+</Relationships>
+)"};
+    const auto numbering_xml = std::string{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum>
+  <w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>
+</w:numbering>
+)"};
+
+    write_test_archive_entries(
+        target,
+        {{test_content_types_xml_entry, content_types_xml},
+         {test_relationships_xml_entry, test_relationships_xml},
+         {test_document_xml_entry, document_xml},
+         {"word/_rels/document.xml.rels", document_relationships_xml},
+         {"word/numbering.xml", numbering_xml}});
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open());
+
+    CHECK(document.inspect_paragraphs().empty());
+    CHECK(document.last_error());
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_NE(document.last_error().detail.find("99"), std::string::npos);
+
+    CHECK_FALSE(document.inspect_paragraph(0U).has_value());
+    CHECK(document.last_error());
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    fs::remove(target);
+}
+
+TEST_CASE("template part paragraph snapshot inspection avoids reopening the source archive") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "inspect_template_part_snapshot_no_reopen.docx";
+    fs::remove(target);
+
+    featherdoc::Document source(target);
+    REQUIRE_FALSE(source.create_empty());
+    auto body = source.body_template();
+    REQUIRE(static_cast<bool>(body));
+    auto paragraph = body.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(paragraph.set_text("template item"));
+    CHECK(source.set_paragraph_list(paragraph,
+                                    featherdoc::list_kind::decimal, 0U));
+    REQUIRE_FALSE(source.save());
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    auto reopened_body = reopened.body_template();
+    REQUIRE(static_cast<bool>(reopened_body));
+    REQUIRE(fs::remove(target));
+
+    auto options = featherdoc::paragraph_inspection_options{};
+    options.resolve_numbering_metadata = false;
+    const auto paragraphs =
+        reopened_body.inspect_paragraphs_with_options(options);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE_EQ(paragraphs.size(), 1U);
+    CHECK_EQ(paragraphs[0].text, "template item");
+    REQUIRE(paragraphs[0].numbering.has_value());
+    REQUIRE(paragraphs[0].numbering->num_id.has_value());
+    CHECK_FALSE(paragraphs[0].numbering->definition_id.has_value());
+    CHECK_FALSE(paragraphs[0].numbering->definition_name.has_value());
+
+    const auto paragraph_snapshot =
+        reopened_body.inspect_paragraph_with_options(0U, options);
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE(paragraph_snapshot.has_value());
+    REQUIRE(paragraph_snapshot->numbering.has_value());
+    CHECK_FALSE(paragraph_snapshot->numbering->definition_id.has_value());
+    CHECK_FALSE(paragraph_snapshot->numbering->definition_name.has_value());
+
+    const auto resolved_paragraphs = reopened_body.inspect_paragraphs();
+    CHECK(resolved_paragraphs.empty());
+    CHECK(reopened.last_error());
+    CHECK_EQ(reopened.last_error().code,
+             featherdoc::make_error_code(
+                  featherdoc::document_errc::source_archive_changed));
+    CHECK_EQ(reopened.last_error().entry_name, "word/numbering.xml");
+
+    const auto resolved_paragraph = reopened_body.inspect_paragraph(0U);
+    CHECK_FALSE(resolved_paragraph.has_value());
+    CHECK(reopened.last_error());
+    CHECK_EQ(reopened.last_error().code,
+             featherdoc::make_error_code(
+                  featherdoc::document_errc::source_archive_changed));
 }
 
 TEST_CASE("inspect tables returns style width grid and text metadata") {

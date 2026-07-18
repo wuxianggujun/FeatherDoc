@@ -23,6 +23,9 @@
                                       std::size_t grid_column);
     [[nodiscard]] std::vector<featherdoc::paragraph_inspection_summary>
     inspect_paragraphs();
+    [[nodiscard]] std::vector<featherdoc::paragraph_inspection_summary>
+    inspect_paragraphs_with_options(
+        const featherdoc::paragraph_inspection_options &options);
     [[nodiscard]] std::optional<featherdoc::paragraph_inspection_summary>
     inspect_paragraph(std::size_t paragraph_index);
     [[nodiscard]] std::vector<featherdoc::run_inspection_summary>

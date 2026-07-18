@@ -1,5 +1,6 @@
 #include "featherdoc.hpp"
 
+#include "document_archive_limit_helpers.hpp"
 #include "document_semantic_diff_values.hpp"
 
 #include <algorithm>
@@ -36,11 +37,9 @@ auto set_last_error(featherdoc::document_error_info &error_info,
                           std::move(detail), std::move(entry_name), xml_offset);
 }
 
-
-
-#include "document_semantic_diff_template_part_helpers.inc"
 #include "document_semantic_diff_field_helpers.inc"
 #include "document_semantic_diff_sequence_helpers.inc"
+#include "document_semantic_diff_template_part_helpers.inc"
 
 } // namespace
 
@@ -49,16 +48,18 @@ Document::compare_semantic(
     const Document &other,
     featherdoc::document_semantic_diff_options options) const {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before comparing documents",
-                       std::string{document_xml_entry});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before comparing documents",
+            std::string{document_xml_entry});
         return std::nullopt;
     }
 
     if (!other.is_open()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "right document must be opened before semantic comparison");
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "right document must be opened before semantic comparison");
         return std::nullopt;
     }
 
@@ -76,9 +77,10 @@ Document::compare_semantic(
             this->last_error_info = other.last_error();
             return std::nullopt;
         }
-        compare_semantic_sequence(
-            left_paragraphs, right_paragraphs, "paragraph", semantic_paragraph_value,
-            options, result.paragraphs, result.paragraph_changes);
+        compare_semantic_sequence(left_paragraphs, right_paragraphs,
+                                  "paragraph", semantic_paragraph_value,
+                                  options, result.paragraphs,
+                                  result.paragraph_changes);
     }
 
     if (options.compare_tables) {
@@ -126,7 +128,8 @@ Document::compare_semantic(
         }
         compare_semantic_sequence(
             left_controls, right_controls, "content_control",
-            [&options](const featherdoc::content_control_summary &content_control) {
+            [&options](
+                const featherdoc::content_control_summary &content_control) {
                 return semantic_content_control_value(content_control, options);
             },
             options, result.content_controls, result.content_control_changes);
@@ -159,7 +162,9 @@ Document::compare_semantic(
         }
         compare_semantic_sequence_by_key(
             left_styles, right_styles, "style",
-            [](const featherdoc::style_summary &style) { return style.style_id; },
+            [](const featherdoc::style_summary &style) {
+                return style.style_id;
+            },
             semantic_style_summary_value, result.styles, result.style_changes);
     }
 
@@ -279,8 +284,9 @@ Document::compare_semantic(
             auto part_result = featherdoc::document_semantic_diff_part_result{};
             part_result.target = left_part.target;
             part_result.entry_name = left_part.entry_name;
-            if (right_part.entry_name != left_part.entry_name &&
-                !right_part.entry_name.empty()) {
+            if (!right_part.entry_name.empty() &&
+                !featherdoc::detail::package_part_names_equivalent(
+                    right_part.entry_name, left_part.entry_name)) {
                 part_result.entry_name += " -> ";
                 part_result.entry_name += right_part.entry_name;
             }
@@ -295,19 +301,21 @@ Document::compare_semantic(
             }
 
             if (options.compare_paragraphs) {
-                const auto left_paragraphs = left_part.part.inspect_paragraphs();
+                const auto left_paragraphs =
+                    left_part.part.inspect_paragraphs();
                 if (this->last_error_info.code) {
                     return std::nullopt;
                 }
-                const auto right_paragraphs = right_part.part.inspect_paragraphs();
+                const auto right_paragraphs =
+                    right_part.part.inspect_paragraphs();
                 if (other.last_error().code) {
                     this->last_error_info = other.last_error();
                     return std::nullopt;
                 }
-                compare_semantic_sequence(
-                    left_paragraphs, right_paragraphs, "paragraph",
-                    semantic_paragraph_value, options, part_result.paragraphs,
-                    part_result.paragraph_changes);
+                compare_semantic_sequence(left_paragraphs, right_paragraphs,
+                                          "paragraph", semantic_paragraph_value,
+                                          options, part_result.paragraphs,
+                                          part_result.paragraph_changes);
             }
 
             if (options.compare_tables) {
@@ -320,10 +328,9 @@ Document::compare_semantic(
                     this->last_error_info = other.last_error();
                     return std::nullopt;
                 }
-                compare_semantic_sequence(left_tables, right_tables, "table",
-                                          semantic_table_value, options,
-                                          part_result.tables,
-                                          part_result.table_changes);
+                compare_semantic_sequence(
+                    left_tables, right_tables, "table", semantic_table_value,
+                    options, part_result.tables, part_result.table_changes);
             }
 
             if (options.compare_images) {
@@ -345,20 +352,23 @@ Document::compare_semantic(
             }
 
             if (options.compare_content_controls) {
-                const auto left_controls = left_part.part.list_content_controls();
+                const auto left_controls =
+                    left_part.part.list_content_controls();
                 if (this->last_error_info.code) {
                     return std::nullopt;
                 }
-                const auto right_controls = right_part.part.list_content_controls();
+                const auto right_controls =
+                    right_part.part.list_content_controls();
                 if (other.last_error().code) {
                     this->last_error_info = other.last_error();
                     return std::nullopt;
                 }
                 compare_semantic_sequence(
                     left_controls, right_controls, "content_control",
-                    [&options](
-                        const featherdoc::content_control_summary &content_control) {
-                        return semantic_content_control_value(content_control, options);
+                    [&options](const featherdoc::content_control_summary
+                                   &content_control) {
+                        return semantic_content_control_value(content_control,
+                                                              options);
                     },
                     options, part_result.content_controls,
                     part_result.content_control_changes);
@@ -416,7 +426,8 @@ Document::compare_semantic(
             if (this->last_error_info.code) {
                 return std::nullopt;
             }
-            left_section_values.push_back(semantic_section_value(section, page_setup));
+            left_section_values.push_back(
+                semantic_section_value(section, page_setup));
         }
         for (const auto &section : right_sections.sections) {
             auto page_setup = other.get_section_page_setup(section.index);
@@ -424,7 +435,8 @@ Document::compare_semantic(
                 this->last_error_info = other.last_error();
                 return std::nullopt;
             }
-            right_section_values.push_back(semantic_section_value(section, page_setup));
+            right_section_values.push_back(
+                semantic_section_value(section, page_setup));
         }
 
         result.sections.left_count = left_section_values.size();
@@ -432,12 +444,12 @@ Document::compare_semantic(
         if (can_align_semantic_values(left_section_values.size(),
                                       right_section_values.size(), options)) {
             compare_semantic_values_by_content_alignment(
-                left_section_values, right_section_values, "section", result.sections,
-                result.section_changes);
+                left_section_values, right_section_values, "section",
+                result.sections, result.section_changes);
         } else {
-            compare_semantic_values_by_index(left_section_values, right_section_values,
-                                             "section", result.sections,
-                                             result.section_changes);
+            compare_semantic_values_by_index(
+                left_section_values, right_section_values, "section",
+                result.sections, result.section_changes);
         }
     }
 

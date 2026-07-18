@@ -21,6 +21,10 @@ inline constexpr auto table_style_look_last_column_bit = std::uint16_t{0x0100};
 inline constexpr auto table_style_look_no_hband_bit = std::uint16_t{0x0200};
 inline constexpr auto table_style_look_no_vband_bit = std::uint16_t{0x0400};
 
+// Keep table mutations within the interoperable Word column ceiling and bound
+// the amount of XML that one hostile gridSpan or cell_count can allocate.
+inline constexpr auto max_table_grid_columns = std::size_t{63U};
+
 enum class cell_vertical_merge_state {
     none = 0,
     restart,
@@ -84,8 +88,11 @@ void ensure_default_table_properties(pugi::xml_node table);
 [[nodiscard]] auto ensure_row_header_node(pugi::xml_node row)
     -> pugi::xml_node;
 [[nodiscard]] auto current_table_column_count(pugi::xml_node table)
-    -> std::size_t;
-void ensure_table_grid_columns(pugi::xml_node table, std::size_t column_count);
+    -> std::optional<std::size_t>;
+[[nodiscard]] auto current_table_row_column_count(pugi::xml_node row)
+    -> std::optional<std::size_t>;
+[[nodiscard]] auto ensure_table_grid_columns(pugi::xml_node table,
+                                             std::size_t column_count) -> bool;
 [[nodiscard]] auto find_table_grid_column(pugi::xml_node table,
                                           std::size_t column_index)
     -> pugi::xml_node;

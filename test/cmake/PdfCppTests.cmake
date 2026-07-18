@@ -151,13 +151,24 @@ if(TARGET FeatherDocPdf)
         set_tests_properties(pdf_cli_import PROPERTIES
             RESOURCE_LOCK pdf_cli_import_fixtures
             TIMEOUT 120)
-        add_test(
-            NAME
-            pdf_cli_import_threshold
-            COMMAND
-            pdf_cli_import_tests
-            --source-file=*pdf_cli_import_threshold_tests.cpp
-        )
+        if(WIN32)
+            add_test(
+                NAME
+                pdf_cli_import_threshold
+                COMMAND
+                pdf_cli_import_tests
+                --source-file=*pdf_cli_import_threshold_tests.cpp
+                --no-breaks=true
+            )
+        else()
+            add_test(
+                NAME
+                pdf_cli_import_threshold
+                COMMAND
+                pdf_cli_import_tests
+                --source-file=*pdf_cli_import_threshold_tests.cpp
+            )
+        endif()
         featherdoc_set_test_labels(
             pdf_cli_import_threshold
             cli

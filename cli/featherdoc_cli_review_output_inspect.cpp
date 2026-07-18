@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_domain_names.hpp"
 #include "featherdoc_cli_json.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <iostream>
 #include <ostream>
@@ -35,8 +36,8 @@ void write_json_review_note_summary(
     stream << '}';
 }
 
-void write_json_revision_summary(
-    std::ostream &stream, const featherdoc::revision_summary &revision) {
+void write_json_revision_summary(std::ostream &stream,
+                                 const featherdoc::revision_summary &revision) {
     stream << "{\"index\":" << revision.index << ",\"kind\":";
     write_json_string(stream, revision_kind_name(revision.kind));
     stream << ",\"id\":";
@@ -52,11 +53,10 @@ void write_json_revision_summary(
     stream << '}';
 }
 
-void print_review_note_summary(
-    std::ostream &stream, const featherdoc::review_note_summary &note) {
+void print_review_note_summary(std::ostream &stream,
+                               const featherdoc::review_note_summary &note) {
     stream << "index=" << note.index
-           << " kind=" << review_note_kind_name(note.kind)
-           << " id=" << note.id
+           << " kind=" << review_note_kind_name(note.kind) << " id=" << note.id
            << " author=" << optional_display_value(note.author)
            << " initials=" << optional_display_value(note.initials)
            << " date=" << optional_display_value(note.date)
@@ -68,8 +68,8 @@ void print_review_note_summary(
     write_json_string(stream, note.text);
 }
 
-void print_revision_summary(
-    std::ostream &stream, const featherdoc::revision_summary &revision) {
+void print_revision_summary(std::ostream &stream,
+                            const featherdoc::revision_summary &revision) {
     stream << "index=" << revision.index
            << " kind=" << revision_kind_name(revision.kind)
            << " id=" << revision.id
@@ -85,7 +85,8 @@ void inspect_review(
     const std::vector<featherdoc::review_note_summary> &footnotes,
     const std::vector<featherdoc::review_note_summary> &endnotes,
     const std::vector<featherdoc::review_note_summary> &comments,
-    const std::vector<featherdoc::revision_summary> &revisions, bool json_output) {
+    const std::vector<featherdoc::revision_summary> &revisions,
+    bool json_output) {
     if (json_output) {
         std::cout << "{\"footnotes_count\":" << footnotes.size()
                   << ",\"endnotes_count\":" << endnotes.size()
@@ -154,7 +155,7 @@ void print_simple_document_mutation_result(
     std::size_t affected) {
     std::cout << "command: " << command << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }

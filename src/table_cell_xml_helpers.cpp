@@ -1,22 +1,49 @@
 #include "table_xml_helpers.hpp"
 #include "xml_helpers.hpp"
 
+#include <new>
+#include <string_view>
+#include <vector>
+
 namespace featherdoc::detail {
+
+namespace {
+
+auto prepare_table_cell_text_paragraph(pugi::xml_node cell, const char *text)
+    -> pugi::xml_node {
+    auto paragraph = append_paragraph_node(cell);
+    if (paragraph == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (text[0] != '\0' && !append_plain_text_run(paragraph, text)) {
+        (void)cell.remove_child(paragraph);
+        return {};
+    }
+    return paragraph;
+}
+
+} // namespace
 
 auto replace_table_cell_text(pugi::xml_node cell, const char *text) -> bool {
     if (cell == pugi::xml_node{} || text == nullptr) {
         return false;
     }
 
+    const auto replacement = prepare_table_cell_text_paragraph(cell, text);
+    if (replacement == pugi::xml_node{}) {
+        return false;
+    }
+
     for (auto child = cell.first_child(); child != pugi::xml_node{};) {
         const auto next_child = child.next_sibling();
-        if (std::string_view{child.name()} != "w:tcPr") {
-            cell.remove_child(child);
+        if (child != replacement &&
+            std::string_view{child.name()} != "w:tcPr") {
+            (void)cell.remove_child(child);
         }
         child = next_child;
     }
-
-    return append_plain_text_paragraph(cell, text);
+    return true;
 }
 
 auto replace_table_cell_text(tracked_xml_node cell, const char *text)
@@ -25,17 +52,45 @@ auto replace_table_cell_text(tracked_xml_node cell, const char *text)
         return false;
     }
 
-    for (auto child = cell.first_child(); child != pugi::xml_node{};) {
-        const auto next_child = child.next_sibling();
-        if (std::string_view{child.name()} != "w:tcPr") {
-            if (!cell.remove_child(child)) {
-                return false;
+    auto retired_children = std::vector<pugi::xml_node>{};
+    try {
+        for (auto child = cell.first_child(); child != pugi::xml_node{};
+             child = child.next_sibling()) {
+            if (std::string_view{child.name()} != "w:tcPr") {
+                retired_children.push_back(child);
             }
         }
-        child = next_child;
+    } catch (const std::bad_alloc &) {
+        return false;
     }
 
-    return append_plain_text_paragraph(cell, text);
+    auto cell_node = cell.node();
+    const auto replacement =
+        prepare_table_cell_text_paragraph(cell_node, text);
+    if (replacement == pugi::xml_node{}) {
+        return false;
+    }
+
+    try {
+        if (!cell.retire_subtrees(retired_children)) {
+            (void)cell_node.remove_child(replacement);
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        (void)cell_node.remove_child(replacement);
+        return false;
+    } catch (...) {
+        (void)cell_node.remove_child(replacement);
+        throw;
+    }
+
+    for (const auto child : retired_children) {
+        // The replacement paragraph was built as an unpublished sibling.
+        // After batch retirement succeeds, raw removal is allocation-free and
+        // is the publish phase of the cell text transaction.
+        (void)cell_node.remove_child(child);
+    }
+    return true;
 }
 
 auto ensure_cell_properties_node(pugi::xml_node cell) -> pugi::xml_node {

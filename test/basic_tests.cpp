@@ -64,6 +64,35 @@ TEST_CASE("apply_bookmark_block_visibility keeps and removes body template block
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
 
+    auto before_paragraph = doc.paragraphs();
+    REQUIRE(before_paragraph.valid());
+    auto keep_start_paragraph = before_paragraph;
+    keep_start_paragraph.next();
+    auto keep_content_paragraph = keep_start_paragraph;
+    keep_content_paragraph.next();
+    auto keep_end_paragraph = keep_content_paragraph;
+    keep_end_paragraph.next();
+    auto middle_paragraph = keep_end_paragraph;
+    middle_paragraph.next();
+    auto hide_start_paragraph = middle_paragraph;
+    hide_start_paragraph.next();
+    auto hide_content_paragraph = hide_start_paragraph;
+    hide_content_paragraph.next();
+    auto hide_end_paragraph = hide_content_paragraph;
+    hide_end_paragraph.next();
+    auto after_paragraph = hide_end_paragraph;
+    after_paragraph.next();
+    REQUIRE(after_paragraph.valid());
+
+    auto hidden_table = doc.tables();
+    REQUIRE(hidden_table.valid());
+    auto hidden_row = hidden_table.rows();
+    REQUIRE(hidden_row.valid());
+    auto hidden_cell = hidden_row.cells();
+    REQUIRE(hidden_cell.valid());
+    auto hidden_cell_paragraph = hidden_cell.paragraphs();
+    REQUIRE(hidden_cell_paragraph.valid());
+
     const auto result = doc.apply_bookmark_block_visibility({
         {"keep_block", true},
         {"hide_block", false},
@@ -74,6 +103,19 @@ TEST_CASE("apply_bookmark_block_visibility keeps and removes body template block
     CHECK_EQ(result.removed, 1);
     CHECK(result);
     CHECK_FALSE(doc.last_error());
+    CHECK(before_paragraph.valid());
+    CHECK_FALSE(keep_start_paragraph.valid());
+    CHECK(keep_content_paragraph.valid());
+    CHECK_FALSE(keep_end_paragraph.valid());
+    CHECK(middle_paragraph.valid());
+    CHECK_FALSE(hide_start_paragraph.valid());
+    CHECK_FALSE(hide_content_paragraph.valid());
+    CHECK_FALSE(hide_end_paragraph.valid());
+    CHECK(after_paragraph.valid());
+    CHECK_FALSE(hidden_table.valid());
+    CHECK_FALSE(hidden_row.valid());
+    CHECK_FALSE(hidden_cell.valid());
+    CHECK_FALSE(hidden_cell_paragraph.valid());
 
     CHECK_FALSE(doc.save());
 

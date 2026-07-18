@@ -35,7 +35,7 @@ auto parse_section_part_command_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1]);
             ++index;
             continue;
         }

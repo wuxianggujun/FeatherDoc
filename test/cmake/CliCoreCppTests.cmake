@@ -474,6 +474,19 @@ featherdoc_set_test_labels(
     cli_image_options_parse cli smoke cli_smoke images)
 
 featherdoc_add_cpp_test(
+    cli_image_output_tests
+    cli_image_output
+    cli_image_output_tests.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_image_output.cpp
+    ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_domain_names_template_image.cpp
+    ${FEATHERDOC_CLI_CORE_SOURCES}
+)
+target_include_directories(
+    cli_image_output_tests PRIVATE ${PROJECT_SOURCE_DIR}/cli)
+featherdoc_set_test_labels(
+    cli_image_output cli smoke cli_smoke images)
+
+featherdoc_add_cpp_test(
     cli_bookmark_text_options_parse_tests
     cli_bookmark_text_options_parse
     cli_bookmark_text_options_parse_tests.cpp

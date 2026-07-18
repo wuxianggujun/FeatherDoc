@@ -86,7 +86,7 @@ auto run_replace_bookmark_image_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -112,7 +112,7 @@ auto run_replace_bookmark_image_command(
         return 1;
     }
 
-    const auto image_path = path_type(std::string(arguments[3]));
+    const auto image_path = path_from_cli_utf8(arguments[3]);
     std::size_t replaced = 0U;
     if (floating) {
         if (options.width_px.has_value()) {

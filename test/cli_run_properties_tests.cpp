@@ -774,7 +774,7 @@ TEST_CASE("cli style run properties commands report parse and mutate errors") {
     CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(inspect_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);

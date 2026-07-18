@@ -1,4 +1,5 @@
 #include "featherdoc_cli_document_mutation_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 namespace featherdoc_cli {
 
@@ -94,7 +95,7 @@ auto parse_comment_metadata_mutation_options(
                 error_message = "missing path after --output";
                 return false;
             }
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

@@ -9,7 +9,9 @@ if(BUILD_CLI OR FEATHERDOC_BUILD_FUZZERS OR
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse_members.cpp
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse_string.cpp
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_json_parse_value.cpp
+        ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_package_part.cpp
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_parse.cpp
+        ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_text.cpp
         ${PROJECT_SOURCE_DIR}/cli/featherdoc_cli_validation_part.cpp
     )
 
@@ -390,7 +392,6 @@ if(BUILD_CLI)
         cli/featherdoc_cli_template_schema_target_output.cpp
         cli/featherdoc_cli_template_schema_validation_output.cpp
         cli/featherdoc_cli_template_slot_parse.cpp
-        cli/featherdoc_cli_text.cpp
         cli/featherdoc_cli_usage.cpp
         cli/featherdoc_cli_usage_table.cpp
         cli/featherdoc_cli_dispatch.cpp

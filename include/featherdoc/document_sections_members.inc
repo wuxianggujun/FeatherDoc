@@ -10,6 +10,10 @@
     [[nodiscard]] featherdoc::sections_inspection_summary inspect_sections();
     [[nodiscard]] std::optional<featherdoc::section_inspection_summary>
     inspect_section(std::size_t section_index);
+    [[nodiscard]] std::vector<featherdoc::related_part_inspection_summary>
+    inspect_header_parts();
+    [[nodiscard]] std::vector<featherdoc::related_part_inspection_summary>
+    inspect_footer_parts();
     [[nodiscard]] std::optional<section_page_setup>
     get_section_page_setup(std::size_t section_index) const;
     [[nodiscard]] bool set_section_page_setup(std::size_t section_index,

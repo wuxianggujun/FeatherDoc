@@ -8,14 +8,15 @@ auto ascii_lower_copy(std::string_view value) -> std::string {
     std::string lowered;
     lowered.reserve(value.size());
     for (const char ch : value) {
-        lowered.push_back(static_cast<char>(
-            std::tolower(static_cast<unsigned char>(ch))));
+        lowered.push_back(
+            static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
     }
     return lowered;
 }
 
 auto starts_with_view(std::string_view value, std::string_view prefix) -> bool {
-    return value.size() >= prefix.size() && value.substr(0U, prefix.size()) == prefix;
+    return value.size() >= prefix.size() &&
+           value.substr(0U, prefix.size()) == prefix;
 }
 
 auto ends_with_view(std::string_view value, std::string_view suffix) -> bool {
@@ -43,65 +44,92 @@ auto normalize_store_item_id(std::string_view store_item_id) -> std::string {
     return ascii_lower_copy(store_item_id);
 }
 
-auto read_zip_text_entry(zip_t *archive, const std::string &entry_name,
-                         std::string &content) -> bool {
+enum class custom_xml_entry_read_status {
+    ok,
+    missing,
+    limit_exceeded,
+    read_failed,
+};
+
+auto read_custom_xml_entry_text(
+    zip_t *archive, const featherdoc::detail::archive_entry_catalog &catalog,
+    std::string_view entry_name, std::string &content,
+    const featherdoc::archive_limits &limits,
+    featherdoc::document_error_info &last_error_info)
+    -> custom_xml_entry_read_status {
     content.clear();
-    if (archive == nullptr || zip_entry_open(archive, entry_name.c_str()) != 0) {
-        return false;
+    if (archive == nullptr) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::io_error),
+                       "cannot read a Custom XML entry from a null archive",
+                       std::string{entry_name});
+        return custom_xml_entry_read_status::read_failed;
+    }
+    if (featherdoc::detail::find_archive_entry_record(catalog, entry_name) ==
+        nullptr) {
+        return custom_xml_entry_read_status::missing;
+    }
+    if (featherdoc::detail::open_archive_entry_by_package_name(
+            archive, catalog, entry_name) != 0) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::io_error),
+            "failed to open Custom XML archive entry", std::string{entry_name});
+        return custom_xml_entry_read_status::read_failed;
+    }
+
+    if (const auto limit_error =
+            featherdoc::detail::enforce_open_zip_entry_xml_size_limit(
+                archive, limits, entry_name, last_error_info)) {
+        zip_entry_close(archive);
+        return custom_xml_entry_read_status::limit_exceeded;
     }
 
     void *buffer = nullptr;
     size_t buffer_size = 0U;
     const auto read_result = zip_entry_read(archive, &buffer, &buffer_size);
-    if (read_result < 0) {
-        zip_entry_close(archive);
-        return false;
+    const auto close_result = zip_entry_close(archive);
+    std::unique_ptr<void, decltype(&std::free)> buffer_guard{buffer, &std::free};
+    if (read_result < 0 || close_result != 0 ||
+        (buffer_size > 0U && buffer == nullptr)) {
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::io_error),
+            "failed to read Custom XML archive entry", std::string{entry_name});
+        return custom_xml_entry_read_status::read_failed;
     }
 
     if (buffer != nullptr && buffer_size > 0U) {
         content.assign(static_cast<const char *>(buffer), buffer_size);
     }
-    std::free(buffer);
-    return zip_entry_close(archive) == 0;
+    return custom_xml_entry_read_status::ok;
 }
 
-auto collect_custom_xml_item_entries(zip_t *archive) -> std::vector<std::string> {
+auto collect_custom_xml_item_entries(
+    const featherdoc::detail::archive_entry_catalog &catalog)
+    -> std::vector<std::string> {
     std::vector<std::string> entries;
-    if (archive == nullptr) {
-        return entries;
-    }
-
-    const auto total_entries = zip_entries_total(archive);
-    if (total_entries < 0) {
-        return entries;
-    }
-
-    for (ssize_t index = 0; index < total_entries; ++index) {
-        if (zip_entry_openbyindex(archive, static_cast<std::size_t>(index)) != 0) {
+    for (const auto &record : catalog.records) {
+        if (record.is_directory) {
             continue;
         }
-        const char *entry_name = zip_entry_name(archive);
-        if (entry_name != nullptr) {
-            const std::string_view name{entry_name};
-            const auto slash = name.find_last_of('/');
-            const auto file_name = slash == std::string_view::npos
-                                       ? name
-                                       : name.substr(slash + 1U);
-            if (starts_with_view(name, "customXml/") &&
-                name.find("/_rels/") == std::string_view::npos &&
-                starts_with_view(file_name, "item") &&
-                !starts_with_view(file_name, "itemProps") &&
-                ends_with_view(file_name, ".xml")) {
-                entries.emplace_back(name);
-            }
+        const std::string_view identity{record.identity_key};
+        const auto slash = identity.find_last_of('/');
+        const auto file_name = slash == std::string_view::npos
+                                   ? identity
+                                   : identity.substr(slash + 1U);
+        if (starts_with_view(identity, "customxml/") &&
+            identity.find("/_rels/") == std::string_view::npos &&
+            starts_with_view(file_name, "item") &&
+            !starts_with_view(file_name, "itemprops") &&
+            ends_with_view(file_name, ".xml")) {
+            entries.push_back(record.canonical_key);
         }
-        zip_entry_close(archive);
     }
 
     return entries;
 }
 
-auto custom_xml_relationships_entry(std::string_view item_entry_name) -> std::string {
+auto custom_xml_relationships_entry(std::string_view item_entry_name)
+    -> std::string {
     const auto slash = item_entry_name.find_last_of('/');
     if (slash == std::string_view::npos) {
         return "_rels/" + std::string{item_entry_name} + ".rels";
@@ -110,64 +138,116 @@ auto custom_xml_relationships_entry(std::string_view item_entry_name) -> std::st
            std::string{item_entry_name.substr(slash + 1U)} + ".rels";
 }
 
-auto resolve_custom_xml_relationship_target(std::string_view item_entry_name,
-                                            std::string_view target) -> std::string {
-    if (target.empty()) {
-        return {};
-    }
-    if (target.front() == '/') {
-        return std::string{target.substr(1U)};
-    }
-
-    std::string base;
-    const auto slash = item_entry_name.find_last_of('/');
-    if (slash != std::string_view::npos) {
-        base = std::string{item_entry_name.substr(0U, slash + 1U)};
-    }
-
-    std::string remaining{target};
-    while (starts_with_view(remaining, "../")) {
-        remaining.erase(0U, 3U);
-        if (!base.empty() && base.back() == '/') {
-            base.pop_back();
-        }
-        const auto parent_slash = base.find_last_of('/');
-        base = parent_slash == std::string::npos ? std::string{} : base.substr(0U, parent_slash + 1U);
-    }
-
-    return base + remaining;
-}
-
-auto custom_xml_props_entry_from_relationships(zip_t *archive,
-                                               const std::string &item_entry_name)
+auto custom_xml_props_entry_from_relationships(
+    zip_t *archive, const featherdoc::detail::archive_entry_catalog &catalog,
+    const std::string &item_entry_name,
+    const featherdoc::archive_limits &limits,
+    featherdoc::document_error_info &last_error_info, bool &fatal_read_error)
     -> std::optional<std::string> {
-    const auto relationships_entry = custom_xml_relationships_entry(item_entry_name);
+    const auto relationships_entry =
+        custom_xml_relationships_entry(item_entry_name);
     std::string relationships_text;
-    if (!read_zip_text_entry(archive, relationships_entry, relationships_text)) {
+    const auto read_status =
+        read_custom_xml_entry_text(archive, catalog, relationships_entry,
+                                   relationships_text, limits, last_error_info);
+    if (read_status == custom_xml_entry_read_status::missing) {
+        return std::nullopt;
+    }
+    if (read_status != custom_xml_entry_read_status::ok) {
+        fatal_read_error = true;
         return std::nullopt;
     }
 
     pugi::xml_document relationships;
-    if (!relationships.load_buffer(relationships_text.data(), relationships_text.size())) {
+    const auto parse_result = relationships.load_buffer(
+        relationships_text.data(), relationships_text.size(),
+        featherdoc::detail::package_relationships_xml_parse_options);
+    if (!parse_result) {
+        (void)featherdoc::detail::set_xml_parse_failure(
+            last_error_info, parse_result,
+            featherdoc::document_errc::relationships_xml_parse_failed,
+            relationships_entry);
+        fatal_read_error = true;
         return std::nullopt;
     }
 
-    const auto root = relationships.child("Relationships");
-    for (auto relationship = root.child("Relationship");
-         relationship != pugi::xml_node{};
-         relationship = relationship.next_sibling("Relationship")) {
-        const auto type = std::string_view{relationship.attribute("Type").value()};
-        if (!ends_with_view(type, "/customXmlProps")) {
-            continue;
-        }
-        const auto target = std::string_view{relationship.attribute("Target").value()};
-        const auto resolved = resolve_custom_xml_relationship_target(item_entry_name, target);
-        if (!resolved.empty()) {
-            return resolved;
-        }
+    const auto mce_result =
+        featherdoc::detail::preprocess_package_relationships_mce(relationships);
+    if (!mce_result) {
+        (void)featherdoc::detail::set_package_relationships_mce_last_error(
+            last_error_info, mce_result, relationships_entry);
+        fatal_read_error = true;
+        return std::nullopt;
     }
 
-    return std::nullopt;
+    if (featherdoc::detail::inspect_package_relationships_document(
+            relationships) !=
+        featherdoc::detail::package_relationships_document_state::valid) {
+        set_last_error(
+            last_error_info,
+            featherdoc::document_errc::invalid_package_structure,
+            "Custom XML relationships part does not contain a valid "
+            "Relationships root in the package relationships namespace",
+            relationships_entry);
+        fatal_read_error = true;
+        return std::nullopt;
+    }
+
+    const auto root =
+        featherdoc::detail::package_relationships_root(relationships);
+    constexpr auto custom_xml_properties_relationship_type = std::string_view{
+        "http://schemas.openxmlformats.org/officeDocument/2006/"
+        "relationships/customXmlProps"};
+    std::optional<std::string> properties_entry;
+    for (auto relationship =
+             featherdoc::detail::first_package_relationship(root);
+         relationship != pugi::xml_node{};
+         relationship =
+             featherdoc::detail::next_package_relationship(relationship)) {
+        const auto type =
+            std::string_view{relationship.attribute("Type").value()};
+        if (type != custom_xml_properties_relationship_type) {
+            continue;
+        }
+        if (properties_entry.has_value()) {
+            set_last_error(last_error_info,
+                           featherdoc::document_errc::invalid_package_structure,
+                           "Custom XML item declares multiple customXmlProps "
+                           "relationships",
+                           relationships_entry);
+            fatal_read_error = true;
+            return std::nullopt;
+        }
+        if (std::string_view{relationship.attribute("TargetMode").value()} ==
+            "External") {
+            set_last_error(last_error_info,
+                           featherdoc::document_errc::invalid_package_structure,
+                           "Custom XML properties relationship must not use "
+                           "TargetMode=External",
+                           relationships_entry);
+            fatal_read_error = true;
+            return std::nullopt;
+        }
+        const auto target =
+            std::string_view{relationship.attribute("Target").value()};
+        const auto resolved =
+            featherdoc::detail::resolve_internal_package_relationship_target(
+                item_entry_name, target);
+        if (!resolved) {
+            set_last_error(
+                last_error_info,
+                featherdoc::document_errc::invalid_package_structure,
+                std::string{featherdoc::detail::
+                                package_relationship_target_error_message(
+                                    resolved.error)},
+                relationships_entry);
+            fatal_read_error = true;
+            return std::nullopt;
+        }
+        properties_entry = resolved.entry_name;
+    }
+
+    return properties_entry;
 }
 
 auto infer_custom_xml_props_entry(std::string_view item_entry_name)
@@ -179,7 +259,9 @@ auto infer_custom_xml_props_entry(std::string_view item_entry_name)
     const auto file_name = slash == std::string_view::npos
                                ? item_entry_name
                                : item_entry_name.substr(slash + 1U);
-    if (!starts_with_view(file_name, "item") || !ends_with_view(file_name, ".xml")) {
+    const auto folded_file_name = ascii_lower_copy(file_name);
+    if (!starts_with_view(folded_file_name, "item") ||
+        !ends_with_view(folded_file_name, ".xml")) {
         return std::nullopt;
     }
     const auto number = file_name.substr(4U, file_name.size() - 4U - 4U);
@@ -189,10 +271,21 @@ auto infer_custom_xml_props_entry(std::string_view item_entry_name)
     return std::string{directory} + "itemProps" + std::string{number} + ".xml";
 }
 
-auto custom_xml_store_item_id_from_props(std::string_view props_xml)
+auto custom_xml_store_item_id_from_props(
+    std::string_view props_xml, std::string_view props_entry_name,
+    featherdoc::document_error_info &last_error_info, bool &fatal_parse_error)
     -> std::optional<std::string> {
     pugi::xml_document props;
-    if (!props.load_buffer(props_xml.data(), props_xml.size())) {
+    const auto parse_result =
+        props.load_buffer(props_xml.data(), props_xml.size());
+    if (!parse_result) {
+        if (parse_result.status == pugi::status_out_of_memory) {
+            (void)featherdoc::detail::set_xml_parse_failure(
+                last_error_info, parse_result,
+                featherdoc::document_errc::invalid_package_structure,
+                props_entry_name);
+            fatal_parse_error = true;
+        }
         return std::nullopt;
     }
     const auto root = props.document_element();
@@ -204,6 +297,10 @@ auto custom_xml_store_item_id_from_props(std::string_view props_xml)
 
 auto load_custom_xml_package_parts(
     const std::filesystem::path &document_path,
+    const featherdoc::archive_limits &limits,
+    featherdoc::package_validation_mode validation_mode,
+    const featherdoc::detail::source_archive_fingerprint
+        *expected_source_fingerprint,
     featherdoc::document_error_info &last_error_info)
     -> std::optional<std::unordered_map<std::string, custom_xml_package_part>> {
     std::unordered_map<std::string, custom_xml_package_part> parts;
@@ -211,22 +308,54 @@ auto load_custom_xml_package_parts(
         return parts;
     }
 
-    int zip_error = 0;
     const auto archive_path = featherdoc::detail::path_to_utf8(document_path);
-    zip_t *archive = zip_openwitherror(archive_path.c_str(),
-                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
-                                       &zip_error);
+    const auto native_archive_path =
+        featherdoc::detail::path_to_native_utf8(document_path);
+    const auto opened_archive =
+        featherdoc::detail::open_read_zip_archive_with_limits(
+            native_archive_path, limits);
+    zip_t *archive = opened_archive.archive;
     if (archive == nullptr) {
-        set_last_error(last_error_info, featherdoc::document_errc::archive_open_failed,
+        if (expected_source_fingerprint != nullptr) {
+            (void)featherdoc::detail::set_reopened_source_archive_open_error(
+                last_error_info, archive_path, opened_archive,
+                "synchronizing content controls from Custom XML");
+            return std::nullopt;
+        }
+        if (opened_archive.zip_error == ZIP_EARCHLIMIT) {
+            (void)featherdoc::detail::set_archive_reader_open_limit_error(
+                last_error_info, archive_path, opened_archive.limit_violation);
+            return std::nullopt;
+        }
+        set_last_error(last_error_info,
+                       featherdoc::document_errc::archive_open_failed,
                        "failed to open archive for Custom XML sync: " +
-                           std::to_string(zip_error));
+                           std::to_string(opened_archive.zip_error));
+        return std::nullopt;
+    }
+    featherdoc::detail::read_zip_archive_guard archive_guard{archive};
+
+    featherdoc::detail::archive_entry_catalog catalog;
+    const auto validation_error =
+        expected_source_fingerprint == nullptr
+            ? featherdoc::detail::validate_open_zip_archive_metadata(
+                  archive, limits, last_error_info, validation_mode, &catalog)
+            : featherdoc::detail::validate_reopened_source_archive_metadata(
+                  archive, limits, last_error_info, validation_mode,
+                  *expected_source_fingerprint, archive_path, &catalog);
+    if (validation_error) {
         return std::nullopt;
     }
 
-    const auto item_entries = collect_custom_xml_item_entries(archive);
+    const auto item_entries = collect_custom_xml_item_entries(catalog);
     for (const auto &item_entry_name : item_entries) {
-        auto props_entry_name =
-            custom_xml_props_entry_from_relationships(archive, item_entry_name);
+        bool fatal_read_error = false;
+        auto props_entry_name = custom_xml_props_entry_from_relationships(
+            archive, catalog, item_entry_name, limits, last_error_info,
+            fatal_read_error);
+        if (fatal_read_error) {
+            return std::nullopt;
+        }
         if (!props_entry_name.has_value()) {
             props_entry_name = infer_custom_xml_props_entry(item_entry_name);
         }
@@ -235,43 +364,72 @@ auto load_custom_xml_package_parts(
         }
 
         std::string props_xml;
-        if (!read_zip_text_entry(archive, *props_entry_name, props_xml)) {
+        const auto props_read_status =
+            read_custom_xml_entry_text(archive, catalog, *props_entry_name,
+                                       props_xml, limits, last_error_info);
+        if (props_read_status == custom_xml_entry_read_status::missing) {
             continue;
         }
-        auto store_item_id = custom_xml_store_item_id_from_props(props_xml);
+        if (props_read_status != custom_xml_entry_read_status::ok) {
+            return std::nullopt;
+        }
+        bool fatal_props_parse_error = false;
+        auto store_item_id = custom_xml_store_item_id_from_props(
+            props_xml, *props_entry_name, last_error_info,
+            fatal_props_parse_error);
+        if (fatal_props_parse_error) {
+            return std::nullopt;
+        }
         if (!store_item_id.has_value() || store_item_id->empty()) {
             continue;
         }
 
         std::string item_xml;
-        if (!read_zip_text_entry(archive, item_entry_name, item_xml)) {
+        const auto item_read_status =
+            read_custom_xml_entry_text(archive, catalog, item_entry_name,
+                                       item_xml, limits, last_error_info);
+        if (item_read_status == custom_xml_entry_read_status::missing) {
             continue;
         }
+        if (item_read_status != custom_xml_entry_read_status::ok) {
+            return std::nullopt;
+        }
         pugi::xml_document item_document;
-        if (!item_document.load_buffer(item_xml.data(), item_xml.size())) {
+        const auto item_parse_result =
+            item_document.load_buffer(item_xml.data(), item_xml.size());
+        if (!item_parse_result) {
+            if (item_parse_result.status == pugi::status_out_of_memory) {
+                (void)featherdoc::detail::set_xml_parse_failure(
+                    last_error_info, item_parse_result,
+                    featherdoc::document_errc::invalid_package_structure,
+                    item_entry_name);
+                return std::nullopt;
+            }
             continue;
         }
 
         custom_xml_package_part part;
         part.entry_name = item_entry_name;
         part.store_item_id = *store_item_id;
-        part.xml.reset(item_document);
+        part.xml = std::move(item_document);
         parts[normalize_store_item_id(part.store_item_id)] = std::move(part);
     }
 
-    zip_close(archive);
+    if (const auto close_error = featherdoc::detail::close_read_archive(
+            archive_guard, last_error_info,
+            "failed to close source archive after loading Custom XML parts")) {
+        return std::nullopt;
+    }
     return parts;
 }
 
 void collect_custom_xml_plain_text(std::string &text, pugi::xml_node node) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto type = child.type();
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        const auto type = current.type();
         if (type == pugi::node_pcdata || type == pugi::node_cdata) {
-            text += child.value();
-            continue;
+            text += current.value();
         }
-        collect_custom_xml_plain_text(text, child);
     }
 }
 
@@ -281,8 +439,8 @@ auto custom_xml_node_text(pugi::xml_node node) -> std::string {
     return text;
 }
 
-auto find_child_by_local_name(pugi::xml_node parent, std::string_view local_name)
-    -> pugi::xml_node {
+auto find_child_by_local_name(pugi::xml_node parent,
+                              std::string_view local_name) -> pugi::xml_node {
     for (auto child = parent.first_child(); child != pugi::xml_node{};
          child = child.next_sibling()) {
         if (xml_local_name(child.name()) == local_name) {
@@ -292,9 +450,11 @@ auto find_child_by_local_name(pugi::xml_node parent, std::string_view local_name
     return {};
 }
 
-auto find_attribute_by_local_name(pugi::xml_node node, std::string_view local_name)
+auto find_attribute_by_local_name(pugi::xml_node node,
+                                  std::string_view local_name)
     -> std::optional<std::string> {
-    for (auto attribute = node.first_attribute(); attribute != pugi::xml_attribute{};
+    for (auto attribute = node.first_attribute();
+         attribute != pugi::xml_attribute{};
          attribute = attribute.next_attribute()) {
         if (xml_local_name(attribute.name()) == local_name) {
             return std::string{attribute.value()};
@@ -304,7 +464,8 @@ auto find_attribute_by_local_name(pugi::xml_node node, std::string_view local_na
 }
 
 auto custom_xml_value_for_xpath(const custom_xml_package_part &part,
-                                std::string_view xpath) -> std::optional<std::string> {
+                                std::string_view xpath)
+    -> std::optional<std::string> {
     if (xpath.empty() || xpath.front() != '/') {
         return std::nullopt;
     }
@@ -365,16 +526,18 @@ void append_custom_xml_sync_issue(
     issue.content_control_index = summary.index;
     issue.tag = summary.tag;
     issue.alias = summary.alias;
-    issue.store_item_id = summary.data_binding_store_item_id.value_or(std::string{});
+    issue.store_item_id =
+        summary.data_binding_store_item_id.value_or(std::string{});
     issue.xpath = summary.data_binding_xpath.value_or(std::string{});
     issue.reason = std::string{reason};
     result.issues.push_back(std::move(issue));
 }
 
 bool sync_content_controls_from_custom_xml_in_part(
-    featherdoc::document_error_info &last_error_info, pugi::xml_document &document,
-    std::string_view entry_name,
-    const std::unordered_map<std::string, custom_xml_package_part> &custom_xml_parts,
+    featherdoc::document_error_info &last_error_info,
+    pugi::xml_document &document, std::string_view entry_name,
+    const std::unordered_map<std::string, custom_xml_package_part>
+        &custom_xml_parts,
     featherdoc::custom_xml_data_binding_sync_result &result) {
     std::vector<pugi::xml_node> content_controls;
     collect_content_controls_in_order(document, content_controls);
@@ -395,24 +558,23 @@ bool sync_content_controls_from_custom_xml_in_part(
         const auto part_it = custom_xml_parts.find(
             normalize_store_item_id(*summary.data_binding_store_item_id));
         if (part_it == custom_xml_parts.end()) {
-            append_custom_xml_sync_issue(result, std::string{entry_name}, summary,
-                                         "custom_xml_part_not_found");
+            append_custom_xml_sync_issue(result, std::string{entry_name},
+                                         summary, "custom_xml_part_not_found");
             continue;
         }
 
-        const auto value = custom_xml_value_for_xpath(part_it->second,
-                                                      *summary.data_binding_xpath);
+        const auto value = custom_xml_value_for_xpath(
+            part_it->second, *summary.data_binding_xpath);
         if (!value.has_value()) {
-            append_custom_xml_sync_issue(result, std::string{entry_name}, summary,
-                                         "custom_xml_value_not_found");
+            append_custom_xml_sync_issue(result, std::string{entry_name},
+                                         summary, "custom_xml_value_not_found");
             continue;
         }
 
         if (!rewrite_content_control_plain_text(content_control, *value)) {
-            set_last_error(last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to synchronize content control text from Custom XML",
-                           std::string{entry_name});
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(last_error_info,
+                                                             entry_name);
             return false;
         }
 

@@ -28,7 +28,7 @@
         return 1;
     }
 
-    const auto image_path = path_type(std::string(arguments[2]));
+    const auto image_path = path_from_cli_utf8(arguments[2]);
     bool success = false;
     if (options.floating) {
         if (options.width_px.has_value()) {

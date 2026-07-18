@@ -3,6 +3,7 @@
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_numbering_catalog_output_json.hpp"
 #include "featherdoc_cli_numbering_json.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -12,7 +13,8 @@ namespace featherdoc_cli {
 namespace {
 
 void write_json_numbering_catalog_changed_level(
-    std::ostream &stream, const changed_numbering_catalog_level &changed_level) {
+    std::ostream &stream,
+    const changed_numbering_catalog_level &changed_level) {
     stream << "{\"left\":";
     write_json_numbering_level_definition(stream, changed_level.left);
     stream << ",\"right\":";
@@ -41,11 +43,12 @@ void write_json_numbering_catalog_instance_diff(
         if (index != 0U) {
             stream << ',';
         }
-        write_json_numbering_level_override_summary(stream,
-                                                    diff.added_overrides[index]);
+        write_json_numbering_level_override_summary(
+            stream, diff.added_overrides[index]);
     }
     stream << "],\"removed_overrides\":[";
-    for (std::size_t index = 0U; index < diff.removed_overrides.size(); ++index) {
+    for (std::size_t index = 0U; index < diff.removed_overrides.size();
+         ++index) {
         if (index != 0U) {
             stream << ',';
         }
@@ -53,7 +56,8 @@ void write_json_numbering_catalog_instance_diff(
             stream, diff.removed_overrides[index]);
     }
     stream << "],\"changed_overrides\":[";
-    for (std::size_t index = 0U; index < diff.changed_overrides.size(); ++index) {
+    for (std::size_t index = 0U; index < diff.changed_overrides.size();
+         ++index) {
         if (index != 0U) {
             stream << ',';
         }
@@ -69,22 +73,23 @@ void write_json_numbering_catalog_changed_definition(
     stream << "{\"name\":";
     write_json_string(stream, definition_diff.name);
     stream << ",\"added_level_count\":" << definition_diff.added_levels.size()
-           << ",\"removed_level_count\":" << definition_diff.removed_levels.size()
-           << ",\"changed_level_count\":" << definition_diff.changed_levels.size()
+           << ",\"removed_level_count\":"
+           << definition_diff.removed_levels.size()
+           << ",\"changed_level_count\":"
+           << definition_diff.changed_levels.size()
            << ",\"added_instance_count\":"
            << definition_diff.added_instances.size()
            << ",\"removed_instance_count\":"
            << definition_diff.removed_instances.size()
            << ",\"changed_instance_count\":"
-           << definition_diff.changed_instances.size()
-           << ",\"added_levels\":[";
+           << definition_diff.changed_instances.size() << ",\"added_levels\":[";
     for (std::size_t index = 0U; index < definition_diff.added_levels.size();
          ++index) {
         if (index != 0U) {
             stream << ',';
         }
-        write_json_numbering_level_definition(stream,
-                                              definition_diff.added_levels[index]);
+        write_json_numbering_level_definition(
+            stream, definition_diff.added_levels[index]);
     }
     stream << "],\"removed_levels\":[";
     for (std::size_t index = 0U; index < definition_diff.removed_levels.size();
@@ -114,8 +119,8 @@ void write_json_numbering_catalog_changed_definition(
             stream, definition_diff.added_instances[index]);
     }
     stream << "],\"removed_instances\":[";
-    for (std::size_t index = 0U; index < definition_diff.removed_instances.size();
-         ++index) {
+    for (std::size_t index = 0U;
+         index < definition_diff.removed_instances.size(); ++index) {
         if (index != 0U) {
             stream << ',';
         }
@@ -123,8 +128,8 @@ void write_json_numbering_catalog_changed_definition(
             stream, definition_diff.removed_instances[index]);
     }
     stream << "],\"changed_instances\":[";
-    for (std::size_t index = 0U; index < definition_diff.changed_instances.size();
-         ++index) {
+    for (std::size_t index = 0U;
+         index < definition_diff.changed_instances.size(); ++index) {
         if (index != 0U) {
             stream << ',';
         }
@@ -147,8 +152,8 @@ void write_json_numbering_catalog_diff_result(
         if (index != 0U) {
             stream << ',';
         }
-        write_json_numbering_catalog_definition(stream,
-                                                result.added_definitions[index]);
+        write_json_numbering_catalog_definition(
+            stream, result.added_definitions[index]);
     }
     stream << "],\"removed_definitions\":[";
     for (std::size_t index = 0U; index < result.removed_definitions.size();
@@ -199,13 +204,12 @@ void print_checked_numbering_catalog_result(
     if (json_output) {
         std::cout << "{\"command\":\"check-numbering-catalog\","
                   << "\"matches\":" << json_bool(diff.equal())
-                  << ",\"clean\":" << json_bool(clean)
-                  << ",\"catalog_file\":";
+                  << ",\"clean\":" << json_bool(clean) << ",\"catalog_file\":";
         write_json_string(std::cout,
                           featherdoc::detail::path_to_utf8(catalog_path));
         if (output_path.has_value()) {
             std::cout << ",\"generated_output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"baseline_issue_count\":" << baseline_lint.issues.size()
                   << ",\"generated_issue_count\":"
@@ -258,11 +262,10 @@ void print_checked_numbering_catalog_result(
               << "catalog_file: "
               << featherdoc::detail::path_to_utf8(catalog_path) << '\n';
     if (output_path.has_value()) {
-        std::cout << "generated_output_path: " << output_path->string()
+        std::cout << "generated_output_path: " << path_to_cli_utf8(*output_path)
                   << '\n';
     }
-    std::cout << "baseline_issue_count: " << baseline_lint.issues.size()
-              << '\n'
+    std::cout << "baseline_issue_count: " << baseline_lint.issues.size() << '\n'
               << "generated_issue_count: " << generated_lint.issues.size()
               << '\n'
               << "added_definition_count: " << diff.added_definitions.size()

@@ -3,6 +3,7 @@
 #include "featherdoc_cli_domain_names.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_template_schema_output_detail.hpp"
+#include "featherdoc_cli_text.hpp"
 #include "featherdoc_cli_validation_part.hpp"
 
 #include <iostream>
@@ -17,13 +18,14 @@ void print_exported_template_schema_summary(
         std::cout << "{\"command\":\"export-template-schema\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"target_count\":" << result.targets.size()
                   << ",\"slot_count\":" << result.slot_count()
                   << ",\"skipped_count\":" << result.skipped_bookmarks.size()
                   << ",\"skipped_bookmarks\":[";
-        for (std::size_t index = 0U; index < result.skipped_bookmarks.size(); ++index) {
+        for (std::size_t index = 0U; index < result.skipped_bookmarks.size();
+             ++index) {
             if (index != 0U) {
                 std::cout << ',';
             }
@@ -35,7 +37,7 @@ void print_exported_template_schema_summary(
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "target_count: " << result.targets.size() << '\n'
               << "slot_count: " << result.slot_count() << '\n'
@@ -45,10 +47,11 @@ void print_exported_template_schema_summary(
         return;
     }
 
-    for (std::size_t index = 0U; index < result.skipped_bookmarks.size(); ++index) {
+    for (std::size_t index = 0U; index < result.skipped_bookmarks.size();
+         ++index) {
         const auto &bookmark = result.skipped_bookmarks[index];
-        std::cout << "skipped_bookmarks[" << index << "]: part="
-                  << validation_part_name(bookmark.part);
+        std::cout << "skipped_bookmarks[" << index
+                  << "]: part=" << validation_part_name(bookmark.part);
         if (bookmark.part_index.has_value()) {
             std::cout << " part_index=" << *bookmark.part_index;
         }
@@ -57,7 +60,8 @@ void print_exported_template_schema_summary(
         }
         if (bookmark.reference_kind.has_value()) {
             std::cout << " kind="
-                      << featherdoc::to_xml_reference_type(*bookmark.reference_kind);
+                      << featherdoc::to_xml_reference_type(
+                             *bookmark.reference_kind);
         }
         if (bookmark.resolved_from_section_index.has_value()) {
             std::cout << " resolved_from_section="
@@ -81,7 +85,7 @@ void print_normalized_template_schema_summary(
         std::cout << "{\"command\":\"normalize-template-schema\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"target_count\":" << result.targets.size()
                   << ",\"slot_count\":" << result.slot_count() << "}\n";
@@ -89,7 +93,7 @@ void print_normalized_template_schema_summary(
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "target_count: " << result.targets.size() << '\n'
               << "slot_count: " << result.slot_count() << '\n';

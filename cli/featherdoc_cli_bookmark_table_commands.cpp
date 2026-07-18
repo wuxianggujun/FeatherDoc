@@ -6,6 +6,7 @@
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -77,7 +78,7 @@ void print_bookmark_table_result(
     const std::optional<path_type> &output_path, std::size_t replaced) {
     print_bookmark_identity(selected, bookmark);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -120,9 +121,8 @@ auto run_replace_bookmark_table_command(
     bookmark_table_replacement_options options;
     std::string error_message;
     const bool allow_empty_rows = command == "replace-bookmark-table-rows";
-    if (!parse_bookmark_table_replacement_options(arguments, 3U, options,
-                                                  allow_empty_rows,
-                                                  error_message)) {
+    if (!parse_bookmark_table_replacement_options(
+            arguments, 3U, options, allow_empty_rows, error_message)) {
         print_parse_error(command, error_message, json_output);
         return 2;
     }
@@ -133,7 +133,7 @@ auto run_replace_bookmark_table_command(
                                            error_message);
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -156,25 +156,27 @@ auto run_replace_bookmark_table_command(
     const auto replaced =
         command == "replace-bookmark-table"
             ? selected.part.replace_bookmark_with_table(bookmark_name, rows)
-            : selected.part.replace_bookmark_with_table_rows(bookmark_name, rows);
+            : selected.part.replace_bookmark_with_table_rows(bookmark_name,
+                                                             rows);
     if (replaced == 0U) {
         report_document_error(command, "mutate", doc.last_error(),
                               options.json_output);
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
     if (options.json_output) {
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [&selected, &bookmark_summary, &rows,
-             replaced](std::ostream &stream) {
-                write_json_bookmark_table_result(
-                    stream, selected, bookmark_summary, rows, replaced);
-            });
+        write_json_mutation_result(command, doc, options.output_path,
+                                   [&selected, &bookmark_summary, &rows,
+                                    replaced](std::ostream &stream) {
+                                       write_json_bookmark_table_result(
+                                           stream, selected, bookmark_summary,
+                                           rows, replaced);
+                                   });
     } else {
         print_bookmark_table_result(selected, bookmark_summary, rows,
                                     options.output_path, replaced);

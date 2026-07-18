@@ -105,7 +105,7 @@ auto parse_content_control_form_state_output_option(
         if (!value.has_value()) {
             return option_parse_result::error;
         }
-        options.output_path = std::filesystem::path(std::string{*value});
+        options.output_path = path_from_cli_utf8(*value);
         ++index;
         return option_parse_result::matched;
     }

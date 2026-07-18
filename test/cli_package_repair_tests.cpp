@@ -8,15 +8,35 @@ namespace {
 constexpr auto repairable_document_xml =
     R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>)";
 
+constexpr auto valid_content_types_xml =
+    R"(<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>)";
+
+constexpr auto valid_root_relationships_xml =
+    R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+                Target="word/document.xml"/>
+</Relationships>)";
+
+constexpr auto dangling_document_relationships_xml =
+    R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rSettings"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings"
+                Target="missing-settings.xml"/>
+</Relationships>)";
+
 void create_package_fixture(
     const fs::path &path,
     const std::vector<std::pair<std::string, std::string>> &entries) {
     remove_if_exists(path);
     int zip_error = 0;
-    const auto archive_path = featherdoc::detail::path_to_utf8(path);
-    zip_t *archive = zip_openwitherror(archive_path.c_str(),
-                                       ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
-                                       &zip_error);
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *archive = zip_openwitherror(
+        archive_path.c_str(), ZIP_DEFAULT_COMPRESSION_LEVEL, 'w', &zip_error);
     REQUIRE(archive != nullptr);
     for (const auto &[entry_name, content] : entries) {
         REQUIRE(write_archive_entry(archive, entry_name.c_str(), content));
@@ -68,15 +88,15 @@ TEST_CASE("CLI refuses unsafe package repair without creating output") {
     const auto input = fs::current_path() / "cli_package_unsafe_input.docx";
     const auto repaired = fs::current_path() / "cli_package_unsafe_output.docx";
     const auto command_output = fs::current_path() / "cli_package_unsafe.json";
-    create_package_fixture(
-        input, {{"[Content_Types].xml", "<Types>"},
-                {"_rels/.rels", "<Relationships>"},
-                {"word/document.xml", repairable_document_xml}});
+    create_package_fixture(input,
+                           {{"[Content_Types].xml", "<Types>"},
+                            {"_rels/.rels", "<Relationships>"},
+                            {"word/document.xml", repairable_document_xml}});
     remove_if_exists(repaired);
 
-    CHECK_EQ(run_cli({"repair-package",
-                      featherdoc::detail::path_to_utf8(input), "--output",
-                      featherdoc::detail::path_to_utf8(repaired), "--json"},
+    CHECK_EQ(run_cli({"repair-package", featherdoc::detail::path_to_utf8(input),
+                      "--output", featherdoc::detail::path_to_utf8(repaired),
+                      "--json"},
                      command_output),
              1);
     CHECK_FALSE(fs::exists(repaired));
@@ -88,6 +108,31 @@ TEST_CASE("CLI refuses unsafe package repair without creating output") {
     remove_if_exists(command_output);
 }
 
+TEST_CASE("CLI serializes extended package diagnostic codes") {
+    const auto input =
+        fs::current_path() / "cli_package_dangling_relationship.docx";
+    const auto command_output =
+        fs::current_path() / "cli_package_dangling_relationship.json";
+    create_package_fixture(input,
+                           {{"[Content_Types].xml", valid_content_types_xml},
+                            {"_rels/.rels", valid_root_relationships_xml},
+                            {"word/document.xml", repairable_document_xml},
+                            {"word/_rels/document.xml.rels",
+                             dangling_document_relationships_xml}});
+
+    REQUIRE_EQ(run_cli({"inspect-package",
+                        featherdoc::detail::path_to_utf8(input), "--json"},
+                       command_output),
+               0);
+    const auto result = read_text_file(command_output);
+    CHECK(result.find("\"code\":\"dangling_relationship\"") !=
+          std::string::npos);
+    CHECK(result.find("\"code\":\"unknown\"") == std::string::npos);
+
+    remove_if_exists(input);
+    remove_if_exists(command_output);
+}
+
 TEST_CASE("CLI repair never overwrites its input") {
     const auto input = fs::current_path() / "cli_package_no_overwrite.docx";
     const auto command_output =
@@ -96,14 +141,15 @@ TEST_CASE("CLI repair never overwrites its input") {
                            {{"word/document.xml", repairable_document_xml}});
     const auto original_bytes = read_binary_file(input);
 
-    CHECK_EQ(run_cli({"repair-package",
-                      featherdoc::detail::path_to_utf8(input), "--output",
-                      featherdoc::detail::path_to_utf8(input), "--json"},
-                     command_output),
-             2);
+    CHECK_EQ(
+        run_cli({"repair-package", featherdoc::detail::path_to_utf8(input),
+                 "--output", featherdoc::detail::path_to_utf8(input), "--json"},
+                command_output),
+        2);
     CHECK_EQ(read_binary_file(input), original_bytes);
     const auto result = read_text_file(command_output);
-    CHECK(result.find("output must differ from its input") != std::string::npos);
+    CHECK(result.find("output must differ from its input") !=
+          std::string::npos);
 
     remove_if_exists(input);
     remove_if_exists(command_output);

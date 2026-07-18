@@ -15,48 +15,49 @@ bool Document::set_paragraph_style(Paragraph paragraph_handle,
         return false;
     }
 
-    if (!paragraph_handle.has_next() ||
-        paragraph_handle.current == pugi::xml_node{}) {
+    auto owning_part_entry_name = std::string_view{};
+    if (!this->owns_paragraph_handle(paragraph_handle,
+                                     owning_part_entry_name)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "target paragraph handle is not valid",
+                       "target paragraph handle does not belong to this "
+                       "document or is no longer valid",
                        std::string{document_xml_entry});
         return false;
     }
 
-    if (const auto error = this->ensure_styles_part_attached()) {
-        return false;
-    }
-
-    auto paragraph_properties =
-        ensure_paragraph_properties_node(paragraph_handle.current);
-    if (paragraph_properties == pugi::xml_node{}) {
+    auto properties_transaction = applied_style_properties_transaction{};
+    if (!properties_transaction.prepare(paragraph_handle.current, "w:pPr")) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:pPr for the target paragraph",
-                       std::string{document_xml_entry});
+                       "failed to prepare paragraph properties for a style "
+                       "update",
+                       std::string{owning_part_entry_name});
         return false;
     }
-
-    auto style_node = paragraph_properties.child("w:pStyle");
-    if (style_node == pugi::xml_node{}) {
-        if (const auto first_child = paragraph_properties.first_child();
-            first_child != pugi::xml_node{}) {
-            style_node = paragraph_properties.insert_child_before("w:pStyle",
-                                                                  first_child);
-        } else {
-            style_node = paragraph_properties.append_child("w:pStyle");
-        }
-    }
-    if (style_node == pugi::xml_node{}) {
+    if (!set_applied_style_value(properties_transaction.working_properties(),
+                                 "w:pStyle", style_id)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:pStyle for the target paragraph",
-                       std::string{document_xml_entry});
+                       "failed to populate paragraph style metadata",
+                       std::string{owning_part_entry_name});
         return false;
     }
 
-    ensure_attribute_value(style_node, "w:val", style_id);
+    auto attachment_work =
+        featherdoc::detail::singleton_part_attachment_work{};
+    if (const auto error =
+            this->prepare_styles_part_attachment(attachment_work)) {
+        return false;
+    }
+    if (!properties_transaction.commit()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to commit paragraph style metadata",
+                       std::string{owning_part_entry_name});
+        return false;
+    }
+    this->publish_styles_part_attachment(std::move(attachment_work));
     this->last_error_info.clear();
     return true;
 }
@@ -69,18 +70,25 @@ bool Document::clear_paragraph_style(Paragraph paragraph_handle) {
         return false;
     }
 
-    if (!paragraph_handle.has_next() ||
-        paragraph_handle.current == pugi::xml_node{}) {
+    auto owning_part_entry_name = std::string_view{};
+    if (!this->owns_paragraph_handle(paragraph_handle,
+                                     owning_part_entry_name)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "target paragraph handle is not valid",
+                       "target paragraph handle does not belong to this "
+                       "document or is no longer valid",
                        std::string{document_xml_entry});
         return false;
     }
 
     if (auto paragraph_properties = paragraph_handle.current.child("w:pPr");
         paragraph_properties != pugi::xml_node{}) {
-        paragraph_properties.remove_child("w:pStyle");
+        for (auto style_node = paragraph_properties.child("w:pStyle");
+             style_node != pugi::xml_node{};) {
+            const auto next_style_node = style_node.next_sibling("w:pStyle");
+            paragraph_properties.remove_child(style_node);
+            style_node = next_style_node;
+        }
         remove_empty_paragraph_properties(paragraph_handle.current);
     }
 
@@ -104,46 +112,47 @@ bool Document::set_run_style(Run run_handle, std::string_view style_id) {
         return false;
     }
 
-    if (!run_handle.has_next() || run_handle.current == pugi::xml_node{}) {
+    auto owning_part_entry_name = std::string_view{};
+    if (!this->owns_run_handle(run_handle, owning_part_entry_name)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "target run handle is not valid",
+                       "target run handle does not belong to this document or "
+                       "is no longer valid",
                        std::string{document_xml_entry});
         return false;
     }
 
-    if (const auto error = this->ensure_styles_part_attached()) {
-        return false;
-    }
-
-    auto run_properties = ensure_run_properties_node(run_handle.current);
-    if (run_properties == pugi::xml_node{}) {
+    auto properties_transaction = applied_style_properties_transaction{};
+    if (!properties_transaction.prepare(run_handle.current, "w:rPr")) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:rPr for the target run",
-                       std::string{document_xml_entry});
+                       "failed to prepare run properties for a style update",
+                       std::string{owning_part_entry_name});
         return false;
     }
-
-    auto style_node = run_properties.child("w:rStyle");
-    if (style_node == pugi::xml_node{}) {
-        if (const auto first_child = run_properties.first_child();
-            first_child != pugi::xml_node{}) {
-            style_node =
-                run_properties.insert_child_before("w:rStyle", first_child);
-        } else {
-            style_node = run_properties.append_child("w:rStyle");
-        }
-    }
-    if (style_node == pugi::xml_node{}) {
+    if (!set_applied_style_value(properties_transaction.working_properties(),
+                                 "w:rStyle", style_id)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:rStyle for the target run",
-                       std::string{document_xml_entry});
+                       "failed to populate run style metadata",
+                       std::string{owning_part_entry_name});
         return false;
     }
 
-    ensure_attribute_value(style_node, "w:val", style_id);
+    auto attachment_work =
+        featherdoc::detail::singleton_part_attachment_work{};
+    if (const auto error =
+            this->prepare_styles_part_attachment(attachment_work)) {
+        return false;
+    }
+    if (!properties_transaction.commit()) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to commit run style metadata",
+                       std::string{owning_part_entry_name});
+        return false;
+    }
+    this->publish_styles_part_attachment(std::move(attachment_work));
     this->last_error_info.clear();
     return true;
 }
@@ -156,17 +165,24 @@ bool Document::clear_run_style(Run run_handle) {
         return false;
     }
 
-    if (!run_handle.has_next() || run_handle.current == pugi::xml_node{}) {
+    auto owning_part_entry_name = std::string_view{};
+    if (!this->owns_run_handle(run_handle, owning_part_entry_name)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "target run handle is not valid",
+                       "target run handle does not belong to this document or "
+                       "is no longer valid",
                        std::string{document_xml_entry});
         return false;
     }
 
     if (auto run_properties = run_handle.current.child("w:rPr");
         run_properties != pugi::xml_node{}) {
-        run_properties.remove_child("w:rStyle");
+        for (auto style_node = run_properties.child("w:rStyle");
+             style_node != pugi::xml_node{};) {
+            const auto next_style_node = style_node.next_sibling("w:rStyle");
+            run_properties.remove_child(style_node);
+            style_node = next_style_node;
+        }
         remove_empty_run_properties(run_handle.current);
     }
 

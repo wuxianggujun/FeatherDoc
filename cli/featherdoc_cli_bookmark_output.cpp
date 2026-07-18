@@ -13,9 +13,10 @@
 
 namespace featherdoc_cli {
 
-void inspect_bookmarks(const selected_template_part &selected,
-                       const std::vector<featherdoc::bookmark_summary> &bookmarks,
-                       bool json_output) {
+void inspect_bookmarks(
+    const selected_template_part &selected,
+    const std::vector<featherdoc::bookmark_summary> &bookmarks,
+    bool json_output) {
     if (json_output) {
         std::cout << "{\"part\":";
         write_json_string(std::cout, validation_part_name(selected.family));
@@ -27,9 +28,8 @@ void inspect_bookmarks(const selected_template_part &selected,
         }
         if (selected.reference_kind.has_value()) {
             std::cout << ",\"kind\":";
-            write_json_string(
-                std::cout,
-                featherdoc::to_xml_reference_type(*selected.reference_kind));
+            write_json_string(std::cout, featherdoc::to_xml_reference_type(
+                                             *selected.reference_kind));
         }
         std::cout << ",\"entry_name\":";
         write_json_string(std::cout, std::string(selected.part.entry_name()));
@@ -67,9 +67,8 @@ void inspect_bookmark(const selected_template_part &selected,
         }
         if (selected.reference_kind.has_value()) {
             std::cout << ",\"kind\":";
-            write_json_string(
-                std::cout,
-                featherdoc::to_xml_reference_type(*selected.reference_kind));
+            write_json_string(std::cout, featherdoc::to_xml_reference_type(
+                                             *selected.reference_kind));
         }
         std::cout << ",\"entry_name\":";
         write_json_string(std::cout, std::string(selected.part.entry_name()));
@@ -111,10 +110,10 @@ void print_bookmark_image_result(
     const std::optional<path_type> &output_path,
     const std::vector<featherdoc::drawing_image_info> &inserted_images) {
     print_bookmark_identity(selected, bookmark);
-    std::cout << "image_path: "
-              << featherdoc::detail::path_to_utf8(image_path) << '\n';
+    std::cout << "image_path: " << featherdoc::detail::path_to_utf8(image_path)
+              << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -152,14 +151,15 @@ void print_bookmark_paragraphs_result(
     const std::optional<path_type> &output_path, std::size_t replaced) {
     print_bookmark_identity(selected, bookmark);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
     std::cout << "replaced: " << replaced << '\n';
     std::cout << "paragraph_count: " << paragraphs.size() << '\n';
     for (std::size_t index = 0; index < paragraphs.size(); ++index) {
-        std::cout << "paragraph[" << index << "]: " << paragraphs[index] << '\n';
+        std::cout << "paragraph[" << index << "]: " << paragraphs[index]
+                  << '\n';
     }
 }
 
@@ -178,7 +178,7 @@ void print_bookmark_block_removal_result(
     const std::optional<path_type> &output_path, std::size_t removed) {
     print_bookmark_identity(selected, bookmark);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -203,7 +203,7 @@ void print_bookmark_text_result(const selected_template_part &selected,
                                 std::size_t replaced) {
     print_bookmark_identity(selected, bookmark);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -240,8 +240,7 @@ void write_json_bookmark_fill_result(
     stream << ",\"complete\":" << json_bool(static_cast<bool>(result))
            << ",\"requested\":" << result.requested
            << ",\"matched\":" << result.matched
-           << ",\"replaced\":" << result.replaced
-           << ",\"bindings\":";
+           << ",\"replaced\":" << result.replaced << ",\"bindings\":";
     write_json_bookmark_text_bindings(stream, bindings);
     stream << ",\"missing_bookmarks\":";
     write_json_strings(stream, result.missing_bookmarks);
@@ -254,7 +253,7 @@ void print_bookmark_fill_result(
     const featherdoc::bookmark_fill_result &result) {
     print_selected_bookmark_part(selected);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -263,8 +262,8 @@ void print_bookmark_fill_result(
     std::cout << "matched: " << result.matched << '\n';
     std::cout << "replaced: " << result.replaced << '\n';
     for (std::size_t index = 0; index < bindings.size(); ++index) {
-        std::cout << "binding[" << index << "]: "
-                  << bindings[index].bookmark_name << " => "
+        std::cout << "binding[" << index
+                  << "]: " << bindings[index].bookmark_name << " => "
                   << bindings[index].text << '\n';
     }
     std::cout << "missing_bookmarks: ";

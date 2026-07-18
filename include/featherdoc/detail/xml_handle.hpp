@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include <pugixml.hpp>
@@ -21,10 +22,16 @@ class xml_handle_lifetime final {
         delete;
 
     [[nodiscard]] auto generation() const noexcept -> std::uint64_t;
-    void invalidate();
+    // Generation advancement is the safety boundary. Cache cleanup is best
+    // effort so a platform mutex failure can never escape a noexcept Document
+    // move operation after old handles have already been invalidated.
+    void invalidate() noexcept;
     [[nodiscard]] auto node_epoch(pugi::xml_node node) const noexcept
         -> std::uint64_t;
     void retire_subtree(pugi::xml_node root);
+    void retire_subtrees(std::span<const pugi::xml_node> roots);
+    [[nodiscard]] void *opaque_owner_state() const noexcept;
+    void set_opaque_owner_state(std::shared_ptr<void> owner_state) noexcept;
 
   private:
     struct state;
@@ -196,11 +203,16 @@ class tracked_xml_node final {
     }
 
     auto retire_subtree(pugi::xml_node node) const -> bool {
+        return this->retire_subtrees(
+            std::span<const pugi::xml_node>{&node, 1U});
+    }
+
+    auto retire_subtrees(std::span<const pugi::xml_node> nodes) const -> bool {
         const auto lifetime = this->lifetime_.lock();
         if (!this->alive() || lifetime == nullptr) {
             return false;
         }
-        lifetime->retire_subtree(node);
+        lifetime->retire_subtrees(nodes);
         return true;
     }
 

@@ -1,5 +1,6 @@
 #include "document_section_xml_helpers.hpp"
 
+#include "xml_document_clone_helpers.hpp"
 #include "xml_helpers.hpp"
 
 #include <cstddef>
@@ -7,6 +8,50 @@
 #include <utility>
 
 namespace featherdoc::detail {
+
+namespace {
+
+struct section_document_scratch_guard final {
+    pugi::xml_node parent;
+    pugi::xml_node scratch;
+
+    section_document_scratch_guard(pugi::xml_node parent_node,
+                                   pugi::xml_node scratch_node)
+        : parent(parent_node), scratch(scratch_node) {}
+    section_document_scratch_guard(const section_document_scratch_guard &) =
+        delete;
+    auto operator=(const section_document_scratch_guard &)
+        -> section_document_scratch_guard & = delete;
+
+    ~section_document_scratch_guard() {
+        if (parent != pugi::xml_node{} && scratch != pugi::xml_node{}) {
+            (void)parent.remove_child(scratch);
+        }
+    }
+};
+
+struct section_namespace_attribute_rollback final {
+    pugi::xml_node root;
+    pugi::xml_attribute attribute;
+    bool active{false};
+
+    section_namespace_attribute_rollback() = default;
+    section_namespace_attribute_rollback(
+        const section_namespace_attribute_rollback &) = delete;
+    auto operator=(const section_namespace_attribute_rollback &)
+        -> section_namespace_attribute_rollback & = delete;
+
+    ~section_namespace_attribute_rollback() {
+        if (active && root != pugi::xml_node{} &&
+            attribute != pugi::xml_attribute{}) {
+            (void)root.remove_attribute(attribute);
+        }
+    }
+
+    void commit() noexcept { active = false; }
+};
+
+} // namespace
 
 auto find_section_reference(pugi::xml_node section_properties, const char *reference_name,
                             std::string_view xml_reference_type) -> pugi::xml_node {
@@ -21,6 +66,116 @@ auto find_section_reference(pugi::xml_node section_properties, const char *refer
     return {};
 }
 
+auto section_properties_at(pugi::xml_node body, std::size_t section_index)
+    -> pugi::xml_node {
+    if (body == pugi::xml_node{}) {
+        return {};
+    }
+
+    std::size_t current_index = 0U;
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} != "w:p") {
+            continue;
+        }
+
+        const auto paragraph_section_properties =
+            child.child("w:pPr").child("w:sectPr");
+        if (paragraph_section_properties == pugi::xml_node{}) {
+            continue;
+        }
+
+        if (current_index == section_index) {
+            return paragraph_section_properties;
+        }
+        ++current_index;
+    }
+
+    return current_index == section_index ? body.child("w:sectPr")
+                                           : pugi::xml_node{};
+}
+
+auto publish_checked_section_document_update(
+    pugi::xml_document &live_document,
+    const pugi::xml_document &prepared_document, std::size_t section_index,
+    bool document_changed) -> section_document_publish_result {
+    if (!document_changed) {
+        return section_document_publish_result::success;
+    }
+
+    auto live_root = live_document.child("w:document");
+    auto live_body = live_root.child("w:body");
+    const auto prepared_root = prepared_document.child("w:document");
+    const auto prepared_body = prepared_root.child("w:body");
+    const auto prepared_section =
+        section_properties_at(prepared_body, section_index);
+    if (live_root == pugi::xml_node{} || live_body == pugi::xml_node{} ||
+        prepared_root == pugi::xml_node{} ||
+        prepared_section == pugi::xml_node{}) {
+        return section_document_publish_result::failure;
+    }
+
+    // A missing relationship namespace is the normal create_empty() case. It
+    // can be appended with a rollback guard, preserving all body/paragraph
+    // handles while retaining the strong failure guarantee. An already
+    // present but different namespace cannot be changed atomically in place,
+    // so only that malformed/legacy case requires publishing the full checked
+    // document.
+    auto namespace_rollback = section_namespace_attribute_rollback{};
+    if (const auto prepared_namespace = prepared_root.attribute("xmlns:r");
+        prepared_namespace != pugi::xml_attribute{}) {
+        const auto live_namespace = live_root.attribute("xmlns:r");
+        if (live_namespace == pugi::xml_attribute{}) {
+            if (!checked_append_xml_attribute(live_root, "xmlns:r",
+                                              prepared_namespace.value())) {
+                return section_document_publish_result::failure;
+            }
+            namespace_rollback.root = live_root;
+            namespace_rollback.attribute = live_root.attribute("xmlns:r");
+            namespace_rollback.active = true;
+        } else if (std::string_view{live_namespace.value()} !=
+                   prepared_namespace.value()) {
+            return section_document_publish_result::
+                requires_full_document_publish;
+        }
+    }
+
+    auto scratch = checked_append_xml_element(live_document,
+                                              "featherdoc-transaction");
+    if (scratch == pugi::xml_node{}) {
+        return section_document_publish_result::failure;
+    }
+    const auto scratch_guard =
+        section_document_scratch_guard{live_document, scratch};
+    if (checked_append_copy_xml_node(prepared_section, scratch) !=
+        xml_document_clone_status::success) {
+        return section_document_publish_result::failure;
+    }
+    auto prepared_live_section = scratch.first_child();
+    if (prepared_live_section == pugi::xml_node{}) {
+        return section_document_publish_result::failure;
+    }
+
+    const auto live_section =
+        section_properties_at(live_body, section_index);
+    auto published_section = pugi::xml_node{};
+    if (live_section == pugi::xml_node{}) {
+        published_section = live_body.append_move(prepared_live_section);
+    } else {
+        auto live_parent = live_section.parent();
+        published_section =
+            live_parent.insert_move_before(prepared_live_section, live_section);
+        if (published_section != pugi::xml_node{}) {
+            (void)live_parent.remove_child(live_section);
+        }
+    }
+    if (published_section == pugi::xml_node{}) {
+        return section_document_publish_result::failure;
+    }
+    namespace_rollback.commit();
+    return section_document_publish_result::success;
+}
+
 auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
     if (node == pugi::xml_node{}) {
         return std::nullopt;
@@ -33,40 +188,6 @@ auto read_on_off_value(pugi::xml_node node) -> std::optional<bool> {
 
     const auto value = std::string_view{attribute.value()};
     return value != "0" && value != "false" && value != "off";
-}
-
-auto append_section_reference(pugi::xml_node section_properties, const char *reference_name)
-    -> pugi::xml_node {
-    const auto reference_name_view = std::string_view{reference_name};
-    auto insertion_anchor = pugi::xml_node{};
-
-    for (auto child = section_properties.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto child_name = std::string_view{child.name()};
-
-        if (reference_name_view == "w:headerReference") {
-            if (child_name == "w:footerReference") {
-                insertion_anchor = child;
-                break;
-            }
-
-            if (child_name != "w:headerReference") {
-                insertion_anchor = child;
-                break;
-            }
-
-            continue;
-        }
-
-        if (child_name != "w:headerReference" && child_name != "w:footerReference") {
-            insertion_anchor = child;
-            break;
-        }
-    }
-
-    return insertion_anchor == pugi::xml_node{}
-               ? section_properties.append_child(reference_name)
-               : section_properties.insert_child_before(reference_name, insertion_anchor);
 }
 
 void clear_section_header_footer_references(pugi::xml_node section_properties) {
@@ -88,13 +209,13 @@ void clear_section_header_footer_references(pugi::xml_node section_properties) {
         reference = next;
     }
 
-    section_properties.remove_child("w:titlePg");
 }
 
 section_body_snapshot::section_body_snapshot() {
-    this->root = this->xml.append_child("section");
-    this->content_root = this->root.append_child("content");
-    this->properties_root = this->root.append_child("properties");
+    this->root = checked_append_xml_element(this->xml, "section");
+    this->content_root = checked_append_xml_element(this->root, "content");
+    this->properties_root =
+        checked_append_xml_element(this->root, "properties");
 }
 
 auto section_body_snapshot::section_properties() const -> pugi::xml_node {
@@ -134,57 +255,6 @@ void remove_empty_paragraph(pugi::xml_node paragraph) {
     if (auto parent = paragraph.parent(); parent != pugi::xml_node{}) {
         parent.remove_child(paragraph);
     }
-}
-
-auto ensure_on_off_node_enabled(pugi::xml_node parent, const char *child_name)
-    -> pugi::xml_node {
-    auto child = parent.child(child_name);
-    if (child == pugi::xml_node{}) {
-        child = parent.append_child(child_name);
-    }
-    if (child == pugi::xml_node{}) {
-        return {};
-    }
-
-    auto value_attribute = child.attribute("w:val");
-    if (value_attribute == pugi::xml_attribute{}) {
-        value_attribute = child.append_attribute("w:val");
-    }
-    value_attribute.set_value("1");
-    return child;
-}
-
-auto ensure_section_title_page_node(pugi::xml_node section_properties) -> pugi::xml_node {
-    auto title_page = section_properties.child("w:titlePg");
-    if (title_page == pugi::xml_node{}) {
-        auto insertion_anchor = pugi::xml_node{};
-        for (auto child = section_properties.first_child(); child != pugi::xml_node{};
-             child = child.next_sibling()) {
-            const auto child_name = std::string_view{child.name()};
-            if (child_name == "w:textDirection" || child_name == "w:bidi" ||
-                child_name == "w:rtlGutter" || child_name == "w:docGrid" ||
-                child_name == "w:printerSettings" || child_name == "w:sectPrChange") {
-                insertion_anchor = child;
-                break;
-            }
-        }
-
-        title_page = insertion_anchor == pugi::xml_node{}
-                         ? section_properties.append_child("w:titlePg")
-                         : section_properties.insert_child_before("w:titlePg",
-                                                                  insertion_anchor);
-    }
-
-    if (title_page == pugi::xml_node{}) {
-        return {};
-    }
-
-    auto value_attribute = title_page.attribute("w:val");
-    if (value_attribute == pugi::xml_attribute{}) {
-        value_attribute = title_page.append_attribute("w:val");
-    }
-    value_attribute.set_value("1");
-    return title_page;
 }
 
 auto append_section_property_node(pugi::xml_node section_properties, const char *child_name)
@@ -239,8 +309,9 @@ auto append_section_property_node(pugi::xml_node section_properties, const char 
     }
 
     return insertion_anchor == pugi::xml_node{}
-               ? section_properties.append_child(child_name)
-               : section_properties.insert_child_before(child_name, insertion_anchor);
+               ? checked_append_xml_element(section_properties, child_name)
+               : checked_insert_xml_element_before(
+                     section_properties, child_name, insertion_anchor);
 }
 
 auto ensure_section_property_node(pugi::xml_node section_properties, const char *child_name)
@@ -259,16 +330,8 @@ auto ensure_xml_uint32_attribute(pugi::xml_node node, const char *attribute_name
         return false;
     }
 
-    auto attribute = node.attribute(attribute_name);
-    if (attribute == pugi::xml_attribute{}) {
-        attribute = node.append_attribute(attribute_name);
-    }
-    if (attribute == pugi::xml_attribute{}) {
-        return false;
-    }
-
     const auto text = std::to_string(value);
-    return attribute.set_value(text.c_str());
+    return checked_set_xml_attribute_value(node, attribute_name, text);
 }
 
 void remove_empty_node(pugi::xml_node node) {
@@ -355,8 +418,9 @@ auto ensure_paragraph_properties_node(pugi::xml_node paragraph) -> pugi::xml_nod
 
     const auto first_child = paragraph.first_child();
     return first_child == pugi::xml_node{}
-               ? paragraph.append_child("w:pPr")
-               : paragraph.insert_child_before("w:pPr", first_child);
+               ? checked_append_xml_element(paragraph, "w:pPr")
+               : checked_insert_xml_element_before(paragraph, "w:pPr",
+                                                   first_child);
 }
 
 auto capture_section_snapshot(pugi::xml_node first_child, pugi::xml_node end_exclusive,
@@ -371,16 +435,20 @@ auto capture_section_snapshot(pugi::xml_node first_child, pugi::xml_node end_exc
 
     for (auto child = first_child; child != pugi::xml_node{} && child != end_exclusive;
          child = child.next_sibling()) {
-        if (snapshot->content_root.append_copy(child) == pugi::xml_node{}) {
+        if (checked_append_copy_xml_node(child, snapshot->content_root) !=
+            xml_document_clone_status::success) {
             return nullptr;
         }
     }
 
     if (section_properties != pugi::xml_node{}) {
-        if (snapshot->properties_root.append_copy(section_properties) == pugi::xml_node{}) {
+        if (checked_append_copy_xml_node(section_properties,
+                                         snapshot->properties_root) !=
+            xml_document_clone_status::success) {
             return nullptr;
         }
-    } else if (snapshot->properties_root.append_child("w:sectPr") == pugi::xml_node{}) {
+    } else if (checked_append_xml_element(snapshot->properties_root,
+                                          "w:sectPr") == pugi::xml_node{}) {
         return nullptr;
     }
 
@@ -461,10 +529,11 @@ auto rebuild_body_from_section_snapshots(
         auto last_content_node = pugi::xml_node{};
         for (auto child = snapshot->content_root.first_child(); child != pugi::xml_node{};
              child = child.next_sibling()) {
-            last_content_node = body.append_copy(child);
-            if (last_content_node == pugi::xml_node{}) {
+            if (checked_append_copy_xml_node(child, body) !=
+                xml_document_clone_status::success) {
                 return false;
             }
+            last_content_node = body.last_child();
         }
 
         const auto section_properties = snapshot->section_properties();
@@ -474,7 +543,7 @@ auto rebuild_body_from_section_snapshots(
                 std::string_view{last_content_node.name()} == "w:p") {
                 host_paragraph = last_content_node;
             } else {
-                host_paragraph = append_paragraph_node(body);
+                host_paragraph = checked_append_xml_element(body, "w:p");
             }
 
             if (host_paragraph == pugi::xml_node{}) {
@@ -486,10 +555,13 @@ auto rebuild_body_from_section_snapshots(
                 return false;
             }
 
-            if (paragraph_properties.append_copy(section_properties) == pugi::xml_node{}) {
+            if (checked_append_copy_xml_node(section_properties,
+                                             paragraph_properties) !=
+                xml_document_clone_status::success) {
                 return false;
             }
-        } else if (body.append_copy(section_properties) == pugi::xml_node{}) {
+        } else if (checked_append_copy_xml_node(section_properties, body) !=
+                   xml_document_clone_status::success) {
             return false;
         }
     }
@@ -501,37 +573,6 @@ auto section_has_reference_type(pugi::xml_node section_properties, const char *r
                                 std::string_view xml_reference_type) -> bool {
     return find_section_reference(section_properties, reference_name, xml_reference_type) !=
            pugi::xml_node{};
-}
-
-auto document_has_reference_type(const pugi::xml_document &document, const char *reference_name,
-                                 std::string_view xml_reference_type) -> bool {
-    const auto body = document.child("w:document").child("w:body");
-    if (body == pugi::xml_node{}) {
-        return false;
-    }
-
-    const auto section_has_reference = [&](pugi::xml_node section_properties) {
-        return section_has_reference_type(section_properties, reference_name, xml_reference_type);
-    };
-
-    for (auto child = body.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} != "w:p") {
-            continue;
-        }
-
-        if (const auto section_properties = child.child("w:pPr").child("w:sectPr");
-            section_properties != pugi::xml_node{} && section_has_reference(section_properties)) {
-            return true;
-        }
-    }
-
-    if (const auto section_properties = body.child("w:sectPr");
-        section_properties != pugi::xml_node{} && section_has_reference(section_properties)) {
-        return true;
-    }
-
-    return false;
 }
 
 } // namespace featherdoc::detail

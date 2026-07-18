@@ -319,7 +319,7 @@ TEST_CASE("cli paragraph style property commands report parse and inspect errors
     CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(inspect_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);
@@ -833,4 +833,3 @@ TEST_CASE("cli ensure-paragraph-style reports json parse errors") {
     remove_if_exists(source);
     remove_if_exists(output);
 }
-

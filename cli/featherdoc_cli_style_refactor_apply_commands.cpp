@@ -7,6 +7,7 @@
 #include "featherdoc_cli_style_refactor_options_parse.hpp"
 #include "featherdoc_cli_style_refactor_output.hpp"
 #include "featherdoc_cli_style_refactor_plan_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <ostream>
 #include <string>
@@ -42,7 +43,7 @@ auto run_apply_style_refactor_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -59,7 +60,8 @@ auto run_apply_style_refactor_command(
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
@@ -70,9 +72,8 @@ auto run_apply_style_refactor_command(
         error_info.code = std::make_error_code(std::errc::io_error);
         error_info.detail = std::move(error_message);
         report_operation_failure(
-            command, "output",
-            "failed to write style refactor rollback output", error_info,
-            options.json_output);
+            command, "output", "failed to write style refactor rollback output",
+            error_info, options.json_output);
         return 1;
     }
 
@@ -83,13 +84,13 @@ auto run_apply_style_refactor_command(
                 write_json_style_refactor_apply_result_fields(stream, *result);
                 if (options.plan_file_path.has_value()) {
                     stream << ",\"plan_file\":";
-                    write_json_string(stream,
-                                      options.plan_file_path->string());
+                    write_json_string(
+                        stream, path_to_cli_utf8(*options.plan_file_path));
                 }
                 if (options.rollback_plan_path.has_value()) {
                     stream << ",\"rollback_plan_file\":";
-                    write_json_string(stream,
-                                      options.rollback_plan_path->string());
+                    write_json_string(
+                        stream, path_to_cli_utf8(*options.rollback_plan_path));
                 }
             });
         return 0;

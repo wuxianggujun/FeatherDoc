@@ -3,7 +3,7 @@ bool Document::set_default_run_language(std::string_view language) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing default run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -11,7 +11,7 @@ bool Document::set_default_run_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "default run language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -23,8 +23,8 @@ bool Document::set_default_run_language(std::string_view language) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -34,7 +34,7 @@ bool Document::set_default_run_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults/w:rPrDefault/w:rPr",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -43,7 +43,7 @@ bool Document::set_default_run_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults default w:lang",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -58,7 +58,7 @@ bool Document::set_default_run_east_asia_language(std::string_view language) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing default run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -66,7 +66,7 @@ bool Document::set_default_run_east_asia_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "default eastAsia language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -78,8 +78,8 @@ bool Document::set_default_run_east_asia_language(std::string_view language) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -89,7 +89,7 @@ bool Document::set_default_run_east_asia_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults/w:rPrDefault/w:rPr",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -98,7 +98,7 @@ bool Document::set_default_run_east_asia_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults default w:lang",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -113,7 +113,7 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing default run language",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -121,7 +121,7 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "default bidi language must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -133,8 +133,8 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -144,7 +144,7 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults/w:rPrDefault/w:rPr",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -153,7 +153,7 @@ bool Document::set_default_run_bidi_language(std::string_view language) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create docDefaults default w:lang",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 

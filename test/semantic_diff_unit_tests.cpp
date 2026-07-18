@@ -12,6 +12,64 @@
 
 #include <featherdoc.hpp>
 
+namespace {
+
+void write_semantic_diff_header_fixture(const std::filesystem::path &path,
+                                        std::string_view header_entry_name) {
+    const auto absolute_header_part_name = "/" + std::string{header_entry_name};
+    const auto content_types_xml =
+        std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName=")"} +
+        absolute_header_part_name +
+        R"("
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+</Types>
+)";
+    const auto document_relationships_xml =
+        std::string{R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+                Target=")"} +
+        absolute_header_part_name +
+        R"("/>
+</Relationships>
+)";
+    constexpr auto document_xml = std::string_view{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>Stable body</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId2"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+)"};
+    constexpr auto header_xml = std::string_view{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:r><w:t>Stable header</w:t></w:r></w:p>
+</w:hdr>
+)"};
+
+    write_test_archive_entries(
+        path, {{test_content_types_xml_entry, content_types_xml},
+               {test_relationships_xml_entry, test_relationships_xml},
+               {test_document_xml_entry, std::string{document_xml}},
+               {"word/_rels/document.xml.rels", document_relationships_xml},
+               {std::string{header_entry_name}, std::string{header_xml}}});
+}
+
+} // namespace
+
 TEST_CASE("documents can be compared with semantic diff summaries") {
     namespace fs = std::filesystem;
 
@@ -746,6 +804,42 @@ TEST_CASE("semantic diff reports header and footer template part changes") {
     const auto body_only = left.compare_semantic(right, body_only_options);
     REQUIRE(body_only.has_value());
     CHECK_EQ(body_only->change_count(), 0U);
+
+    fs::remove(left_path);
+    fs::remove(right_path);
+}
+
+TEST_CASE("semantic diff treats ASCII-case-equivalent package part names as "
+          "identical") {
+    namespace fs = std::filesystem;
+
+    const fs::path left_path =
+        fs::current_path() / "semantic_diff_part_identity_left.docx";
+    const fs::path right_path =
+        fs::current_path() / "semantic_diff_part_identity_right.docx";
+    fs::remove(left_path);
+    fs::remove(right_path);
+
+    write_semantic_diff_header_fixture(left_path, "word/header1.xml");
+    write_semantic_diff_header_fixture(right_path, "WORD/HEADER1.XML");
+
+    featherdoc::Document left(left_path);
+    REQUIRE_FALSE(left.open());
+    featherdoc::Document right(right_path);
+    REQUIRE_FALSE(right.open());
+
+    const auto result = left.compare_semantic(right);
+    REQUIRE(result.has_value());
+    CHECK_FALSE(result->different());
+    CHECK_EQ(result->change_count(), 0U);
+    CHECK_EQ(result->sections.changed_count, 0U);
+    CHECK_EQ(result->sections.unchanged_count, 1U);
+    CHECK_EQ(result->template_parts.changed_count, 0U);
+    CHECK_EQ(result->template_parts.unchanged_count, 1U);
+    REQUIRE_EQ(result->template_part_results.size(), 3U);
+    for (const auto &part_result : result->template_part_results) {
+        CHECK_EQ(part_result.entry_name.find(" -> "), std::string::npos);
+    }
 
     fs::remove(left_path);
     fs::remove(right_path);

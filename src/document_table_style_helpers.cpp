@@ -12,8 +12,6 @@
 #include <utility>
 
 namespace {
-constexpr auto styles_xml_entry = std::string_view{"word/styles.xml"};
-
 void ensure_attribute_value(pugi::xml_node node, const char *name,
                             std::string_view value) {
     if (node == pugi::xml_node{}) {
@@ -632,7 +630,7 @@ auto ensure_table_style_font_size_node(
 
 auto validate_table_style_region(
     featherdoc::document_error_info &last_error_info,
-    std::string_view region_name,
+    std::string_view styles_entry_name, std::string_view region_name,
     const std::optional<featherdoc::table_style_region_definition> &region)
     -> bool {
     if (!region.has_value()) {
@@ -644,7 +642,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " fill color must not be empty",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -653,7 +651,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " text color must not be empty",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -663,7 +661,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " font size points must be greater than zero",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -674,7 +672,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " font size points is too large",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -683,7 +681,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " font family must not be empty",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -693,7 +691,7 @@ auto validate_table_style_region(
                        std::make_error_code(std::errc::invalid_argument),
                        "table style " + std::string{region_name} +
                            " eastAsia font family must not be empty",
-                       std::string{styles_xml_entry});
+                       std::string{styles_entry_name});
         return false;
     }
 
@@ -702,24 +700,34 @@ auto validate_table_style_region(
 
 auto validate_table_style_regions(
     featherdoc::document_error_info &last_error_info,
+    std::string_view styles_entry_name,
     const featherdoc::table_style_definition &definition) -> bool {
-    return validate_table_style_region(last_error_info, "whole_table",
+    return validate_table_style_region(last_error_info, styles_entry_name,
+                                       "whole_table",
                                        definition.whole_table) &&
-           validate_table_style_region(last_error_info, "first_row",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "first_row",
                                        definition.first_row) &&
-           validate_table_style_region(last_error_info, "last_row",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "last_row",
                                        definition.last_row) &&
-           validate_table_style_region(last_error_info, "first_column",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "first_column",
                                        definition.first_column) &&
-           validate_table_style_region(last_error_info, "last_column",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "last_column",
                                        definition.last_column) &&
-           validate_table_style_region(last_error_info, "banded_rows",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "banded_rows",
                                        definition.banded_rows) &&
-           validate_table_style_region(last_error_info, "banded_columns",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "banded_columns",
                                        definition.banded_columns) &&
-           validate_table_style_region(last_error_info, "second_banded_rows",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "second_banded_rows",
                                        definition.second_banded_rows) &&
-           validate_table_style_region(last_error_info, "second_banded_columns",
+           validate_table_style_region(last_error_info, styles_entry_name,
+                                       "second_banded_columns",
                                        definition.second_banded_columns);
 }
 
@@ -732,4 +740,3 @@ auto validate_table_style_regions(
 
 
 } // namespace featherdoc::detail
-

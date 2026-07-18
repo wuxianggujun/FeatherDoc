@@ -13,6 +13,7 @@
 #include "featherdoc_cli_numbering_json.hpp"
 #include "featherdoc_cli_parse.hpp"
 #include "featherdoc_cli_template_schema_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -55,7 +56,7 @@ auto run_numbering_catalog_command(
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            options.json_output)) {
             return 1;
         }
@@ -92,10 +93,10 @@ auto run_numbering_catalog_command(
     if (command == "import-numbering-catalog") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
-            print_parse_error(
-                command,
-                "import-numbering-catalog expects an input path and --catalog-file <catalog.json>",
-                json_output);
+            print_parse_error(command,
+                              "import-numbering-catalog expects an input path "
+                              "and --catalog-file <catalog.json>",
+                              json_output);
             return 2;
         }
 
@@ -114,7 +115,7 @@ auto run_numbering_catalog_command(
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            options.json_output)) {
             return 1;
         }
@@ -136,9 +137,11 @@ auto run_numbering_catalog_command(
                 command, doc, options.output_path,
                 [&summary, &options](std::ostream &stream) {
                     stream << ",\"catalog_file\":";
-                    write_json_string(stream, options.catalog_path->string());
+                    write_json_string(stream,
+                                      path_to_cli_utf8(*options.catalog_path));
                     stream << ',';
-                    write_json_numbering_catalog_import_summary(stream, summary);
+                    write_json_numbering_catalog_import_summary(stream,
+                                                                summary);
                 });
         }
 
@@ -148,10 +151,11 @@ auto run_numbering_catalog_command(
     if (command == "patch-numbering-catalog") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U || arguments[1].starts_with("--")) {
-            print_parse_error(command,
-                              "patch-numbering-catalog expects a catalog path and "
-                              "--patch-file <patch.json>",
-                              json_output);
+            print_parse_error(
+                command,
+                "patch-numbering-catalog expects a catalog path and "
+                "--patch-file <patch.json>",
+                json_output);
             return 2;
         }
 
@@ -164,7 +168,7 @@ auto run_numbering_catalog_command(
         }
 
         featherdoc::numbering_catalog catalog;
-        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])),
+        if (!read_numbering_catalog_file(path_from_cli_utf8(arguments[1]),
                                          catalog, error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
@@ -200,15 +204,15 @@ auto run_numbering_catalog_command(
             featherdoc::document_error_info error_info{};
             error_info.code = std::make_error_code(std::errc::io_error);
             error_info.detail = std::move(error_message);
-            report_operation_failure(command, "output",
-                                     "failed to write patched numbering catalog output",
-                                     error_info, options.json_output);
+            report_operation_failure(
+                command, "output",
+                "failed to write patched numbering catalog output", error_info,
+                options.json_output);
             return 1;
         }
 
-        print_patched_numbering_catalog_summary(catalog, summary,
-                                                options.output_path,
-                                                options.json_output);
+        print_patched_numbering_catalog_summary(
+            catalog, summary, options.output_path, options.json_output);
         return 0;
     }
 
@@ -230,7 +234,7 @@ auto run_numbering_catalog_command(
         }
 
         featherdoc::numbering_catalog catalog;
-        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])),
+        if (!read_numbering_catalog_file(path_from_cli_utf8(arguments[1]),
                                          catalog, error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
@@ -264,15 +268,15 @@ auto run_numbering_catalog_command(
         }
 
         featherdoc::numbering_catalog left;
-        if (!read_numbering_catalog_file(path_type(std::string(arguments[1])), left,
+        if (!read_numbering_catalog_file(path_from_cli_utf8(arguments[1]), left,
                                          error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
         }
 
         featherdoc::numbering_catalog right;
-        if (!read_numbering_catalog_file(path_type(std::string(arguments[2])), right,
-                                         error_message)) {
+        if (!read_numbering_catalog_file(path_from_cli_utf8(arguments[2]),
+                                         right, error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
         }
@@ -288,10 +292,10 @@ auto run_numbering_catalog_command(
     if (command == "check-numbering-catalog") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U || arguments[1].starts_with("--")) {
-            print_parse_error(
-                command,
-                "check-numbering-catalog expects an input path and --catalog-file <catalog.json>",
-                json_output);
+            print_parse_error(command,
+                              "check-numbering-catalog expects an input path "
+                              "and --catalog-file <catalog.json>",
+                              json_output);
             return 2;
         }
 
@@ -311,7 +315,7 @@ auto run_numbering_catalog_command(
         }
         const auto baseline_lint = lint_numbering_catalog(baseline);
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            options.json_output)) {
             return 1;
         }

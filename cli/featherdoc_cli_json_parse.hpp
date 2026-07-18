@@ -1,5 +1,7 @@
 #pragma once
 
+#include "featherdoc_cli_text.hpp"
+
 #include <cstddef>
 #include <filesystem>
 #include <optional>

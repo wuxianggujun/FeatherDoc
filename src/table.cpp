@@ -244,16 +244,32 @@ Table Table::insert_table_before(std::size_t row_count, std::size_t column_count
         return {};
     }
 
-    const auto table_node = detail::insert_table_node(this->parent, this->current);
-    auto created_table = Table(this->parent, table_node);
-    created_table.set_owner(this->owner);
-
-    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
-        created_table.append_row(column_count);
+    if (row_count == 0U || column_count == 0U ||
+        column_count > max_table_grid_columns) {
+        return {};
     }
 
-    this->current = table_node;
-    this->row.set_parent(this->current);
+    auto parent_node = this->parent.node();
+    const auto table_node = detail::insert_table_node(parent_node, this->current);
+    if (table_node == pugi::xml_node{}) {
+        return {};
+    }
+    try {
+        for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+            if (append_row_node(table_node, column_count) ==
+                pugi::xml_node{}) {
+                (void)parent_node.remove_child(table_node);
+                return {};
+            }
+        }
+    } catch (...) {
+        (void)parent_node.remove_child(table_node);
+        throw;
+    }
+
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
+    this->set_current(table_node);
     return created_table;
 }
 
@@ -262,17 +278,34 @@ Table Table::insert_table_after(std::size_t row_count, std::size_t column_count)
         return {};
     }
 
-    const auto next_table = detail::next_named_sibling(this->current, "w:tbl");
-    const auto table_node = detail::insert_table_node(this->parent, next_table);
-    auto created_table = Table(this->parent, table_node);
-    created_table.set_owner(this->owner);
-
-    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
-        created_table.append_row(column_count);
+    if (row_count == 0U || column_count == 0U ||
+        column_count > max_table_grid_columns) {
+        return {};
     }
 
-    this->current = table_node;
-    this->row.set_parent(this->current);
+    const auto next_sibling = this->current.next_sibling();
+    auto parent_node = this->parent.node();
+    const auto table_node =
+        detail::insert_table_node(parent_node, next_sibling);
+    if (table_node == pugi::xml_node{}) {
+        return {};
+    }
+    try {
+        for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+            if (append_row_node(table_node, column_count) ==
+                pugi::xml_node{}) {
+                (void)parent_node.remove_child(table_node);
+                return {};
+            }
+        }
+    } catch (...) {
+        (void)parent_node.remove_child(table_node);
+        throw;
+    }
+
+    auto created_table = Table(this->parent, table_node);
+    created_table.set_owner(this->owner);
+    this->set_current(table_node);
     return created_table;
 }
 
@@ -282,10 +315,17 @@ Paragraph Table::insert_paragraph_after(const std::string &text,
         return {};
     }
 
-    const auto paragraph_node =
-        detail::insert_paragraph_node(this->parent, this->current.next_sibling());
+    auto parent_node = this->parent.node();
+    const auto paragraph_node = detail::insert_paragraph_node(
+        parent_node, this->current.next_sibling());
+    if (paragraph_node == pugi::xml_node{}) {
+        return {};
+    }
     auto paragraph = Paragraph(this->parent, paragraph_node);
     if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
+        // The paragraph has not escaped yet, so raw removal safely rolls the
+        // complete insertion back without allocating retirement metadata.
+        (void)parent_node.remove_child(paragraph_node);
         return {};
     }
     return paragraph;
@@ -328,16 +368,39 @@ Table Table::insert_table_like_after() {
 }
 
 TableRow Table::append_row(std::size_t cell_count) {
-    if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
-        this->current = detail::append_table_node(this->parent);
-    }
-
-    if (this->current == pugi::xml_node{}) {
+    if (cell_count == 0U || cell_count > max_table_grid_columns) {
         return {};
     }
 
-    const auto new_row = append_row_node(this->current, cell_count);
-    this->row.set_parent(this->current);
+    auto table_node = this->current.node();
+    auto created_table = false;
+    if (table_node == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
+        table_node = detail::append_table_node(this->parent.node());
+        created_table = table_node != pugi::xml_node{};
+    }
+    if (table_node == pugi::xml_node{}) {
+        return {};
+    }
+
+    auto new_row = pugi::xml_node{};
+    try {
+        new_row = append_row_node(table_node, cell_count);
+    } catch (...) {
+        if (created_table) {
+            auto parent_node = this->parent.node();
+            (void)parent_node.remove_child(table_node);
+        }
+        throw;
+    }
+    if (new_row == pugi::xml_node{}) {
+        if (created_table) {
+            auto parent_node = this->parent.node();
+            (void)parent_node.remove_child(table_node);
+        }
+        return {};
+    }
+
+    this->set_current(table_node);
     this->row.set_current(new_row);
     return TableRow(this->current, new_row);
 }

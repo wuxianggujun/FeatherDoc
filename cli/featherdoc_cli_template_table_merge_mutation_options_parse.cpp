@@ -80,7 +80,7 @@ auto parse_template_merge_table_cells_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -168,7 +168,7 @@ auto parse_template_unmerge_table_cells_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

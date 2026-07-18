@@ -38,13 +38,13 @@ std::string document_error_category::message(int condition) const {
     case document_errc::content_types_xml_parse_failed:
         return "failed to parse [Content_Types].xml";
     case document_errc::numbering_xml_read_failed:
-        return "failed to read word/numbering.xml";
+        return "failed to read numbering part";
     case document_errc::numbering_xml_parse_failed:
-        return "failed to parse word/numbering.xml";
+        return "failed to parse numbering part";
     case document_errc::styles_xml_read_failed:
-        return "failed to read word/styles.xml";
+        return "failed to read styles part";
     case document_errc::styles_xml_parse_failed:
-        return "failed to parse word/styles.xml";
+        return "failed to parse styles part";
     case document_errc::image_file_read_failed:
         return "failed to read image file";
     case document_errc::image_format_unsupported:
@@ -52,9 +52,9 @@ std::string document_error_category::message(int condition) const {
     case document_errc::image_size_read_failed:
         return "failed to determine image dimensions";
     case document_errc::settings_xml_read_failed:
-        return "failed to read word/settings.xml";
+        return "failed to read settings part";
     case document_errc::settings_xml_parse_failed:
-        return "failed to parse word/settings.xml";
+        return "failed to parse settings part";
     case document_errc::output_archive_open_failed:
         return "failed to create output archive";
     case document_errc::output_document_xml_open_failed:
@@ -92,7 +92,26 @@ std::string document_error_category::message(int condition) const {
     case document_errc::output_file_sync_failed:
         return "failed to synchronize temporary output document";
     case document_errc::output_directory_sync_failed_after_replace:
-        return "output document replaced but parent directory synchronization failed";
+        return "output document replaced but parent directory synchronization "
+               "failed";
+    case document_errc::archive_close_failed:
+        return "failed to close source document archive";
+    case document_errc::source_archive_changed:
+        return "source document archive changed after open";
+    case document_errc::image_file_status_failed:
+        return "failed to inspect image file";
+    case document_errc::image_file_not_regular:
+        return "image input is not a regular file";
+    case document_errc::image_file_size_read_failed:
+        return "failed to read image file size";
+    case document_errc::image_file_open_failed:
+        return "failed to open image file";
+    case document_errc::image_input_limit_exceeded:
+        return "external image input limit exceeded";
+    case document_errc::invalid_mce_markup:
+        return "invalid markup-compatibility directives in Relationships XML";
+    case document_errc::mce_mismatch:
+        return "unsupported non-ignorable markup in Relationships XML";
     }
 
     return "unknown FeatherDoc document error";

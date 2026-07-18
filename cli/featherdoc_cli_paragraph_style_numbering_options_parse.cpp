@@ -81,7 +81,7 @@ auto parse_set_paragraph_style_numbering_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -175,7 +175,7 @@ auto parse_ensure_style_linked_numbering_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -223,7 +223,7 @@ auto parse_clear_paragraph_style_numbering_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

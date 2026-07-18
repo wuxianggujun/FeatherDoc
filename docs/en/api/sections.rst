@@ -24,10 +24,13 @@ use an ``ensure_*`` helper first.
      - Parameters
      - Return semantics
    * - ``bool append_section(bool inherit_header_footer = true)``
-     - ``inherit_header_footer``: copy previous section header/footer references.
+     - ``inherit_header_footer``: copy explicit previous references when true;
+       false leaves no local references, which means linked-to-previous in OOXML,
+       not an explicitly blank header/footer.
      - ``true`` when a section was appended.
    * - ``bool insert_section(std::size_t section_index, bool inherit_header_footer = true)``
-     - ``section_index``: insertion point. ``inherit_header_footer``: copy nearby references.
+     - ``section_index``: insertion point. ``inherit_header_footer`` follows the
+       same explicit-copy versus linked-to-previous rule.
      - ``true`` when the section was inserted.
    * - ``bool move_section(std::size_t source_section_index, std::size_t target_section_index)``
      - ``source_section_index``: section to move. ``target_section_index``: destination after removal.
@@ -86,10 +89,11 @@ Section Structure
      - Purpose
    * - ``append_section(inherit_header_footer = true)``
      - ``bool``
-     - Append a section break, optionally inheriting header/footer references.
+     - Append a section break; false removes local references and therefore
+       links the new section to the previous effective header/footer layout.
    * - ``insert_section(section_index, inherit_header_footer = true)``
      - ``bool``
-     - Insert a section before a target section index.
+     - Insert a section before a target index with the same reference-link rule.
    * - ``remove_section(section_index)``
      - ``bool``
      - Remove one section.

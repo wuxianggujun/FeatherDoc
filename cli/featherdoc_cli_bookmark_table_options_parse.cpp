@@ -131,7 +131,7 @@ auto parse_bookmark_table_replacement_options(
             }
 
             cli_text_source_options source;
-            source.text_file = path_type(std::string(arguments[index + 1U]));
+            source.text_file = path_from_cli_utf8(arguments[index + 1U]);
             options.row_sources.push_back({});
             options.row_sources.back().push_back(std::move(source));
             ++index;
@@ -174,7 +174,7 @@ auto parse_bookmark_table_replacement_options(
             }
 
             cli_text_source_options source;
-            source.text_file = path_type(std::string(arguments[index + 1U]));
+            source.text_file = path_from_cli_utf8(arguments[index + 1U]);
             options.row_sources.back().push_back(std::move(source));
             ++index;
             continue;
@@ -209,7 +209,7 @@ auto parse_bookmark_table_replacement_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

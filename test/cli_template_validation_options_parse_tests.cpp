@@ -3,6 +3,8 @@
 
 #include "featherdoc_cli_template_validation_options_parse.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include <string>
 #include <string_view>
 
@@ -38,6 +40,20 @@ TEST_CASE("cli template validation options parse accepts schema targets and file
     REQUIRE(options.targets[0].requirements.size() == 1U);
     CHECK(options.targets[0].requirements[0].bookmark_name == "customer");
     CHECK(options.json_output);
+}
+
+TEST_CASE("cli template validation preserves UTF-8 schema paths") {
+    featherdoc_cli::validate_template_schema_options options;
+    std::string error;
+
+    CHECK(featherdoc_cli::parse_validate_template_schema_options(
+        {"validate-template-schema", "input.docx", "--schema-file",
+         "架构-日本語-🙂.json"},
+        2U, options, error));
+
+    REQUIRE_EQ(options.schema_files.size(), 1U);
+    CHECK_EQ(featherdoc::detail::path_to_utf8(options.schema_files.front()),
+             "架构-日本語-🙂.json");
 }
 
 TEST_CASE("cli template validation options parse validates required inputs") {

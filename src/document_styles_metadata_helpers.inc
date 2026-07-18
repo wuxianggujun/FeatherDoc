@@ -5,6 +5,7 @@ auto style_node_id(pugi::xml_node style) -> std::string_view {
 auto build_style_inheritance_chain(
     pugi::xml_node styles_root, pugi::xml_node style,
     featherdoc::document_error_info &last_error_info,
+    std::string_view styles_entry_name,
     std::vector<pugi::xml_node> &chain) -> bool {
     chain.clear();
     while (style != pugi::xml_node{}) {
@@ -16,7 +17,7 @@ auto build_style_inheritance_chain(
                     std::make_error_code(std::errc::invalid_argument),
                     "style inheritance cycle detected at style '" +
                         std::string{current_style_id} + "'",
-                    std::string{styles_xml_entry});
+                    std::string{styles_entry_name});
                 return false;
             }
         }
@@ -36,7 +37,7 @@ auto build_style_inheritance_chain(
                            "style id '" + std::string{current_style_id} +
                                "' references missing basedOn style '" +
                                std::string{based_on} + "'",
-                           std::string{styles_xml_entry});
+                           std::string{styles_entry_name});
             return false;
         }
 
@@ -132,17 +133,7 @@ auto parse_u32_attribute_value(const char *text)
 }
 
 auto parse_half_point_size(const char *text) -> std::optional<double> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtod(text, &end);
-    if (end == text || *end != '\0' || value <= 0.0) {
-        return std::nullopt;
-    }
-
-    return value / 2.0;
+    return featherdoc::detail::parse_half_point_size_points(text);
 }
 
 auto summarize_style_numbering(pugi::xml_node style)

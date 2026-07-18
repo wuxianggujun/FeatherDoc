@@ -49,7 +49,7 @@ TEST_CASE("cli ensure-style-linked-numbering reports parse and mutate errors") {
     CHECK_NE(mutate_json.find("\"stage\":\"mutate\""), std::string::npos);
     CHECK_NE(mutate_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(mutate_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);

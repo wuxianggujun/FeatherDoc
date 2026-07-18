@@ -1,5 +1,6 @@
 #include "featherdoc_cli_image_options_parse.hpp"
 #include "featherdoc_cli_domain_parse.hpp"
+#include "featherdoc_cli_package_part.hpp"
 
 #include "featherdoc_cli_parse.hpp"
 

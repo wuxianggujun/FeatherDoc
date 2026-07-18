@@ -50,6 +50,24 @@ auto diagnostic_code_name(featherdoc::package_diagnostic_code code)
         return "invalid_main_document_content_type";
     case code_type::ambiguous_main_document_content_type:
         return "ambiguous_main_document_content_type";
+    case code_type::duplicate_content_type_override:
+        return "duplicate_content_type_override";
+    case code_type::invalid_content_type_part_name:
+        return "invalid_content_type_part_name";
+    case code_type::duplicate_content_type_default:
+        return "duplicate_content_type_default";
+    case code_type::invalid_content_type_extension:
+        return "invalid_content_type_extension";
+    case code_type::invalid_content_type_media_type:
+        return "invalid_content_type_media_type";
+    case code_type::invalid_relationships_part:
+        return "invalid_relationships_part";
+    case code_type::invalid_document_relationship:
+        return "invalid_document_relationship";
+    case code_type::duplicate_singleton_relationship:
+        return "duplicate_singleton_relationship";
+    case code_type::dangling_relationship:
+        return "dangling_relationship";
     }
     return "unknown";
 }
@@ -110,7 +128,8 @@ auto run_inspect_package(std::string_view command,
         return 2;
     }
     if (arguments.size() == 3U && arguments[2] != "--json") {
-        print_parse_error(command, "unknown option: " + std::string(arguments[2]),
+        print_parse_error(command,
+                          "unknown option: " + std::string(arguments[2]),
                           json_output);
         return 2;
     }
@@ -135,10 +154,10 @@ auto run_inspect_package(std::string_view command,
     }
     for (const auto &diagnostic : diagnostics) {
         std::cout << severity_name(diagnostic.severity) << ' '
-                  << diagnostic_code_name(diagnostic.code) << " [entry="
-                  << diagnostic.entry_name << "] repairable="
-                  << (diagnostic.repairable ? "yes" : "no") << ": "
-                  << diagnostic.detail << '\n';
+                  << diagnostic_code_name(diagnostic.code)
+                  << " [entry=" << diagnostic.entry_name
+                  << "] repairable=" << (diagnostic.repairable ? "yes" : "no")
+                  << ": " << diagnostic.detail << '\n';
     }
     return 0;
 }
@@ -148,10 +167,10 @@ auto run_repair_package(std::string_view command,
                         featherdoc::Document &document) -> int {
     const bool json_output = has_json_flag(arguments);
     if (arguments.size() < 4U) {
-        print_parse_error(
-            command,
-            "repair-package expects <input.docx> --output <repaired.docx> [--json]",
-            json_output);
+        print_parse_error(command,
+                          "repair-package expects <input.docx> --output "
+                          "<repaired.docx> [--json]",
+                          json_output);
         return 2;
     }
 
@@ -160,7 +179,8 @@ auto run_repair_package(std::string_view command,
     for (std::size_t index = 2U; index < arguments.size(); ++index) {
         if (arguments[index] == "--json") {
             if (json_option_seen) {
-                print_parse_error(command, "duplicate --json option", json_output);
+                print_parse_error(command, "duplicate --json option",
+                                  json_output);
                 return 2;
             }
             json_option_seen = true;
@@ -168,19 +188,22 @@ auto run_repair_package(std::string_view command,
         }
         if (arguments[index] == "--output") {
             if (output_value.has_value()) {
-                print_parse_error(command, "duplicate --output option", json_output);
+                print_parse_error(command, "duplicate --output option",
+                                  json_output);
                 return 2;
             }
             if (index + 1U >= arguments.size() ||
                 arguments[index + 1U] == "--json" ||
                 arguments[index + 1U] == "--output") {
-                print_parse_error(command, "missing path after --output", json_output);
+                print_parse_error(command, "missing path after --output",
+                                  json_output);
                 return 2;
             }
             output_value = arguments[++index];
             continue;
         }
-        print_parse_error(command, "unknown option: " + std::string(arguments[index]),
+        print_parse_error(command,
+                          "unknown option: " + std::string(arguments[index]),
                           json_output);
         return 2;
     }
@@ -190,12 +213,11 @@ auto run_repair_package(std::string_view command,
         return 2;
     }
 
-    const auto input_path =
-        featherdoc::detail::path_from_utf8(arguments[1]);
-    const auto output_path =
-        featherdoc::detail::path_from_utf8(*output_value);
+    const auto input_path = featherdoc::detail::path_from_utf8(arguments[1]);
+    const auto output_path = featherdoc::detail::path_from_utf8(*output_value);
     std::error_code equivalent_error;
-    if (std::filesystem::equivalent(input_path, output_path, equivalent_error)) {
+    if (std::filesystem::equivalent(input_path, output_path,
+                                    equivalent_error)) {
         print_parse_error(command,
                           "repair-package output must differ from its input",
                           json_output);
@@ -208,7 +230,8 @@ auto run_repair_package(std::string_view command,
 
     const auto report = document.repair_package();
     if (!report.has_value()) {
-        report_document_error(command, "repair", document.last_error(), json_output);
+        report_document_error(command, "repair", document.last_error(),
+                              json_output);
         return 1;
     }
 
@@ -264,7 +287,8 @@ auto run_package_command(std::string_view command,
     if (command == "repair-package") {
         return run_repair_package(command, arguments, document);
     }
-    print_parse_error(command, "unsupported package command", has_json_flag(arguments));
+    print_parse_error(command, "unsupported package command",
+                      has_json_flag(arguments));
     return 2;
 }
 

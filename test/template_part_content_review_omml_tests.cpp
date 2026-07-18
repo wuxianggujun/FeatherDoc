@@ -1,18 +1,92 @@
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 
-#include "doctest.h"
-#include "basic_docx_archive_test_support.hpp"
 #include "basic_document_xml_test_support.hpp"
+#include "basic_docx_archive_test_support.hpp"
+#include "doctest.h"
 
 #include <featherdoc.hpp>
 
-TEST_CASE("document and template part can inspect append replace and remove OMML") {
+namespace {
+
+auto wrap_template_xml_deeply(std::string leaf, std::size_t depth)
+    -> std::string {
+    std::string xml;
+    xml.reserve(leaf.size() + depth * 7U);
+    for (std::size_t index = 0U; index < depth; ++index) {
+        xml += "<n>";
+    }
+    xml += leaf;
+    for (std::size_t index = 0U; index < depth; ++index) {
+        xml += "</n>";
+    }
+    return xml;
+}
+
+} // namespace
+
+TEST_CASE("template inspection handles deeply nested XML iteratively") {
     namespace fs = std::filesystem;
 
-    const fs::path target = fs::current_path() / "omml_inspect_append_replace_remove.docx";
+    constexpr std::size_t nesting_depth = 25'000U;
+    const auto target =
+        fs::current_path() / "template_inspection_deep_xml.docx";
+    fs::remove(target);
+
+    const auto omml =
+        std::string{"<m:oMath>"} +
+        wrap_template_xml_deeply("<m:r><m:t>x+1</m:t></m:r>", nesting_depth) +
+        "</m:oMath>";
+    const auto inspectable_nodes =
+        std::string{
+            "<w:bookmarkStart w:id=\"1\" w:name=\"deep_bookmark\"/>"
+            "<w:hyperlink w:anchor=\"deep_bookmark\"><w:r><w:t>deep link"
+            "</w:t></w:r></w:hyperlink>"
+            "<w:fldSimple w:instr=\" DATE \"><w:r><w:t>2026-07-15"
+            "</w:t></w:r></w:fldSimple>"} +
+        omml + "<w:bookmarkEnd w:id=\"1\"/>";
+    const auto document_xml =
+        std::string{"<w:document xmlns:w=\"http://schemas.openxmlformats.org/"
+                    "wordprocessingml/2006/main\" "
+                    "xmlns:m=\"http://schemas.openxmlformats.org/"
+                    "officeDocument/2006/math\"><w:body>"} +
+        wrap_template_xml_deeply(inspectable_nodes, nesting_depth) +
+        "</w:body></w:document>";
+    write_test_docx(target, document_xml);
+
+    featherdoc::document_open_options options;
+    options.limits.max_compression_ratio = 100'000U;
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open(options));
+    const auto body = document.body_template();
+    REQUIRE(static_cast<bool>(body));
+
+    const auto bookmarks = body.list_bookmarks();
+    REQUIRE_EQ(bookmarks.size(), 1U);
+    CHECK_EQ(bookmarks.front().bookmark_name, "deep_bookmark");
+    const auto hyperlinks = body.list_hyperlinks();
+    REQUIRE_EQ(hyperlinks.size(), 1U);
+    CHECK_EQ(hyperlinks.front().text, "deep link");
+    const auto fields = body.list_fields();
+    REQUIRE_EQ(fields.size(), 1U);
+    CHECK_EQ(fields.front().result_text, "2026-07-15");
+    const auto formulas = body.list_omml();
+    REQUIRE_EQ(formulas.size(), 1U);
+    CHECK_EQ(formulas.front().text, "x+1");
+    CHECK_FALSE(document.last_error());
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "document and template part can inspect append replace and remove OMML") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "omml_inspect_append_replace_remove.docx";
     fs::remove(target);
 
     const std::string document_xml =
@@ -56,8 +130,10 @@ TEST_CASE("document and template part can inspect append replace and remove OMML
 
     CHECK_FALSE(doc.save());
 
-    const auto saved_xml = read_test_docx_entry(target, test_document_xml_entry);
-    CHECK_NE(saved_xml.find("xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\""),
+    const auto saved_xml =
+        read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_xml.find("xmlns:m=\"http://schemas.openxmlformats.org/"
+                            "officeDocument/2006/math\""),
              std::string::npos);
     CHECK_EQ(saved_xml.find("x+1"), std::string::npos);
     CHECK_NE(saved_xml.find("y=4"), std::string::npos);
@@ -85,17 +161,21 @@ TEST_CASE("OMML APIs validate fragments indexes and replacement shape") {
     REQUIRE(static_cast<bool>(body_template));
 
     CHECK_FALSE(body_template.append_omml(""));
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "OMML XML must not be empty");
 
     CHECK_FALSE(body_template.append_omml("<w:p/>"));
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
-    CHECK_EQ(doc.last_error().detail, "OMML XML root must be m:oMath or m:oMathPara");
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail,
+             "OMML XML root must be m:oMath or m:oMathPara");
 
     CHECK_FALSE(body_template.replace_omml(
         7U,
         R"(<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>a</m:t></m:r></m:oMath>)"));
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "OMML index is out of range");
 
     CHECK(body_template.append_omml(
@@ -103,11 +183,14 @@ TEST_CASE("OMML APIs validate fragments indexes and replacement shape") {
     CHECK_FALSE(body_template.replace_omml(
         0U,
         R"(<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath><m:r><m:t>b</m:t></m:r></m:oMath></m:oMathPara>)"));
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
-    CHECK_EQ(doc.last_error().detail, "display OMML cannot replace an inline OMML target");
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().detail,
+             "display OMML cannot replace an inline OMML target");
 
     CHECK_FALSE(doc.remove_omml(9U));
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "OMML index is out of range");
 
     fs::remove(target);
@@ -116,7 +199,8 @@ TEST_CASE("OMML APIs validate fragments indexes and replacement shape") {
 TEST_CASE("document can inspect footnotes endnotes comments and revisions") {
     namespace fs = std::filesystem;
 
-    const fs::path target = fs::current_path() / "review_notes_and_revisions.docx";
+    const fs::path target =
+        fs::current_path() / "review_notes_and_revisions.docx";
     fs::remove(target);
 
     const std::string content_types_xml =
@@ -176,14 +260,13 @@ TEST_CASE("document can inspect footnotes endnotes comments and revisions") {
 </w:comments>
 )";
     write_test_archive_entries(
-        target,
-        {{test_content_types_xml_entry, content_types_xml},
-         {test_relationships_xml_entry, test_relationships_xml},
-         {test_document_xml_entry, document_xml},
-         {"word/_rels/document.xml.rels", document_relationships_xml},
-         {"word/footnotes.xml", footnotes_xml},
-         {"word/endnotes.xml", endnotes_xml},
-         {"word/comments.xml", comments_xml}});
+        target, {{test_content_types_xml_entry, content_types_xml},
+                 {test_relationships_xml_entry, test_relationships_xml},
+                 {test_document_xml_entry, document_xml},
+                 {"word/_rels/document.xml.rels", document_relationships_xml},
+                 {"word/footnotes.xml", footnotes_xml},
+                 {"word/endnotes.xml", endnotes_xml},
+                 {"word/comments.xml", comments_xml}});
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
@@ -222,15 +305,165 @@ TEST_CASE("document can inspect footnotes endnotes comments and revisions") {
     fs::remove(target);
 }
 
-TEST_CASE("document review inspection returns empty lists when optional parts are absent") {
+TEST_CASE("tolerant comment inspection reopens a raw Unicode package entry by "
+          "canonical identity") {
+    namespace fs = std::filesystem;
+
+    const auto target =
+        fs::current_path() / "comments_unicode_package_entry.docx";
+    fs::remove(target);
+
+    constexpr auto content_types_xml =
+        R"(<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/%E6%89%B9%E6%B3%A8.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/></Types>)";
+    constexpr auto document_relationships_xml =
+        R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rComments" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="批注.xml"/></Relationships>)";
+    constexpr auto document_xml =
+        R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:commentRangeStart w:id="4"/><w:r><w:t>中文锚点</w:t></w:r><w:commentRangeEnd w:id="4"/><w:r><w:commentReference w:id="4"/></w:r></w:p></w:body></w:document>)";
+    constexpr auto comments_xml =
+        R"(<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:comment w:id="4" w:author="审阅者"><w:p><w:r><w:t>中文批注内容</w:t></w:r></w:p></w:comment></w:comments>)";
+    write_test_archive_entries(
+        target,
+        {{test_content_types_xml_entry, content_types_xml},
+         {test_relationships_xml_entry, test_relationships_xml},
+         {test_document_xml_entry, document_xml},
+         {"word/_rels/document.xml.rels", document_relationships_xml},
+         {"word/批注.xml", comments_xml}});
+
+    featherdoc::Document strict_document(target);
+    CHECK_EQ(strict_document.open(),
+             featherdoc::document_errc::invalid_package_structure);
+
+    featherdoc::document_open_options options;
+    options.validation = featherdoc::package_validation_mode::tolerant;
+    featherdoc::Document tolerant_document(target);
+    REQUIRE_FALSE(tolerant_document.open(options));
+
+    const auto comments = tolerant_document.list_comments();
+    REQUIRE_EQ(comments.size(), 1U);
+    CHECK_EQ(comments.front().author,
+             std::optional<std::string>{"审阅者"});
+    CHECK_EQ(comments.front().anchor_text,
+             std::optional<std::string>{"中文锚点"});
+    CHECK_EQ(comments.front().text, "中文批注内容");
+    CHECK_FALSE(tolerant_document.last_error());
+
+    fs::remove(target);
+}
+
+TEST_CASE(
+    "comments relationship target roundtrips through resolved package entry") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "comments_relative_target_roundtrip.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+  <Override PartName="/word/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+</Types>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rComments" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="word/comments.xml"/>
+</Relationships>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:commentRangeStart w:id="7"/>
+      <w:r><w:t>Nested target anchor</w:t></w:r>
+      <w:commentRangeEnd w:id="7"/>
+      <w:r><w:commentReference w:id="7"/></w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string legacy_comments_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="7" w:author="Legacy"><w:p><w:r><w:t>Legacy comment body must remain unchanged</w:t></w:r></w:p></w:comment>
+</w:comments>
+)";
+    const std::string nested_comments_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:comment w:id="7" w:author="Nested"><w:p><w:r><w:t>Nested comment body</w:t></w:r></w:p></w:comment>
+</w:comments>
+)";
+
+    write_test_archive_entries(
+        target, {{test_content_types_xml_entry, content_types_xml},
+                 {test_relationships_xml_entry, test_relationships_xml},
+                 {test_document_xml_entry, document_xml},
+                 {"word/_rels/document.xml.rels", document_relationships_xml},
+                 {"word/comments.xml", legacy_comments_xml},
+                 {"word/word/comments.xml", nested_comments_xml}});
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    CHECK_FALSE(doc.replace_comment(0U, ""));
+    CHECK_EQ(doc.last_error().entry_name, "word/word/comments.xml");
+
+    const auto comments = doc.list_comments();
+    REQUIRE(comments.size() == 1U);
+    CHECK_EQ(comments.front().text, "Nested comment body");
+    CHECK_EQ(comments.front().author, std::optional<std::string>{"Nested"});
+    REQUIRE(comments.front().anchor_text.has_value());
+    CHECK_EQ(*comments.front().anchor_text, "Nested target anchor");
+
+    CHECK_FALSE(doc.replace_comment(9999U, "Missing comment"));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().entry_name, "word/word/comments.xml");
+    CHECK_EQ(doc.last_error().detail, "comment index is out of range");
+
+    CHECK(doc.replace_comment(0U, "Updated nested comment body"));
+    CHECK_FALSE(doc.save());
+
+    const auto saved_legacy_comments =
+        read_test_docx_entry(target, "word/comments.xml");
+    const auto saved_nested_comments =
+        read_test_docx_entry(target, "word/word/comments.xml");
+    CHECK_NE(
+        saved_legacy_comments.find("Legacy comment body must remain unchanged"),
+        std::string::npos);
+    CHECK_EQ(saved_legacy_comments.find("Updated nested comment body"),
+             std::string::npos);
+    CHECK_NE(saved_nested_comments.find("Updated nested comment body"),
+             std::string::npos);
+    CHECK_EQ(saved_nested_comments.find("Nested comment body</w:t>"),
+             std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    const auto reopened_comments = reopened.list_comments();
+    REQUIRE(reopened_comments.size() == 1U);
+    CHECK_EQ(reopened_comments.front().text, "Updated nested comment body");
+    CHECK_EQ(reopened_comments.front().author,
+             std::optional<std::string>{"Nested"});
+
+    fs::remove(target);
+}
+
+TEST_CASE("document review inspection returns empty lists when optional parts "
+          "are absent") {
     namespace fs = std::filesystem;
 
     const fs::path target = fs::current_path() / "review_notes_absent.docx";
     fs::remove(target);
 
-    write_test_docx(
-        target,
-        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    write_test_docx(target,
+                    R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body><w:p><w:r><w:t>No review metadata</w:t></w:r></w:p></w:body>
 </w:document>
@@ -263,22 +496,26 @@ TEST_CASE("template part page number fields report unavailable parts") {
     auto missing_header_template = doc.section_header_template(1);
     CHECK_FALSE(static_cast<bool>(missing_header_template));
     CHECK_FALSE(missing_header_template.append_page_number_field());
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "template part is not available");
 
     auto missing_footer_template = doc.section_footer_template(1);
     CHECK_FALSE(static_cast<bool>(missing_footer_template));
     CHECK_FALSE(missing_footer_template.append_total_pages_field());
-    CHECK_EQ(doc.last_error().code, std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
     CHECK_EQ(doc.last_error().detail, "template part is not available");
 
     fs::remove(target);
 }
 
-TEST_CASE("header template part tables can remove a middle table and keep the wrapper usable") {
+TEST_CASE("header template part tables can remove a middle table and keep the "
+          "wrapper usable") {
     namespace fs = std::filesystem;
 
-    const fs::path target = fs::current_path() / "header_template_table_remove.docx";
+    const fs::path target =
+        fs::current_path() / "header_template_table_remove.docx";
     fs::remove(target);
 
     featherdoc::Document doc(target);
@@ -372,8 +609,10 @@ TEST_CASE("header template part tables can remove a middle table and keep the wr
     header_template = reopened_again.section_header_template(0);
     REQUIRE(static_cast<bool>(header_template));
     CHECK_EQ(collect_template_part_text(header_template), "Header intro\n");
-    CHECK_EQ(collect_template_part_table_text(header_template),
-             "Section\nStatus\nRetained\nHeader table\nFinal\nState\nFinal\nReached after middle-table removal\n");
+    CHECK_EQ(
+        collect_template_part_table_text(header_template),
+        "Section\nStatus\nRetained\nHeader table\nFinal\nState\nFinal\nReached "
+        "after middle-table removal\n");
 
     fs::remove(target);
 }

@@ -2,6 +2,11 @@ if(NOT FEATHERDOC_BUILD_FUZZERS)
     return()
 endif()
 
+if(WIN32)
+    message(FATAL_ERROR
+        "FEATHERDOC_BUILD_FUZZERS is unsupported on Windows; use Linux/WSL")
+endif()
+
 if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR "FEATHERDOC_BUILD_FUZZERS requires Clang libFuzzer")
 endif()

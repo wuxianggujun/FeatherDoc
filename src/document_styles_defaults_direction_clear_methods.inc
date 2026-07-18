@@ -3,7 +3,7 @@ bool Document::clear_default_run_rtl() {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before editing default "
                        "run direction",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -15,8 +15,8 @@ bool Document::clear_default_run_rtl() {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -36,7 +36,7 @@ bool Document::clear_default_paragraph_bidi() {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before editing default "
                        "paragraph direction",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -48,8 +48,8 @@ bool Document::clear_default_paragraph_bidi() {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 

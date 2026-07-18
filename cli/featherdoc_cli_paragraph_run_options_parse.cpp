@@ -24,7 +24,7 @@ auto parse_output_json_options(const std::vector<std::string_view> &arguments,
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

@@ -177,25 +177,72 @@ bool TableRow::remove() {
         return false;
     }
 
-    const auto promotions = successor_vertical_merge_promotions_for_row_removal(this->current);
-    for (const auto &[source_cell, target_cell] : promotions) {
-        const auto target_merge = ensure_cell_vertical_merge_node(target_cell);
-        if (target_merge == pugi::xml_node{}) {
-            return false;
+    const auto removed_row = this->current.node();
+    const auto next_row = detail::next_named_sibling(removed_row, "w:tr");
+    const auto previous_row = detail::previous_named_sibling(removed_row, "w:tr");
+    const auto promotions =
+        successor_vertical_merge_promotions_for_row_removal(removed_row);
+    auto replacements = std::vector<tracked_cell_body_replacement>{};
+    replacements.reserve(promotions.size());
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    staged_properties.reserve(promotions.size());
+    auto additional_retirement_roots = std::vector<pugi::xml_node>{};
+    additional_retirement_roots.reserve(promotions.size() + 1U);
+    additional_retirement_roots.push_back(removed_row);
+    try {
+        for (const auto &[source_cell, target_cell] : promotions) {
+            const auto staged = stage_cell_properties(target_cell);
+            if (!staged.has_value()) {
+                rollback_staged_cell_properties(staged_properties);
+                return false;
+            }
+            staged_properties.push_back(*staged);
+            if (staged->original != pugi::xml_node{}) {
+                additional_retirement_roots.push_back(staged->original);
+            }
+
+            const auto target_merge =
+                ensure_cell_vertical_merge_node(target_cell);
+            if (target_merge == pugi::xml_node{} ||
+                std::string_view{target_merge.name()} != "w:vMerge") {
+                rollback_staged_cell_properties(staged_properties);
+                return false;
+            }
+
+            ensure_attribute_value(target_merge, "w:val", "restart");
+            const auto value_attribute = target_merge.attribute("w:val");
+            if (value_attribute == pugi::xml_attribute{} ||
+                std::string_view{value_attribute.value()} != "restart") {
+                rollback_staged_cell_properties(staged_properties);
+                return false;
+            }
+            replacements.push_back(tracked_cell_body_replacement{
+                this->parent.with_node(target_cell), source_cell});
         }
 
-        ensure_attribute_value(target_merge, "w:val", "restart");
-        replace_cell_body_contents(target_cell, source_cell);
+        if (!replace_cell_body_contents(
+                this->parent, replacements,
+                std::span<const pugi::xml_node>{
+                    additional_retirement_roots.data(),
+                    additional_retirement_roots.size()})) {
+            rollback_staged_cell_properties(staged_properties);
+            return false;
+        }
+    } catch (...) {
+        rollback_staged_cell_properties(staged_properties);
+        throw;
     }
 
-    const auto next_row = detail::next_named_sibling(this->current, "w:tr");
-    const auto previous_row = detail::previous_named_sibling(this->current, "w:tr");
-    if (!this->parent.remove_child(this->current)) {
+    if (!commit_staged_cell_properties(staged_properties)) {
         return false;
     }
 
-    this->current = next_row != pugi::xml_node{} ? next_row : previous_row;
-    this->cell.set_parent(this->current);
+    auto table_node = this->parent.node();
+    if (!table_node.remove_child(removed_row)) {
+        return false;
+    }
+
+    this->set_current(next_row != pugi::xml_node{} ? next_row : previous_row);
     return true;
 }
 
@@ -231,20 +278,59 @@ TableRow TableRow::insert_row_after() {
 }
 
 TableCell TableRow::append_cell() {
-    if (this->current == pugi::xml_node{} && this->parent != pugi::xml_node{}) {
-        this->current = this->parent.append_child("w:tr");
+    if (this->parent == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto table_column_count = current_table_column_count(this->parent);
+    if (!table_column_count.has_value()) {
+        return {};
     }
 
     if (this->current == pugi::xml_node{}) {
+        const auto new_row = append_row_node(this->parent.node(), 1U);
+        if (new_row == pugi::xml_node{}) {
+            return {};
+        }
+        const auto new_cell = new_row.child("w:tc");
+        this->set_current(new_row);
+        return TableCell(this->current, new_cell);
+    }
+
+    const auto existing_row_column_count =
+        current_table_row_column_count(this->current);
+    if (!existing_row_column_count.has_value()) {
+        return {};
+    }
+    const auto row_column_count = *existing_row_column_count;
+
+    if (row_column_count >= max_table_grid_columns) {
         return {};
     }
 
     const auto required_columns =
-        std::max(current_table_column_count(this->parent),
-                 count_named_children(this->current, "w:tc") + 1U);
-    ensure_table_grid_columns(this->parent, required_columns);
+        std::max(*table_column_count, row_column_count + 1U);
+    auto row_node = this->current.node();
+    const auto new_cell = append_cell_node(row_node);
+    if (new_cell == pugi::xml_node{}) {
+        return {};
+    }
+    try {
+        const auto staged_layout =
+            stage_table_layout(this->parent.node(), required_columns);
+        if (!staged_layout.has_value()) {
+            (void)row_node.remove_child(new_cell);
+            return {};
+        }
+        if (!commit_staged_table_layout(*staged_layout)) {
+            (void)row_node.remove_child(new_cell);
+            return {};
+        }
+    } catch (...) {
+        (void)row_node.remove_child(new_cell);
+        throw;
+    }
 
-    const auto new_cell = append_cell_node(this->current);
     this->cell.set_parent(this->current);
     this->cell.set_current(new_cell);
     return TableCell(this->current, new_cell);

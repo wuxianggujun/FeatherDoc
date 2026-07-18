@@ -88,7 +88,7 @@ auto parse_plan_table_position_presets_options(
                 error_message = "missing path after --output-plan";
                 return false;
             }
-            options.output_plan_path = path_type(std::string(arguments[index + 1U]));
+            options.output_plan_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

@@ -1,7 +1,6 @@
 #include "featherdoc_cli_json_parse.hpp"
 #include "featherdoc_cli_input.hpp"
 
-#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -10,8 +9,12 @@
 namespace featherdoc_cli {
 
 void skip_json_patch_whitespace(std::string_view text, std::size_t &index) {
-    while (index < text.size() &&
-           std::isspace(static_cast<unsigned char>(text[index])) != 0) {
+    while (index < text.size()) {
+        const auto character = text[index];
+        if (character != ' ' && character != '\t' && character != '\n' &&
+            character != '\r') {
+            break;
+        }
         ++index;
     }
 }
@@ -32,11 +35,11 @@ auto report_json_patch_error(std::size_t offset, std::string_view detail,
 auto read_template_table_json_content(const std::filesystem::path &patch_path,
                                       std::string &content, std::size_t &index,
                                       std::string &error_message) -> bool {
+    index = 0U;
     if (!read_bounded_utf8_file(patch_path, "JSON patch file", content,
                                 error_message)) {
         return false;
     }
-    index = 0U;
     if (content.size() >= 3U &&
         static_cast<unsigned char>(content[0]) == 0xEFU &&
         static_cast<unsigned char>(content[1]) == 0xBBU &&

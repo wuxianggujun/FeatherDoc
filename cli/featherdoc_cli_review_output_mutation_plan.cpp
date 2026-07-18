@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_review_mutation_plan_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <algorithm>
 #include <ostream>
@@ -12,10 +13,10 @@ namespace featherdoc_cli {
 namespace {
 
 void write_json_review_mutation_plan_preview_result(
-    std::ostream &stream,
-    const review_mutation_plan_preview_result &result) {
+    std::ostream &stream, const review_mutation_plan_preview_result &result) {
     stream << "{\"index\":" << result.index << ",\"kind\":";
-    write_json_string(stream, review_mutation_plan_operation_kind_name(result.kind));
+    write_json_string(stream,
+                      review_mutation_plan_operation_kind_name(result.kind));
     stream << ",\"ok\":" << json_bool(result.ok) << ",\"message\":";
     write_json_string(stream, result.message);
     if (result.comment_index.has_value()) {
@@ -77,8 +78,8 @@ void write_json_review_mutation_plan_build_resolution(
     std::ostream &stream,
     const review_mutation_plan_build_resolution &resolution) {
     stream << "{\"index\":" << resolution.index << ",\"kind\":";
-    write_json_string(stream,
-                      review_mutation_plan_operation_kind_name(resolution.kind));
+    write_json_string(
+        stream, review_mutation_plan_operation_kind_name(resolution.kind));
     stream << ",\"find_text\":";
     write_json_string(stream, resolution.find_text);
     stream << ",\"before_text\":";
@@ -115,11 +116,9 @@ void write_json_review_mutation_plan_build_resolution(
 void write_json_review_mutation_plan_preview(
     std::ostream &stream,
     const std::vector<review_mutation_plan_preview_result> &results) {
-    const auto failed_count =
-        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
-                                               [](const auto &result) {
-                                                   return !result.ok;
-                                               }));
+    const auto failed_count = static_cast<std::size_t>(
+        std::count_if(results.begin(), results.end(),
+                      [](const auto &result) { return !result.ok; }));
     stream << "{\"command\":\"preview-review-mutation-plan\",\"ok\":"
            << json_bool(failed_count == 0U)
            << ",\"operations_count\":" << results.size()
@@ -138,16 +137,14 @@ void write_json_review_mutation_plan_apply(
     const std::optional<path_type> &output_path,
     const std::vector<review_mutation_plan_preview_result> &results,
     std::size_t applied_count) {
-    const auto failed_count =
-        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
-                                               [](const auto &result) {
-                                                   return !result.ok;
-                                               }));
+    const auto failed_count = static_cast<std::size_t>(
+        std::count_if(results.begin(), results.end(),
+                      [](const auto &result) { return !result.ok; }));
     stream << "{\"command\":\"apply-review-mutation-plan\",\"ok\":true"
            << ",\"in_place\":" << json_bool(!output_path.has_value())
            << ",\"output_path\":";
     if (output_path.has_value()) {
-        write_json_string(stream, output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*output_path));
     } else {
         stream << "null";
     }
@@ -169,11 +166,9 @@ void write_json_review_mutation_plan_apply(
 void write_json_review_mutation_plan_apply_failure(
     std::ostream &stream, std::string_view stage, std::string_view message,
     const std::vector<review_mutation_plan_preview_result> &results) {
-    const auto failed_count =
-        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
-                                               [](const auto &result) {
-                                                   return !result.ok;
-                                               }));
+    const auto failed_count = static_cast<std::size_t>(
+        std::count_if(results.begin(), results.end(),
+                      [](const auto &result) { return !result.ok; }));
     stream << "{\"command\":\"apply-review-mutation-plan\",\"ok\":false"
            << ",\"stage\":";
     write_json_string(stream, stage);
@@ -199,7 +194,7 @@ void write_json_review_mutation_plan_build_result(
            << ",\"operations_count\":" << operations.size()
            << ",\"output_plan_path\":";
     if (output_plan_path.has_value()) {
-        write_json_string(stream, output_plan_path->string());
+        write_json_string(stream, path_to_cli_utf8(*output_plan_path));
     } else {
         stream << "null";
     }
@@ -233,19 +228,16 @@ void write_json_review_mutation_plan_build_failure(
 void print_review_mutation_plan_preview(
     std::ostream &stream,
     const std::vector<review_mutation_plan_preview_result> &results) {
-    const auto failed_count =
-        static_cast<std::size_t>(std::count_if(results.begin(), results.end(),
-                                               [](const auto &result) {
-                                                   return !result.ok;
-                                               }));
+    const auto failed_count = static_cast<std::size_t>(
+        std::count_if(results.begin(), results.end(),
+                      [](const auto &result) { return !result.ok; }));
     stream << "ok=" << yes_no(failed_count == 0U)
            << " operations_count=" << results.size()
            << " failed_count=" << failed_count;
 
     for (const auto &result : results) {
         stream << '\n'
-               << "operation index=" << result.index
-               << " kind="
+               << "operation index=" << result.index << " kind="
                << review_mutation_plan_operation_kind_name(result.kind)
                << " ok=" << yes_no(result.ok) << " message=";
         write_json_string(stream, result.message);
@@ -270,16 +262,14 @@ void print_review_mutation_plan_preview(
             write_json_string(stream, *result.actual_text);
         }
         if (result.actual_resolved.has_value()) {
-            stream << " actual_resolved="
-                   << json_bool(*result.actual_resolved);
+            stream << " actual_resolved=" << json_bool(*result.actual_resolved);
         }
         if (result.actual_comment_text.has_value()) {
             stream << " actual_comment_text=";
             write_json_string(stream, *result.actual_comment_text);
         }
         if (result.actual_parent_index.has_value()) {
-            stream << " actual_parent_index="
-                   << *result.actual_parent_index;
+            stream << " actual_parent_index=" << *result.actual_parent_index;
         }
         if (result.preview.has_value()) {
             stream << " actual_text=";

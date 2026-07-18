@@ -14,16 +14,17 @@ TEST_CASE("cli export-template-schema prints reusable schema json") {
     create_cli_part_template_validation_fixture(source);
 
     CHECK_EQ(run_cli({"export-template-schema", source.string()}, output), 0);
-    CHECK_EQ(read_text_file(output),
-             std::string{
-                 "{\"targets\":["
-                 "{\"part\":\"header\",\"index\":0,\"slots\":["
-                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
-                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
-                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
-                 "{\"part\":\"footer\",\"index\":0,\"slots\":["
-                 "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
-                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"targets\":["
+            "{\"part\":\"header\",\"index\":0,\"slots\":["
+            "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+            "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+            "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+            "{\"part\":\"footer\",\"index\":0,\"slots\":["
+            "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+            "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
 
     remove_if_exists(source);
     remove_if_exists(output);
@@ -75,20 +76,16 @@ TEST_CASE("cli export-template-schema writes schema file and summary json") {
 
     create_cli_body_template_validation_fixture(source);
 
-    CHECK_EQ(run_cli({"export-template-schema",
-                      source.string(),
-                      "--output",
-                      schema_output.string(),
-                      "--json"},
+    CHECK_EQ(run_cli({"export-template-schema", source.string(), "--output",
+                      schema_output.string(), "--json"},
                      output),
              0);
     CHECK_EQ(read_text_file(output),
-             std::string{
-                 "{\"command\":\"export-template-schema\",\"ok\":true,"
-                 "\"output_path\":\"" +
-                 json_escape_text(schema_output.string()) +
-                 "\",\"target_count\":1,\"slot_count\":2,"
-                 "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
+             std::string{"{\"command\":\"export-template-schema\",\"ok\":true,"
+                         "\"output_path\":\"" +
+                         json_escape_path(schema_output) +
+                         "\",\"target_count\":1,\"slot_count\":2,"
+                         "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
     CHECK_EQ(read_text_file(schema_output),
              std::string{
                  "{\"targets\":[{\"part\":\"body\",\"slots\":["
@@ -112,29 +109,30 @@ TEST_CASE("cli export-template-schema emits section targets when requested") {
 
     create_cli_part_template_validation_fixture(source);
 
-    CHECK_EQ(run_cli({"export-template-schema",
-                      source.string(),
+    CHECK_EQ(run_cli({"export-template-schema", source.string(),
                       "--section-targets"},
                      output),
              0);
-    CHECK_EQ(read_text_file(output),
-             std::string{
-                 "{\"targets\":["
-                 "{\"part\":\"section-header\",\"section\":0,"
-                 "\"kind\":\"default\",\"slots\":["
-                 "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
-                 "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
-                 "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
-                 "{\"part\":\"section-footer\",\"section\":0,"
-                 "\"kind\":\"default\",\"slots\":["
-                 "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
-                 "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
+    CHECK_EQ(
+        read_text_file(output),
+        std::string{
+            "{\"targets\":["
+            "{\"part\":\"section-header\",\"section\":0,"
+            "\"kind\":\"default\",\"slots\":["
+            "{\"bookmark\":\"header_title\",\"kind\":\"text\"},"
+            "{\"bookmark\":\"header_note\",\"kind\":\"block\"},"
+            "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
+            "{\"part\":\"section-footer\",\"section\":0,"
+            "\"kind\":\"default\",\"slots\":["
+            "{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+            "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}]}\n"});
 
     remove_if_exists(source);
     remove_if_exists(output);
 }
 
-TEST_CASE("cli export-template-schema emits resolved section targets and round-trips") {
+TEST_CASE("cli export-template-schema emits resolved section targets and "
+          "round-trips") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
         working_directory / "cli_export_template_schema_resolved_source.docx";
@@ -152,21 +150,17 @@ TEST_CASE("cli export-template-schema emits resolved section targets and round-t
 
     create_cli_resolved_part_template_validation_fixture(source);
 
-    CHECK_EQ(run_cli({"export-template-schema",
-                      source.string(),
-                      "--resolved-section-targets",
-                      "--output",
-                      schema_output.string(),
-                      "--json"},
+    CHECK_EQ(run_cli({"export-template-schema", source.string(),
+                      "--resolved-section-targets", "--output",
+                      schema_output.string(), "--json"},
                      export_output),
              0);
     CHECK_EQ(read_text_file(export_output),
-             std::string{
-                 "{\"command\":\"export-template-schema\",\"ok\":true,"
-                 "\"output_path\":\"" +
-                 json_escape_text(schema_output.string()) +
-                 "\",\"target_count\":4,\"slot_count\":10,"
-                 "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
+             std::string{"{\"command\":\"export-template-schema\",\"ok\":true,"
+                         "\"output_path\":\"" +
+                         json_escape_path(schema_output) +
+                         "\",\"target_count\":4,\"slot_count\":10,"
+                         "\"skipped_count\":0,\"skipped_bookmarks\":[]}\n"});
     CHECK_EQ(read_text_file(schema_output),
              std::string{
                  "{\"targets\":["
@@ -177,7 +171,8 @@ TEST_CASE("cli export-template-schema emits resolved section targets and round-t
                  "{\"bookmark\":\"header_rows\",\"kind\":\"table_rows\"}]},"
                  "{\"part\":\"section-footer\",\"section\":0,"
                  "\"kind\":\"default\",\"resolved_from_section\":0,"
-                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":"
+                 "\"text\",\"count\":2},"
                  "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]},"
                  "{\"part\":\"section-header\",\"section\":1,"
                  "\"kind\":\"default\",\"resolved_from_section\":0,"
@@ -188,15 +183,13 @@ TEST_CASE("cli export-template-schema emits resolved section targets and round-t
                  "{\"part\":\"section-footer\",\"section\":1,"
                  "\"kind\":\"default\",\"resolved_from_section\":0,"
                  "\"linked_to_previous\":true,"
-                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":\"text\",\"count\":2},"
+                 "\"slots\":[{\"bookmark\":\"footer_company\",\"kind\":"
+                 "\"text\",\"count\":2},"
                  "{\"bookmark\":\"footer_summary\",\"kind\":\"text\"}]}"
                  "]}\n"});
 
-    CHECK_EQ(run_cli({"validate-template-schema",
-                      source.string(),
-                      "--schema-file",
-                      schema_output.string(),
-                      "--json"},
+    CHECK_EQ(run_cli({"validate-template-schema", source.string(),
+                      "--schema-file", schema_output.string(), "--json"},
                      validate_output),
              0);
     CHECK_EQ(read_text_file(validate_output),

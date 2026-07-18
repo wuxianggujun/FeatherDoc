@@ -1,10 +1,13 @@
-bool Document::insert_run_revision_after(
-    std::size_t paragraph_index, std::size_t run_index, std::string_view text,
-    std::string_view author, std::string_view date) {
+bool Document::insert_run_revision_after(std::size_t paragraph_index,
+                                         std::size_t run_index,
+                                         std::string_view text,
+                                         std::string_view author,
+                                         std::string_view date) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before inserting a run revision",
-                       std::string{document_xml_entry});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before inserting a run revision",
+            std::string{document_xml_entry});
         return false;
     }
     if (text.empty()) {
@@ -15,141 +18,187 @@ bool Document::insert_run_revision_after(
         return false;
     }
 
-    auto paragraph_handle = this->paragraphs();
-    for (std::size_t current_index = 0U;
-         current_index < paragraph_index && paragraph_handle.has_next();
-         ++current_index) {
-        paragraph_handle.next();
-    }
-    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph_node == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "paragraph index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
-    auto anchor_run = paragraph_run_by_index(paragraph_node, run_index);
-    if (anchor_run == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "run index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
+    try {
+        auto paragraph_handle = this->paragraphs();
+        for (std::size_t current_index = 0U;
+             current_index < paragraph_index && paragraph_handle.has_next();
+             ++current_index) {
+            paragraph_handle.next();
+        }
+        auto paragraph_node = paragraph_handle.has_next()
+                                  ? paragraph_handle.current
+                                  : featherdoc::detail::tracked_xml_node{};
+        auto paragraph_xml = paragraph_node.node();
+        if (paragraph_xml == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "paragraph index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
+        if (paragraph_run_by_index(paragraph_xml, run_index) ==
+            pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "run index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
 
-    const auto next_run = featherdoc::detail::next_named_sibling(anchor_run, "w:r");
-    auto revision = next_run == pugi::xml_node{}
-                        ? paragraph_node.append_child("w:ins")
-                        : paragraph_node.insert_child_before("w:ins", next_run);
-    if (revision == pugi::xml_node{} ||
-        append_revision_run(revision, anchor_run, "w:t", text) == pugi::xml_node{}) {
-        if (revision != pugi::xml_node{}) {
-            paragraph_node.remove_child(revision);
+        const auto next_id = this->reserve_review_revision_identifiers(1U);
+        if (!next_id.has_value()) {
+            return false;
         }
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to insert run revision",
-                       std::string{document_xml_entry});
+        const auto next_id_text = std::to_string(*next_id);
+
+        if (!mutate_revision_body_document_transaction(
+                this->document, *this->xml_handle_lifetime,
+                this->last_error_info,
+                "run insertion revision ran out of memory before it could be "
+                "published",
+                [&](pugi::xml_document &work_document) {
+                    auto work_paragraph = revision_document_paragraph_by_index(
+                        work_document, paragraph_index);
+                    const auto work_anchor_run =
+                        paragraph_run_by_index(work_paragraph, run_index);
+                    if (work_paragraph == pugi::xml_node{} ||
+                        work_anchor_run == pugi::xml_node{}) {
+                        return false;
+                    }
+                    const auto next_sibling = work_anchor_run.next_sibling();
+                    auto revision =
+                        next_sibling == pugi::xml_node{}
+                            ? featherdoc::detail::checked_append_xml_element(
+                                  work_paragraph, "w:ins")
+                            : featherdoc::detail::
+                                  checked_insert_xml_element_before(
+                                      work_paragraph, "w:ins", next_sibling);
+                    return revision != pugi::xml_node{} &&
+                           append_revision_run(revision, work_anchor_run, "w:t",
+                                               text) != pugi::xml_node{} &&
+                           set_revision_identity_metadata_text(
+                               revision, next_id_text, author, date);
+                })) {
+            return false;
+        }
+        this->rebind_internal_xml_handles();
+        this->last_error_info.clear();
+        return true;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "run insertion revision ran out of memory before it could be "
+            "published",
+            document_xml_entry);
         return false;
     }
-    long next_id = 1L;
-    collect_revision_ids(this->document, next_id);
-    for (const auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, next_id);
-        }
-    }
-    for (const auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, next_id);
-        }
-    }
-    set_revision_identity_metadata(revision, next_id, author, date);
-    this->last_error_info.clear();
-    return true;
 }
 
-bool Document::delete_run_revision(
-    std::size_t paragraph_index, std::size_t run_index, std::string_view author,
-    std::string_view date) {
+bool Document::delete_run_revision(std::size_t paragraph_index,
+                                   std::size_t run_index,
+                                   std::string_view author,
+                                   std::string_view date) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before deleting a run revision",
-                       std::string{document_xml_entry});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before deleting a run revision",
+            std::string{document_xml_entry});
         return false;
     }
 
-    auto paragraph_handle = this->paragraphs();
-    for (std::size_t current_index = 0U;
-         current_index < paragraph_index && paragraph_handle.has_next();
-         ++current_index) {
-        paragraph_handle.next();
-    }
-    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph_node == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "paragraph index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
-    auto target_run = paragraph_run_by_index(paragraph_node, run_index);
-    if (target_run == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "run index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
+    try {
+        auto paragraph_handle = this->paragraphs();
+        for (std::size_t current_index = 0U;
+             current_index < paragraph_index && paragraph_handle.has_next();
+             ++current_index) {
+            paragraph_handle.next();
+        }
+        auto paragraph_node = paragraph_handle.has_next()
+                                  ? paragraph_handle.current
+                                  : featherdoc::detail::tracked_xml_node{};
+        auto paragraph_xml = paragraph_node.node();
+        if (paragraph_xml == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "paragraph index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
+        auto target_run = paragraph_run_by_index(paragraph_xml, run_index);
+        if (target_run == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "run index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
 
-    const auto original_text = featherdoc::detail::collect_plain_text_from_xml(target_run);
-    if (original_text.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "run revision deletion requires non-empty run text",
-                       std::string{document_xml_entry});
-        return false;
-    }
+        const auto original_text =
+            featherdoc::detail::collect_plain_text_from_xml(target_run);
+        if (original_text.empty()) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "run revision deletion requires non-empty run text",
+                           std::string{document_xml_entry});
+            return false;
+        }
 
-    auto revision = paragraph_node.insert_child_before("w:del", target_run);
-    if (revision == pugi::xml_node{} ||
-        append_revision_run(revision, target_run, "w:delText", original_text) ==
-            pugi::xml_node{} ||
-        !paragraph_node.remove_child(target_run)) {
-        if (revision != pugi::xml_node{}) {
-            paragraph_node.remove_child(revision);
+        const auto next_id = this->reserve_review_revision_identifiers(1U);
+        if (!next_id.has_value()) {
+            return false;
         }
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to delete run revision",
-                       std::string{document_xml_entry});
+        const auto next_id_text = std::to_string(*next_id);
+
+        if (!mutate_revision_body_document_transaction(
+                this->document, *this->xml_handle_lifetime,
+                this->last_error_info,
+                "run deletion revision ran out of memory before it could be "
+                "published",
+                [&](pugi::xml_document &work_document) {
+                    auto work_paragraph = revision_document_paragraph_by_index(
+                        work_document, paragraph_index);
+                    const auto work_target_run =
+                        paragraph_run_by_index(work_paragraph, run_index);
+                    if (work_paragraph == pugi::xml_node{} ||
+                        work_target_run == pugi::xml_node{}) {
+                        return false;
+                    }
+                    auto revision =
+                        featherdoc::detail::checked_insert_xml_element_before(
+                            work_paragraph, "w:del", work_target_run);
+                    return revision != pugi::xml_node{} &&
+                           append_revision_run(revision, work_target_run,
+                                               "w:delText", original_text) !=
+                               pugi::xml_node{} &&
+                           set_revision_identity_metadata_text(
+                               revision, next_id_text, author, date) &&
+                           work_paragraph.remove_child(work_target_run);
+                })) {
+            return false;
+        }
+        this->rebind_internal_xml_handles();
+        this->last_error_info.clear();
+        return true;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "run deletion revision ran out of memory before it could be "
+            "published",
+            document_xml_entry);
         return false;
     }
-    long next_id = 1L;
-    collect_revision_ids(this->document, next_id);
-    for (const auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, next_id);
-        }
-    }
-    for (const auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, next_id);
-        }
-    }
-    set_revision_identity_metadata(revision, next_id, author, date);
-    this->last_error_info.clear();
-    return true;
 }
 
-bool Document::replace_run_revision(
-    std::size_t paragraph_index, std::size_t run_index, std::string_view text,
-    std::string_view author, std::string_view date) {
+bool Document::replace_run_revision(std::size_t paragraph_index,
+                                    std::size_t run_index,
+                                    std::string_view text,
+                                    std::string_view author,
+                                    std::string_view date) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before replacing a run revision",
-                       std::string{document_xml_entry});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before replacing a run revision",
+            std::string{document_xml_entry});
         return false;
     }
     if (text.empty()) {
@@ -160,73 +209,99 @@ bool Document::replace_run_revision(
         return false;
     }
 
-    auto paragraph_handle = this->paragraphs();
-    for (std::size_t current_index = 0U;
-         current_index < paragraph_index && paragraph_handle.has_next();
-         ++current_index) {
-        paragraph_handle.next();
-    }
-    auto paragraph_node = paragraph_handle.has_next() ? paragraph_handle.current : pugi::xml_node{};
-    if (paragraph_node == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "paragraph index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
-    auto target_run = paragraph_run_by_index(paragraph_node, run_index);
-    if (target_run == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "run index is out of range",
-                       std::string{document_xml_entry});
-        return false;
-    }
+    try {
+        auto paragraph_handle = this->paragraphs();
+        for (std::size_t current_index = 0U;
+             current_index < paragraph_index && paragraph_handle.has_next();
+             ++current_index) {
+            paragraph_handle.next();
+        }
+        auto paragraph_node = paragraph_handle.has_next()
+                                  ? paragraph_handle.current
+                                  : featherdoc::detail::tracked_xml_node{};
+        auto paragraph_xml = paragraph_node.node();
+        if (paragraph_xml == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "paragraph index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
+        auto target_run = paragraph_run_by_index(paragraph_xml, run_index);
+        if (target_run == pugi::xml_node{}) {
+            set_last_error(this->last_error_info,
+                           std::make_error_code(std::errc::invalid_argument),
+                           "run index is out of range",
+                           std::string{document_xml_entry});
+            return false;
+        }
 
-    const auto original_text = featherdoc::detail::collect_plain_text_from_xml(target_run);
-    if (original_text.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "run revision replacement requires non-empty run text",
-                       std::string{document_xml_entry});
-        return false;
-    }
+        const auto original_text =
+            featherdoc::detail::collect_plain_text_from_xml(target_run);
+        if (original_text.empty()) {
+            set_last_error(
+                this->last_error_info,
+                std::make_error_code(std::errc::invalid_argument),
+                "run revision replacement requires non-empty run text",
+                std::string{document_xml_entry});
+            return false;
+        }
 
-    long revision_id = 1L;
-    collect_revision_ids(this->document, revision_id);
-    for (const auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, revision_id);
+        const auto revision_id = this->reserve_review_revision_identifiers(2U);
+        if (!revision_id.has_value()) {
+            return false;
         }
-    }
-    for (const auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, revision_id);
+        const auto deletion_id_text = std::to_string(*revision_id);
+        const auto insertion_id_text = std::to_string(*revision_id + 1);
+
+        if (!mutate_revision_body_document_transaction(
+                this->document, *this->xml_handle_lifetime,
+                this->last_error_info,
+                "run replacement revision ran out of memory before it could be "
+                "published",
+                [&](pugi::xml_document &work_document) {
+                    auto work_paragraph = revision_document_paragraph_by_index(
+                        work_document, paragraph_index);
+                    const auto work_target_run =
+                        paragraph_run_by_index(work_paragraph, run_index);
+                    if (work_paragraph == pugi::xml_node{} ||
+                        work_target_run == pugi::xml_node{}) {
+                        return false;
+                    }
+                    auto deletion =
+                        featherdoc::detail::checked_insert_xml_element_before(
+                            work_paragraph, "w:del", work_target_run);
+                    auto insertion =
+                        deletion == pugi::xml_node{}
+                            ? pugi::xml_node{}
+                            : featherdoc::detail::
+                                  checked_insert_xml_element_before(
+                                      work_paragraph, "w:ins", work_target_run);
+                    return deletion != pugi::xml_node{} &&
+                           insertion != pugi::xml_node{} &&
+                           append_revision_run(deletion, work_target_run,
+                                               "w:delText", original_text) !=
+                               pugi::xml_node{} &&
+                           append_revision_run(insertion, work_target_run,
+                                               "w:t",
+                                               text) != pugi::xml_node{} &&
+                           set_revision_identity_metadata_text(
+                               deletion, deletion_id_text, author, date) &&
+                           set_revision_identity_metadata_text(
+                               insertion, insertion_id_text, author, date) &&
+                           work_paragraph.remove_child(work_target_run);
+                })) {
+            return false;
         }
-    }
-    auto deletion = paragraph_node.insert_child_before("w:del", target_run);
-    auto insertion = deletion == pugi::xml_node{}
-                         ? pugi::xml_node{}
-                         : paragraph_node.insert_child_before("w:ins", target_run);
-    if (deletion == pugi::xml_node{} || insertion == pugi::xml_node{} ||
-        append_revision_run(deletion, target_run, "w:delText", original_text) ==
-            pugi::xml_node{} ||
-        append_revision_run(insertion, target_run, "w:t", text) == pugi::xml_node{} ||
-        !paragraph_node.remove_child(target_run)) {
-        if (deletion != pugi::xml_node{}) {
-            paragraph_node.remove_child(deletion);
-        }
-        if (insertion != pugi::xml_node{}) {
-            paragraph_node.remove_child(insertion);
-        }
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to replace run revision",
-                       std::string{document_xml_entry});
+        this->rebind_internal_xml_handles();
+        this->last_error_info.clear();
+        return true;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "run replacement revision ran out of memory before it could be "
+            "published",
+            document_xml_entry);
         return false;
     }
-    set_revision_identity_metadata(deletion, revision_id, author, date);
-    set_revision_identity_metadata(insertion, revision_id + 1L, author, date);
-    this->last_error_info.clear();
-    return true;
 }

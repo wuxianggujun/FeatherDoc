@@ -118,7 +118,7 @@ std::optional<section_page_setup> Document::get_section_page_setup(
 }
 
 bool Document::set_section_page_setup(std::size_t section_index,
-                                      const section_page_setup &setup) {
+                                      const section_page_setup &setup) try {
     this->last_error_info.clear();
 
     if (setup.width_twips == 0U || setup.height_twips == 0U) {
@@ -129,8 +129,62 @@ bool Document::set_section_page_setup(std::size_t section_index,
         return false;
     }
 
-    auto section_properties = this->ensure_section_properties(section_index);
+    if (!this->is_open()) {
+        set_last_error(this->last_error_info, document_errc::document_not_open,
+                       "call open() or create_empty() before editing section "
+                       "page setup");
+        return false;
+    }
+
+    const auto count = this->section_count();
+    if (section_index >= count) {
+        set_last_error(this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "section index is out of range for page setup editing",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    this->ensure_xml_handle_lifetime();
+    auto document_work = pugi::xml_document{};
+    if (featherdoc::detail::checked_clone_xml_document(this->document,
+                                                       document_work) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
+        return false;
+    }
+
+    const auto work_body =
+        document_work.child("w:document").child("w:body");
+    if (work_body == pugi::xml_node{}) {
+        set_last_error(this->last_error_info,
+                       document_errc::invalid_package_structure,
+                       "document.xml does not contain the expected "
+                       "w:document/w:body structure",
+                       std::string{document_xml_entry});
+        return false;
+    }
+
+    auto section_properties =
+        featherdoc::detail::section_properties_at(work_body, section_index);
+    if (section_properties == pugi::xml_node{} &&
+        section_index + 1U != count) {
+        set_last_error(this->last_error_info,
+                       document_errc::invalid_package_structure,
+                       "the target section does not expose an editable "
+                       "w:sectPr node",
+                       std::string{document_xml_entry});
+        return false;
+    }
     if (section_properties == pugi::xml_node{}) {
+        section_properties =
+            featherdoc::detail::checked_append_xml_element(work_body,
+                                                            "w:sectPr");
+    }
+    if (section_properties == pugi::xml_node{}) {
+        (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+            this->last_error_info, document_xml_entry);
         return false;
     }
 
@@ -173,12 +227,8 @@ bool Document::set_section_page_setup(std::size_t section_index,
     }
 
     if (setup.orientation == featherdoc::page_orientation::landscape) {
-        auto orientation_attribute = page_size.attribute("w:orient");
-        if (orientation_attribute == pugi::xml_attribute{}) {
-            orientation_attribute = page_size.append_attribute("w:orient");
-        }
-        if (orientation_attribute == pugi::xml_attribute{} ||
-            !orientation_attribute.set_value("landscape")) {
+        if (!featherdoc::detail::checked_set_xml_attribute_value(
+                page_size, "w:orient", "landscape")) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to write w:pgSz/w:orient for section page setup",
@@ -208,90 +258,32 @@ bool Document::set_section_page_setup(std::size_t section_index,
         remove_empty_node(page_numbering);
     }
 
+    const auto publish_result = publish_checked_section_document_update(
+        this->document, document_work, section_index, true);
+    if (publish_result == section_document_publish_result::failure) {
+        (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+            this->last_error_info, document_xml_entry);
+        return false;
+    }
+    if (publish_result ==
+        section_document_publish_result::requires_full_document_publish) {
+        set_last_error(
+            this->last_error_info,
+            document_errc::invalid_package_structure,
+            "prepared page setup unexpectedly changes the document "
+            "relationship namespace",
+            std::string{document_xml_entry});
+        return false;
+    }
     this->last_error_info.clear();
     return true;
+} catch (const std::bad_alloc &) {
+    (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+        this->last_error_info, document_xml_entry);
+    return false;
 }
 
 pugi::xml_node Document::section_properties(std::size_t section_index) const {
     const auto body = this->document.child("w:document").child("w:body");
-    if (body == pugi::xml_node{}) {
-        return {};
-    }
-
-    std::size_t current_index = 0U;
-    for (auto child = body.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} != "w:p") {
-            continue;
-        }
-
-        const auto paragraph_section_properties = child.child("w:pPr").child("w:sectPr");
-        if (paragraph_section_properties == pugi::xml_node{}) {
-            continue;
-        }
-
-        if (current_index == section_index) {
-            return paragraph_section_properties;
-        }
-        ++current_index;
-    }
-
-    if (current_index == section_index) {
-        return body.child("w:sectPr");
-    }
-
-    return {};
-}
-
-pugi::xml_node Document::ensure_section_properties(std::size_t section_index) {
-    if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before editing section properties");
-        return {};
-    }
-
-    auto document_root = this->document.child("w:document");
-    auto body = document_root.child("w:body");
-    if (document_root == pugi::xml_node{} || body == pugi::xml_node{}) {
-        set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
-                       "document.xml does not contain the expected w:document/w:body structure",
-                       std::string{document_xml_entry});
-        return {};
-    }
-
-    const auto count = this->section_count();
-    if (section_index >= count) {
-        set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
-                       "section index is out of range for section editing",
-                       std::string{document_xml_entry});
-        return {};
-    }
-
-    if (const auto existing = this->section_properties(section_index);
-        existing != pugi::xml_node{}) {
-        return existing;
-    }
-
-    if (section_index + 1U != count) {
-        set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
-                       "the target section does not expose an editable w:sectPr node",
-                       std::string{document_xml_entry});
-        return {};
-    }
-
-    auto section_properties = body.child("w:sectPr");
-    if (section_properties != pugi::xml_node{}) {
-        return section_properties;
-    }
-
-    section_properties = body.append_child("w:sectPr");
-    if (section_properties == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to create w:sectPr for section editing",
-                       std::string{document_xml_entry});
-        return {};
-    }
-
-    return section_properties;
+    return featherdoc::detail::section_properties_at(body, section_index);
 }

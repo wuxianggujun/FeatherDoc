@@ -9,6 +9,7 @@
 #include "featherdoc_cli_table_position_output.hpp"
 #include "featherdoc_cli_table_position_plan_build.hpp"
 #include "featherdoc_cli_table_position_plan_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <featherdoc.hpp>
 
@@ -28,10 +29,10 @@ auto run_plan_table_position_presets_command(
     -> int {
     const auto json_output = has_json_flag(arguments);
     if (arguments.size() < 2U) {
-        print_parse_error(
-            command,
-            "plan-table-position-presets expects an input path and --preset <name>",
-            json_output);
+        print_parse_error(command,
+                          "plan-table-position-presets expects an input path "
+                          "and --preset <name>",
+                          json_output);
         return 2;
     }
 
@@ -43,10 +44,11 @@ auto run_plan_table_position_presets_command(
         return 2;
     }
 
-    options.input_path = path_type(std::string(arguments[1]));
+    options.input_path = path_from_cli_utf8(arguments[1]);
 
     featherdoc::Document doc;
-    if (!open_document(*options.input_path, doc, command, options.json_output)) {
+    if (!open_document(*options.input_path, doc, command,
+                       options.json_output)) {
         return 1;
     }
 
@@ -58,8 +60,8 @@ auto run_plan_table_position_presets_command(
     }
 
     const auto plan = build_table_position_preset_plan(
-        tables, *options.preset, options.replace_positioned,
-        options.input_path, options.output_path);
+        tables, *options.preset, options.replace_positioned, options.input_path,
+        options.output_path);
     if (options.output_plan_path.has_value() &&
         !write_table_position_preset_plan_file(*options.output_plan_path, plan,
                                                options, error_message)) {
@@ -101,12 +103,11 @@ auto run_apply_table_position_plan_command(
     }
 
     parsed_table_position_plan_file plan;
-    if (!read_table_position_plan_file(path_type(std::string(arguments[1])),
-                                       plan, error_message)) {
-        report_table_position_failure(command, "plan",
-                                      "failed to read table position plan",
-                                      std::move(error_message),
-                                      options.json_output);
+    if (!read_table_position_plan_file(path_from_cli_utf8(arguments[1]), plan,
+                                       error_message)) {
+        report_table_position_failure(
+            command, "plan", "failed to read table position plan",
+            std::move(error_message), options.json_output);
         return 1;
     }
 
@@ -168,8 +169,7 @@ auto run_apply_table_position_plan_command(
                       << ",\"ok\":true,\"dry_run\":true"
                       << ",\"input_path\":";
             write_json_string(
-                std::cout,
-                featherdoc::detail::path_to_utf8(plan.input_path));
+                std::cout, featherdoc::detail::path_to_utf8(plan.input_path));
             std::cout << ",\"preset\":";
             write_json_string(std::cout,
                               table_position_preset_name(plan.preset));
@@ -182,7 +182,7 @@ auto run_apply_table_position_plan_command(
             write_json_size_array(std::cout, plan.automatic_table_indices);
             std::cout << ",\"resolved_output_path\":";
             if (output_path.has_value()) {
-                write_json_string(std::cout, output_path->string());
+                write_json_string(std::cout, path_to_cli_utf8(*output_path));
             } else {
                 std::cout << "null";
             }
@@ -195,8 +195,8 @@ auto run_apply_table_position_plan_command(
                       << "input_path: "
                       << featherdoc::detail::path_to_utf8(plan.input_path)
                       << '\n'
-                      << "preset: "
-                      << table_position_preset_name(plan.preset) << '\n'
+                      << "preset: " << table_position_preset_name(plan.preset)
+                      << '\n'
                       << "table_count: " << plan.table_count << '\n'
                       << "fingerprint_checked_count: "
                       << plan.table_fingerprints.size() << '\n'
@@ -206,7 +206,7 @@ auto run_apply_table_position_plan_command(
             write_text_size_array(std::cout, plan.automatic_table_indices);
             std::cout << "\nresolved_output_path: ";
             if (output_path.has_value()) {
-                std::cout << output_path->string();
+                std::cout << path_to_cli_utf8(*output_path);
             } else {
                 std::cout << "none";
             }
@@ -223,10 +223,9 @@ auto run_apply_table_position_plan_command(
             return 1;
         }
         if (!table.set_position(target_position)) {
-            report_table_position_failure(command, "mutate",
-                                          "failed to set table position",
-                                          "target table handle is not valid",
-                                          options.json_output);
+            report_table_position_failure(
+                command, "mutate", "failed to set table position",
+                "target table handle is not valid", options.json_output);
             return 1;
         }
         mutated_table_indices.push_back(table_index);
@@ -243,16 +242,14 @@ auto run_apply_table_position_plan_command(
              &target_position](std::ostream &stream) {
                 stream << ",\"input_path\":";
                 write_json_string(
-                    stream,
-                    featherdoc::detail::path_to_utf8(plan.input_path));
+                    stream, featherdoc::detail::path_to_utf8(plan.input_path));
                 stream << ",\"preset\":";
                 write_json_string(stream,
                                   table_position_preset_name(plan.preset));
                 stream << ",\"table_count\":" << plan.table_count
                        << ",\"fingerprint_checked_count\":"
                        << plan.table_fingerprints.size()
-                       << ",\"applied_count\":"
-                       << mutated_table_indices.size()
+                       << ",\"applied_count\":" << mutated_table_indices.size()
                        << ",\"table_indices\":";
                 write_json_size_array(stream, mutated_table_indices);
                 stream << ",\"position\":";

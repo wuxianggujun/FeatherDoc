@@ -211,3 +211,68 @@ TEST_CASE("table cell remove rejects columns that intersect horizontal merges") 
 
     fs::remove(target);
 }
+
+TEST_CASE("table column removal retires every removed cell subtree only") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto table = document.append_table(3U, 3U);
+    REQUIRE(table.valid());
+    auto first_row = table.rows();
+    auto second_row = first_row;
+    second_row.next();
+    auto third_row = second_row;
+    third_row.next();
+    REQUIRE(first_row.valid());
+    REQUIRE(second_row.valid());
+    REQUIRE(third_row.valid());
+
+    auto first_unchanged = first_row.cells();
+    REQUIRE(first_unchanged.set_text("first unchanged"));
+    auto first_removed = first_unchanged;
+    first_removed.next();
+    REQUIRE(first_removed.set_text("first removed"));
+    auto first_removed_paragraph = first_removed.paragraphs();
+    auto first_removed_run = first_removed_paragraph.runs();
+    auto removal_cursor = first_removed;
+
+    auto second_unchanged = second_row.cells();
+    REQUIRE(second_unchanged.set_text("second unchanged"));
+    auto second_removed = second_unchanged;
+    second_removed.next();
+    REQUIRE(second_removed.set_text("second removed"));
+    auto second_removed_paragraph = second_removed.paragraphs();
+    auto second_removed_run = second_removed_paragraph.runs();
+
+    auto third_unchanged = third_row.cells();
+    REQUIRE(third_unchanged.set_text("third unchanged"));
+    auto third_removed = third_unchanged;
+    third_removed.next();
+    REQUIRE(third_removed.set_text("third removed"));
+    auto third_removed_paragraph = third_removed.paragraphs();
+    auto third_removed_run = third_removed_paragraph.runs();
+
+    REQUIRE(removal_cursor.remove());
+
+    CHECK(removal_cursor.valid());
+    CHECK_EQ(removal_cursor.get_text(), "");
+    CHECK_FALSE(first_removed.valid());
+    CHECK_FALSE(first_removed_paragraph.valid());
+    CHECK_FALSE(first_removed_run.valid());
+    CHECK_FALSE(second_removed.valid());
+    CHECK_FALSE(second_removed_paragraph.valid());
+    CHECK_FALSE(second_removed_run.valid());
+    CHECK_FALSE(third_removed.valid());
+    CHECK_FALSE(third_removed_paragraph.valid());
+    CHECK_FALSE(third_removed_run.valid());
+    CHECK(first_unchanged.valid());
+    CHECK_EQ(first_unchanged.get_text(), "first unchanged");
+    CHECK(second_unchanged.valid());
+    CHECK_EQ(second_unchanged.get_text(), "second unchanged");
+    CHECK(third_unchanged.valid());
+    CHECK_EQ(third_unchanged.get_text(), "third unchanged");
+    CHECK(first_row.valid());
+    CHECK(second_row.valid());
+    CHECK(third_row.valid());
+    CHECK(table.valid());
+}

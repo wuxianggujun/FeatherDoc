@@ -1,4 +1,10 @@
 std::vector<featherdoc::paragraph_inspection_summary> TemplatePart::inspect_paragraphs() {
+    return this->inspect_paragraphs_with_options({});
+}
+
+std::vector<featherdoc::paragraph_inspection_summary>
+TemplatePart::inspect_paragraphs_with_options(
+    const featherdoc::paragraph_inspection_options &options) {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
@@ -14,7 +20,10 @@ std::vector<featherdoc::paragraph_inspection_summary> TemplatePart::inspect_para
     for (std::size_t paragraph_index = 0U; paragraph_handle.has_next();
          ++paragraph_index, paragraph_handle.next()) {
         auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
-        enrich_part_paragraph_numbering(this->owner.get(), summary);
+        if (options.resolve_numbering_metadata &&
+            !enrich_part_paragraph_numbering(this->owner.get(), summary)) {
+            return {};
+        }
         summaries.push_back(std::move(summary));
     }
 
@@ -24,6 +33,13 @@ std::vector<featherdoc::paragraph_inspection_summary> TemplatePart::inspect_para
 
 std::optional<featherdoc::paragraph_inspection_summary>
 TemplatePart::inspect_paragraph(std::size_t paragraph_index) {
+    return this->inspect_paragraph_with_options(paragraph_index, {});
+}
+
+std::optional<featherdoc::paragraph_inspection_summary>
+TemplatePart::inspect_paragraph_with_options(
+    std::size_t paragraph_index,
+    const featherdoc::paragraph_inspection_options &options) {
     if (this->xml_document == nullptr || this->last_error_info == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
@@ -46,7 +62,10 @@ TemplatePart::inspect_paragraph(std::size_t paragraph_index) {
     }
 
     auto summary = summarize_part_paragraph_node(paragraph_handle.current, paragraph_index);
-    enrich_part_paragraph_numbering(this->owner.get(), summary);
+    if (options.resolve_numbering_metadata &&
+        !enrich_part_paragraph_numbering(this->owner.get(), summary)) {
+        return std::nullopt;
+    }
     this->last_error_info->clear();
     return summary;
 }

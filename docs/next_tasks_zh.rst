@@ -33,10 +33,10 @@ P0：当前发布与 CI 守护
    * Docs Pages 必须保持绿色。
    * Linux CMake CI、macOS CMake CI、Windows MSVC CI 若失败，先抓日志定位。
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
-   * ``v1.13.2`` 已于北京时间 2026-07-15 正式发布。``v1.13.3`` 发布前功能基线
-     ``8159c819c177c39f55034cd10d8233fe205c92dd`` 的 Linux CMake CI、macOS
-     CMake CI、Windows MSVC CI 与 Security Sanitizers And Fuzzing 均已通过；
-     版本元数据提交后必须再次等待对应 CI 全绿再创建 tag。当前 live 状态请以
+   * ``v1.13.3`` 已于北京时间 2026-07-15 正式发布；tag、GitHub Release 和三份
+     正式资产均已复核，发布提交为
+     ``f6d97cd7d28010942d479651cc6c27619543da38``。当前 ``Unreleased`` 工作继续
+     处理发布后发现的 Word/DOCX 边界错误，不回写或移动既有 tag。最新 CI 状态仍以
      ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
@@ -66,8 +66,8 @@ P0：当前发布与 CI 守护
 P0：Word/DOCX 安全与兼容性
 -------------------------
 
-本项只处理 Word/DOCX 核心，不扩展 PDF 主线。当前状态为 ``DONE``，修复已进入
-``v1.13.3`` 发布收口：
+本项只处理 Word/DOCX 核心，不扩展 PDF 主线。``v1.13.3`` 已完成发布，当前状态为
+``ACTIVE``，继续收口发布后确认的输入边界、失败原子性与句柄生命周期问题：
 
 1. POSIX 保存事务已补临时文件 ``0600``、目标 mode/``umask`` 继承、文件
    ``fsync`` 和替换后父目录 ``fsync``；同步失败分成替换前
@@ -85,6 +85,22 @@ P0：Word/DOCX 安全与兼容性
    已用中文、日文和 emoji 路径完成保存与重开，shared library SONAME 已验证为
    ``libFeatherDoc.so.1.13``。Windows MSVC、Linux GCC/Clang、macOS 和原生 Ubuntu
    sanitizer/fuzz CI 均已通过，Windows Unicode 回归与 Darwin 目录同步已收口。
+6. 当前 ``Unreleased`` 修复覆盖 ZIP entry 的非法 UTF-8、重复/大小写歧义、路径穿越，
+   lazy reopen / 图片提取 / 保存源复制的全包复验和 reader close 错误，Custom XML
+   语义限制，深层 XML 迭代遍历，图片 parser/字号数值边界，恶意 ``gridSpan`` 与
+   63 列上限，编号/review/tracked-change ID 耗尽及相关失败原子性，``Document`` move
+   和 ``move_section()`` 的句柄失效。
+7. 保存管线以及已迁移的 singleton、分节、样式等关键 mutation 已具备隔离事务和
+   fail-Nth 故障注入回归；``save_as()`` 还遍历当前观测到的全部标准 ``new`` 分配点，
+   验证失败时原目标不变、无临时文件残留且同一对象可重试。尚未逐项迁移的任意 DOM mutation
+   仍缺少统一的 generation-aware transaction；这部分继续作为独立架构任务延期，
+   不能据此宣称整个 API 已具备通用 OOM 原子性。
+8. 本轮本地定向验证（2026-07-19）：release material safety 契约测试通过；Windows
+   Release 增量构建的 ``FeatherDoc`` / ``featherdoc_cli`` 通过；security label
+   通过 ``12/12``，CLI 纯 C++ 测试通过 ``55/55``。这些证据来自当前脏工作树，不能
+   替代干净检出、完整 CTest 或远端 CI。
+9. 提交前集成门槛：CMake 已引用的新增源码和测试仍有 untracked 文件，必须在同一组
+   提交中纳入版本控制，并在干净检出中重新配置、编译和验证，不能只依赖当前工作区。
 
 
 P1：模板契约与项目模板工作流
@@ -519,13 +535,13 @@ P3：文档、测试与索引治理
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 完成 ``v1.13.3`` 版本号、CHANGELOG 与发布材料更新，运行版本一致性、文档契约、
-   ``git diff --check`` 和 UTF-8 审查。
-3. 提交并推送版本元数据后等待 Windows、Linux、macOS、Docs Pages 和 sanitizer CI
-   全绿；任一失败都先修复，不提前创建 tag 或 release。
-4. 下载并审计通过的 Windows CI release metadata 与 asset preview，核对安装包版本、
-   ``FeatherDoc_ABI_VERSION=1.13``、中文发布说明和 manifest。
-5. 创建 ``v1.13.3`` tag 与 GitHub Release，上传审计后的资产；发布后复核 tag、
-   release URL、assets 与远端 ``dev`` head。
-6. ``P0-WORD-SAFETY-01`` 发布后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；
-   该长期 backlog 保持 ``GUARDED``，不与本次 patch release 混合重构。
+2. 完成当前 ``Unreleased`` 的 ZIP/UTF-8、reader close、XML 深度/资源、Custom XML、
+   图片/字号、表格、编号/review ID、失败原子性和句柄生命周期修复，保证每个可预期
+   失败路径都有错误码、精确 entry name 或 DOM 不变回归。
+3. 运行相关 C++ targets、Word-only 全量 CTest、UTF-8/中文路径、sanitizer/fuzz、
+   ``git diff --check`` 和双语文档契约测试。
+4. 审查完整 diff 后单独提交并推送 ``dev``，等待 Windows、Linux、macOS、Docs Pages
+   和 sanitizer CI 全绿；失败时先修 CI 或源码，不提前决定下一 patch 版本。
+5. 全部验证稳定后再评估是否发布后续 patch；既有 ``v1.13.3`` tag 和 Release 不修改。
+6. ``P0-WORD-SAFETY-01`` 收口后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；该长期
+   backlog 保持 ``GUARDED``，不与安全修复混合重构。

@@ -1,4 +1,13 @@
 if(TARGET featherdoc_cli)
+    add_test(
+        NAME cli_archive_boundary
+        COMMAND
+            ${CMAKE_COMMAND}
+            -DCLI_SOURCE_DIR=${PROJECT_SOURCE_DIR}/cli
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_archive_boundary_test.cmake
+    )
+    featherdoc_set_test_labels(cli_archive_boundary cli security package)
+
     function(featherdoc_add_cli_cpp_test target_name test_name)
         add_executable(${target_name} ${ARGN})
 
@@ -30,12 +39,22 @@ if(TARGET featherdoc_cli)
         endif()
 
         add_dependencies(${target_name} featherdoc_cli)
-        add_test(
-            NAME
-            ${test_name}
-            COMMAND
-            ${target_name}
-        )
+        if(WIN32)
+            add_test(
+                NAME
+                ${test_name}
+                COMMAND
+                ${target_name}
+                --no-breaks=true
+            )
+        else()
+            add_test(
+                NAME
+                ${test_name}
+                COMMAND
+                ${target_name}
+            )
+        endif()
     endfunction()
 
     featherdoc_add_cli_cpp_test(

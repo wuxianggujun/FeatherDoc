@@ -121,8 +121,8 @@ auto style_xml_ignored_attribute(std::string_view attribute_name,
     return root_node && attribute_name == "w:styleId";
 }
 
-auto style_xml_ignored_child(std::string_view child_name,
-                             bool root_node) -> bool {
+auto style_xml_ignored_child(std::string_view child_name, bool root_node)
+    -> bool {
     return root_node && child_name == "w:name";
 }
 
@@ -133,55 +133,80 @@ void append_style_canonical_xml(std::string &output, pugi::xml_node node,
         return;
     }
 
-    switch (node.type()) {
-    case pugi::node_element: {
-        output.push_back('<');
-        output.append(node.name());
+    struct canonical_xml_frame final {
+        pugi::xml_node node;
+        pugi::xml_node next_child;
+        bool root_node{false};
+        bool opened{false};
+    };
 
-        auto attributes = std::vector<std::pair<std::string, std::string>>{};
-        for (auto attribute = node.first_attribute();
-             attribute != pugi::xml_attribute{};
-             attribute = attribute.next_attribute()) {
-            if (!style_xml_ignored_attribute(attribute.name(), root_node)) {
-                attributes.emplace_back(attribute.name(), attribute.value());
+    std::vector<canonical_xml_frame> frames;
+    frames.push_back({node, {}, root_node, false});
+    while (!frames.empty()) {
+        auto &frame = frames.back();
+        if (!frame.opened) {
+            switch (frame.node.type()) {
+            case pugi::node_element: {
+                output.push_back('<');
+                output.append(frame.node.name());
+
+                auto attributes =
+                    std::vector<std::pair<std::string, std::string>>{};
+                for (auto attribute = frame.node.first_attribute();
+                     attribute != pugi::xml_attribute{};
+                     attribute = attribute.next_attribute()) {
+                    if (!style_xml_ignored_attribute(attribute.name(),
+                                                     frame.root_node)) {
+                        attributes.emplace_back(attribute.name(),
+                                                attribute.value());
+                    }
+                }
+                std::sort(attributes.begin(), attributes.end());
+                for (const auto &attribute : attributes) {
+                    output.push_back(' ');
+                    output.append(attribute.first);
+                    output.push_back('=');
+                    output.push_back('\'');
+                    output.append(attribute.second);
+                    output.push_back('\'');
+                }
+                output.push_back('>');
+                frame.next_child = frame.node.first_child();
+                frame.opened = true;
+                break;
             }
-        }
-        std::sort(attributes.begin(), attributes.end());
-        for (const auto &attribute : attributes) {
-            output.push_back(' ');
-            output.append(attribute.first);
-            output.push_back('=');
-            output.push_back('\'');
-            output.append(attribute.second);
-            output.push_back('\'');
-        }
-        output.push_back('>');
-
-        for (auto child = node.first_child(); child != pugi::xml_node{};
-             child = child.next_sibling()) {
-            if (child.type() == pugi::node_element &&
-                style_xml_ignored_child(child.name(), root_node)) {
+            case pugi::node_pcdata:
+            case pugi::node_cdata:
+                output.append(frame.node.value());
+                frames.pop_back();
+                continue;
+            default:
+                frames.pop_back();
                 continue;
             }
-            append_style_canonical_xml(output, child, false);
+        }
+
+        auto child = frame.next_child;
+        while (child != pugi::xml_node{} &&
+               child.type() == pugi::node_element &&
+               style_xml_ignored_child(child.name(), frame.root_node)) {
+            child = child.next_sibling();
+        }
+        if (child != pugi::xml_node{}) {
+            frame.next_child = child.next_sibling();
+            frames.push_back({child, {}, false, false});
+            continue;
         }
 
         output.append("</");
-        output.append(node.name());
+        output.append(frame.node.name());
         output.push_back('>');
-        return;
-    }
-    case pugi::node_pcdata:
-    case pugi::node_cdata:
-        output.append(node.value());
-        return;
-    default:
-        return;
+        frames.pop_back();
     }
 }
 
-auto style_canonical_xml(pugi::xml_node node,
-                         bool root_node = false) -> std::string {
+auto style_canonical_xml(pugi::xml_node node, bool root_node = false)
+    -> std::string {
     auto output = std::string{};
     append_style_canonical_xml(output, node, root_node);
     return output;
@@ -233,6 +258,10 @@ auto style_refactor_restore_issue_suggestion(std::string_view code)
     if (code == "missing_usage_part" || code == "missing_usage_hit") {
         return "The document structure changed after the merge; restore from "
                "the original merged document or skip this entry after review.";
+    }
+    if (code == "duplicate_usage_hit") {
+        return "Remove duplicate usage hits from the rollback entry, or "
+               "regenerate the rollback plan from the original merge result.";
     }
     if (code == "usage_hit_not_target_style") {
         return "The captured reference no longer points at the merge target; "
@@ -307,6 +336,7 @@ auto style_usage_hit_precise_ordinal(const featherdoc::style_usage_hit &hit)
 struct style_reference_restore_hit_result {
     bool found{false};
     bool changed{false};
+    bool allocation_failure{false};
 };
 
 void restore_style_reference_hit_in_tree(
@@ -318,41 +348,42 @@ void restore_style_reference_hit_in_tree(
         return;
     }
 
-    const auto node_name = std::string_view{node.name()};
-    if (node_name == style_usage_hit_node_name(hit.kind)) {
-        const auto node_ordinal =
-            increment_style_usage_node_ordinal(node_ordinals, hit.kind);
-        if (node_ordinal == style_usage_hit_precise_ordinal(hit)) {
-            result.found = true;
-            if (apply_change) {
-                result.changed = rewrite_style_reference_child(
-                    node, style_usage_hit_properties_name(hit.kind),
-                    style_usage_hit_style_name(hit.kind), target_style_id,
-                    source_style_id);
-            } else {
-                result.changed = node_style_reference_matches(
-                    node, style_usage_hit_properties_name(hit.kind),
-                    style_usage_hit_style_name(hit.kind), target_style_id);
+    for (auto current = node; current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        const auto node_name = std::string_view{current.name()};
+        if (node_name == style_usage_hit_node_name(hit.kind)) {
+            const auto node_ordinal =
+                increment_style_usage_node_ordinal(node_ordinals, hit.kind);
+            if (node_ordinal == style_usage_hit_precise_ordinal(hit)) {
+                result.found = true;
+                if (apply_change) {
+                    const auto rewrite_status =
+                        rewrite_style_reference_child_checked(
+                            current, style_usage_hit_properties_name(hit.kind),
+                            style_usage_hit_style_name(hit.kind),
+                            target_style_id, source_style_id);
+                    result.changed = rewrite_status ==
+                                     style_reference_rewrite_status::rewritten;
+                    result.allocation_failure =
+                        rewrite_status ==
+                        style_reference_rewrite_status::allocation_failure;
+                } else {
+                    result.changed = node_style_reference_matches(
+                        current, style_usage_hit_properties_name(hit.kind),
+                        style_usage_hit_style_name(hit.kind), target_style_id);
+                }
+                return;
             }
-            return;
-        }
-    }
-
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        restore_style_reference_hit_in_tree(child, hit, target_style_id,
-                                            source_style_id, apply_change,
-                                            node_ordinals, result);
-        if (result.found) {
-            return;
         }
     }
 }
 
-auto restore_style_reference_hit(
-    pugi::xml_node root, const featherdoc::style_usage_hit &hit,
-    std::string_view target_style_id, std::string_view source_style_id,
-    bool apply_change = true) -> style_reference_restore_hit_result {
+auto restore_style_reference_hit(pugi::xml_node root,
+                                 const featherdoc::style_usage_hit &hit,
+                                 std::string_view target_style_id,
+                                 std::string_view source_style_id,
+                                 bool apply_change = true)
+    -> style_reference_restore_hit_result {
     auto result = style_reference_restore_hit_result{};
     if (root == pugi::xml_node{} ||
         style_usage_hit_precise_ordinal(hit) == 0U) {

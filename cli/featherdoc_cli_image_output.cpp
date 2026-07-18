@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_domain_names.hpp"
 #include "featherdoc_cli_json.hpp"
+#include "featherdoc_cli_package_part.hpp"
 #include "featherdoc_cli_text.hpp"
 
 #include <algorithm>
@@ -138,7 +139,8 @@ auto drawing_image_matches_filters(const featherdoc::drawing_image_info &image,
         return false;
     }
     if (options.image_entry_name.has_value() &&
-        image.entry_name != *options.image_entry_name) {
+        !package_part_names_equivalent(image.entry_name,
+                                       *options.image_entry_name)) {
         return false;
     }
     return true;
@@ -216,6 +218,15 @@ auto resolve_selected_drawing_image(
     featherdoc::drawing_image_info &selected_image,
     featherdoc::document_error_info &error_info) -> bool {
     error_info.clear();
+
+    if (options.image_entry_name.has_value() &&
+        !package_part_name_identity(*options.image_entry_name).has_value()) {
+        error_info.code = std::make_error_code(std::errc::invalid_argument);
+        error_info.detail = "image entry name '" + *options.image_entry_name +
+                            "' is not a valid OPC package PartName";
+        error_info.entry_name = *options.image_entry_name;
+        return false;
+    }
 
     if (options.image_index.has_value()) {
         const auto image_it = std::find_if(

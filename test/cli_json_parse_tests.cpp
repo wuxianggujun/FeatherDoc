@@ -213,6 +213,52 @@ TEST_CASE("cli input rejects malformed raw UTF-8") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("cli input resets reused output and error state") {
+    const auto valid_path = temp_json_path("_state_reset.json");
+    const auto missing_path = temp_json_path("_state_reset_missing.json");
+    write_binary_file(valid_path, "valid");
+    std::filesystem::remove(missing_path);
+
+    std::string content{"stale content"};
+    std::string error_message{"stale error"};
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        missing_path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK_FALSE(error_message.empty());
+
+    std::size_t index = 99U;
+    content = "stale content";
+    error_message = "stale error";
+    CHECK_FALSE(featherdoc_cli::read_template_table_json_content(
+        missing_path, content, index, error_message));
+    CHECK_EQ(index, 0U);
+    CHECK(content.empty());
+    CHECK_FALSE(error_message.empty());
+
+    content = "stale content";
+    error_message = "stale error";
+    CHECK(featherdoc_cli::read_bounded_utf8_file(
+        valid_path, "test input", content, error_message));
+    CHECK_EQ(content, "valid");
+    CHECK(error_message.empty());
+
+    std::filesystem::remove(valid_path);
+}
+
+TEST_CASE("cli JSON whitespace follows the RFC 8259 four-byte set") {
+    std::size_t index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace(" \t\n\rvalue", index);
+    CHECK_EQ(index, 4U);
+
+    index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace("\vvalue", index);
+    CHECK_EQ(index, 0U);
+
+    index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace("\fvalue", index);
+    CHECK_EQ(index, 0U);
+}
+
 TEST_CASE("cli JSON skip enforces a maximum nesting depth of 128") {
     const auto nested_array = [](std::size_t depth) {
         return std::string(depth, '[') + "0" + std::string(depth, ']');

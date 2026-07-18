@@ -87,10 +87,10 @@ auto collect_run_recipe_docx_files(const path_type &source_dir,
 
 auto make_run_recipe_output_path(const path_type &output_dir,
                                  const path_type &input_path) -> path_type {
-    return output_dir /
-           (featherdoc::detail::path_to_utf8(input_path.stem()) +
-            std::string("_replaced") +
-            featherdoc::detail::path_to_utf8(input_path.extension()));
+    const auto filename_utf8 =
+        featherdoc::detail::path_to_utf8(input_path.stem()) + "_replaced" +
+        featherdoc::detail::path_to_utf8(input_path.extension());
+    return output_dir / path_from_cli_utf8(filename_utf8);
 }
 
 auto run_recipe_document_error_message(
@@ -260,6 +260,12 @@ auto execute_run_recipe_batch_replace(
         return false;
     }
 
+    path_type source_dir;
+    if (!parse_cli_path_utf8(source_dir_text, "source_dir", source_dir,
+                             error_message)) {
+        return false;
+    }
+
     std::error_code error_code;
     std::filesystem::create_directories(output_dir, error_code);
     if (error_code) {
@@ -269,8 +275,7 @@ auto execute_run_recipe_batch_replace(
     }
 
     std::vector<path_type> docx_files;
-    if (!collect_run_recipe_docx_files(path_type(source_dir_text), docx_files,
-                                       error_message)) {
+    if (!collect_run_recipe_docx_files(source_dir, docx_files, error_message)) {
         return false;
     }
 

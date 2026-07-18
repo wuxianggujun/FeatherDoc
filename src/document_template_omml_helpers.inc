@@ -9,27 +9,27 @@ auto omml_root_is_supported(std::string_view name) -> bool {
 }
 
 void collect_omml_text_from_node(pugi::xml_node node, std::string &text) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto name = std::string_view{child.name()};
-        if (name == "m:t" || name == "w:t") {
-            text += child.text().get();
-            continue;
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        const auto name = std::string_view{current.name()};
+        const auto is_text = name == "m:t" || name == "w:t";
+        if (is_text) {
+            text += current.text().get();
         }
-        collect_omml_text_from_node(child, text);
+        current = featherdoc::detail::next_xml_node_preorder(
+            node, current, !is_text);
     }
 }
 
 void collect_omml_nodes_in_order(pugi::xml_node node,
                                  std::vector<pugi::xml_node> &nodes) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto name = std::string_view{child.name()};
-        if (name == "m:oMathPara" || name == "m:oMath") {
-            nodes.push_back(child);
-            continue;
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        const auto name = std::string_view{current.name()};
+        const auto is_omml_root = name == "m:oMathPara" || name == "m:oMath";
+        if (is_omml_root) {
+            nodes.push_back(current);
         }
-        collect_omml_nodes_in_order(child, nodes);
+        current = featherdoc::detail::next_xml_node_preorder(
+            node, current, !is_omml_root);
     }
 }
 
@@ -72,12 +72,9 @@ auto parse_omml_fragment(featherdoc::document_error_info &last_error_info,
 
     const auto parse_result = fragment.load_buffer(omml_xml.data(), omml_xml.size());
     if (!parse_result) {
-        set_last_error(last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       parse_result.description(), std::string{entry_name},
-                       parse_result.offset >= 0
-                           ? std::optional<std::ptrdiff_t>{parse_result.offset}
-                           : std::nullopt);
+        (void)featherdoc::detail::set_xml_parse_failure(
+            last_error_info, parse_result,
+            std::make_error_code(std::errc::invalid_argument), entry_name);
         return {};
     }
 

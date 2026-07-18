@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_numbering_catalog_output_json.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <fstream>
@@ -9,16 +10,17 @@
 
 namespace featherdoc_cli {
 
-void write_json_numbering_catalog(std::ostream &stream,
-                                  const featherdoc::numbering_catalog &catalog) {
+void write_json_numbering_catalog(
+    std::ostream &stream, const featherdoc::numbering_catalog &catalog) {
     stream << "{\"definition_count\":" << catalog.definitions.size()
-           << ",\"instance_count\":" << numbering_catalog_instance_count(catalog)
-           << ",\"definitions\":[";
+           << ",\"instance_count\":"
+           << numbering_catalog_instance_count(catalog) << ",\"definitions\":[";
     for (std::size_t index = 0; index < catalog.definitions.size(); ++index) {
         if (index != 0U) {
             stream << ',';
         }
-        write_json_numbering_catalog_definition(stream, catalog.definitions[index]);
+        write_json_numbering_catalog_definition(stream,
+                                                catalog.definitions[index]);
     }
     stream << "]}";
 }
@@ -28,18 +30,16 @@ auto write_numbering_catalog_file(const path_type &output_path,
                                   std::string &error_message) -> bool {
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
-        error_message =
-            "failed to open numbering catalog output path: " +
-            featherdoc::detail::path_to_utf8(output_path);
+        error_message = "failed to open numbering catalog output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
     write_json_numbering_catalog(stream, catalog);
     stream << '\n';
     if (!stream.good()) {
-        error_message =
-            "failed to write numbering catalog output path: " +
-            featherdoc::detail::path_to_utf8(output_path);
+        error_message = "failed to write numbering catalog output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -53,7 +53,7 @@ void print_exported_numbering_catalog_summary(
         std::cout << "{\"command\":\"export-numbering-catalog\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"definition_count\":" << catalog.definitions.size()
                   << ",\"instance_count\":"
@@ -62,7 +62,7 @@ void print_exported_numbering_catalog_summary(
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "definition_count: " << catalog.definitions.size() << '\n'
               << "instance_count: " << numbering_catalog_instance_count(catalog)
@@ -77,7 +77,7 @@ void print_patched_numbering_catalog_summary(
         std::cout << "{\"command\":\"patch-numbering-catalog\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"definition_count\":" << catalog.definitions.size()
                   << ",\"instance_count\":"
@@ -88,7 +88,7 @@ void print_patched_numbering_catalog_summary(
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "definition_count: " << catalog.definitions.size() << '\n'
               << "instance_count: " << numbering_catalog_instance_count(catalog)

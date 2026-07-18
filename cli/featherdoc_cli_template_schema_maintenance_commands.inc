@@ -16,7 +16,7 @@
         }
 
         exported_template_schema_result result;
-        if (!read_template_schema_file(path_type(std::string(arguments[1])), result,
+        if (!read_template_schema_file(path_from_cli_utf8(arguments[1]), result,
                                        error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
@@ -61,7 +61,7 @@
         }
 
         exported_template_schema_result result;
-        if (!read_template_schema_file(path_type(std::string(arguments[1])), result,
+        if (!read_template_schema_file(path_from_cli_utf8(arguments[1]), result,
                                        error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
@@ -92,7 +92,7 @@
         }
 
         exported_template_schema_result input;
-        if (!read_template_schema_file(path_type(std::string(arguments[1])), input,
+        if (!read_template_schema_file(path_from_cli_utf8(arguments[1]), input,
                                        error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;

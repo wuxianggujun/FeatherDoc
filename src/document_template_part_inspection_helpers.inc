@@ -87,22 +87,24 @@ auto summarize_part_paragraph_numbering(pugi::xml_node paragraph_properties)
     return summary;
 }
 
-auto enrich_part_paragraph_numbering(featherdoc::Document *owner,
-                                     featherdoc::paragraph_inspection_summary &summary) -> void {
+auto enrich_part_paragraph_numbering(
+    featherdoc::Document *owner,
+    featherdoc::paragraph_inspection_summary &summary) -> bool {
     if (owner == nullptr || !summary.numbering.has_value() ||
         !summary.numbering->num_id.has_value()) {
-        return;
+        return true;
     }
 
     const auto lookup = owner->find_numbering_instance(*summary.numbering->num_id);
     if (!lookup.has_value()) {
-        return;
+        return false;
     }
 
     summary.numbering->definition_id = lookup->definition_id;
     if (!lookup->definition_name.empty()) {
         summary.numbering->definition_name = lookup->definition_name;
     }
+    return true;
 }
 
 auto summarize_part_paragraph_node(pugi::xml_node paragraph_node, std::size_t paragraph_index)

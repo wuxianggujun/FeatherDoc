@@ -50,10 +50,20 @@ enum class package_diagnostic_code : std::uint8_t {
     missing_main_document_content_type,
     invalid_main_document_content_type,
     ambiguous_main_document_content_type,
+    duplicate_content_type_override,
+    invalid_content_type_part_name,
+    duplicate_content_type_default,
+    invalid_content_type_extension,
+    invalid_content_type_media_type,
+    invalid_relationships_part,
+    invalid_document_relationship,
+    duplicate_singleton_relationship,
+    dangling_relationship,
 };
 
 struct package_diagnostic {
-    package_diagnostic_code code{package_diagnostic_code::invalid_document_root};
+    package_diagnostic_code code{
+        package_diagnostic_code::invalid_document_root};
     package_diagnostic_severity severity{package_diagnostic_severity::error};
     std::string entry_name;
     std::string detail;
@@ -77,7 +87,9 @@ struct package_repair_report {
     std::vector<package_diagnostic> diagnostics_before;
     std::vector<package_repair_action> actions;
 
-    [[nodiscard]] bool changed() const noexcept { return !this->actions.empty(); }
+    [[nodiscard]] bool changed() const noexcept {
+        return !this->actions.empty();
+    }
 };
 
 struct document_error_info {
@@ -355,6 +367,10 @@ struct paragraph_inspection_summary {
     std::string text;
 };
 
+struct paragraph_inspection_options {
+    bool resolve_numbering_metadata{true};
+};
+
 enum class body_block_kind : std::uint8_t {
     paragraph = 0U,
     table,
@@ -539,6 +555,20 @@ struct section_part_inspection_summary {
     std::optional<std::size_t> resolved_default_section_index;
     std::optional<std::size_t> resolved_first_section_index;
     std::optional<std::size_t> resolved_even_section_index;
+};
+
+struct related_part_reference_inspection_summary {
+    std::size_t section_index{0};
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+};
+
+struct related_part_inspection_summary {
+    std::size_t index{0};
+    std::string relationship_id;
+    std::string entry_name;
+    std::vector<featherdoc::related_part_reference_inspection_summary>
+        references;
 };
 
 struct section_inspection_summary {

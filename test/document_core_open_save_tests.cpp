@@ -1,4 +1,5 @@
 #include "document_core_unit_test_support.hpp"
+#include "allocation_failure_test_case.hpp"
 
 TEST_CASE("checks contents of my_test.docx") {
     featherdoc::Document doc("my_test.docx");
@@ -85,6 +86,94 @@ TEST_CASE("open keeps zip buffers out of pugixml-owned deallocation paths") {
     CHECK(tracked_pugi_allocations.empty());
 
     fs::remove(target);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "tolerant open fails closed for every pugixml allocation failure") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "xml_parser_allocation_failure.docx";
+    fs::remove(target);
+    write_test_docx_with_header_footer(target, "body", "header", "footer");
+
+    pugi_memory_management_guard guard;
+    delegated_pugi_allocate = guard.allocation;
+    pugi::set_memory_management_functions(controlled_pugi_allocate,
+                                          guard.deallocation);
+
+    controlled_pugi_allocation_calls = 0U;
+    controlled_pugi_failure_call = 0U;
+    {
+        featherdoc::Document baseline(target);
+        REQUIRE_FALSE(baseline.open(featherdoc::document_open_options{
+            .validation = featherdoc::package_validation_mode::tolerant}));
+        REQUIRE(baseline.is_open());
+    }
+    const auto successful_open_allocation_count =
+        controlled_pugi_allocation_calls;
+    REQUIRE_GT(successful_open_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_open_allocation_count; ++failure_call) {
+        controlled_pugi_allocation_calls = 0U;
+        controlled_pugi_failure_call = failure_call;
+
+        featherdoc::Document document(target);
+        const auto error = document.open(featherdoc::document_open_options{
+            .validation = featherdoc::package_validation_mode::tolerant});
+        CAPTURE(failure_call);
+        CAPTURE(successful_open_allocation_count);
+        CAPTURE(controlled_pugi_allocation_calls);
+        CAPTURE(document.last_error().detail);
+        CAPTURE(document.last_error().entry_name);
+        CHECK_EQ(error,
+                 std::make_error_code(std::errc::not_enough_memory));
+        CHECK_EQ(document.last_error().code, error);
+        CHECK_FALSE(document.is_open());
+    }
+
+    controlled_pugi_failure_call = 0U;
+    fs::remove(target);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "create empty reports every pugixml allocation failure") {
+    pugi_memory_management_guard guard;
+    delegated_pugi_allocate = guard.allocation;
+    pugi::set_memory_management_functions(controlled_pugi_allocate,
+                                          guard.deallocation);
+
+    controlled_pugi_allocation_calls = 0U;
+    controlled_pugi_failure_call = 0U;
+    {
+        featherdoc::Document baseline;
+        REQUIRE_FALSE(baseline.create_empty());
+        REQUIRE(baseline.is_open());
+    }
+    const auto successful_create_allocation_count =
+        controlled_pugi_allocation_calls;
+    REQUIRE_GT(successful_create_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_create_allocation_count; ++failure_call) {
+        controlled_pugi_allocation_calls = 0U;
+        controlled_pugi_failure_call = failure_call;
+
+        featherdoc::Document document;
+        const auto error = document.create_empty();
+        CAPTURE(failure_call);
+        CAPTURE(successful_create_allocation_count);
+        CAPTURE(controlled_pugi_allocation_calls);
+        CAPTURE(document.last_error().detail);
+        CAPTURE(document.last_error().entry_name);
+        CHECK_EQ(error,
+                 std::make_error_code(std::errc::not_enough_memory));
+        CHECK_EQ(document.last_error().code, error);
+        CHECK_FALSE(document.is_open());
+    }
+
+    controlled_pugi_failure_call = 0U;
 }
 
 TEST_CASE("open reports encrypted docx files as unsupported") {

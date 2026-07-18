@@ -34,7 +34,7 @@ auto run_inspect_page_setup_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -77,7 +77,7 @@ auto run_set_section_page_setup_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }

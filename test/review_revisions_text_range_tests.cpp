@@ -1,8 +1,10 @@
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include "doctest.h"
 #include "basic_docx_archive_test_support.hpp"
@@ -288,4 +290,157 @@ TEST_CASE("find text ranges locates body text across paragraphs") {
              std::make_error_code(std::errc::invalid_argument));
 
     fs::remove(target);
+}
+
+TEST_CASE("cross-paragraph revisions invalidate retained body handles") {
+    namespace fs = std::filesystem;
+
+    const auto write_source = [](const fs::path &path) {
+        write_test_docx(
+            path,
+            R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Alpha</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Middle</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Omega</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)");
+    };
+    const auto capture_handles = [](featherdoc::Document &document) {
+        auto first_paragraph = document.paragraphs();
+        auto first_run = first_paragraph.runs();
+        auto middle_paragraph = document.paragraphs();
+        middle_paragraph.next();
+        auto middle_run = middle_paragraph.runs();
+        return std::array{std::pair{first_paragraph, first_run},
+                          std::pair{middle_paragraph, middle_run}};
+    };
+
+    const auto delete_target =
+        fs::current_path() / "review_revisions_range_handle_delete.docx";
+    fs::remove(delete_target);
+    write_source(delete_target);
+    featherdoc::Document delete_document(delete_target);
+    REQUIRE_FALSE(delete_document.open());
+    const auto delete_handles = capture_handles(delete_document);
+    REQUIRE(delete_handles[0].first.valid());
+    REQUIRE(delete_handles[0].second.valid());
+    REQUIRE(delete_handles[1].first.valid());
+    REQUIRE(delete_handles[1].second.valid());
+    CHECK(delete_document.delete_text_range_revision(0U, 2U, 2U, 3U));
+    for (const auto &[paragraph, run] : delete_handles) {
+        CHECK_FALSE(paragraph.valid());
+        CHECK_FALSE(run.valid());
+    }
+    CHECK_EQ(delete_document.list_revisions().size(), 3U);
+    REQUIRE(delete_document.paragraphs().valid());
+
+    const auto replace_target =
+        fs::current_path() / "review_revisions_range_handle_replace.docx";
+    fs::remove(replace_target);
+    write_source(replace_target);
+    featherdoc::Document replace_document(replace_target);
+    REQUIRE_FALSE(replace_document.open());
+    const auto replace_handles = capture_handles(replace_document);
+    REQUIRE(replace_handles[0].first.valid());
+    REQUIRE(replace_handles[0].second.valid());
+    REQUIRE(replace_handles[1].first.valid());
+    REQUIRE(replace_handles[1].second.valid());
+    CHECK(replace_document.replace_text_range_revision(0U, 5U, 1U, 3U,
+                                                       "Replacement"));
+    for (const auto &[paragraph, run] : replace_handles) {
+        CHECK_FALSE(paragraph.valid());
+        CHECK_FALSE(run.valid());
+    }
+    CHECK_EQ(replace_document.list_revisions().size(), 2U);
+    REQUIRE(replace_document.paragraphs().valid());
+
+    fs::remove(delete_target);
+    fs::remove(replace_target);
+}
+
+TEST_CASE("text range revision failures preserve the original XML") {
+    namespace fs = std::filesystem;
+
+    SUBCASE("a later unsupported run is rejected before earlier runs are split") {
+        const auto source = fs::current_path() / "review_range_unsupported_atomic.docx";
+        const auto before = fs::current_path() / "review_range_unsupported_atomic.before.docx";
+        const auto after = fs::current_path() / "review_range_unsupported_atomic.after.docx";
+        fs::remove(source);
+        fs::remove(before);
+        fs::remove(after);
+        write_test_docx(
+            source,
+            R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Alpha</w:t></w:r></w:p>
+    <w:p><w:r><w:t>World</w:t><w:fldChar w:fldCharType="begin"/></w:r></w:p>
+  </w:body>
+</w:document>)");
+
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        const auto preview = document.preview_text_range(0U, 2U, 1U, 2U);
+        REQUIRE(preview.has_value());
+        CHECK_FALSE(preview->plain_text_runs_supported);
+        REQUIRE_FALSE(document.save_as(before));
+        auto retained_paragraph = document.paragraphs();
+        auto retained_run = retained_paragraph.runs();
+        REQUIRE(retained_paragraph.valid());
+        REQUIRE(retained_run.valid());
+
+        CHECK_FALSE(document.delete_text_range_revision(0U, 2U, 1U, 2U));
+        CHECK_EQ(document.last_error().code,
+                 std::make_error_code(std::errc::operation_not_supported));
+        CHECK(retained_paragraph.valid());
+        CHECK(retained_run.valid());
+        REQUIRE_FALSE(document.save_as(after));
+        CHECK_EQ(read_test_docx_entry(after, test_document_xml_entry),
+                 read_test_docx_entry(before, test_document_xml_entry));
+
+        fs::remove(source);
+        fs::remove(before);
+        fs::remove(after);
+    }
+
+    SUBCASE("multi-id replacement reserves capacity before splitting runs") {
+        const auto source = fs::current_path() / "review_range_identifier_atomic.docx";
+        const auto before = fs::current_path() / "review_range_identifier_atomic.before.docx";
+        const auto after = fs::current_path() / "review_range_identifier_atomic.after.docx";
+        fs::remove(source);
+        fs::remove(before);
+        fs::remove(after);
+        write_test_docx(
+            source,
+            R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:ins w:id="9223372036854775806"><w:r><w:t>Existing</w:t></w:r></w:ins></w:p>
+    <w:p><w:r><w:t>Alpha</w:t></w:r></w:p>
+  </w:body>
+</w:document>)");
+
+        featherdoc::Document document(source);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save_as(before));
+        auto retained_paragraph = document.paragraphs();
+        retained_paragraph.next();
+        auto retained_run = retained_paragraph.runs();
+        REQUIRE(retained_paragraph.valid());
+        REQUIRE(retained_run.valid());
+
+        CHECK_FALSE(document.replace_text_range_revision(1U, 1U, 1U, 4U, "X"));
+        CHECK_EQ(document.last_error().code,
+                 featherdoc::document_errc::identifier_space_exhausted);
+        CHECK(retained_paragraph.valid());
+        CHECK(retained_run.valid());
+        REQUIRE_FALSE(document.save_as(after));
+        CHECK_EQ(read_test_docx_entry(after, test_document_xml_entry),
+                 read_test_docx_entry(before, test_document_xml_entry));
+
+        fs::remove(source);
+        fs::remove(before);
+        fs::remove(after);
+    }
 }

@@ -70,7 +70,7 @@ auto open_table_for_format(std::string_view command,
                            featherdoc::Document &doc,
                            std::size_t table_index, const Options &options,
                            featherdoc::Table &table) -> bool {
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return false;
     }
@@ -87,7 +87,7 @@ auto open_table_cell_for_format(std::string_view command,
                                 std::size_t row_index,
                                 std::size_t cell_index, const Options &options,
                                 featherdoc::TableCell &cell) -> bool {
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return false;
     }

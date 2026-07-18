@@ -4,7 +4,7 @@ Document::plan_prune_unused_styles() {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before planning unused "
                        "style pruning",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 
@@ -16,8 +16,8 @@ Document::plan_prune_unused_styles() {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 

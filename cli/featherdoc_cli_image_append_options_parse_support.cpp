@@ -238,7 +238,7 @@ auto parse_append_image_output_option(
             return option_parse_result::error;
         }
 
-        options.output_path = std::filesystem::path(std::string{*value});
+        options.output_path = path_from_cli_utf8(*value);
         ++index;
         return option_parse_result::matched;
     }

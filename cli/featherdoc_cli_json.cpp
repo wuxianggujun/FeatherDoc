@@ -1,13 +1,60 @@
 #include "featherdoc_cli_json.hpp"
 
+#include <featherdoc/detail/utf8.hpp>
+
 #include <ostream>
 
 namespace featherdoc_cli {
 
+namespace {
+
+void append_json_hex_byte_escape(std::string &escaped, unsigned char byte) {
+    escaped += "\\\\x";
+    escaped.push_back(featherdoc::detail::hex_digit_upper(
+        static_cast<unsigned char>(byte >> 4U)));
+    escaped.push_back(featherdoc::detail::hex_digit_upper(
+        static_cast<unsigned char>(byte & 0x0FU)));
+}
+
+void append_json_unicode_control_escape(std::string &escaped,
+                                        unsigned char byte) {
+    escaped += "\\u00";
+    escaped.push_back(featherdoc::detail::hex_digit_upper(
+        static_cast<unsigned char>(byte >> 4U)));
+    escaped.push_back(featherdoc::detail::hex_digit_upper(
+        static_cast<unsigned char>(byte & 0x0FU)));
+}
+
+} // namespace
+
 auto json_escape(std::string_view text) -> std::string {
     std::string escaped;
     escaped.reserve(text.size());
-    for (const char ch : text) {
+
+    std::size_t index = 0U;
+    while (index < text.size()) {
+        const auto decoded = featherdoc::detail::decode_next_utf8(text, index);
+        if (!decoded.valid || decoded.length == 0U) {
+            const auto invalid_length = decoded.length == 0U ? 1U : decoded.length;
+            const auto bounded_length =
+                invalid_length > text.size() - index ? text.size() - index
+                                                     : invalid_length;
+            for (std::size_t offset = 0U; offset < bounded_length; ++offset) {
+                append_json_hex_byte_escape(
+                    escaped,
+                    static_cast<unsigned char>(text[index + offset]));
+            }
+            index += bounded_length;
+            continue;
+        }
+
+        if (decoded.length != 1U) {
+            escaped.append(text.substr(index, decoded.length));
+            index += decoded.length;
+            continue;
+        }
+
+        const auto ch = text[index];
         switch (ch) {
         case '\\':
             escaped += "\\\\";
@@ -31,9 +78,15 @@ auto json_escape(std::string_view text) -> std::string {
             escaped += "\\t";
             break;
         default:
-            escaped += ch;
+            if (static_cast<unsigned char>(ch) < 0x20U) {
+                append_json_unicode_control_escape(
+                    escaped, static_cast<unsigned char>(ch));
+            } else {
+                escaped += ch;
+            }
             break;
         }
+        ++index;
     }
     return escaped;
 }

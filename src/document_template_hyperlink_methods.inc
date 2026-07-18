@@ -5,8 +5,8 @@ std::vector<featherdoc::hyperlink_summary> Document::list_hyperlinks() const {
 
 std::size_t Document::append_hyperlink(std::string_view text,
                                        std::string_view target) {
-    return this->append_hyperlink_in_part(this->document, document_xml_entry, text,
-                                          target);
+    return this->append_hyperlink_in_part(this->document, document_xml_entry,
+                                          text, target);
 }
 
 bool Document::replace_hyperlink(std::size_t hyperlink_index,
@@ -21,12 +21,14 @@ bool Document::remove_hyperlink(std::size_t hyperlink_index) {
                                           hyperlink_index);
 }
 
-std::vector<featherdoc::hyperlink_summary> Document::list_hyperlinks_in_part(
-    pugi::xml_document &xml_document, std::string_view entry_name) const {
+std::vector<featherdoc::hyperlink_summary>
+Document::list_hyperlinks_in_part(pugi::xml_document &xml_document,
+                                  std::string_view entry_name) const {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before listing hyperlinks",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before listing hyperlinks",
+            std::string{entry_name});
         return {};
     }
 
@@ -48,13 +50,15 @@ std::vector<featherdoc::hyperlink_summary> Document::list_hyperlinks_in_part(
                                         relationships_document);
 }
 
-std::size_t Document::append_hyperlink_in_part(
-    pugi::xml_document &xml_document, std::string_view entry_name,
-    std::string_view text, std::string_view target) {
+std::size_t Document::append_hyperlink_in_part(pugi::xml_document &xml_document,
+                                               std::string_view entry_name,
+                                               std::string_view text,
+                                               std::string_view target) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before appending a hyperlink",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before appending a hyperlink",
+            std::string{entry_name});
         return 0U;
     }
     if (text.empty()) {
@@ -82,7 +86,8 @@ std::size_t Document::append_hyperlink_in_part(
         relationships_entry_name = document_relationships_xml_entry;
         has_relationships_part = &this->has_document_relationships_part;
         relationships_dirty = &this->document_relationships_dirty;
-    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+    } else if (auto *part = this->find_related_part_state(entry_name);
+               part != nullptr) {
         relationships_document = &part->relationships;
         relationships_entry_name = part->relationships_entry_name;
         has_relationships_part = &part->has_relationships_part;
@@ -95,27 +100,40 @@ std::size_t Document::append_hyperlink_in_part(
         return 0U;
     }
 
+    if (!relationships_document_allows_mutation(
+            *relationships_document, *has_relationships_part,
+            relationships_entry_name, this->last_error_info)) {
+        return 0U;
+    }
+
     auto part_root = xml_document.document_element();
     auto container = template_part_block_container(xml_document);
     if (part_root == pugi::xml_node{} || container == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       std::string{entry_name} +
-                           " does not contain a valid hyperlink insertion parent",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            std::string{entry_name} +
+                " does not contain a valid hyperlink insertion parent",
+            std::string{entry_name});
         return 0U;
     }
 
-    if (relationships_document->child("Relationships") == pugi::xml_node{} &&
-        !initialize_empty_relationships_document(*relationships_document)) {
-        set_last_error(this->last_error_info,
-                       document_errc::relationships_xml_parse_failed,
-                       "failed to initialize default relationships XML",
-                       std::string{relationships_entry_name});
-        return 0U;
+    if (featherdoc::detail::package_relationships_root(
+            *relationships_document) == pugi::xml_node{}) {
+        const auto relationships_initialization =
+            featherdoc::detail::initialize_empty_relationships_document(
+                *relationships_document);
+        if (!relationships_initialization) {
+            (void)featherdoc::detail::set_fixed_xml_initialization_failure(
+                this->last_error_info, relationships_initialization,
+                document_errc::relationships_xml_parse_failed,
+                relationships_entry_name);
+            return 0U;
+        }
     }
 
-    auto relationships = relationships_document->child("Relationships");
+    auto relationships =
+        featherdoc::detail::package_relationships_root(*relationships_document);
     if (relationships == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::relationships_xml_parse_failed,
@@ -133,7 +151,8 @@ std::size_t Document::append_hyperlink_in_part(
         office_document_relationships_namespace_uri.data());
 
     const auto relationship_id = next_relationship_id(relationships);
-    auto relationship = relationships.append_child("Relationship");
+    auto relationship =
+        featherdoc::detail::append_package_relationship(relationships);
     if (relationship == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -183,14 +202,16 @@ std::size_t Document::append_hyperlink_in_part(
     return 1U;
 }
 
-bool Document::replace_hyperlink_in_part(
-    pugi::xml_document &xml_document, std::string_view entry_name,
-    std::size_t hyperlink_index, std::string_view text,
-    std::string_view target) {
+bool Document::replace_hyperlink_in_part(pugi::xml_document &xml_document,
+                                         std::string_view entry_name,
+                                         std::size_t hyperlink_index,
+                                         std::string_view text,
+                                         std::string_view target) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before replacing a hyperlink",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before replacing a hyperlink",
+            std::string{entry_name});
         return false;
     }
     if (text.empty()) {
@@ -217,7 +238,8 @@ bool Document::replace_hyperlink_in_part(
         relationships_entry_name = document_relationships_xml_entry;
         has_relationships_part = &this->has_document_relationships_part;
         relationships_dirty = &this->document_relationships_dirty;
-    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+    } else if (auto *part = this->find_related_part_state(entry_name);
+               part != nullptr) {
         relationships_document = &part->relationships;
         relationships_entry_name = part->relationships_entry_name;
         has_relationships_part = &part->has_relationships_part;
@@ -230,6 +252,12 @@ bool Document::replace_hyperlink_in_part(
         return false;
     }
 
+    if (!relationships_document_allows_mutation(
+            *relationships_document, *has_relationships_part,
+            relationships_entry_name, this->last_error_info)) {
+        return false;
+    }
+
     std::vector<pugi::xml_node> hyperlink_nodes;
     collect_hyperlinks_in_order(xml_document, hyperlink_nodes);
     if (hyperlink_index >= hyperlink_nodes.size()) {
@@ -239,26 +267,34 @@ bool Document::replace_hyperlink_in_part(
                        std::string{entry_name});
         return false;
     }
-    if (relationships_document->child("Relationships") == pugi::xml_node{} &&
-        !initialize_empty_relationships_document(*relationships_document)) {
-        set_last_error(this->last_error_info,
-                       document_errc::relationships_xml_parse_failed,
-                       "failed to initialize default relationships XML",
-                       std::string{relationships_entry_name});
-        return false;
+    if (featherdoc::detail::package_relationships_root(
+            *relationships_document) == pugi::xml_node{}) {
+        const auto relationships_initialization =
+            featherdoc::detail::initialize_empty_relationships_document(
+                *relationships_document);
+        if (!relationships_initialization) {
+            (void)featherdoc::detail::set_fixed_xml_initialization_failure(
+                this->last_error_info, relationships_initialization,
+                document_errc::relationships_xml_parse_failed,
+                relationships_entry_name);
+            return false;
+        }
     }
 
-    auto relationships = relationships_document->child("Relationships");
+    auto relationships =
+        featherdoc::detail::package_relationships_root(*relationships_document);
     auto hyperlink = hyperlink_nodes[hyperlink_index];
     auto relationship_id = std::string{hyperlink.attribute("r:id").value()};
-    auto relationship = relationship_id.empty()
-                            ? pugi::xml_node{}
-                            : find_relationship_by_id(relationships, relationship_id);
+    auto relationship =
+        relationship_id.empty()
+            ? pugi::xml_node{}
+            : find_relationship_by_id(relationships, relationship_id);
     if (relationship == pugi::xml_node{} ||
         std::string_view{relationship.attribute("Type").value()} !=
             hyperlink_relationship_type) {
         relationship_id = next_relationship_id(relationships);
-        relationship = relationships.append_child("Relationship");
+        relationship =
+            featherdoc::detail::append_package_relationship(relationships);
         if (relationship == pugi::xml_node{}) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
@@ -300,32 +336,43 @@ bool Document::replace_hyperlink_in_part(
     return true;
 }
 
-bool Document::remove_hyperlink_in_part(
-    pugi::xml_document &xml_document, std::string_view entry_name,
-    std::size_t hyperlink_index) {
+bool Document::remove_hyperlink_in_part(pugi::xml_document &xml_document,
+                                        std::string_view entry_name,
+                                        std::size_t hyperlink_index) {
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before removing a hyperlink",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before removing a hyperlink",
+            std::string{entry_name});
         return false;
     }
 
     pugi::xml_document *relationships_document = nullptr;
     std::string_view relationships_entry_name;
+    const bool *has_relationships_part = nullptr;
     bool *relationships_dirty = nullptr;
     if (entry_name == document_xml_entry) {
         relationships_document = &this->document_relationships;
         relationships_entry_name = document_relationships_xml_entry;
+        has_relationships_part = &this->has_document_relationships_part;
         relationships_dirty = &this->document_relationships_dirty;
-    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+    } else if (auto *part = this->find_related_part_state(entry_name);
+               part != nullptr) {
         relationships_document = &part->relationships;
         relationships_entry_name = part->relationships_entry_name;
+        has_relationships_part = &part->has_relationships_part;
         relationships_dirty = &part->relationships_dirty;
     } else {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "template part is not attached to this document",
                        std::string{entry_name});
+        return false;
+    }
+
+    if (!relationships_document_allows_mutation(
+            *relationships_document, *has_relationships_part,
+            relationships_entry_name, this->last_error_info)) {
         return false;
     }
 
@@ -340,8 +387,10 @@ bool Document::remove_hyperlink_in_part(
     }
 
     auto hyperlink = hyperlink_nodes[hyperlink_index];
-    const auto relationship_id = std::string{hyperlink.attribute("r:id").value()};
-    const auto display_text = featherdoc::detail::collect_plain_text_from_xml(hyperlink);
+    const auto relationship_id =
+        std::string{hyperlink.attribute("r:id").value()};
+    const auto display_text =
+        featherdoc::detail::collect_plain_text_from_xml(hyperlink);
     auto parent = hyperlink.parent();
     if (parent == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -364,10 +413,12 @@ bool Document::remove_hyperlink_in_part(
     }
     parent.remove_child(hyperlink);
 
-    auto relationships = relationships_document->child("Relationships");
+    auto relationships =
+        featherdoc::detail::package_relationships_root(*relationships_document);
     if (!relationship_id.empty() && relationships != pugi::xml_node{} &&
         !hyperlink_relationship_id_is_used(xml_document, relationship_id)) {
-        auto relationship = find_relationship_by_id(relationships, relationship_id);
+        auto relationship =
+            find_relationship_by_id(relationships, relationship_id);
         if (relationship != pugi::xml_node{} &&
             std::string_view{relationship.attribute("Type").value()} ==
                 hyperlink_relationship_type) {

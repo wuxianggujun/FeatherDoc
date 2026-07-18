@@ -327,7 +327,8 @@ TEST_CASE("find_style_usage also scans header and footer parts") {
     fs::remove(target);
 }
 
-TEST_CASE("clear_paragraph_style and clear_run_style remove markup and reject empty ids") {
+TEST_CASE("clear_paragraph_style and clear_run_style remove all duplicate markup "
+          "and reject empty ids") {
     namespace fs = std::filesystem;
 
     const fs::path target = fs::current_path() / "paragraph_run_style_clear.docx";
@@ -350,9 +351,15 @@ TEST_CASE("clear_paragraph_style and clear_run_style remove markup and reject em
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p>
-      <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+      <w:pPr>
+        <w:pStyle w:val="Heading1"/>
+        <w:pStyle w:val="Quote"/>
+      </w:pPr>
       <w:r>
-        <w:rPr><w:rStyle w:val="Strong"/></w:rPr>
+        <w:rPr>
+          <w:rStyle w:val="Strong"/>
+          <w:rStyle w:val="Emphasis"/>
+        </w:rPr>
         <w:t>seed</w:t>
       </w:r>
     </w:p>
@@ -425,6 +432,175 @@ TEST_CASE("clear_paragraph_style and clear_run_style remove markup and reject em
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
     CHECK_EQ(collect_document_text(reopened), "seed\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("applied style setters canonicalize duplicate style nodes at schema "
+          "position") {
+    namespace fs = std::filesystem;
+
+    const auto target =
+        fs::current_path() / "applied_style_duplicate_canonicalization.docx";
+    fs::remove(target);
+    write_test_docx(
+        target,
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:keepNext/>
+        <w:pStyle w:val="Quote"/>
+        <w:pStyle w:val="Heading2"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:b/>
+          <w:rStyle w:val="Emphasis"/>
+          <w:rStyle w:val="Strong"/>
+        </w:rPr>
+        <w:t>canonicalize styles</w:t>
+      </w:r>
+    </w:p>
+  </w:body>
+</w:document>
+)");
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open());
+    auto paragraph = document.paragraphs();
+    REQUIRE(paragraph.has_next());
+    auto run = paragraph.runs();
+    REQUIRE(run.has_next());
+
+    REQUIRE(document.set_paragraph_style(paragraph, "Heading1"));
+    REQUIRE(document.set_run_style(run, "Strong"));
+    REQUIRE_FALSE(document.save());
+
+    const auto saved_document =
+        read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_EQ(count_substring_occurrences(saved_document, "<w:pStyle"), 1);
+    CHECK_EQ(count_substring_occurrences(saved_document, "<w:rStyle"), 1);
+    const auto paragraph_style_position = saved_document.find("<w:pStyle");
+    const auto keep_next_position = saved_document.find("<w:keepNext");
+    const auto run_properties_position = saved_document.find("<w:rPr");
+    const auto run_style_position = saved_document.find("<w:rStyle");
+    const auto bold_position =
+        saved_document.find("<w:b", run_properties_position);
+    REQUIRE_NE(paragraph_style_position, std::string::npos);
+    REQUIRE_NE(keep_next_position, std::string::npos);
+    REQUIRE_NE(run_properties_position, std::string::npos);
+    REQUIRE_NE(run_style_position, std::string::npos);
+    REQUIRE_NE(bold_position, std::string::npos);
+    CHECK_LT(paragraph_style_position, keep_next_position);
+    CHECK_LT(run_style_position, bold_position);
+    CHECK_NE(saved_document.find(R"(w:pStyle w:val="Heading1")"),
+             std::string::npos);
+    CHECK_NE(saved_document.find(R"(w:rStyle w:val="Strong")"),
+             std::string::npos);
+
+    fs::remove(target);
+}
+
+TEST_CASE("applied style APIs reject paragraph and run handles owned by another "
+          "document without changing either package") {
+    namespace fs = std::filesystem;
+
+    const auto owner_path =
+        fs::current_path() / "foreign_applied_style_owner.docx";
+    const auto receiver_path =
+        fs::current_path() / "foreign_applied_style_receiver.docx";
+    fs::remove(owner_path);
+    fs::remove(receiver_path);
+
+    featherdoc::Document owner(owner_path);
+    REQUIRE_FALSE(owner.create_empty());
+    auto foreign_paragraph = owner.paragraphs();
+    REQUIRE(foreign_paragraph.has_next());
+    auto foreign_run = foreign_paragraph.add_run("foreign style owner");
+    REQUIRE(foreign_run.has_next());
+    REQUIRE(owner.set_paragraph_style(foreign_paragraph, "Heading1"));
+    REQUIRE(owner.set_run_style(foreign_run, "Strong"));
+
+    featherdoc::Document receiver(receiver_path);
+    REQUIRE_FALSE(receiver.create_empty());
+
+    CHECK_FALSE(receiver.set_paragraph_style(foreign_paragraph, "Quote"));
+    CHECK_EQ(receiver.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    auto owner_paragraph = owner.inspect_paragraph(0U);
+    REQUIRE(owner_paragraph.has_value());
+    REQUIRE(owner_paragraph->style_id.has_value());
+    CHECK_EQ(*owner_paragraph->style_id, "Heading1");
+
+    CHECK_FALSE(receiver.clear_paragraph_style(foreign_paragraph));
+    CHECK_EQ(receiver.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    owner_paragraph = owner.inspect_paragraph(0U);
+    REQUIRE(owner_paragraph.has_value());
+    REQUIRE(owner_paragraph->style_id.has_value());
+    CHECK_EQ(*owner_paragraph->style_id, "Heading1");
+
+    CHECK_FALSE(receiver.set_run_style(foreign_run, "Emphasis"));
+    CHECK_EQ(receiver.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    REQUIRE(foreign_run.style_id().has_value());
+    CHECK_EQ(*foreign_run.style_id(), "Strong");
+
+    CHECK_FALSE(receiver.clear_run_style(foreign_run));
+    CHECK_EQ(receiver.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    REQUIRE(foreign_run.style_id().has_value());
+    CHECK_EQ(*foreign_run.style_id(), "Strong");
+
+    REQUIRE_FALSE(owner.save());
+    REQUIRE_FALSE(receiver.save());
+    CHECK_FALSE(test_docx_entry_exists(receiver_path, "word/styles.xml"));
+
+    const auto saved_owner_document =
+        read_test_docx_entry(owner_path, test_document_xml_entry);
+    CHECK_NE(saved_owner_document.find(R"(w:pStyle w:val="Heading1")"),
+             std::string::npos);
+    CHECK_NE(saved_owner_document.find(R"(w:rStyle w:val="Strong")"),
+             std::string::npos);
+
+    fs::remove(owner_path);
+    fs::remove(receiver_path);
+}
+
+TEST_CASE("applied style APIs reject stale paragraph and run handles") {
+    namespace fs = std::filesystem;
+
+    const auto target = fs::current_path() / "stale_applied_style_handles.docx";
+    fs::remove(target);
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.create_empty());
+    auto stale_paragraph = document.paragraphs();
+    REQUIRE(stale_paragraph.has_next());
+    auto stale_run = stale_paragraph.add_run("stale style handle");
+    REQUIRE(stale_run.has_next());
+
+    REQUIRE_FALSE(document.create_empty());
+    CHECK_FALSE(stale_paragraph.valid());
+    CHECK_FALSE(stale_run.valid());
+
+    CHECK_FALSE(document.set_paragraph_style(stale_paragraph, "Heading1"));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(document.clear_paragraph_style(stale_paragraph));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(document.set_run_style(stale_run, "Strong"));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_FALSE(document.clear_run_style(stale_run));
+    CHECK_EQ(document.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+
+    REQUIRE_FALSE(document.save());
+    CHECK_FALSE(test_docx_entry_exists(target, "word/styles.xml"));
 
     fs::remove(target);
 }

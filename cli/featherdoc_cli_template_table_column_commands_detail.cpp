@@ -25,7 +25,7 @@ auto load_template_table_column_context(
     const template_table_cell_mutation_options &options,
     const featherdoc::template_table_selector &selector,
     template_table_column_context &context, std::string &error_message) -> bool {
-    if (!open_document(path_type(std::string(arguments[1])), context.doc,
+    if (!open_document(path_from_cli_utf8(arguments[1]), context.doc,
                        command, options.json_output)) {
         return false;
     }

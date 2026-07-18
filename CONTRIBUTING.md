@@ -26,7 +26,11 @@ directly as a focused pull request.
 4. Keep MSVC buildability intact. The current baseline validation flow is:
 
 ```bat
-cmake -S . -B build-msvc-nmake -G "NMake Makefiles" -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON
+cmake -S . -B build-msvc-nmake -G "NMake Makefiles" ^
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_SAMPLES=ON ^
+  -DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=OFF ^
+  -DFEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=OFF ^
+  -DFEATHERDOC_ENABLE_SANITIZERS=OFF -DFEATHERDOC_BUILD_FUZZERS=OFF
 cmake --build build-msvc-nmake
 ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 ```
@@ -34,6 +38,31 @@ ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 5. Do not silently change licensing, attribution, or bundled dependency notices.
 6. Do not mix unrelated refactors, formatting sweeps, and behavior changes in
    one pull request.
+
+### Test Safety Matrix
+
+Windows is the ordinary Release/MSVC validation platform. Keep allocation
+failure tests, Windows filesystem failure injection, sanitizers, and fuzzers
+disabled there. CMake rejects unsupported configurations, and Windows-specific
+filesystem failure injection requires the explicit
+``FEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=ON`` opt-in. CTest adds
+``--no-breaks=true`` to native test executables so unexpected assertions are
+reported without opening an interactive assertion dialog.
+
+Run deterministic allocation-failure coverage only in an isolated Linux or WSL
+build (prefer a native ext4 directory rather than ``/mnt/c``):
+
+```sh
+cmake -S . -B build-fault \
+  -DBUILD_TESTING=ON \
+  -DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=ON \
+  -DFEATHERDOC_ENABLE_SANITIZERS=ON
+cmake --build build-fault --parallel 2
+ctest --test-dir build-fault -L allocation-failure --output-on-failure
+```
+
+Ordinary test executables never register the ``allocation-failure`` suite, even
+when doctest is invoked with options that include skipped tests.
 
 ## Branch Workflow
 

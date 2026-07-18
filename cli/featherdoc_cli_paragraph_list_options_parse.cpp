@@ -69,7 +69,7 @@ auto parse_paragraph_list_options(const std::vector<std::string_view> &arguments
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -106,7 +106,7 @@ auto parse_clear_paragraph_list_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

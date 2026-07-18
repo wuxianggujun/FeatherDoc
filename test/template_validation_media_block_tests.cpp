@@ -24,8 +24,10 @@ TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for
         0x82U,
     };
 
-    const fs::path target = fs::current_path() / "bookmark_replace_image.docx";
-    const fs::path image_path = fs::current_path() / "bookmark_replace_image.png";
+    const fs::path target =
+        fs::current_path() / fs::path{u8"书签图片替换_😀.docx"};
+    const fs::path image_path =
+        fs::current_path() / fs::path{u8"书签图片样例_🪶.png"};
     fs::remove(target);
     fs::remove(image_path);
 
@@ -51,8 +53,22 @@ TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
+    auto before_paragraph = doc.paragraphs();
+    auto removed_placeholder = before_paragraph;
+    removed_placeholder.next();
+    auto removed_placeholder_run = removed_placeholder.runs();
+    auto after_paragraph = removed_placeholder;
+    after_paragraph.next();
+    REQUIRE(before_paragraph.valid());
+    REQUIRE(removed_placeholder.valid());
+    REQUIRE(removed_placeholder_run.valid());
+    REQUIRE(after_paragraph.valid());
     CHECK_EQ(doc.replace_bookmark_with_image("logo", image_path, 20U, 10U), 1);
     CHECK_FALSE(doc.last_error());
+    CHECK(before_paragraph.valid());
+    CHECK_FALSE(removed_placeholder.valid());
+    CHECK_FALSE(removed_placeholder_run.valid());
+    CHECK(after_paragraph.valid());
 
     CHECK_FALSE(doc.save());
 
@@ -72,6 +88,10 @@ TEST_CASE("replace_bookmark_with_image swaps a standalone bookmark paragraph for
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
     CHECK_EQ(collect_document_text(reopened), "before\n\nafter\n");
+    const auto drawing_images = reopened.drawing_images();
+    REQUIRE_EQ(drawing_images.size(), 1U);
+    CHECK_EQ(drawing_images.front().display_name,
+             utf8_from_u8(u8"书签图片样例_🪶.png"));
 
     fs::remove(target);
     fs::remove(image_path);
@@ -90,8 +110,10 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
         0x82U,
     };
 
-    const fs::path target = fs::current_path() / "bookmark_replace_floating_image.docx";
-    const fs::path image_path = fs::current_path() / "bookmark_replace_floating_image.png";
+    const fs::path target =
+        fs::current_path() / fs::path{u8"浮动书签图片替换_😀.docx"};
+    const fs::path image_path =
+        fs::current_path() / fs::path{u8"浮动书签图片样例_🪶.png"};
     fs::remove(target);
     fs::remove(image_path);
 
@@ -131,9 +153,23 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
 
     featherdoc::Document doc(target);
     CHECK_FALSE(doc.open());
+    auto before_paragraph = doc.paragraphs();
+    auto removed_placeholder = before_paragraph;
+    removed_placeholder.next();
+    auto removed_placeholder_run = removed_placeholder.runs();
+    auto after_paragraph = removed_placeholder;
+    after_paragraph.next();
+    REQUIRE(before_paragraph.valid());
+    REQUIRE(removed_placeholder.valid());
+    REQUIRE(removed_placeholder_run.valid());
+    REQUIRE(after_paragraph.valid());
     CHECK_EQ(doc.replace_bookmark_with_floating_image("logo", image_path, 20U, 10U, options),
              1);
     CHECK_FALSE(doc.last_error());
+    CHECK(before_paragraph.valid());
+    CHECK_FALSE(removed_placeholder.valid());
+    CHECK_FALSE(removed_placeholder_run.valid());
+    CHECK(after_paragraph.valid());
 
     CHECK_FALSE(doc.save());
 
@@ -162,6 +198,8 @@ TEST_CASE("replace_bookmark_with_floating_image swaps a standalone bookmark para
     CHECK_EQ(collect_document_text(reopened), "before\n\nafter\n");
     const auto drawing_images = reopened.drawing_images();
     REQUIRE_EQ(drawing_images.size(), 1U);
+    CHECK_EQ(drawing_images[0].display_name,
+             utf8_from_u8(u8"浮动书签图片样例_🪶.png"));
     CHECK_EQ(drawing_images[0].placement,
              featherdoc::drawing_image_placement::anchored_object);
     CHECK_EQ(drawing_images[0].width_px, 20U);

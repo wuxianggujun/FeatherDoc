@@ -132,6 +132,22 @@ Hyperlinks
 Notes, Comments, And Revisions
 ------------------------------
 
+Review-note and tracked-change identifiers use the non-negative signed 64-bit
+range. Allocators scan every relevant document story, including the body,
+headers, footers, footnotes, endnotes, and comments as applicable. Operations
+that need more than one identifier reserve the complete set before changing
+XML; exhaustion returns ``document_errc::identifier_space_exhausted``.
+
+Edits to an existing footnote, endnote, or comment validate the optional part,
+target index, required paragraph metadata, and identifier capacity before
+creating relationships, Content Types entries, or review parts. Every affected
+XML document, relationship, Content Types entry, review sidecar, and dirty flag
+is prepared before one publication step. Missing or out-of-range targets,
+identifier exhaustion, pugixml allocation failure, and ``std::bad_alloc``
+therefore leave the DOM, package metadata, and existing handles unchanged.
+Allocation failure is reported through ``last_error()`` as
+``std::errc::not_enough_memory``.
+
 .. list-table::
    :header-rows: 1
    :widths: 36 18 46

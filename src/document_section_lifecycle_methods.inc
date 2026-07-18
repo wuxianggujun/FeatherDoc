@@ -1,4 +1,65 @@
-bool Document::append_section(bool inherit_header_footer) {
+namespace {
+
+auto checked_insert_section_paragraph_after(pugi::xml_node body,
+                                            pugi::xml_node anchor)
+    -> pugi::xml_node {
+    if (body == pugi::xml_node{} || anchor == pugi::xml_node{} ||
+        anchor.parent() != body) {
+        return {};
+    }
+    auto paragraph = body.insert_child_after(pugi::node_element, anchor);
+    if (paragraph == pugi::xml_node{}) {
+        return {};
+    }
+    if (!paragraph.set_name("w:p")) {
+        body.remove_child(paragraph);
+        return {};
+    }
+    return paragraph;
+}
+
+auto lifecycle_title_page_insertion_anchor(pugi::xml_node section_properties)
+    -> pugi::xml_node {
+    for (auto child = section_properties.first_child();
+         child != pugi::xml_node{}; child = child.next_sibling()) {
+        const auto child_name = std::string_view{child.name()};
+        if (child_name == "w:textDirection" || child_name == "w:bidi" ||
+            child_name == "w:rtlGutter" || child_name == "w:docGrid" ||
+            child_name == "w:printerSettings" ||
+            child_name == "w:sectPrChange") {
+            return child;
+        }
+    }
+    return {};
+}
+
+auto checked_enable_lifecycle_title_page(pugi::xml_node section_properties)
+    -> bool {
+    if (section_properties == pugi::xml_node{}) {
+        return false;
+    }
+
+    auto title_page = section_properties.child("w:titlePg");
+    if (title_page == pugi::xml_node{}) {
+        const auto insertion_anchor =
+            lifecycle_title_page_insertion_anchor(section_properties);
+
+        title_page =
+            insertion_anchor == pugi::xml_node{}
+                ? featherdoc::detail::checked_append_xml_element(
+                      section_properties, "w:titlePg")
+                : featherdoc::detail::checked_insert_xml_element_before(
+                      section_properties, "w:titlePg", insertion_anchor);
+    }
+
+    return title_page != pugi::xml_node{} &&
+           featherdoc::detail::checked_set_xml_attribute_value(
+               title_page, "w:val", "1");
+}
+
+} // namespace
+
+bool Document::append_section(bool inherit_header_footer) try {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before appending a section");
@@ -14,9 +75,32 @@ bool Document::append_section(bool inherit_header_footer) {
         return false;
     }
 
-    auto body_section_properties = body.child("w:sectPr");
+    auto document_work = pugi::xml_document{};
+    if (featherdoc::detail::checked_clone_xml_document(
+            this->document, document_work) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
+        return false;
+    }
+    this->ensure_xml_handle_lifetime();
+
+    auto work_document_root = document_work.child("w:document");
+    auto work_body = work_document_root.child("w:body");
+    if (work_document_root == pugi::xml_node{} ||
+        work_body == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info, document_errc::invalid_package_structure,
+            "cloned document.xml does not contain the expected "
+            "w:document/w:body structure",
+            std::string{document_xml_entry});
+        return false;
+    }
+
+    auto body_section_properties = work_body.child("w:sectPr");
     if (body_section_properties == pugi::xml_node{}) {
-        body_section_properties = body.append_child("w:sectPr");
+        body_section_properties = featherdoc::detail::checked_append_xml_element(
+            work_body, "w:sectPr");
     }
     if (body_section_properties == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -33,11 +117,18 @@ bool Document::append_section(bool inherit_header_footer) {
     const bool body_has_first_page_footer = section_has_reference_type(
         body_section_properties, "w:footerReference", first_page_reference_type);
     if ((body_has_first_page_header || body_has_first_page_footer) &&
-        !this->ensure_title_page_enabled(body_section_properties)) {
+        !checked_enable_lifecycle_title_page(body_section_properties)) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::not_enough_memory),
+            "failed to enable w:titlePg in the prepared appended section",
+            std::string{document_xml_entry});
         return false;
     }
 
-    auto section_break_paragraph = featherdoc::detail::append_paragraph_node(body);
+    auto section_break_paragraph =
+        featherdoc::detail::checked_insert_xml_element_before(
+            work_body, "w:p", body_section_properties);
     if (section_break_paragraph == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -48,7 +139,8 @@ bool Document::append_section(bool inherit_header_footer) {
 
     auto paragraph_properties = section_break_paragraph.child("w:pPr");
     if (paragraph_properties == pugi::xml_node{}) {
-        paragraph_properties = section_break_paragraph.append_child("w:pPr");
+        paragraph_properties = featherdoc::detail::checked_append_xml_element(
+            section_break_paragraph, "w:pPr");
     }
     if (paragraph_properties == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -58,7 +150,9 @@ bool Document::append_section(bool inherit_header_footer) {
         return false;
     }
 
-    if (paragraph_properties.append_copy(body_section_properties) == pugi::xml_node{}) {
+    if (featherdoc::detail::checked_append_copy_xml_node(
+            body_section_properties, paragraph_properties) !=
+        featherdoc::detail::xml_document_clone_status::success) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to copy body-level w:sectPr onto the new section break paragraph",
@@ -70,26 +164,33 @@ bool Document::append_section(bool inherit_header_footer) {
         clear_section_header_footer_references(body_section_properties);
     }
 
-    this->cleanup_first_page_section_markers();
-    const auto even_page_reference_type =
-        featherdoc::to_xml_reference_type(featherdoc::section_reference_kind::even_page);
-    const bool has_any_even_header = document_has_reference_type(
-        this->document, "w:headerReference", even_page_reference_type);
-    const bool has_any_even_footer = document_has_reference_type(
-        this->document, "w:footerReference", even_page_reference_type);
-    if (has_any_even_header || has_any_even_footer) {
-        if (const auto error = this->ensure_even_and_odd_headers_enabled()) {
-            return false;
-        }
-    } else if (const auto error = this->cleanup_even_and_odd_headers_setting()) {
+    // Missing references intentionally mean "linked to previous" in OOXML.
+    // Keep w:titlePg and the package-level even/odd setting untouched so that
+    // a detached local reference layout retains its effective inheritance.
+    try {
+        static_assert(std::is_nothrow_move_assignable_v<pugi::xml_document>);
+        this->xml_handle_lifetime->retire_subtree(body);
+        this->document = std::move(document_work);
+
+        this->rebind_internal_xml_handles();
+    } catch (const std::bad_alloc &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "section append ran out of memory before it could be published",
+            document_xml_entry);
         return false;
     }
 
     this->last_error_info.clear();
     return true;
+} catch (const std::bad_alloc &) {
+    (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+        this->last_error_info, document_xml_entry);
+    return false;
 }
 
-bool Document::insert_section(std::size_t section_index, bool inherit_header_footer) {
+bool Document::insert_section(std::size_t section_index,
+                              bool inherit_header_footer) try {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before inserting a section");
@@ -117,7 +218,30 @@ bool Document::insert_section(std::size_t section_index, bool inherit_header_foo
         return this->append_section(inherit_header_footer);
     }
 
-    auto source_section_properties = this->section_properties(section_index);
+    auto document_work = pugi::xml_document{};
+    if (featherdoc::detail::checked_clone_xml_document(
+            this->document, document_work) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
+        return false;
+    }
+    this->ensure_xml_handle_lifetime();
+
+    auto work_document_root = document_work.child("w:document");
+    auto work_body = work_document_root.child("w:body");
+    if (work_document_root == pugi::xml_node{} ||
+        work_body == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info, document_errc::invalid_package_structure,
+            "cloned document.xml does not contain the expected "
+            "w:document/w:body structure",
+            std::string{document_xml_entry});
+        return false;
+    }
+
+    auto source_section_properties =
+        featherdoc::detail::section_properties_at(work_body, section_index);
     if (source_section_properties == pugi::xml_node{}) {
         set_last_error(this->last_error_info, std::make_error_code(std::errc::invalid_argument),
                        "failed to resolve the source section break for insertion",
@@ -141,11 +265,17 @@ bool Document::insert_section(std::size_t section_index, bool inherit_header_foo
     const bool source_has_first_page_footer = section_has_reference_type(
         source_section_properties, "w:footerReference", first_page_reference_type);
     if ((source_has_first_page_header || source_has_first_page_footer) &&
-        !this->ensure_title_page_enabled(source_section_properties)) {
+        !checked_enable_lifecycle_title_page(source_section_properties)) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::not_enough_memory),
+            "failed to enable w:titlePg in the prepared inserted section",
+            std::string{document_xml_entry});
         return false;
     }
 
-    auto section_break_paragraph = body.insert_child_after("w:p", source_break_paragraph);
+    auto section_break_paragraph = checked_insert_section_paragraph_after(
+        work_body, source_break_paragraph);
     if (section_break_paragraph == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -156,7 +286,8 @@ bool Document::insert_section(std::size_t section_index, bool inherit_header_foo
 
     auto paragraph_properties = section_break_paragraph.child("w:pPr");
     if (paragraph_properties == pugi::xml_node{}) {
-        paragraph_properties = section_break_paragraph.append_child("w:pPr");
+        paragraph_properties = featherdoc::detail::checked_append_xml_element(
+            section_break_paragraph, "w:pPr");
     }
     if (paragraph_properties == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -166,11 +297,20 @@ bool Document::insert_section(std::size_t section_index, bool inherit_header_foo
         return false;
     }
 
-    auto inserted_section_properties = paragraph_properties.append_copy(source_section_properties);
-    if (inserted_section_properties == pugi::xml_node{}) {
+    if (featherdoc::detail::checked_append_copy_xml_node(
+            source_section_properties, paragraph_properties) !=
+        featherdoc::detail::xml_document_clone_status::success) {
         set_last_error(
             this->last_error_info, std::make_error_code(std::errc::not_enough_memory),
             "failed to copy w:sectPr onto the inserted section break paragraph",
+            std::string{document_xml_entry});
+        return false;
+    }
+    auto inserted_section_properties = paragraph_properties.child("w:sectPr");
+    if (inserted_section_properties == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info, document_errc::invalid_package_structure,
+            "prepared section break does not contain the copied w:sectPr",
             std::string{document_xml_entry});
         return false;
     }
@@ -179,26 +319,31 @@ bool Document::insert_section(std::size_t section_index, bool inherit_header_foo
         clear_section_header_footer_references(inserted_section_properties);
     }
 
-    this->cleanup_first_page_section_markers();
-    const auto even_page_reference_type =
-        featherdoc::to_xml_reference_type(featherdoc::section_reference_kind::even_page);
-    const bool has_any_even_header = document_has_reference_type(
-        this->document, "w:headerReference", even_page_reference_type);
-    const bool has_any_even_footer = document_has_reference_type(
-        this->document, "w:footerReference", even_page_reference_type);
-    if (has_any_even_header || has_any_even_footer) {
-        if (const auto error = this->ensure_even_and_odd_headers_enabled()) {
-            return false;
-        }
-    } else if (const auto error = this->cleanup_even_and_odd_headers_setting()) {
+    // Missing references intentionally remain linked to the previous section.
+    // Preserve the copied section markers and unrelated settings metadata.
+    try {
+        static_assert(std::is_nothrow_move_assignable_v<pugi::xml_document>);
+        this->xml_handle_lifetime->retire_subtree(body);
+        this->document = std::move(document_work);
+
+        this->rebind_internal_xml_handles();
+    } catch (const std::bad_alloc &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "section insertion ran out of memory before it could be published",
+            document_xml_entry);
         return false;
     }
 
     this->last_error_info.clear();
     return true;
+} catch (const std::bad_alloc &) {
+    (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+        this->last_error_info, document_xml_entry);
+    return false;
 }
 
-bool Document::remove_section(std::size_t section_index) {
+bool Document::remove_section(std::size_t section_index) try {
     if (!this->is_open()) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before removing a section");
@@ -229,8 +374,32 @@ bool Document::remove_section(std::size_t section_index) {
         return false;
     }
 
+    auto document_work = pugi::xml_document{};
+    if (featherdoc::detail::checked_clone_xml_document(
+            this->document, document_work) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
+        return false;
+    }
+    this->ensure_xml_handle_lifetime();
+
+    auto work_document_root = document_work.child("w:document");
+    auto work_body = work_document_root.child("w:body");
+    if (work_document_root == pugi::xml_node{} ||
+        work_body == pugi::xml_node{}) {
+        set_last_error(
+            this->last_error_info, document_errc::invalid_package_structure,
+            "cloned document.xml does not contain the expected "
+            "w:document/w:body structure",
+            std::string{document_xml_entry});
+        return false;
+    }
+
     if (section_index + 1U < count) {
-        auto section_properties = this->section_properties(section_index);
+        auto section_properties =
+            featherdoc::detail::section_properties_at(work_body,
+                                                      section_index);
         if (section_properties == pugi::xml_node{}) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
@@ -253,8 +422,10 @@ bool Document::remove_section(std::size_t section_index) {
 
         remove_empty_paragraph(section_break_paragraph_node);
     } else {
-        auto previous_section_properties = this->section_properties(section_index - 1U);
-        auto body_section_properties = body.child("w:sectPr");
+        auto previous_section_properties =
+            featherdoc::detail::section_properties_at(work_body,
+                                                      section_index - 1U);
+        auto body_section_properties = work_body.child("w:sectPr");
         if (previous_section_properties == pugi::xml_node{} ||
             body_section_properties == pugi::xml_node{}) {
             set_last_error(this->last_error_info,
@@ -264,13 +435,46 @@ bool Document::remove_section(std::size_t section_index) {
             return false;
         }
 
-        if (!replace_section_properties_contents(body_section_properties,
-                                                previous_section_properties)) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to copy the previous section properties onto body-level w:sectPr",
-                           std::string{document_xml_entry});
-            return false;
+        for (auto attribute = body_section_properties.first_attribute();
+             attribute != pugi::xml_attribute{};) {
+            const auto next = attribute.next_attribute();
+            body_section_properties.remove_attribute(attribute);
+            attribute = next;
+        }
+        for (auto child = body_section_properties.first_child();
+             child != pugi::xml_node{};) {
+            const auto next = child.next_sibling();
+            body_section_properties.remove_child(child);
+            child = next;
+        }
+        for (auto attribute = previous_section_properties.first_attribute();
+             attribute != pugi::xml_attribute{};
+             attribute = attribute.next_attribute()) {
+            if (!featherdoc::detail::checked_append_xml_attribute(
+                    body_section_properties, attribute.name(),
+                    attribute.value())) {
+                set_last_error(
+                    this->last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to copy the previous section attributes onto "
+                    "body-level w:sectPr",
+                    std::string{document_xml_entry});
+                return false;
+            }
+        }
+        for (auto child = previous_section_properties.first_child();
+             child != pugi::xml_node{}; child = child.next_sibling()) {
+            if (featherdoc::detail::checked_append_copy_xml_node(
+                    child, body_section_properties) !=
+                featherdoc::detail::xml_document_clone_status::success) {
+                set_last_error(
+                    this->last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to copy the previous section properties onto "
+                    "body-level w:sectPr",
+                    std::string{document_xml_entry});
+                return false;
+            }
         }
 
         auto previous_paragraph_properties = previous_section_properties.parent();
@@ -289,13 +493,29 @@ bool Document::remove_section(std::size_t section_index) {
         remove_empty_paragraph(previous_break_paragraph);
     }
 
-    this->cleanup_first_page_section_markers();
-    if (const auto error = this->cleanup_even_and_odd_headers_setting()) {
+    // Removing a boundary must not normalize unrelated section or package
+    // metadata. In particular, w:titlePg may activate an inherited first-page
+    // reference and w:evenAndOddHeaders is caller-owned global state.
+    try {
+        static_assert(std::is_nothrow_move_assignable_v<pugi::xml_document>);
+        this->xml_handle_lifetime->retire_subtree(body);
+        this->document = std::move(document_work);
+
+        this->rebind_internal_xml_handles();
+    } catch (const std::bad_alloc &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "section removal ran out of memory before it could be published",
+            document_xml_entry);
         return false;
     }
 
     this->last_error_info.clear();
     return true;
+} catch (const std::bad_alloc &) {
+    (void)featherdoc::detail::set_xml_document_mutation_allocation_failure(
+        this->last_error_info, document_xml_entry);
+    return false;
 }
 
 bool Document::move_section(std::size_t source_section_index,
@@ -328,48 +548,81 @@ bool Document::move_section(std::size_t source_section_index,
         return true;
     }
 
-    auto snapshots = collect_section_snapshots(body);
-    if (!snapshots.has_value() || snapshots->size() != count) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to snapshot document sections for reordering",
-                       std::string{document_xml_entry});
+    auto reordered_document = pugi::xml_document{};
+    if (featherdoc::detail::checked_clone_xml_document(
+            this->document, reordered_document) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
         return false;
     }
 
-    auto reordered_snapshots = std::move(*snapshots);
-    auto moved_snapshot =
-        std::move(reordered_snapshots[source_section_index]);
-    reordered_snapshots.erase(reordered_snapshots.begin() +
-                              static_cast<std::ptrdiff_t>(source_section_index));
-    reordered_snapshots.insert(reordered_snapshots.begin() +
-                                   static_cast<std::ptrdiff_t>(target_section_index),
-                               std::move(moved_snapshot));
-
-    if (!rebuild_body_from_section_snapshots(body, reordered_snapshots)) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to rebuild w:body while reordering sections",
-                       std::string{document_xml_entry});
-        return false;
-    }
-
-    this->paragraph.set_parent(this->tracked_node(body));
-    this->table.set_owner(this);
-    this->table.set_parent(this->tracked_node(body));
-    this->cleanup_first_page_section_markers();
-
-    const auto even_page_reference_type =
-        featherdoc::to_xml_reference_type(featherdoc::section_reference_kind::even_page);
-    const bool has_any_even_header = document_has_reference_type(
-        this->document, "w:headerReference", even_page_reference_type);
-    const bool has_any_even_footer = document_has_reference_type(
-        this->document, "w:footerReference", even_page_reference_type);
-    if (has_any_even_header || has_any_even_footer) {
-        if (const auto error = this->ensure_even_and_odd_headers_enabled()) {
+    try {
+        auto reordered_body =
+            reordered_document.child("w:document").child("w:body");
+        if (reordered_body == pugi::xml_node{}) {
+            set_last_error(
+                this->last_error_info,
+                document_errc::invalid_package_structure,
+                "cloned document.xml does not contain the expected "
+                "w:document/w:body structure",
+                std::string{document_xml_entry});
             return false;
         }
-    } else if (const auto error = this->cleanup_even_and_odd_headers_setting()) {
+
+        auto snapshots = collect_section_snapshots(reordered_body);
+        if (!snapshots.has_value() || snapshots->size() != count) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(
+                    this->last_error_info, document_xml_entry);
+            return false;
+        }
+
+        auto &reordered_snapshots = *snapshots;
+        if (source_section_index < target_section_index) {
+            std::rotate(
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(source_section_index),
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(source_section_index + 1U),
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(target_section_index + 1U));
+        } else {
+            std::rotate(
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(target_section_index),
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(source_section_index),
+                reordered_snapshots.begin() +
+                    static_cast<std::ptrdiff_t>(source_section_index + 1U));
+        }
+
+        if (!rebuild_body_from_section_snapshots(reordered_body,
+                                                 reordered_snapshots)) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(
+                    this->last_error_info, document_xml_entry);
+            return false;
+        }
+
+        // Every allocation and XML mutation above targets isolated work. Once
+        // the old body is retired, publishing the completed document must not
+        // introduce another failure point.
+        static_assert(std::is_nothrow_move_assignable_v<pugi::xml_document>);
+        this->xml_handle_lifetime->retire_subtree(body);
+        this->document = std::move(reordered_document);
+
+        const auto published_body =
+            this->document.child("w:document").child("w:body");
+        this->paragraph.set_parent(this->tracked_node(published_body));
+        this->table.set_owner(this);
+        this->table.set_parent(this->tracked_node(published_body));
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "section reordering ran out of memory before it could be "
+            "published",
+            document_xml_entry);
         return false;
     }
 

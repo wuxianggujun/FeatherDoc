@@ -1,15 +1,20 @@
 #ifndef FEATHERDOC_XML_HELPERS_HPP
 #define FEATHERDOC_XML_HELPERS_HPP
 
+#include <constants.hpp>
+
+#include "package_content_types_xml_helpers.hpp"
+#include "package_relationships_xml_helpers.hpp"
+#include "xml_traversal_helpers.hpp"
+
 #include <cstddef>
 #include <string>
 #include <string_view>
 
-#include <pugixml.hpp>
-
 namespace featherdoc::detail {
 
-void update_xml_space_attribute(pugi::xml_node text_node, const char *text);
+[[nodiscard]] bool update_xml_space_attribute(pugi::xml_node text_node,
+                                              const char *text);
 void append_plain_text_from_xml(std::string &text, pugi::xml_node node);
 [[nodiscard]] std::string collect_plain_text_from_xml(pugi::xml_node node);
 
@@ -20,13 +25,16 @@ void append_plain_text_from_xml(std::string &text, pugi::xml_node node);
 [[nodiscard]] pugi::xml_node ensure_run_properties_node(pugi::xml_node run);
 void remove_empty_run_properties(pugi::xml_node run);
 
-[[nodiscard]] pugi::xml_node insert_paragraph_node(pugi::xml_node parent,
-                                                   pugi::xml_node insert_before);
+[[nodiscard]] pugi::xml_node
+insert_paragraph_node(pugi::xml_node parent, pugi::xml_node insert_before);
 [[nodiscard]] pugi::xml_node append_paragraph_node(pugi::xml_node parent);
 [[nodiscard]] bool set_plain_text_run_content(pugi::xml_node run,
                                               std::string_view text);
 [[nodiscard]] bool append_plain_text_run(pugi::xml_node parent,
                                          std::string_view text);
+[[nodiscard]] pugi::xml_node insert_formatted_text_run(
+    pugi::xml_node parent, pugi::xml_node insert_before, const char *text,
+    featherdoc::formatting_flag formatting);
 [[nodiscard]] bool insert_plain_text_paragraph(pugi::xml_node parent,
                                                pugi::xml_node insert_before,
                                                std::string_view text);
@@ -35,9 +43,11 @@ void remove_empty_run_properties(pugi::xml_node run);
 [[nodiscard]] pugi::xml_node insert_table_node(pugi::xml_node parent,
                                                pugi::xml_node insert_before);
 [[nodiscard]] pugi::xml_node append_table_node(pugi::xml_node parent);
-[[nodiscard]] std::size_t count_remaining_block_children(pugi::xml_node parent,
-                                                         pugi::xml_node skipped_child);
-[[nodiscard]] bool parent_requires_nonempty_block_content(pugi::xml_node parent);
+[[nodiscard]] std::size_t
+count_remaining_block_children(pugi::xml_node parent,
+                               pugi::xml_node skipped_child);
+[[nodiscard]] bool
+parent_requires_nonempty_block_content(pugi::xml_node parent);
 
 } // namespace featherdoc::detail
 

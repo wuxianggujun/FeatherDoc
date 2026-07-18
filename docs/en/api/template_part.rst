@@ -205,6 +205,33 @@ Content Controls
      - ``std::size_t``
      - Update checkbox, date, dropdown, combo-box, lock, or binding state.
 
+Custom XML Synchronization
+--------------------------
+
+``Document::sync_content_controls_from_custom_xml()`` reopens the source package at
+its current path and resolves content-control bindings against Custom XML
+items. It uses the limits retained from ``open(options)`` (or the defaults
+after ``create_empty()``), revalidates the complete current archive, and treats
+item, properties, and relationships payloads as semantic XML even when a
+relationship target has a binary extension.
+
+Archive enumeration, resource-limit, entry-read, and reader-close failures
+return ``std::nullopt`` with the precise ``last_error()`` and ``entry_name``.
+These failures are detected before any content control is changed. Missing,
+unbound, or malformed Custom XML that can be skipped safely retains the
+compatibility behavior reported by the synchronization result; it is not
+described as an archive I/O success failure.
+
+Body, header, and footer synchronization is one in-memory transaction. An
+allocation failure while parsing, building the result, cloning XML, or
+rewriting any text returns ``std::errc::not_enough_memory`` and preserves the
+pre-call DOM, unsaved edits, dirty state, and XML-handle generation. A
+successful call that synchronizes at least one control atomically publishes
+rebuilt WML DOMs; every previously obtained ``Paragraph``, ``Run``, ``Table``,
+and ``TemplatePart`` handle is then invalid and must be reacquired. A
+successful call with no synchronized item does not rebuild the DOM or
+invalidate handles.
+
 Template Validation
 -------------------
 

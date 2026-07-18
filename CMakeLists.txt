@@ -31,7 +31,10 @@ option(FEATHERDOC_BUILD_PDF_IMPORT
     "Build experimental PDF parser module backed by PDFium" OFF)
 
 if(FEATHERDOC_ENABLE_SANITIZERS)
-    if(MSVC OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    if(WIN32)
+        message(FATAL_ERROR
+            "FEATHERDOC_ENABLE_SANITIZERS is unsupported on Windows; use Linux/WSL")
+    elseif(MSVC OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         message(FATAL_ERROR
             "FEATHERDOC_ENABLE_SANITIZERS requires GCC or Clang with GNU-style flags")
     endif()
@@ -84,6 +87,7 @@ set(FEATHERDOC_MODULE_HEADERS
 )
 set(FEATHERDOC_DETAIL_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/path.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/utf8.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/xml_handle.hpp"
 )
 set(PDF_COMMON_HEADERS
@@ -120,6 +124,7 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template_content_control_replacement.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/package_relationships_mce_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell.cpp"
@@ -131,6 +136,8 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_conversion_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_namespace_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/wordprocessingml_namespace_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_handle.cpp"
 )
 

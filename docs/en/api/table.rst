@@ -16,6 +16,11 @@ and spacing values use twips. Methods returning ``std::optional<T>`` return an
 empty value when the target cannot be resolved; methods returning ``bool`` report
 whether the table XML was changed.
 
+FeatherDoc enforces Word's 63-grid-column structural limit. Table creation,
+row/cell insertion, row/table ``insert_*_like_*`` cloning, and merge/unmerge
+operations fail without changing table XML when the limit would be exceeded or
+existing ``gridSpan`` geometry is invalid.
+
 Common Tasks
 ------------
 
@@ -366,6 +371,32 @@ TableCell
    * - ``set_border(cell_border_edge edge, border_definition border)``
      - ``bool``
      - Set one cell border edge.
+
+Table Structure Transactions And Handles
+----------------------------------------
+
+``Document::append_table(...)``, ``TemplatePart::append_table(...)``, table/row/
+cell insertion, merge, unmerge, and column-structure mutations prepare the
+complete target structure first. Allocation failure, invalid grid geometry, or
+the 63-column limit never leaves an empty table, partial row, partial
+``tblGrid``, or half-applied merge. The original XML, dirty state, and existing
+handles remain unchanged. A ``TemplatePart`` allocation failure records
+``std::errc::not_enough_memory`` and the target part ``entry_name`` in
+``last_error()``.
+
+New tables require both ``row_count`` and ``column_count`` to be greater than
+zero, and ``Table::append_row(...)`` requires at least one cell. Zero-sized
+requests are rejected without changing the XML. ``Document`` and
+``TemplatePart`` append operations report ``std::errc::invalid_argument``;
+cursor-only ``Table`` operations return an invalid handle.
+
+``TableCell::set_text(...)`` also replaces all block content transactionally.
+Failure preserves the cell byte-for-byte and keeps its paragraph/run handles
+valid. On success, the ``Table``, ``TableRow``, and ``TableCell`` handles remain
+valid, while old paragraph/run handles into the replaced content are invalid
+and must be reacquired from the cell. A successful delete or merge invalidates
+only handles into removed subtrees and their descendants; unremoved siblings
+remain valid.
 
 Example
 -------

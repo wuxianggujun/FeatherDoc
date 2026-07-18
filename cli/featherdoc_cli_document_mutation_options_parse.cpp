@@ -21,7 +21,7 @@ auto parse_simple_document_mutation_options(
                 error_message = "missing path after --output";
                 return false;
             }
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

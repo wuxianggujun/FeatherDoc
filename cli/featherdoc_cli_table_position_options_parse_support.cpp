@@ -46,7 +46,7 @@ auto parse_table_position_output_option(
         return option_parse_result::error;
     }
 
-    output_path = std::filesystem::path(std::string(arguments[index + 1U]));
+    output_path = path_from_cli_utf8(arguments[index + 1U]);
     ++index;
     return option_parse_result::matched;
 }

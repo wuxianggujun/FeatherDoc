@@ -1240,31 +1240,50 @@ PUGI_IMPL_NS_BEGIN
 
 	inline void destroy_node(xml_node_struct* n, xml_allocator& alloc)
 	{
-		if (n->header & impl::xml_memory_page_name_allocated_mask)
-			alloc.deallocate_string(n->name);
+		// Destroy in post-order without recursion. XML depth is controlled by the
+		// input package, so recursive destruction can otherwise overflow the
+		// process stack when remove_child/remove_children deletes a deep subtree.
+		xml_node_struct* const root = n;
+		xml_node_struct* current = root;
 
-		if (n->header & impl::xml_memory_page_value_allocated_mask)
-			alloc.deallocate_string(n->value);
+		while (current->first_child)
+			current = current->first_child;
 
-		for (xml_attribute_struct* attr = n->first_attribute; attr; )
+		for (;;)
 		{
-			xml_attribute_struct* next = attr->next_attribute;
+			xml_node_struct* const parent = current->parent;
+			xml_node_struct* const next = current->next_sibling;
+			const bool finished = current == root;
 
-			destroy_attribute(attr, alloc);
+			if (current->header & impl::xml_memory_page_name_allocated_mask)
+				alloc.deallocate_string(current->name);
 
-			attr = next;
+			if (current->header & impl::xml_memory_page_value_allocated_mask)
+				alloc.deallocate_string(current->value);
+
+			for (xml_attribute_struct* attr = current->first_attribute; attr; )
+			{
+				xml_attribute_struct* attr_next = attr->next_attribute;
+
+				destroy_attribute(attr, alloc);
+
+				attr = attr_next;
+			}
+
+			alloc.deallocate_memory(current, sizeof(xml_node_struct), PUGI_IMPL_GETPAGE(current));
+
+			if (finished)
+				break;
+
+			if (next)
+			{
+				current = next;
+				while (current->first_child)
+					current = current->first_child;
+			}
+			else
+				current = parent;
 		}
-
-		for (xml_node_struct* child = n->first_child; child; )
-		{
-			xml_node_struct* next = child->next_sibling;
-
-			destroy_node(child, alloc);
-
-			child = next;
-		}
-
-		alloc.deallocate_memory(n, sizeof(xml_node_struct), PUGI_IMPL_GETPAGE(n));
 	}
 
 	inline void append_node(xml_node_struct* child, xml_node_struct* node)

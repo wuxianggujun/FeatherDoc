@@ -221,8 +221,9 @@ auto summarize_paragraph_node(pugi::xml_node paragraph_node,
     for (auto run = paragraph_node.child("w:r"); run != pugi::xml_node{};
          run = featherdoc::detail::next_named_sibling(run, "w:r")) {
         ++summary.run_count;
-        summary.text += featherdoc::detail::collect_plain_text_from_xml(run);
     }
+    summary.text =
+        featherdoc::detail::collect_plain_text_from_xml(paragraph_node);
 
     return summary;
 }

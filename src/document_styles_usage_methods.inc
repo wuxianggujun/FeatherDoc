@@ -24,8 +24,8 @@ Document::find_style_usage(std::string_view style_id) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 
@@ -33,8 +33,8 @@ Document::find_style_usage(std::string_view style_id) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 
@@ -148,7 +148,7 @@ std::optional<featherdoc::style_usage_report> Document::list_style_usage() {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before listing style usage",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 

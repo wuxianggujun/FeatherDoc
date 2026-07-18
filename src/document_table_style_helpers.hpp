@@ -10,6 +10,7 @@ namespace featherdoc::detail {
 
 [[nodiscard]] auto validate_table_style_regions(
     document_error_info &last_error_info,
+    std::string_view styles_entry_name,
     const table_style_definition &definition) -> bool;
 
 [[nodiscard]] auto apply_table_style_regions(

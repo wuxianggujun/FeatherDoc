@@ -52,7 +52,7 @@ std::optional<std::uint32_t> Table::column_width_twips(std::size_t column_index)
     }
 
     const auto column_count = current_table_column_count(this->current);
-    if (column_index >= column_count) {
+    if (!column_count.has_value() || column_index >= *column_count) {
         return std::nullopt;
     }
 
@@ -70,11 +70,13 @@ bool Table::set_column_width_twips(std::size_t column_index, std::uint32_t width
     }
 
     const auto column_count = current_table_column_count(this->current);
-    if (column_index >= column_count) {
+    if (!column_count.has_value() || column_index >= *column_count) {
         return false;
     }
 
-    ensure_table_grid_columns(this->current, column_count);
+    if (!ensure_table_grid_columns(this->current, *column_count)) {
+        return false;
+    }
     const auto grid_column = find_table_grid_column(this->current, column_index);
     if (grid_column == pugi::xml_node{}) {
         return false;
@@ -92,7 +94,7 @@ bool Table::clear_column_width(std::size_t column_index) {
     }
 
     const auto column_count = current_table_column_count(this->current);
-    if (column_index >= column_count) {
+    if (!column_count.has_value() || column_index >= *column_count) {
         return false;
     }
 

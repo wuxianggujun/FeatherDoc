@@ -195,6 +195,10 @@ foreach ($marker in @(
 foreach ($marker in @(
         "Verify Ninja",
         'cmake -S . -B build-msvc-ninja -G "Ninja"',
+        "-DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=OFF",
+        "-DFEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=OFF",
+        "-DFEATHERDOC_ENABLE_SANITIZERS=OFF",
+        "-DFEATHERDOC_BUILD_FUZZERS=OFF",
         "cmake --build build-msvc-ninja --parallel 4 --verbose",
         "ctest --test-dir build-msvc-ninja --parallel 2 --output-on-failure --timeout 60",
         '-BuildDir build-msvc-ninja',
@@ -205,6 +209,96 @@ foreach ($marker in @(
     Assert-ContainsText -Text $windowsWorkflow -ExpectedText $marker `
         -Message "Windows workflow should keep the Ninja parallel build marker '$marker'."
 }
+
+$securitySanitizerWorkflow = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath ".github\workflows\security-sanitizers-fuzz.yml"
+foreach ($marker in @(
+        "-DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=ON",
+        "xml_handle_retirement_tests",
+        "text_mutation_transaction_tests",
+        "bookmark_batch_transaction_tests",
+        "revision_transaction_tests",
+        "xml_document_clone_allocation_failure_tests",
+        "xml_handle_retirement_allocation_failure_tests",
+        "text_mutation_transaction_allocation_failure_tests",
+        "bookmark_batch_transaction_allocation_failure_tests",
+        "revision_transaction_allocation_failure_tests",
+        "review_revisions_allocation_failure_tests",
+        "package_relationships_mce_allocation_failure_tests",
+        "document_core_allocation_failure_tests",
+        "content_controls_allocation_failure_tests",
+        "style_management_allocation_failure_tests",
+        "section_header_footer_allocation_failure_tests",
+        "section_header_footer_part_removal_allocation_failure_tests",
+        "section_header_footer_unit_tests",
+        "xml_document_clone_allocation_failure|xml_handle_retirement_allocation_failure|text_mutation_transaction_allocation_failure|bookmark_batch_transaction_allocation_failure|revision_transaction_allocation_failure|review_revisions_allocation_failure|package_relationships_mce_allocation_failure|document_core_allocation_failure|content_controls_allocation_failure|style_management_allocation_failure|section_header_footer_allocation_failure|section_header_footer_part_removal_allocation_failure"
+    )) {
+    Assert-ContainsText -Text $securitySanitizerWorkflow -ExpectedText $marker `
+        -Message "Security sanitizer workflow should keep the isolated allocation-failure marker '$marker'."
+}
+
+$cppTestSupport = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\cmake\TestSupport.cmake"
+Assert-ContainsText -Text $cppTestSupport -ExpectedText "--no-breaks=true" `
+    -Message "Windows C++ CTest commands should disable doctest debugger breaks."
+
+$coreCppTests = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\cmake\CoreCppTests.cmake"
+Assert-ContainsText -Text $coreCppTests `
+    -ExpectedText 'add_test(NAME ${test_name} COMMAND ${target_name} --no-breaks=true)' `
+    -Message "Windows pugixml iterative doctest registrations should disable debugger breaks."
+Assert-ContainsText -Text $coreCppTests `
+    -ExpectedText "FEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS" `
+    -Message "Windows filesystem fault injection should remain behind an explicit opt-in build switch."
+
+$cliExecutableCppTests = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\cmake\CliExecutableCppTests.cmake"
+Assert-ContainsText -Text $cliExecutableCppTests -ExpectedText "--no-breaks=true" `
+    -Message "Windows CLI executable doctest registrations should disable debugger breaks."
+
+$pdfCppTests = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\cmake\PdfCppTests.cmake"
+Assert-ContainsText -Text $pdfCppTests `
+    -ExpectedText "--source-file=*pdf_cli_import_threshold_tests.cpp" `
+    -Message "PDF threshold CTest should keep the focused doctest source filter."
+Assert-ContainsText -Text $pdfCppTests -ExpectedText "--no-breaks=true" `
+    -Message "Windows PDF threshold doctest registration should disable debugger breaks."
+
+$documentSecurityTests = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\document_security_tests.cpp"
+foreach ($marker in @(
+        'zip_fail_next_close_stage',
+        'zip_fail_next_write',
+        'document_fail_next_sync_stage'
+    )) {
+    Assert-ContainsText -Text $documentSecurityTests -ExpectedText $marker `
+        -Message "Document security tests should keep fault-injection coverage marker '$marker'."
+}
+Assert-ContainsText -Text $documentSecurityTests -ExpectedText "#ifndef _WIN32" `
+    -Message "Document security fault-injection tests should stay isolated from Windows ordinary runs."
+Assert-ContainsText -Text $documentSecurityTests `
+    -ExpectedText "FEATHERDOC_ENABLE_WINDOWS_FAULT_INJECTION_TESTS" `
+    -Message "Windows replacement failure injection should stay excluded from ordinary runs."
+
+$documentSourceArchiveConsistencyTests = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "test\document_source_archive_consistency_tests.cpp"
+Assert-ContainsText -Text $documentSourceArchiveConsistencyTests `
+    -ExpectedText 'document_fail_next_sync_stage' `
+    -Message "Source archive consistency tests should keep the directory-sync fault marker."
+Assert-ContainsText -Text $documentSourceArchiveConsistencyTests `
+    -ExpectedText "#ifndef _WIN32" `
+    -Message "Source archive sync fault test should stay isolated from Windows ordinary runs."
+
+$rootCMake = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "CMakeLists.txt"
+Assert-ContainsText -Text $rootCMake `
+    -ExpectedText "FEATHERDOC_ENABLE_SANITIZERS is unsupported on Windows; use Linux/WSL" `
+    -Message "Root CMake should reject sanitizer instrumentation on every Windows toolchain."
+
+$fuzzCMake = Get-RepoFileText -Root $resolvedRepoRoot `
+    -RelativePath "cmake\FeatherDocFuzz.cmake"
+Assert-ContainsText -Text $fuzzCMake `
+    -ExpectedText "FEATHERDOC_BUILD_FUZZERS is unsupported on Windows; use Linux/WSL" `
+    -Message "Fuzzer CMake should reject every Windows toolchain."
 
 $releaseMetadataStepStart = $windowsWorkflow.IndexOf("Generate release metadata bundle")
 if ($releaseMetadataStepStart -lt 0) {
@@ -237,6 +331,10 @@ foreach ($unexpected in @(
 }
 
 $linuxWorkflow = $workflowTexts[".github\workflows\linux-cmake.yml"]
+$unicodePathSuffix =
+    "$([char]0x4E2D)$([char]0x6587)-" +
+    "$([char]0x65E5)$([char]0x672C)$([char]0x8A9E)-" +
+    [char]::ConvertFromUtf32(0x1F642)
 foreach ($marker in @(
         'cmake --build build-linux-${{ matrix.compiler }} --parallel 4 --verbose',
         'ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60',
@@ -245,6 +343,22 @@ foreach ($marker in @(
     )) {
     Assert-ContainsText -Text $linuxWorkflow -ExpectedText $marker `
         -Message "Linux workflow should keep the CTest parallel marker '$marker'."
+}
+
+foreach ($marker in @(
+        "shared-library-abi:",
+        "-DBUILD_SHARED_LIBS=ON",
+        "source_compat_v1_13_2_tests",
+        "abi_compat_v1_13_3_runtime_tests",
+        "readelf -d",
+        "libFeatherDoc.so.1.13",
+        "install-$unicodePathSuffix",
+        "consumer-$unicodePathSuffix",
+        'set(FeatherDoc_ABI_VERSION "1.13")',
+        "featherdoc_install_smoke"
+    )) {
+    Assert-ContainsText -Text $linuxWorkflow -ExpectedText $marker `
+        -Message "Linux workflow should keep the shared-library ABI gate marker '$marker'."
 }
 
 $macosWorkflow = $workflowTexts[".github\workflows\macos-cmake.yml"]

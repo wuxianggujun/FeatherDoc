@@ -3,11 +3,15 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <istream>
 #include <string>
 
 #include <constants.hpp>
 
 namespace featherdoc::detail {
+
+inline constexpr std::uint64_t max_external_image_file_bytes =
+    256ULL * 1024ULL * 1024ULL;
 
 struct image_file_info final {
     std::string extension;
@@ -21,6 +25,17 @@ struct image_file_info final {
                                    image_file_info &image_info,
                                    featherdoc::document_errc &error_code,
                                    std::string &detail);
+
+[[nodiscard]] bool load_image_file(const std::filesystem::path &image_path,
+                                   image_file_info &image_info,
+                                   featherdoc::document_errc &error_code,
+                                   std::string &detail,
+                                   std::uint64_t max_file_bytes);
+
+[[nodiscard]] bool read_image_stream_with_limit(
+    std::istream &stream, const std::filesystem::path &image_path,
+    std::uint64_t max_file_bytes, std::string &data,
+    featherdoc::document_errc &error_code, std::string &detail);
 
 [[nodiscard]] constexpr auto pixels_to_emu(std::uint32_t pixels) noexcept
     -> std::int64_t {

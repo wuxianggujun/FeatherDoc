@@ -122,12 +122,38 @@ TEST_CASE("header and footer template parts reuse bookmark template APIs") {
 
     auto header_template = doc.section_header_template(0);
     REQUIRE(static_cast<bool>(header_template));
+    auto header_table_handle = header_template.tables();
+    REQUIRE(header_table_handle.valid());
+    auto header_row_handle = header_table_handle.rows();
+    REQUIRE(header_row_handle.valid());
+    auto removed_row_handle = header_row_handle;
+    removed_row_handle.next();
+    REQUIRE(removed_row_handle.valid());
+    auto removed_cell_handle = removed_row_handle.cells();
+    REQUIRE(removed_cell_handle.valid());
+    auto removed_cell_paragraph = removed_cell_handle.paragraphs();
+    REQUIRE(removed_cell_paragraph.valid());
+    auto removed_cell_run = removed_cell_paragraph.runs();
+    REQUIRE(removed_cell_run.valid());
     CHECK_EQ(header_template.replace_bookmark_with_table_rows(
                  "item_row", {{"Apple", "2"}, {"Pear", "5"}}),
              1);
+    CHECK(header_table_handle.valid());
+    CHECK(header_row_handle.valid());
+    CHECK_FALSE(removed_row_handle.valid());
+    CHECK_FALSE(removed_cell_handle.valid());
+    CHECK_FALSE(removed_cell_paragraph.valid());
+    CHECK_FALSE(removed_cell_run.valid());
 
     auto footer_template = doc.section_footer_template(0);
     REQUIRE(static_cast<bool>(footer_template));
+    auto retained_footer_paragraph = footer_template.paragraphs();
+    REQUIRE(retained_footer_paragraph.valid());
+    auto removed_footer_paragraph = retained_footer_paragraph;
+    removed_footer_paragraph.next();
+    REQUIRE(removed_footer_paragraph.valid());
+    auto removed_footer_run = removed_footer_paragraph.runs();
+    REQUIRE(removed_footer_run.valid());
     const auto footer_fill_result =
         footer_template.fill_bookmarks({{"company_name", "Acme Corp"}});
     CHECK_EQ(footer_fill_result.requested, 1);
@@ -137,6 +163,9 @@ TEST_CASE("header and footer template parts reuse bookmark template APIs") {
     CHECK_EQ(footer_template.replace_bookmark_with_paragraphs(
                  "footer_lines", {"First line", "Second line"}),
              1);
+    CHECK(retained_footer_paragraph.valid());
+    CHECK_FALSE(removed_footer_paragraph.valid());
+    CHECK_FALSE(removed_footer_run.valid());
 
     CHECK_FALSE(doc.save());
 

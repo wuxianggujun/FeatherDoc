@@ -194,8 +194,9 @@ struct border_definition {
     std::uint32_t space_points{0U};
 };
 
-[[nodiscard]] constexpr auto to_xml_reference_type(
-    section_reference_kind kind) noexcept -> std::string_view {
+[[nodiscard]] constexpr auto
+to_xml_reference_type(section_reference_kind kind) noexcept
+    -> std::string_view {
     switch (kind) {
     case section_reference_kind::default_reference:
         return "default";
@@ -252,6 +253,16 @@ enum class document_errc {
     package_repair_validation_failed,
     output_file_sync_failed,
     output_directory_sync_failed_after_replace,
+    // Preserve existing numeric values: public error additions are append-only.
+    archive_close_failed,
+    source_archive_changed,
+    image_file_status_failed,
+    image_file_not_regular,
+    image_file_size_read_failed,
+    image_file_open_failed,
+    image_input_limit_exceeded,
+    invalid_mce_markup,
+    mce_mismatch,
 };
 
 class document_error_category final : public std::error_category {

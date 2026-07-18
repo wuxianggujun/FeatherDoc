@@ -4,6 +4,7 @@
 #include "featherdoc_cli_image_output.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_template_part_selection.hpp"
+#include "featherdoc_cli_text.hpp"
 #include "featherdoc_cli_validation_part.hpp"
 
 #include <featherdoc.hpp>
@@ -141,7 +142,8 @@ void print_content_control_paragraphs_result(
                                         options.output_path, replaced);
     std::cout << "paragraph_count: " << paragraphs.size() << '\n';
     for (std::size_t index = 0; index < paragraphs.size(); ++index) {
-        std::cout << "paragraph[" << index << "]: " << paragraphs[index] << '\n';
+        std::cout << "paragraph[" << index << "]: " << paragraphs[index]
+                  << '\n';
     }
 }
 
@@ -172,8 +174,8 @@ void print_content_control_image_result(
     print_content_control_common_result(selected, options.tag, options.alias,
                                         options.output_path,
                                         inserted_images.size());
-    std::cout << "image_path: "
-              << featherdoc::detail::path_to_utf8(image_path) << '\n';
+    std::cout << "image_path: " << featherdoc::detail::path_to_utf8(image_path)
+              << '\n';
     for (std::size_t index = 0; index < inserted_images.size(); ++index) {
         std::cout << "image[" << index << "]: ";
         print_drawing_image_summary(std::cout, inserted_images[index]);
@@ -183,7 +185,8 @@ void print_content_control_image_result(
 
 void write_json_content_control_form_state_result(
     std::ostream &stream, const selected_template_part &selected,
-    const set_content_control_form_state_options &options, std::size_t updated) {
+    const set_content_control_form_state_options &options,
+    std::size_t updated) {
     write_json_content_control_part_result(stream, selected, options.tag,
                                            options.alias);
     stream << R"(,"updated":)" << updated << R"(,"form_state":)";
@@ -192,15 +195,17 @@ void write_json_content_control_form_state_result(
 
 void print_content_control_form_state_result(
     const selected_template_part &selected,
-    const set_content_control_form_state_options &options, std::size_t updated) {
+    const set_content_control_form_state_options &options,
+    std::size_t updated) {
     print_selected_template_part(std::cout, selected);
-    std::cout << "selector_kind: " << (options.tag.has_value() ? "tag" : "alias")
-              << '\n';
+    std::cout << "selector_kind: "
+              << (options.tag.has_value() ? "tag" : "alias") << '\n';
     std::cout << "selector_value: "
               << (options.tag.has_value() ? *options.tag : *options.alias)
               << '\n';
     if (options.output_path.has_value()) {
-        std::cout << "output_path: " << options.output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*options.output_path)
+                  << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -228,8 +233,7 @@ void print_content_control_form_state_result(
                   << *state.data_binding_prefix_mappings << "\n";
     }
     if (state.checked.has_value()) {
-        std::cout << "checked: " << (*state.checked ? "true" : "false")
-                  << '\n';
+        std::cout << "checked: " << (*state.checked ? "true" : "false") << '\n';
     }
     if (state.selected_list_item.has_value()) {
         std::cout << "selected_item: " << *state.selected_list_item << '\n';
@@ -248,11 +252,11 @@ void print_content_control_form_state_result(
 void write_json_custom_xml_sync_result(
     std::ostream &stream,
     const featherdoc::custom_xml_data_binding_sync_result &result) {
-    stream << R"(,"scanned_content_controls":)" << result.scanned_content_controls
-           << R"(,"bound_content_controls":)" << result.bound_content_controls
-           << R"(,"synced_content_controls":)" << result.synced_content_controls
-           << R"(,"issue_count":)" << result.issues.size()
-           << R"(,"synced_items":[)";
+    stream << R"(,"scanned_content_controls":)"
+           << result.scanned_content_controls << R"(,"bound_content_controls":)"
+           << result.bound_content_controls << R"(,"synced_content_controls":)"
+           << result.synced_content_controls << R"(,"issue_count":)"
+           << result.issues.size() << R"(,"synced_items":[)";
     for (std::size_t index = 0; index < result.synced_items.size(); ++index) {
         if (index > 0U) {
             stream << ',';
@@ -273,17 +277,20 @@ void print_custom_xml_sync_result(
     const std::optional<path_type> &output_path,
     const featherdoc::custom_xml_data_binding_sync_result &result) {
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
-    std::cout << "scanned_content_controls: " << result.scanned_content_controls << '\n';
-    std::cout << "bound_content_controls: " << result.bound_content_controls << '\n';
-    std::cout << "synced_content_controls: " << result.synced_content_controls << '\n';
+    std::cout << "scanned_content_controls: " << result.scanned_content_controls
+              << '\n';
+    std::cout << "bound_content_controls: " << result.bound_content_controls
+              << '\n';
+    std::cout << "synced_content_controls: " << result.synced_content_controls
+              << '\n';
     std::cout << "issue_count: " << result.issues.size() << '\n';
     for (const auto &item : result.synced_items) {
-        std::cout << "synced[" << item.content_control_index << "]: "
-                  << item.part_entry_name << " " << item.xpath << " = "
+        std::cout << "synced[" << item.content_control_index
+                  << "]: " << item.part_entry_name << " " << item.xpath << " = "
                   << item.value << '\n';
     }
     for (const auto &issue : result.issues) {
@@ -291,8 +298,8 @@ void print_custom_xml_sync_result(
         if (issue.content_control_index.has_value()) {
             std::cout << '[' << *issue.content_control_index << ']';
         }
-        std::cout << ": " << issue.part_entry_name << " " << issue.reason
-                  << " " << issue.xpath << '\n';
+        std::cout << ": " << issue.part_entry_name << " " << issue.reason << " "
+                  << issue.xpath << '\n';
     }
 }
 

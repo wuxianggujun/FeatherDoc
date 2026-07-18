@@ -2,11 +2,12 @@ bool replace_content_control_text_by_tag_or_alias_in_node(
     featherdoc::document_error_info &last_error_info, pugi::xml_node node,
     std::string_view entry_name, std::string_view value,
     std::string_view replacement, bool match_tag, std::size_t &replaced) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};) {
-        const auto next = child.next_sibling();
-        if (std::string_view{child.name()} == "w:sdt" &&
-            content_control_matches_tag_or_alias(child, value, match_tag)) {
-            if (!rewrite_content_control_plain_text(child, replacement)) {
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        if (std::string_view{current.name()} == "w:sdt" &&
+            content_control_matches_tag_or_alias(current, value, match_tag)) {
+            const auto next = featherdoc::detail::next_xml_node_preorder(
+                node, current, false);
+            if (!rewrite_content_control_plain_text(current, replacement)) {
                 set_last_error(
                     last_error_info,
                     std::make_error_code(std::errc::not_enough_memory),
@@ -15,16 +16,12 @@ bool replace_content_control_text_by_tag_or_alias_in_node(
                 return false;
             }
             ++replaced;
-            child = next;
+            current = next;
             continue;
         }
 
-        if (!replace_content_control_text_by_tag_or_alias_in_node(
-                last_error_info, child, entry_name, value, replacement,
-                match_tag, replaced)) {
-            return false;
-        }
-        child = next;
+        current =
+            featherdoc::detail::next_xml_node_preorder(node, current);
     }
 
     return true;

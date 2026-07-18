@@ -51,9 +51,11 @@ auto make_table_position_plan_output_path(
     const auto stem = featherdoc::detail::path_to_utf8(output_path.stem());
     const auto extension =
         featherdoc::detail::path_to_utf8(output_path.extension());
-    output_path.replace_filename(
-        stem + "-table-position-" + std::string(table_position_preset_name(preset)) +
-        (extension.empty() ? std::string{".docx"} : extension));
+    const auto filename_utf8 =
+        stem + "-table-position-" +
+        std::string(table_position_preset_name(preset)) +
+        (extension.empty() ? std::string{".docx"} : extension);
+    output_path.replace_filename(path_from_cli_utf8(filename_utf8));
     return output_path;
 }
 
@@ -157,32 +159,36 @@ auto table_position_table_fingerprints_equal(
 auto describe_table_position_fingerprint_differences(
     const table_position_table_fingerprint &expected,
     const table_position_table_fingerprint &current) -> std::string {
-    auto detail = std::string{"table fingerprint changed since plan was generated: table "} +
-                  std::to_string(expected.table_index);
+    auto detail =
+        std::string{
+            "table fingerprint changed since plan was generated: table "} +
+        std::to_string(expected.table_index);
     auto difference_count = std::size_t{0U};
-    const auto append_difference = [&detail, &difference_count](
-                                       std::string_view field,
-                                       const std::string &expected_value,
-                                       const std::string &current_value) {
-        detail += difference_count == 0U ? "; changed fields: " : "; ";
-        detail += std::string(field) + " expected=" + expected_value +
-                  " current=" + current_value;
-        ++difference_count;
-    };
+    const auto append_difference =
+        [&detail, &difference_count](std::string_view field,
+                                     const std::string &expected_value,
+                                     const std::string &current_value) {
+            detail += difference_count == 0U ? "; changed fields: " : "; ";
+            detail += std::string(field) + " expected=" + expected_value +
+                      " current=" + current_value;
+            ++difference_count;
+        };
 
     if (expected.table_index != current.table_index) {
         append_difference("table_index", std::to_string(expected.table_index),
                           std::to_string(current.table_index));
     }
     if (expected.style_id != current.style_id) {
-        append_difference("style_id",
-                          describe_table_position_optional_string(expected.style_id),
-                          describe_table_position_optional_string(current.style_id));
+        append_difference(
+            "style_id",
+            describe_table_position_optional_string(expected.style_id),
+            describe_table_position_optional_string(current.style_id));
     }
     if (expected.width_twips != current.width_twips) {
-        append_difference("width_twips",
-                          describe_table_position_optional_u32(expected.width_twips),
-                          describe_table_position_optional_u32(current.width_twips));
+        append_difference(
+            "width_twips",
+            describe_table_position_optional_u32(expected.width_twips),
+            describe_table_position_optional_u32(current.width_twips));
     }
     if (expected.row_count != current.row_count) {
         append_difference("row_count", std::to_string(expected.row_count),
@@ -193,12 +199,14 @@ auto describe_table_position_fingerprint_differences(
                           std::to_string(current.column_count));
     }
     if (expected.column_widths != current.column_widths) {
-        append_difference("column_widths",
-                          describe_table_position_column_widths(expected.column_widths),
-                          describe_table_position_column_widths(current.column_widths));
+        append_difference(
+            "column_widths",
+            describe_table_position_column_widths(expected.column_widths),
+            describe_table_position_column_widths(current.column_widths));
     }
     if (expected.text != current.text) {
-        append_difference("text", json_escape(expected.text), json_escape(current.text));
+        append_difference("text", json_escape(expected.text),
+                          json_escape(current.text));
     }
     return detail;
 }
@@ -229,14 +237,16 @@ auto build_table_position_preset_plan(
     plan.target_position = make_table_position_preset(preset);
     plan.table_count = tables.size();
     const auto input_argument = quote_cli_argument(
-        input_path.has_value() ? input_path->string() : std::string{"<input.docx>"});
-    const auto resolved_output_path = output_path.has_value()
-                                          ? output_path
-                                          : make_table_position_plan_output_path(
-                                                input_path, preset);
-    const auto output_argument = quote_cli_argument(
-        resolved_output_path.has_value() ? resolved_output_path->string()
-                                         : std::string{"<output.docx>"});
+        input_path.has_value() ? path_to_cli_utf8(*input_path)
+                               : std::string{"<input.docx>"});
+    const auto resolved_output_path =
+        output_path.has_value()
+            ? output_path
+            : make_table_position_plan_output_path(input_path, preset);
+    const auto output_argument =
+        quote_cli_argument(resolved_output_path.has_value()
+                               ? path_to_cli_utf8(*resolved_output_path)
+                               : std::string{"<output.docx>"});
 
     for (const auto &table : tables) {
         const auto fingerprint = make_table_position_table_fingerprint(table);
@@ -261,36 +271,37 @@ auto build_table_position_preset_plan(
             item.action = "set-preset";
             item.automatic = true;
             item.recommended_command =
-                "set-table-position <input.docx> " + std::to_string(table.index) +
-                " --preset " + std::string(table_position_preset_name(preset));
+                "set-table-position <input.docx> " +
+                std::to_string(table.index) + " --preset " +
+                std::string(table_position_preset_name(preset));
             item.resolved_output_path = resolved_output_path;
             item.resolved_recommended_command =
                 "set-table-position " + input_argument + " " +
                 std::to_string(table.index) + " --preset " +
-                std::string(table_position_preset_name(preset)) +
-                " --output " + output_argument;
+                std::string(table_position_preset_name(preset)) + " --output " +
+                output_argument;
             plan.automatic_table_indices.push_back(table.index);
             ++plan.set_count;
         } else if (replace_positioned) {
             item.action = "replace-preset";
             item.automatic = true;
             item.recommended_command =
-                "set-table-position <input.docx> " + std::to_string(table.index) +
-                " --preset " + std::string(table_position_preset_name(preset));
+                "set-table-position <input.docx> " +
+                std::to_string(table.index) + " --preset " +
+                std::string(table_position_preset_name(preset));
             item.resolved_output_path = resolved_output_path;
             item.resolved_recommended_command =
                 "set-table-position " + input_argument + " " +
                 std::to_string(table.index) + " --preset " +
-                std::string(table_position_preset_name(preset)) +
-                " --output " + output_argument;
+                std::string(table_position_preset_name(preset)) + " --output " +
+                output_argument;
             plan.automatic_table_indices.push_back(table.index);
             ++plan.replace_count;
         } else {
             item.action = "review-existing-position";
             item.automatic = false;
-            item.recommended_command =
-                "inspect-tables <input.docx> --table " +
-                std::to_string(table.index) + " --json";
+            item.recommended_command = "inspect-tables <input.docx> --table " +
+                                       std::to_string(table.index) + " --json";
             item.resolved_recommended_command =
                 "inspect-tables " + input_argument + " --table " +
                 std::to_string(table.index) + " --json";
@@ -304,7 +315,8 @@ auto build_table_position_preset_plan(
         plan.automatic_table_indices, plan.table_count, preset);
     if (plan.recommended_batch_command.has_value()) {
         plan.resolved_output_path = resolved_output_path;
-        plan.resolved_recommended_batch_command = *plan.recommended_batch_command;
+        plan.resolved_recommended_batch_command =
+            *plan.recommended_batch_command;
         const auto placeholder = std::string{"<input.docx>"};
         const auto placeholder_position =
             plan.resolved_recommended_batch_command->find(placeholder);
@@ -312,7 +324,8 @@ auto build_table_position_preset_plan(
             plan.resolved_recommended_batch_command->replace(
                 placeholder_position, placeholder.size(), input_argument);
         }
-        *plan.resolved_recommended_batch_command += " --output " + output_argument;
+        *plan.resolved_recommended_batch_command +=
+            " --output " + output_argument;
     }
     return plan;
 }

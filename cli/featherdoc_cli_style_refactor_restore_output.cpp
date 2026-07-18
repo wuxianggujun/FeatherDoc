@@ -36,8 +36,7 @@ void write_json_style_refactor_restore_issue_summary(
         }
         stream << "{\"code\":";
         write_json_string(stream, summaries[index].code);
-        stream << ",\"count\":" << summaries[index].count
-               << ",\"suggestion\":";
+        stream << ",\"count\":" << summaries[index].count << ",\"suggestion\":";
         write_json_string(stream, summaries[index].suggestion);
         stream << '}';
     }
@@ -62,7 +61,8 @@ void write_json_style_refactor_restore_operation(
         if (index != 0U) {
             stream << ',';
         }
-        write_json_style_refactor_restore_issue(stream, operation.issues[index]);
+        write_json_style_refactor_restore_issue(stream,
+                                                operation.issues[index]);
     }
     stream << "]}";
 }
@@ -76,7 +76,8 @@ void write_json_style_refactor_restore_selection(
             stream << ",\"entry_index\":" << options.entry_indexes.front();
         }
         stream << ",\"entry_indexes\":[";
-        for (std::size_t index = 0; index < options.entry_indexes.size(); ++index) {
+        for (std::size_t index = 0; index < options.entry_indexes.size();
+             ++index) {
             if (index != 0U) {
                 stream << ',';
             }
@@ -129,8 +130,8 @@ void inspect_style_refactor_restore_result(
         if (options != nullptr) {
             if (options->rollback_plan_path.has_value()) {
                 std::cout << ",\"rollback_plan_file\":";
-                write_json_string(std::cout,
-                                  options->rollback_plan_path->string());
+                write_json_string(
+                    std::cout, path_to_cli_utf8(*options->rollback_plan_path));
             }
             write_json_style_refactor_restore_selection(std::cout, *options);
         }
@@ -148,11 +149,11 @@ void inspect_style_refactor_restore_result(
               << "issues: " << result.issue_count() << '\n'
               << "issue_summary_entries: " << issue_summary.size() << '\n'
               << "restored_styles: " << result.restored_style_count << '\n'
-              << "restored_references: "
-              << result.restored_reference_count << '\n';
+              << "restored_references: " << result.restored_reference_count
+              << '\n';
     for (std::size_t index = 0; index < issue_summary.size(); ++index) {
-        std::cout << "issue_summary[" << index << "]: code="
-                  << issue_summary[index].code
+        std::cout << "issue_summary[" << index
+                  << "]: code=" << issue_summary[index].code
                   << " count=" << issue_summary[index].count
                   << " suggestion=" << issue_summary[index].suggestion << '\n';
     }
@@ -167,8 +168,8 @@ void inspect_style_refactor_restore_result(
                   << " style_restored=" << yes_no(operation.style_restored)
                   << " references=" << operation.restored_reference_count
                   << " issues=" << operation.issues.size() << '\n';
-        for (std::size_t issue_index = 0;
-             issue_index < operation.issues.size(); ++issue_index) {
+        for (std::size_t issue_index = 0; issue_index < operation.issues.size();
+             ++issue_index) {
             const auto &issue = operation.issues[issue_index];
             std::cout << "restore[" << index << "].issue[" << issue_index
                       << "]: code=" << issue.code

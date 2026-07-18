@@ -1,5 +1,7 @@
 #pragma once
 
+#include "featherdoc_cli_text.hpp"
+
 #include <cstdint>
 #include <cstddef>
 #include <string_view>

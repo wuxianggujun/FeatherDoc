@@ -11,7 +11,7 @@ bool Document::clear_style_run_font_family(std::string_view style_id) {
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run fonts",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -23,8 +23,8 @@ bool Document::clear_style_run_font_family(std::string_view style_id) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -33,8 +33,8 @@ bool Document::clear_style_run_font_family(std::string_view style_id) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -65,7 +65,7 @@ bool Document::clear_style_run_east_asia_font_family(
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run fonts",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -77,8 +77,8 @@ bool Document::clear_style_run_east_asia_font_family(
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -87,8 +87,8 @@ bool Document::clear_style_run_east_asia_font_family(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
