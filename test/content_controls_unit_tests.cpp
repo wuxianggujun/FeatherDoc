@@ -1,5 +1,8 @@
+#include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
+#include <new>
 #include <optional>
 #include <string>
 #include <system_error>
@@ -20,6 +23,10 @@ namespace {
 pugi::allocation_function custom_xml_delegated_allocate = nullptr;
 std::size_t custom_xml_allocation_calls = 0U;
 std::size_t custom_xml_failure_call = 0U;
+
+std::atomic_bool global_allocation_tracking_enabled{false};
+std::atomic_size_t global_allocation_calls{0U};
+std::atomic_size_t global_allocation_failure_call{0U};
 
 auto controlled_custom_xml_allocate(std::size_t size) -> void * {
     ++custom_xml_allocation_calls;
@@ -60,6 +67,61 @@ class custom_xml_pugi_allocator_guard final {
     pugi::deallocation_function previous_deallocate_;
 };
 
+void record_global_allocation() {
+    if (!global_allocation_tracking_enabled.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+    const auto allocation_call =
+        global_allocation_calls.fetch_add(1U, std::memory_order_relaxed) + 1U;
+    if (allocation_call ==
+        global_allocation_failure_call.load(std::memory_order_relaxed)) {
+        throw std::bad_alloc{};
+    }
+}
+
+#if defined(FEATHERDOC_ALLOCATION_FAILURE_TEST_BINARY) &&                     \
+    FEATHERDOC_ALLOCATION_FAILURE_TEST_BINARY
+[[nodiscard]] void *allocate_controlled(std::size_t size) {
+    record_global_allocation();
+    if (void *memory = std::malloc(size == 0U ? 1U : size)) {
+        return memory;
+    }
+    throw std::bad_alloc{};
+}
+
+[[nodiscard]] void *allocate_controlled_aligned(std::size_t size,
+                                                std::size_t alignment) {
+    record_global_allocation();
+    void *memory = nullptr;
+    if (posix_memalign(&memory, alignment, size == 0U ? 1U : size) == 0) {
+        return memory;
+    }
+    throw std::bad_alloc{};
+}
+#endif
+
+class global_allocation_window final {
+  public:
+    explicit global_allocation_window(std::size_t failure_call) noexcept {
+        global_allocation_calls.store(0U, std::memory_order_relaxed);
+        global_allocation_failure_call.store(failure_call,
+                                             std::memory_order_relaxed);
+        global_allocation_tracking_enabled.store(true,
+                                                  std::memory_order_relaxed);
+    }
+
+    global_allocation_window(const global_allocation_window &) = delete;
+    auto operator=(const global_allocation_window &)
+        -> global_allocation_window & = delete;
+
+    ~global_allocation_window() {
+        global_allocation_tracking_enabled.store(false,
+                                                  std::memory_order_relaxed);
+        global_allocation_failure_call.store(0U, std::memory_order_relaxed);
+    }
+};
+
 auto wrap_in_deep_xml(std::string leaf, std::size_t depth) -> std::string {
     std::string xml;
     xml.reserve(leaf.size() + depth * 7U);
@@ -74,6 +136,40 @@ auto wrap_in_deep_xml(std::string leaf, std::size_t depth) -> std::string {
 }
 
 } // namespace
+
+#if defined(FEATHERDOC_ALLOCATION_FAILURE_TEST_BINARY) &&                     \
+    FEATHERDOC_ALLOCATION_FAILURE_TEST_BINARY
+void *operator new(std::size_t size) { return allocate_controlled(size); }
+void *operator new[](std::size_t size) { return allocate_controlled(size); }
+void *operator new(std::size_t size, std::align_val_t alignment) {
+    return allocate_controlled_aligned(size,
+                                       static_cast<std::size_t>(alignment));
+}
+void *operator new[](std::size_t size, std::align_val_t alignment) {
+    return allocate_controlled_aligned(size,
+                                       static_cast<std::size_t>(alignment));
+}
+void operator delete(void *memory) noexcept { std::free(memory); }
+void operator delete[](void *memory) noexcept { std::free(memory); }
+void operator delete(void *memory, std::size_t) noexcept { std::free(memory); }
+void operator delete[](void *memory, std::size_t) noexcept {
+    std::free(memory);
+}
+void operator delete(void *memory, std::align_val_t) noexcept {
+    std::free(memory);
+}
+void operator delete[](void *memory, std::align_val_t) noexcept {
+    std::free(memory);
+}
+void operator delete(void *memory, std::size_t,
+                     std::align_val_t) noexcept {
+    std::free(memory);
+}
+void operator delete[](void *memory, std::size_t,
+                       std::align_val_t) noexcept {
+    std::free(memory);
+}
+#endif
 
 TEST_CASE("content controls can be listed and filtered by tag or alias") {
     namespace fs = std::filesystem;
@@ -1322,6 +1418,218 @@ TEST_CASE("content control text can be replaced by tag or alias") {
     CHECK_EQ(doc.last_error().detail, "content control tag must not be empty");
     CHECK_EQ(doc.last_error().entry_name, test_document_xml_entry);
 
+    fs::remove(target);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "content control text replacement is atomic for every pugixml "
+    "allocation failure") {
+    namespace fs = std::filesystem;
+
+    const auto target =
+        fs::current_path() / "content_controls_replace_text_atomic.docx";
+    fs::remove(target);
+
+    constexpr auto document_xml =
+        R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>anchor</w:t></w:r></w:p><w:sdt><w:sdtPr><w:tag w:val="atomic-text"/><w:showingPlcHdr/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>old first</w:t></w:r></w:p></w:sdtContent></w:sdt><w:sdt><w:sdtPr><w:tag w:val="atomic-text"/><w:showingPlcHdr/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>old second</w:t></w:r></w:p></w:sdtContent></w:sdt></w:body></w:document>)";
+    write_test_docx(target, document_xml);
+
+    auto replacement = utf8_from_u8(u8"事务替换中文😀-");
+    replacement.append(96U * 1024U, 'x');
+    replacement += utf8_from_u8(u8"\n重试完成🪶");
+
+    std::size_t successful_allocation_calls = 0U;
+    {
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        auto body = document.body_template();
+        REQUIRE(static_cast<bool>(body));
+
+        {
+            custom_xml_pugi_allocator_guard guard;
+            REQUIRE_EQ(body.replace_content_control_text_by_tag(
+                           "atomic-text", replacement),
+                       2U);
+            successful_allocation_calls = custom_xml_allocation_calls;
+        }
+
+        const auto controls = document.list_content_controls();
+        REQUIRE_EQ(controls.size(), 2U);
+        CHECK_EQ(controls[0].text, replacement);
+        CHECK_EQ(controls[1].text, replacement);
+        CHECK_FALSE(controls[0].showing_placeholder);
+        CHECK_FALSE(controls[1].showing_placeholder);
+    }
+    REQUIRE_GT(successful_allocation_calls, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_calls; ++failure_call) {
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+
+        auto anchor = document.paragraphs();
+        REQUIRE(anchor.valid());
+        auto anchor_run = anchor.runs();
+        REQUIRE(anchor_run.valid());
+        const auto unsaved_anchor = utf8_from_u8(u8"未保存锚点编辑😀");
+        REQUIRE(anchor_run.set_text(unsaved_anchor));
+        auto body = document.body_template();
+        REQUIRE(static_cast<bool>(body));
+
+        std::size_t replaced = 0U;
+        std::size_t observed_allocation_calls = 0U;
+        {
+            custom_xml_pugi_allocator_guard guard;
+            custom_xml_failure_call = failure_call;
+            replaced = body.replace_content_control_text_by_tag(
+                "atomic-text", replacement);
+            observed_allocation_calls = custom_xml_allocation_calls;
+        }
+
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_calls);
+        CAPTURE(observed_allocation_calls);
+        CHECK_EQ(replaced, 0U);
+        CHECK_EQ(document.last_error().code,
+                 std::make_error_code(std::errc::not_enough_memory));
+        CHECK(anchor.valid());
+        CHECK(anchor_run.valid());
+        CHECK_EQ(anchor_run.get_text(), unsaved_anchor);
+        CHECK(static_cast<bool>(body));
+
+        const auto unchanged_controls = document.list_content_controls();
+        REQUIRE_EQ(unchanged_controls.size(), 2U);
+        CHECK_EQ(unchanged_controls[0].text, "old first");
+        CHECK_EQ(unchanged_controls[1].text, "old second");
+        CHECK(unchanged_controls[0].showing_placeholder);
+        CHECK(unchanged_controls[1].showing_placeholder);
+
+        REQUIRE_EQ(body.replace_content_control_text_by_tag("atomic-text",
+                                                            replacement),
+                   2U);
+        CHECK_FALSE(document.last_error());
+        CHECK(anchor.valid());
+        CHECK(anchor_run.valid());
+        CHECK_EQ(anchor_run.get_text(), unsaved_anchor);
+        CHECK(static_cast<bool>(body));
+
+        const auto replaced_controls = document.list_content_controls();
+        REQUIRE_EQ(replaced_controls.size(), 2U);
+        CHECK_EQ(replaced_controls[0].text, replacement);
+        CHECK_EQ(replaced_controls[1].text, replacement);
+        CHECK_FALSE(replaced_controls[0].showing_placeholder);
+        CHECK_FALSE(replaced_controls[1].showing_placeholder);
+    }
+
+    fs::remove(target);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "content control text replacement is atomic for every global allocation "
+    "failure") {
+    namespace fs = std::filesystem;
+
+    const auto target = fs::current_path() /
+                        "content_controls_replace_text_global_atomic.docx";
+    fs::remove(target);
+
+    constexpr auto document_xml =
+        R"(<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>anchor</w:t></w:r></w:p><w:sdt><w:sdtPr><w:tag w:val="atomic-text"/><w:showingPlcHdr/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>old first</w:t></w:r></w:p></w:sdtContent></w:sdt><w:sdt><w:sdtPr><w:tag w:val="atomic-text"/><w:showingPlcHdr/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>old second</w:t></w:r></w:p></w:sdtContent></w:sdt></w:body></w:document>)";
+    write_test_docx(target, document_xml);
+
+    auto replacement = utf8_from_u8(u8"全局事务替换中文😀-");
+    replacement.append(96U * 1024U, 'y');
+    replacement += utf8_from_u8(u8"\n全局重试完成🪶");
+
+    std::size_t successful_allocation_calls = 0U;
+    {
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        auto body = document.body_template();
+        REQUIRE(static_cast<bool>(body));
+
+        std::size_t replaced = 0U;
+        {
+            global_allocation_window window{0U};
+            replaced = body.replace_content_control_text_by_tag(
+                "atomic-text", replacement);
+        }
+        REQUIRE_EQ(replaced, 2U);
+        successful_allocation_calls =
+            global_allocation_calls.load(std::memory_order_relaxed);
+    }
+    REQUIRE_GT(successful_allocation_calls, 0U);
+
+    std::size_t retirement_failure_cases = 0U;
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_calls; ++failure_call) {
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+
+        auto anchor = document.paragraphs();
+        REQUIRE(anchor.valid());
+        auto anchor_run = anchor.runs();
+        REQUIRE(anchor_run.valid());
+        const auto unsaved_anchor = utf8_from_u8(u8"未保存全局锚点编辑😀");
+        REQUIRE(anchor_run.set_text(unsaved_anchor));
+        auto body = document.body_template();
+        REQUIRE(static_cast<bool>(body));
+
+        std::size_t replaced = 0U;
+        bool allocation_failure_escaped = false;
+        try {
+            global_allocation_window window{failure_call};
+            replaced = body.replace_content_control_text_by_tag(
+                "atomic-text", replacement);
+        } catch (const std::bad_alloc &) {
+            allocation_failure_escaped = true;
+        }
+        const auto observed_allocation_calls =
+            global_allocation_calls.load(std::memory_order_relaxed);
+
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_calls);
+        CAPTURE(observed_allocation_calls);
+        CHECK_FALSE(allocation_failure_escaped);
+        CHECK_GE(observed_allocation_calls, failure_call);
+        CHECK_EQ(replaced, 0U);
+        CHECK_EQ(document.last_error().code,
+                 std::make_error_code(std::errc::not_enough_memory));
+        CHECK_EQ(document.last_error().entry_name, test_document_xml_entry);
+        if (document.last_error().detail ==
+            "content control XML handle retirement ran out of memory") {
+            ++retirement_failure_cases;
+        }
+        CHECK(anchor.valid());
+        CHECK(anchor_run.valid());
+        CHECK_EQ(anchor_run.get_text(), unsaved_anchor);
+        CHECK(static_cast<bool>(body));
+
+        const auto unchanged_controls = document.list_content_controls();
+        REQUIRE_EQ(unchanged_controls.size(), 2U);
+        CHECK_EQ(unchanged_controls[0].text, "old first");
+        CHECK_EQ(unchanged_controls[1].text, "old second");
+        CHECK(unchanged_controls[0].showing_placeholder);
+        CHECK(unchanged_controls[1].showing_placeholder);
+
+        REQUIRE_EQ(body.replace_content_control_text_by_tag("atomic-text",
+                                                            replacement),
+                   2U);
+        CHECK_FALSE(document.last_error());
+        CHECK(anchor.valid());
+        CHECK(anchor_run.valid());
+        CHECK_EQ(anchor_run.get_text(), unsaved_anchor);
+        CHECK(static_cast<bool>(body));
+
+        const auto replaced_controls = document.list_content_controls();
+        REQUIRE_EQ(replaced_controls.size(), 2U);
+        CHECK_EQ(replaced_controls[0].text, replacement);
+        CHECK_EQ(replaced_controls[1].text, replacement);
+        CHECK_FALSE(replaced_controls[0].showing_placeholder);
+        CHECK_FALSE(replaced_controls[1].showing_placeholder);
+    }
+
+    CHECK_GT(retirement_failure_cases, 0U);
     fs::remove(target);
 }
 

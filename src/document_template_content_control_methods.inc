@@ -197,8 +197,8 @@ Document::replace_content_control_text_by_tag(std::string_view tag,
     }
 
     return replace_content_control_text_by_tag_or_alias_in_part(
-        this->last_error_info, this->document, document_xml_entry, tag,
-        replacement, true);
+        this->last_error_info, *this->xml_handle_lifetime, this->document,
+        document_xml_entry, tag, replacement, true);
 }
 
 std::size_t
@@ -213,8 +213,8 @@ Document::replace_content_control_text_by_alias(std::string_view alias,
     }
 
     return replace_content_control_text_by_tag_or_alias_in_part(
-        this->last_error_info, this->document, document_xml_entry, alias,
-        replacement, false);
+        this->last_error_info, *this->xml_handle_lifetime, this->document,
+        document_xml_entry, alias, replacement, false);
 }
 
 std::size_t Document::set_content_control_form_state_by_tag(
