@@ -569,6 +569,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $blocker
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
             Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $blocker
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
@@ -611,6 +612,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
@@ -653,6 +655,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
             Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null

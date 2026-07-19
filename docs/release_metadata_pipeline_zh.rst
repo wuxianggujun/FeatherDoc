@@ -469,6 +469,35 @@ summary 重建证据。
 ``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 与
 ``review_numbering_catalog_exemplar_conflict`` action。该 action 的 ``open_command``
 会调用 ``diff-numbering-catalog`` 比较候选 catalog，防止覆盖率对齐掩盖来源冲突。
+本轮已把该 action 衔接为结构化审阅计划 ``catalog_patch_plan``，其 schema 固定为
+``featherdoc.numbering_catalog_governance_patch_plan.v1``。治理 summary 顶层保留
+``catalog_patch_plan_count`` / ``catalog_patch_plans``，冲突、blocker 与 action 同时
+保留 ``catalog_patch_plan_id`` / ``catalog_patch_plan``，使下游不必从 Markdown 重新
+拼接计划。计划状态固定为 ``awaiting_authoritative_catalog``，并锁定
+``safe_to_apply=false``、``automatic_patch_available=false``、
+``patch_apply_supported=false``、``manual_review_required=true`` 和
+``requires_authoritative_catalog_selection=true``；候选 catalog 使用
+``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+``candidate_catalog_displays`` 表达。
+
+计划的 ``supported_patch_operations`` 只允许 ``upsert_levels``、
+``upsert_overrides``、``remove_overrides``。definition / instance topology 增删（即
+``definition_topology_changes`` 与 ``instance_topology_changes``）会留在
+``unsupported_automatic_changes``，必须由 reviewer 人工处理。计划还固定保留
+``reviewer_inputs``、``patch_counts``、``diff_commands`` / ``review_command``、
+``patch_command_template``、``lint_command_template``、
+``verification_command_template`` 与有序 ``required_steps``。标准 reviewer 链路为：
+选择 authoritative catalog，运行 diff，编写 reviewed patch，运行
+``patch-numbering-catalog``，运行 ``lint-numbering-catalog``，最后用
+``diff-numbering-catalog --fail-on-diff`` 验证预期结果；在此之前不得把计划标记为可自动
+应用。release blocker rollup、release governance pipeline stage 和 handoff 会原样
+透传 ``catalog_patch_plan_id`` / ``catalog_patch_plan``，bundle / checklist 只消费这些
+已审阅来源，不替 reviewer 选择权威源。
+``release_blocker_rollup Markdown``、``release_governance_handoff Markdown`` 与
+``release_governance_pipeline Markdown`` 也会展开同一计划的结构化摘要：明确显示 plan ID、
+schema / status、安全标志、候选 catalog、supported / unsupported operations、review / patch /
+lint / verification 命令，以及按 ``required_steps`` sequence 排序的审阅步骤；Markdown 不会
+直接 dump nested JSON。
 ``numbering_catalog_governance.real_corpus_confidence`` / ``real_corpus_confidence``
 会作为治理指标进入 rollup、handoff、bundle 与
 ``numbering_catalog_real_corpus_confidence`` 打包镜像字段。该指标必须继续携带

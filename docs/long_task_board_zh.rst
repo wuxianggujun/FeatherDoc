@@ -444,9 +444,27 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
      ``exemplar_catalog_path`` 现在还会进入 ``exemplar_conflicts``，生成
      ``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 与
      ``review_numbering_catalog_exemplar_conflict`` action，并提供
-     ``diff-numbering-catalog`` 复核命令。
+     ``diff-numbering-catalog`` 复核命令。catalog patch 衔接本轮已落地为
+     ``featherdoc.numbering_catalog_governance_patch_plan.v1`` 结构化审阅计划：summary
+     顶层输出 ``catalog_patch_plan_count`` / ``catalog_patch_plans``，冲突、blocker 与
+     action 通过 ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 关联同一计划。
+     计划固定为 ``awaiting_authoritative_catalog``，并明确
+     ``safe_to_apply=false``、``automatic_patch_available=false``、
+     ``patch_apply_supported=false``、``manual_review_required=true`` 与
+     ``requires_authoritative_catalog_selection=true``。
+     ``supported_patch_operations`` 仅包含 ``upsert_levels``、``upsert_overrides`` 与
+     ``remove_overrides``；``definition_topology_changes`` / ``instance_topology_changes``
+     进入 ``unsupported_automatic_changes``，不会被自动 apply。计划同时保留
+     ``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+     ``candidate_catalog_displays``、``reviewer_inputs``、``patch_counts``、
+     ``diff_commands`` / ``review_command``、``patch_command_template``、
+     ``lint_command_template``、``verification_command_template`` 与有序
+     ``required_steps``。release blocker rollup 和 release governance handoff 会原样
+     透传 ``catalog_patch_plan_id`` / ``catalog_patch_plan``。
    * 验收：document skeleton governance rollup 保留 per-document source 与 action；
-     exemplar catalog 来源冲突不能继续以 release-ready 通过。
+     exemplar catalog 来源冲突不能继续以 release-ready 通过；reviewer 必须先选择
+     authoritative catalog、编写只包含受支持 operation 的 reviewed patch，再完成
+     apply、lint 与 ``--fail-on-diff`` 验证。
 
 10. ``P2-TABLE-01``：表格与版式交付质量
 

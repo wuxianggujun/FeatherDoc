@@ -30,6 +30,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "build_release_governance_handoff_report_governance_metrics.ps1")
 . (Join-Path $PSScriptRoot "build_release_governance_handoff_report_input_contracts.ps1")
 . (Join-Path $PSScriptRoot "build_release_governance_handoff_report_normalization.ps1")
+. (Join-Path $PSScriptRoot "catalog_patch_plan_markdown_helpers.ps1")
 . (Join-Path $PSScriptRoot "build_release_governance_handoff_report_report_markdown.ps1")
 
 $repoRoot = Resolve-RepoRoot

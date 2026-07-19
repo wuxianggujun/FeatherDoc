@@ -412,7 +412,25 @@ P2：样式与编号治理
      ``exemplar_catalog_path`` 时，报告会输出 ``exemplar_conflict_count`` /
      ``exemplar_conflicts``，并生成 release blocker、review action 与可复跑的
      ``diff-numbering-catalog`` 命令。
-   * numbering catalog patch 衔接。
+   * numbering catalog patch 衔接已落地为结构化人工审阅计划：顶层
+     ``catalog_patch_plan_count`` / ``catalog_patch_plans`` 与冲突上的
+     ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 固定关联
+     ``featherdoc.numbering_catalog_governance_patch_plan.v1``。计划保持
+     ``status=awaiting_authoritative_catalog``、``safe_to_apply=false``、
+     ``automatic_patch_available=false``、``patch_apply_supported=false``、
+     ``manual_review_required=true`` 与
+     ``requires_authoritative_catalog_selection=true``，不会把来源冲突误当作可自动 apply。
+   * 计划只声明 ``upsert_levels`` / ``upsert_overrides`` / ``remove_overrides`` 为
+     ``supported_patch_operations``；``definition_topology_changes`` /
+     ``instance_topology_changes`` 会进入 ``unsupported_automatic_changes``。候选源、
+     ``reviewer_inputs``、``patch_counts``、``diff_commands`` / ``review_command``、
+     ``patch_command_template``、``lint_command_template``、
+     ``verification_command_template`` 与有序 ``required_steps`` 均保留在计划中。
+   * 候选源会保留 ``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+     ``candidate_catalog_displays``；下一步仍由 reviewer 从
+     ``candidate_catalog_paths`` 中选择 authoritative catalog，
+     人工编写 reviewed patch，再依次 apply、lint 和执行带 ``--fail-on-diff`` 的验证；
+     ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 会由 rollup 与 handoff 原样透传。
    * 多文档 rollup 中保留 per-document source 与 action。
    * numbering catalog governance 已开始输出 per-document ``real_corpus_alignment``
      明细；``missing_baseline`` / ``missing_exemplar`` 会进入 release-blocking

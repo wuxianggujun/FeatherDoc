@@ -209,6 +209,7 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "register_numbering_catalog_baseline",
             "review_numbering_catalog_check_issues",
             "review_numbering_catalog_governance_sources",
+            "review_numbering_catalog_exemplar_conflict",
             "review_numbering_catalog_real_corpus_alignment",
             "review_style_numbering_audit"
         )) {

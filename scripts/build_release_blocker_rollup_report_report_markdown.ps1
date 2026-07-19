@@ -327,6 +327,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $blocker
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -368,6 +369,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }
@@ -407,6 +409,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }

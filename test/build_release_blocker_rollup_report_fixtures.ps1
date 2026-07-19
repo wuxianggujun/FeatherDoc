@@ -13,6 +13,57 @@ $malformedPath = Join-Path $fixtureRoot "malformed\summary.json"
 $failedSourcePath = Join-Path $fixtureRoot "failed-source\summary.json"
 $dedupePath = Join-Path $fixtureRoot "dedupe\summary.json"
 
+$catalogPatchPlanFixture = [ordered]@{
+    schema = "featherdoc.numbering_catalog_governance_patch_plan.v1"
+    id = "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan"
+    document_key = "contract.docx"
+    status = "awaiting_authoritative_catalog"
+    safe_to_apply = $false
+    automatic_patch_available = $false
+    patch_apply_supported = $false
+    manual_review_required = $true
+    requires_authoritative_catalog_selection = $true
+    candidate_catalog_count = 2
+    candidate_catalog_paths = @("output/catalog-a.json", "output/catalog-b.json")
+    candidate_catalog_displays = @(".\output\catalog-a.json", ".\output\catalog-b.json")
+    reviewer_inputs = @("authoritative_catalog_path", "reviewed_patch_path", "reviewed_expected_catalog_path")
+    supported_patch_operations = @("upsert_levels", "upsert_overrides", "remove_overrides")
+    unsupported_automatic_changes = @(
+        [ordered]@{
+            change_kind = "definition_topology_changes"
+            automatic_action = "manual_review_required"
+            reason = "The catalog patch CLI does not add or remove numbering definitions."
+        }
+    )
+    unsupported_change_count = 1
+    patch_counts = [ordered]@{
+        upsert_levels = 0
+        upsert_overrides = 0
+        remove_overrides = 0
+    }
+    diff_commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+    review_command = "featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json"
+    patch_command_template = "featherdoc_cli patch-numbering-catalog <authoritative-catalog.json> --patch-file <reviewed-patch.json> --output <patched-catalog.json> --json"
+    lint_command_template = "featherdoc_cli lint-numbering-catalog <patched-catalog.json> --json"
+    verification_command_template = "featherdoc_cli diff-numbering-catalog <patched-catalog.json> <reviewed-expected-catalog.json> --fail-on-diff --json"
+    required_steps = @(
+        [ordered]@{
+            sequence = 1
+            action = "select_authoritative_catalog"
+            required = $true
+            command_template = ""
+            description = "Choose exactly one candidate catalog as the authoritative source."
+        },
+        [ordered]@{
+            sequence = 2
+            action = "review_candidate_diffs"
+            required = $true
+            commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+            description = "Compare the selected source with every other candidate before editing."
+        }
+    )
+}
+
 Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
     schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     release_blocker_count = 1
@@ -27,6 +78,8 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
             source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+            catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+            catalog_patch_plan = $catalogPatchPlanFixture
         }
     )
     action_items = @(
@@ -34,6 +87,8 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             id = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
+            catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+            catalog_patch_plan = $catalogPatchPlanFixture
         }
     )
     warning_count = 2

@@ -378,6 +378,140 @@ function New-ActionItem {
     }
 }
 
+function New-ExemplarCatalogPatchPlan {
+    param(
+        [string]$DocumentKey,
+        [string[]]$CatalogPaths,
+        [string[]]$CatalogDisplays
+    )
+
+    $candidatePaths = @($CatalogPaths |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        ForEach-Object { ([string]$_).Trim() } |
+        Sort-Object -Unique)
+    $candidateDisplays = @($CatalogDisplays |
+        Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
+        ForEach-Object { ([string]$_).Trim() } |
+        Sort-Object -Unique)
+
+    $diffCommands = New-Object 'System.Collections.Generic.List[string]'
+    if ($candidatePaths.Count -gt 1) {
+        $anchorPath = $candidatePaths[0]
+        foreach ($candidatePath in @($candidatePaths | Select-Object -Skip 1)) {
+            $diffCommands.Add((ConvertTo-TemplateSchemaCommandLine -Arguments @(
+                    "featherdoc_cli",
+                    "diff-numbering-catalog",
+                    $anchorPath,
+                    $candidatePath,
+                    "--json"
+                ))) | Out-Null
+        }
+    }
+
+    $reviewCommand = if ($diffCommands.Count -gt 0) {
+        [string]$diffCommands[0]
+    } else {
+        "featherdoc_cli diff-numbering-catalog <left-catalog.json> <right-catalog.json> --json"
+    }
+    $patchCommand = "featherdoc_cli patch-numbering-catalog <authoritative-catalog.json> --patch-file <reviewed-patch.json> --output <patched-catalog.json> --json"
+    $lintCommand = "featherdoc_cli lint-numbering-catalog <patched-catalog.json> --json"
+    $verificationCommand = "featherdoc_cli diff-numbering-catalog <patched-catalog.json> <reviewed-expected-catalog.json> --fail-on-diff --json"
+    $unsupportedChanges = @(
+        [ordered]@{
+            change_kind = "definition_topology_changes"
+            automatic_action = "manual_review_required"
+            reason = "The catalog patch CLI does not add or remove numbering definitions."
+        }
+        [ordered]@{
+            change_kind = "instance_topology_changes"
+            automatic_action = "manual_review_required"
+            reason = "The catalog patch CLI does not add or remove numbering instances."
+        }
+    )
+    $requiredSteps = @(
+        [ordered]@{
+            sequence = 1
+            action = "select_authoritative_catalog"
+            required = $true
+            command_template = ""
+            description = "Choose exactly one candidate catalog as the authoritative source."
+        }
+        [ordered]@{
+            sequence = 2
+            action = "review_candidate_diffs"
+            required = $true
+            commands = @($diffCommands.ToArray())
+            description = "Compare the selected source with every other candidate before editing."
+        }
+        [ordered]@{
+            sequence = 3
+            action = "author_reviewed_patch"
+            required = $true
+            command_template = ""
+            description = "Write a patch containing only supported level and override operations."
+        }
+        [ordered]@{
+            sequence = 4
+            action = "apply_reviewed_patch"
+            required = $true
+            command_template = $patchCommand
+            description = "Apply the reviewed patch to a copied catalog output."
+        }
+        [ordered]@{
+            sequence = 5
+            action = "lint_patched_catalog"
+            required = $true
+            command_template = $lintCommand
+            description = "Lint the patched catalog before it is promoted."
+        }
+        [ordered]@{
+            sequence = 6
+            action = "verify_patched_catalog"
+            required = $true
+            command_template = $verificationCommand
+            description = "Diff the patched output against the reviewer-approved expected catalog."
+        }
+    )
+
+    return [ordered]@{
+        schema = "featherdoc.numbering_catalog_governance_patch_plan.v1"
+        id = "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan"
+        document_key = $DocumentKey
+        status = "awaiting_authoritative_catalog"
+        safe_to_apply = $false
+        automatic_patch_available = $false
+        patch_apply_supported = $false
+        manual_review_required = $true
+        requires_authoritative_catalog_selection = $true
+        candidate_catalog_count = $candidatePaths.Count
+        candidate_catalog_paths = @($candidatePaths)
+        candidate_catalog_displays = @($candidateDisplays)
+        reviewer_inputs = @(
+            "authoritative_catalog_path"
+            "reviewed_patch_path"
+            "reviewed_expected_catalog_path"
+        )
+        supported_patch_operations = @(
+            "upsert_levels"
+            "upsert_overrides"
+            "remove_overrides"
+        )
+        unsupported_automatic_changes = @($unsupportedChanges)
+        unsupported_change_count = $unsupportedChanges.Count
+        patch_counts = [ordered]@{
+            upsert_levels = 0
+            upsert_overrides = 0
+            remove_overrides = 0
+        }
+        diff_commands = @($diffCommands.ToArray())
+        review_command = $reviewCommand
+        patch_command_template = $patchCommand
+        lint_command_template = $lintCommand
+        verification_command_template = $verificationCommand
+        required_steps = @($requiredSteps)
+    }
+}
+
 function Copy-ActionItemWithReleaseChecklistDefaults {
     param($Item)
 
@@ -519,6 +653,7 @@ function New-ReportMarkdown {
     $lines.Add("- Baseline entries: ``$($Summary.baseline_entry_count)``") | Out-Null
     $lines.Add("- Catalog exemplars: ``$($Summary.catalog_exemplar_count)``") | Out-Null
     $lines.Add("- Exemplar catalog conflicts: ``$($Summary.exemplar_conflict_count)``") | Out-Null
+    $lines.Add("- Catalog patch plans: ``$($Summary.catalog_patch_plan_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
     $lines.Add("- Real corpus confidence: ``$($Summary.real_corpus_confidence_level)`` (score=``$($Summary.real_corpus_confidence_score)``)") | Out-Null
     $lines.Add("- Catalog drift: ``$($Summary.drift_count)``") | Out-Null
@@ -579,6 +714,42 @@ function New-ReportMarkdown {
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$conflict.open_command)) {
                 $lines.Add("  - open_command: ``$($conflict.open_command)``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$conflict.catalog_patch_plan_id)) {
+                $plan = $conflict.catalog_patch_plan
+                $lines.Add("  - catalog_patch_plan_id: ``$($conflict.catalog_patch_plan_id)`` status=``$($plan.status)`` safe_to_apply=``$($plan.safe_to_apply)``") | Out-Null
+            }
+        }
+    }
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Catalog Patch Plans") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.catalog_patch_plans).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($plan in @($Summary.catalog_patch_plans)) {
+            $lines.Add(("- ``{0}``: schema=``{1}`` document_key=``{2}`` status=``{3}`` safe_to_apply=``{4}`` automatic_patch_available=``{5}`` patch_apply_supported=``{6}`` manual_review_required=``{7}`` requires_authoritative_catalog_selection=``{8}``" -f
+                $plan.id,
+                $plan.schema,
+                $plan.document_key,
+                $plan.status,
+                $plan.safe_to_apply,
+                $plan.automatic_patch_available,
+                $plan.patch_apply_supported,
+                $plan.manual_review_required,
+                $plan.requires_authoritative_catalog_selection)) | Out-Null
+            $lines.Add("  - candidates: $(Format-MarkdownCodeList -Values @($plan.candidate_catalog_displays))") | Out-Null
+            $lines.Add("  - supported_patch_operations: $(Format-MarkdownCodeList -Values @($plan.supported_patch_operations))") | Out-Null
+            $lines.Add("  - unsupported_automatic_changes: $(Format-MarkdownCodeList -Values @($plan.unsupported_automatic_changes | ForEach-Object { $_.change_kind }))") | Out-Null
+            foreach ($commandName in @("review_command", "patch_command_template", "lint_command_template", "verification_command_template")) {
+                $commandValue = Get-JsonString -Object $plan -Name $commandName
+                if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                    $lines.Add("  - ${commandName}: ``$commandValue``") | Out-Null
+                }
+            }
+            foreach ($step in @($plan.required_steps)) {
+                $lines.Add("  - required_step ``$($step.sequence)``: ``$($step.action)`` - $($step.description)") | Out-Null
             }
         }
     }

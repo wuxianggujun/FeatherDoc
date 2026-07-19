@@ -228,6 +228,14 @@ function Add-NormalizedBlockers {
             baseline_document_keys = @(Get-JsonArray -Object $blocker -Name "baseline_document_keys")
             matched_document_keys = @(Get-JsonArray -Object $blocker -Name "matched_document_keys")
         }
+        $catalogPatchPlanId = Get-JsonString -Object $blocker -Name "catalog_patch_plan_id"
+        $catalogPatchPlan = Get-JsonProperty -Object $blocker -Name "catalog_patch_plan"
+        if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+            $normalizedBlocker["catalog_patch_plan_id"] = $catalogPatchPlanId
+        }
+        if ($null -ne $catalogPatchPlan) {
+            $normalizedBlocker["catalog_patch_plan"] = $catalogPatchPlan
+        }
         Add-SchemaCorpusMetadataProperties -Target $normalizedBlocker -Source $blocker
         $Collection.Add($normalizedBlocker) | Out-Null
     }
@@ -352,6 +360,14 @@ function Add-NormalizedActions {
             repair_hint = Get-JsonString -Object $item -Name "repair_hint"
             command_template = Get-JsonString -Object $item -Name "command_template"
             repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
+        }
+        $catalogPatchPlanId = Get-JsonString -Object $item -Name "catalog_patch_plan_id"
+        $catalogPatchPlan = Get-JsonProperty -Object $item -Name "catalog_patch_plan"
+        if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+            $normalizedAction["catalog_patch_plan_id"] = $catalogPatchPlanId
+        }
+        if ($null -ne $catalogPatchPlan) {
+            $normalizedAction["catalog_patch_plan"] = $catalogPatchPlan
         }
         Add-SchemaCorpusMetadataProperties -Target $normalizedAction -Source $item
         if ($ForceInformational -or (Test-InformationalActionItem -Item $normalizedAction)) {

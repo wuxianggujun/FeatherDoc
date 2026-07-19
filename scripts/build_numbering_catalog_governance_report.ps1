@@ -52,6 +52,7 @@ $baselineEntries = New-Object 'System.Collections.Generic.List[object]'
 $styleIssueRows = New-Object 'System.Collections.Generic.List[object]'
 $releaseBlockers = New-Object 'System.Collections.Generic.List[object]'
 $actionItems = New-Object 'System.Collections.Generic.List[object]'
+$catalogPatchPlans = New-Object 'System.Collections.Generic.List[object]'
 $warnings = New-Object 'System.Collections.Generic.List[object]'
 
 $skeletonRollupCount = 0
@@ -355,6 +356,26 @@ foreach ($catalogGroup in @($catalogAlignmentRows | Group-Object -Property { [st
     $diffArguments = @("featherdoc_cli", "diff-numbering-catalog", $paths[0], $paths[1], "--json")
     $openCommand = ConvertTo-TemplateSchemaCommandLine -Arguments $diffArguments
     $documentKey = [string]$catalogRows[0].document_key
+    $candidateDisplays = @(
+        foreach ($path in @($paths)) {
+            $matchingRows = @($catalogRows |
+                Where-Object { ([string]$_.exemplar_catalog_path).Trim() -eq $path })
+            if ($matchingRows.Count -gt 0) {
+                $display = [string]$matchingRows[0].exemplar_catalog_display
+                if ([string]::IsNullOrWhiteSpace($display)) {
+                    $display = $path
+                }
+                $display
+            } else {
+                $path
+            }
+        }
+    )
+    $catalogPatchPlan = New-ExemplarCatalogPatchPlan `
+        -DocumentKey $documentKey `
+        -CatalogPaths $paths `
+        -CatalogDisplays $candidateDisplays
+    $catalogPatchPlans.Add($catalogPatchPlan) | Out-Null
     $message = "Multiple exemplar numbering catalogs are registered for the same document key; review the sources before choosing one as authoritative."
     $conflict = [ordered]@{
         document_key = $documentKey
@@ -369,6 +390,8 @@ foreach ($catalogGroup in @($catalogAlignmentRows | Group-Object -Property { [st
         action = "review_numbering_catalog_exemplar_conflict"
         message = $message
         open_command = $openCommand
+        catalog_patch_plan_id = [string]$catalogPatchPlan.id
+        catalog_patch_plan = $catalogPatchPlan
         source_schema = $sourceSchema
         source_json = $sourceJson
         source_json_display = $sourceJsonDisplay
@@ -516,6 +539,8 @@ foreach ($conflict in @($exemplarConflicts.ToArray())) {
     $conflictBlocker["exemplar_catalog_paths"] = @($conflict.exemplar_catalog_paths)
     $conflictBlocker["exemplar_catalog_displays"] = @($conflict.exemplar_catalog_displays)
     $conflictBlocker["open_command"] = [string]$conflict.open_command
+    $conflictBlocker["catalog_patch_plan_id"] = [string]$conflict.catalog_patch_plan_id
+    $conflictBlocker["catalog_patch_plan"] = $conflict.catalog_patch_plan
     $releaseBlockers.Add($conflictBlocker) | Out-Null
 
     $conflictAction = New-ActionItem `
@@ -532,6 +557,10 @@ foreach ($conflict in @($exemplarConflicts.ToArray())) {
     $conflictAction["exemplar_catalog_path_count"] = $conflict.exemplar_catalog_path_count
     $conflictAction["exemplar_catalog_paths"] = @($conflict.exemplar_catalog_paths)
     $conflictAction["exemplar_catalog_displays"] = @($conflict.exemplar_catalog_displays)
+    $conflictAction["catalog_patch_plan_id"] = [string]$conflict.catalog_patch_plan_id
+    $conflictAction["catalog_patch_plan"] = $conflict.catalog_patch_plan
+    $conflictAction["review_command"] = [string]$conflict.catalog_patch_plan.review_command
+    $conflictAction["audit_command"] = [string]$conflict.catalog_patch_plan.verification_command_template
     $actionItems.Add($conflictAction) | Out-Null
 }
 
@@ -629,6 +658,8 @@ $summary = [ordered]@{
     real_corpus_alignment = @($realCorpusAlignment.ToArray())
     exemplar_conflict_count = $exemplarConflicts.Count
     exemplar_conflicts = @($exemplarConflicts.ToArray())
+    catalog_patch_plan_count = $catalogPatchPlans.Count
+    catalog_patch_plans = @($catalogPatchPlans.ToArray())
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount
     total_style_usage_count = $totalStyleUsageCount

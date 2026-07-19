@@ -139,6 +139,15 @@ function New-SkeletonRollup {
                 exemplar_catalog_display = ".\output\document-skeleton-governance\contract\exemplar.numbering-catalog.json"
                 definition_count = 2
                 instance_count = 3
+            },
+            [ordered]@{
+                document_name = "contract.docx"
+                input_docx = "samples/contract.docx"
+                input_docx_display = ".\samples\contract.docx"
+                exemplar_catalog_path = "output/document-skeleton-governance/contract/exemplar.numbering-catalog.alternate.json"
+                exemplar_catalog_display = ".\output\document-skeleton-governance\contract\exemplar.numbering-catalog.alternate.json"
+                definition_count = 2
+                instance_count = 3
             }
         )
         release_blockers = @(

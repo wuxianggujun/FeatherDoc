@@ -41,6 +41,9 @@ $scriptRoot = Join-Path $resolvedRepoRoot "scripts"
 $governanceRoutesDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\governance_routes_zh.rst"
 $indexDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\index.rst"
 $featureGapDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\feature_gap_analysis_zh.rst"
+$nextTasksDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\next_tasks_zh.rst"
+$currentDirectionDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\current_direction_zh.rst"
+$longTaskBoardDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\long_task_board_zh.rst"
 $releaseMetadataDoc = Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "docs\release_metadata_pipeline_zh.rst"
 $cmakeLists = @(
     Get-RepoFileText -Root $resolvedRepoRoot -RelativePath "test\CMakeLists.txt"
@@ -107,6 +110,36 @@ foreach ($marker in @(
         "exemplar_conflicts",
         "numbering_catalog_governance.exemplar_catalog_conflict",
         "review_numbering_catalog_exemplar_conflict",
+        "featherdoc.numbering_catalog_governance_patch_plan.v1",
+        "catalog_patch_plan_count",
+        "catalog_patch_plans",
+        "catalog_patch_plan_id",
+        "catalog_patch_plan",
+        "awaiting_authoritative_catalog",
+        "safe_to_apply",
+        "automatic_patch_available",
+        "patch_apply_supported",
+        "manual_review_required",
+        "requires_authoritative_catalog_selection",
+        "candidate_catalog_count",
+        "candidate_catalog_paths",
+        "candidate_catalog_displays",
+        "reviewer_inputs",
+        "supported_patch_operations",
+        "upsert_levels",
+        "upsert_overrides",
+        "remove_overrides",
+        "unsupported_automatic_changes",
+        "definition_topology_changes",
+        "instance_topology_changes",
+        "unsupported_change_count",
+        "patch_counts",
+        "diff_commands",
+        "review_command",
+        "patch_command_template",
+        "lint_command_template",
+        "verification_command_template",
+        "required_steps",
         "source_schema",
         "source_report_display",
         "source_json_display",
@@ -191,6 +224,97 @@ foreach ($marker in @(
         -Message "Release metadata document should preserve numbering governance marker '$marker'."
 }
 
+$catalogPatchPlanDocMarkers = @(
+    "featherdoc.numbering_catalog_governance_patch_plan.v1",
+    "catalog_patch_plan_count",
+    "catalog_patch_plans",
+    "catalog_patch_plan_id",
+    "catalog_patch_plan",
+    "awaiting_authoritative_catalog",
+    "safe_to_apply",
+    "automatic_patch_available",
+    "manual_review_required",
+    "requires_authoritative_catalog_selection",
+    "upsert_levels",
+    "upsert_overrides",
+    "remove_overrides",
+    "required_steps"
+)
+
+foreach ($assertion in @(
+        [ordered]@{ text = $governanceRoutesDoc; label = "governance routes patch plan docs" }
+        [ordered]@{ text = $featureGapDoc; label = "feature gap patch plan docs" }
+        [ordered]@{ text = $nextTasksDoc; label = "next tasks patch plan docs" }
+        [ordered]@{ text = $currentDirectionDoc; label = "current direction patch plan docs" }
+        [ordered]@{ text = $longTaskBoardDoc; label = "long task board patch plan docs" }
+        [ordered]@{ text = $releaseMetadataDoc; label = "release metadata patch plan docs" }
+    )) {
+    foreach ($marker in $catalogPatchPlanDocMarkers) {
+        Assert-ContainsText -Text ([string]$assertion.text) -ExpectedText $marker `
+            -Message "$($assertion.label) should preserve structured catalog patch plan marker '$marker'."
+    }
+}
+
+foreach ($marker in @(
+        "release_blocker_rollup Markdown",
+        "release_governance_handoff Markdown",
+        "release_governance_pipeline Markdown",
+        "patch_command_template",
+        "lint_command_template",
+        "verification_command_template",
+        "required_steps"
+    )) {
+    Assert-ContainsText -Text $releaseMetadataDoc -ExpectedText $marker `
+        -Message "Release metadata docs should preserve downstream catalog patch plan Markdown marker '$marker'."
+}
+
+foreach ($assertion in @(
+        [ordered]@{
+            text = $featureGapDoc
+            label = "feature gap patch plan review contract"
+        }
+        [ordered]@{
+            text = $nextTasksDoc
+            label = "next tasks patch plan review contract"
+        }
+        [ordered]@{
+            text = $currentDirectionDoc
+            label = "current direction patch plan review contract"
+        }
+        [ordered]@{
+            text = $longTaskBoardDoc
+            label = "long task board patch plan review contract"
+        }
+        [ordered]@{
+            text = $releaseMetadataDoc
+            label = "release metadata patch plan review contract"
+        }
+    )) {
+    foreach ($marker in @(
+            "patch_apply_supported",
+            "candidate_catalog_count",
+            "candidate_catalog_paths",
+            "candidate_catalog_displays",
+            "reviewer_inputs",
+            "supported_patch_operations",
+            "unsupported_automatic_changes",
+            "definition_topology_changes",
+            "instance_topology_changes",
+            "patch_counts",
+            "diff_commands",
+            "review_command",
+            "patch_command_template",
+            "lint_command_template",
+            "verification_command_template",
+            "authoritative catalog",
+            "reviewed patch",
+            "--fail-on-diff"
+        )) {
+        Assert-ContainsText -Text ([string]$assertion.text) -ExpectedText $marker `
+            -Message "$($assertion.label) should preserve patch review marker '$marker'."
+    }
+}
+
 foreach ($assertion in @(
         [ordered]@{
             text = $numberingGovernanceScript
@@ -201,6 +325,36 @@ foreach ($assertion in @(
                 "featherdoc.numbering_catalog_manifest_summary.v1",
                 "numbering_catalog_governance.real_corpus_alignment_gap",
                 "numbering_catalog_governance.exemplar_catalog_conflict",
+                "featherdoc.numbering_catalog_governance_patch_plan.v1",
+                "catalog_patch_plan_count",
+                "catalog_patch_plans",
+                "catalog_patch_plan_id",
+                "catalog_patch_plan",
+                "awaiting_authoritative_catalog",
+                "safe_to_apply",
+                "automatic_patch_available",
+                "patch_apply_supported",
+                "manual_review_required",
+                "requires_authoritative_catalog_selection",
+                "candidate_catalog_count",
+                "candidate_catalog_paths",
+                "candidate_catalog_displays",
+                "reviewer_inputs",
+                "supported_patch_operations",
+                "upsert_levels",
+                "upsert_overrides",
+                "remove_overrides",
+                "unsupported_automatic_changes",
+                "definition_topology_changes",
+                "instance_topology_changes",
+                "unsupported_change_count",
+                "patch_counts",
+                "diff_commands",
+                "review_command",
+                "patch_command_template",
+                "lint_command_template",
+                "verification_command_template",
+                "required_steps",
                 "numbering_catalog_governance.dirty_baseline",
                 "numbering_catalog_governance.catalog_drift",
                 "numbering_catalog_governance.catalog_check_issue",
@@ -246,7 +400,9 @@ foreach ($assertion in @(
                 "source_schema",
                 "source_report_display",
                 "source_json_display",
-                "open_command"
+                "open_command",
+                "catalog_patch_plan_id",
+                "catalog_patch_plan"
             )
         },
         [ordered]@{
@@ -260,7 +416,9 @@ foreach ($assertion in @(
                 "real_corpus_confidence",
                 "source_report_display",
                 "source_json_display",
-                "open_command"
+                "open_command",
+                "catalog_patch_plan_id",
+                "catalog_patch_plan"
             )
         },
         [ordered]@{
@@ -274,7 +432,9 @@ foreach ($assertion in @(
                 "matched_document_count",
                 "source_report_display",
                 "source_json_display",
-                "open_command"
+                "open_command",
+                "catalog_patch_plan_id",
+                "catalog_patch_plan"
             )
         },
         [ordered]@{
@@ -326,6 +486,33 @@ foreach ($assertion in @(
                 "exemplar_conflicts",
                 "numbering_catalog_governance.exemplar_catalog_conflict",
                 "review_numbering_catalog_exemplar_conflict",
+                "featherdoc.numbering_catalog_governance_patch_plan.v1",
+                "catalog_patch_plan_count",
+                "catalog_patch_plans",
+                "catalog_patch_plan_id",
+                "catalog_patch_plan",
+                "awaiting_authoritative_catalog",
+                "safe_to_apply",
+                "automatic_patch_available",
+                "patch_apply_supported",
+                "manual_review_required",
+                "requires_authoritative_catalog_selection",
+                "candidate_catalog_count",
+                "candidate_catalog_paths",
+                "candidate_catalog_displays",
+                "supported_patch_operations",
+                "upsert_levels",
+                "upsert_overrides",
+                "remove_overrides",
+                "unsupported_automatic_changes",
+                "definition_topology_changes",
+                "instance_topology_changes",
+                "diff_commands",
+                "review_command",
+                "patch_command_template",
+                "lint_command_template",
+                "verification_command_template",
+                "required_steps",
                 "numbering_catalog_governance.real_corpus_alignment_gap",
                 "source_schema",
                 "source_report_display",

@@ -194,6 +194,23 @@
 - numbering catalog JSON definition level upsert 与 override 批量 upsert/remove
 - numbering catalog JSON lint 结构校验
 - numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
+- exemplar catalog 来源冲突的结构化 patch plan：
+  ``featherdoc.numbering_catalog_governance_patch_plan.v1`` 通过顶层
+  ``catalog_patch_plan_count`` / ``catalog_patch_plans`` 与冲突项的
+  ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 暴露。计划固定为
+  ``awaiting_authoritative_catalog``，并明确 ``safe_to_apply=false``、
+  ``automatic_patch_available=false``、``patch_apply_supported=false``、
+  ``manual_review_required=true`` 与
+  ``requires_authoritative_catalog_selection=true``。
+- patch plan 的 ``supported_patch_operations`` 只支持 ``upsert_levels`` / ``upsert_overrides`` /
+  ``remove_overrides``；``definition_topology_changes`` /
+  ``instance_topology_changes`` 保留在 ``unsupported_automatic_changes``，不做自动合并。候选
+  catalog 通过 ``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+  ``candidate_catalog_displays`` 暴露，
+  ``reviewer_inputs``、``patch_counts``、``diff_commands`` / ``review_command``、
+  ``patch_command_template``、``lint_command_template``、
+  ``verification_command_template`` 与有序 ``required_steps`` 会随
+  ``catalog_patch_plan`` 进入下游 rollup 和 release governance handoff。
 - 多份 document skeleton governance summary 的 rollup 汇总入口，可把
   exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
   ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图。
@@ -217,9 +234,10 @@
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. exemplar catalog 来源冲突审计已接入 numbering governance：同一 document key 的
-   多个不同 catalog 会生成 blocker、review action 与 diff 命令；下一步继续完善
-   catalog patch 衔接
+4. exemplar catalog 来源冲突审计及结构化 catalog patch plan 已接入 numbering
+   governance；下一步仍由 reviewer 选择唯一 authoritative catalog，人工编写只包含
+   受支持 operation 的 reviewed patch，再按 ``required_steps`` 完成 apply、lint 与
+   ``--fail-on-diff`` 验证
 
 这条线的目标是：
 

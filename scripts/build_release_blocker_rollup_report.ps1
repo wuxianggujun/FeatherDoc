@@ -29,6 +29,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_pdf_evidence.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_release_entry_evidence.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_markdown_helpers.ps1")
+. (Join-Path $PSScriptRoot "catalog_patch_plan_markdown_helpers.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_report_markdown.ps1")
 
 $repoRoot = Resolve-RepoRoot
@@ -170,6 +171,14 @@ foreach ($path in @($inputPaths)) {
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
                 repair_action_classes = @(Get-JsonArray -Object $blocker -Name "repair_action_classes")
             }
+            $catalogPatchPlanId = Get-JsonString -Object $blocker -Name "catalog_patch_plan_id"
+            $catalogPatchPlan = Get-JsonProperty -Object $blocker -Name "catalog_patch_plan"
+            if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+                $rollupBlocker["catalog_patch_plan_id"] = $catalogPatchPlanId
+            }
+            if ($null -ne $catalogPatchPlan) {
+                $rollupBlocker["catalog_patch_plan"] = $catalogPatchPlan
+            }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
                     $rollupBlocker["readiness_status"] = $sourceReportStatus
@@ -306,6 +315,14 @@ foreach ($path in @($inputPaths)) {
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
                 repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
+            }
+            $catalogPatchPlanId = Get-JsonString -Object $item -Name "catalog_patch_plan_id"
+            $catalogPatchPlan = Get-JsonProperty -Object $item -Name "catalog_patch_plan"
+            if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+                $rollupActionItem["catalog_patch_plan_id"] = $catalogPatchPlanId
+            }
+            if ($null -ne $catalogPatchPlan) {
+                $rollupActionItem["catalog_patch_plan"] = $catalogPatchPlan
             }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {

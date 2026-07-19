@@ -192,6 +192,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve blocker source JSON display."
     Assert-ContainsText -Text ([string]$skeletonBlocker.origin_source_report_display) -ExpectedText "document-skeleton-governance-rollup\summary.json" `
         -Message "Rollup should preserve blocker origin source report display."
+    Assert-Equal -Actual ([string]$skeletonBlocker.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlanFixture.id) `
+        -Message "Rollup should preserve the catalog patch plan id on blockers."
+    Assert-Equal -Actual ($skeletonBlocker.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+        -Expected ($catalogPatchPlanFixture | ConvertTo-Json -Depth 20 -Compress) `
+        -Message "Rollup should preserve the nested catalog patch plan on blockers without reshaping it."
     $skeletonAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
         Select-Object -First 1)
@@ -199,6 +205,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should expose action item open command."
     Assert-Equal -Actual ([string]$skeletonAction.action) -Expected "preview_style_numbering_repair" `
         -Message "Rollup should fall back to action item id when action is absent."
+    Assert-Equal -Actual ([string]$skeletonAction.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlanFixture.id) `
+        -Message "Rollup should preserve the catalog patch plan id on action items."
+    Assert-Equal -Actual ($skeletonAction.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+        -Expected ($catalogPatchPlanFixture | ConvertTo-Json -Depth 20 -Compress) `
+        -Message "Rollup should preserve the nested catalog patch plan on action items without reshaping it."
     $contentControlBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
         Select-Object -First 1)
@@ -771,6 +783,29 @@ if (Test-Scenario -Name "passing") {
         'reviewer_action_reason:',
         'reviewer_actions:'
     ) -Message "Markdown should keep reviewer action fields together for project-template readiness."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor 'catalog_patch_plan_id: `numbering_catalog_governance.exemplar_catalog_conflict_patch_plan`' -ExpectedFragments @(
+        'schema: `featherdoc.numbering_catalog_governance_patch_plan.v1`',
+        'status: `awaiting_authoritative_catalog`',
+        'safe_to_apply: `False`',
+        'automatic_patch_available: `False`',
+        'patch_apply_supported: `False`',
+        'manual_review_required: `True`',
+        'requires_authoritative_catalog_selection: `True`',
+        'candidate_catalogs: `.\output\catalog-a.json`, `.\output\catalog-b.json`',
+        'supported_patch_operations: `upsert_levels`, `upsert_overrides`, `remove_overrides`',
+        'unsupported_automatic_changes: `definition_topology_changes`',
+        'review_command: `featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json`',
+        'patch_command_template:',
+        'lint_command_template:',
+        'verification_command_template:',
+        'required_steps:',
+        'sequence=`1` action=`select_authoritative_catalog`',
+        'sequence=`2` action=`review_candidate_diffs`'
+    ) -Message "Markdown should expose the structured catalog patch plan on rollup items."
+    $rollupStepOneIndex = $markdown.IndexOf('sequence=`1` action=`select_authoritative_catalog`', [System.StringComparison]::Ordinal)
+    $rollupStepTwoIndex = $markdown.IndexOf('sequence=`2` action=`review_candidate_diffs`', [System.StringComparison]::Ordinal)
+    Assert-True -Condition ($rollupStepOneIndex -ge 0 -and $rollupStepTwoIndex -gt $rollupStepOneIndex) `
+        -Message "Rollup Markdown should preserve required catalog patch step order."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
