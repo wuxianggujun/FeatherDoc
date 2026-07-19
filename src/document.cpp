@@ -522,6 +522,7 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
         const auto candidate_temp_file = output_file.parent_path() / temp_name;
 
 #ifdef _WIN32
+        temp_file = candidate_temp_file;
         int descriptor = -1;
         const auto open_error =
             _wsopen_s(&descriptor, candidate_temp_file.c_str(),
@@ -530,7 +531,6 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
         if (open_error == 0) {
             temp_stream = _wfdopen(descriptor, L"w+b");
             if (temp_stream != nullptr) {
-                temp_file = candidate_temp_file;
                 return {};
             }
             const auto stream_error = errno;
@@ -545,6 +545,7 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
             temp_file.clear();
             return {open_error, std::generic_category()};
         }
+        temp_file.clear();
 #else
         int open_flags = O_CREAT | O_EXCL | O_RDWR;
 #ifdef O_CLOEXEC
@@ -582,10 +583,12 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
             return {probe_error, std::generic_category()};
         }
 
+        temp_file = candidate_temp_file;
         const int descriptor =
             ::open(candidate_temp_file.c_str(), open_flags, 0600);
         if (descriptor < 0) {
             if (errno == EEXIST) {
+                temp_file.clear();
                 continue;
             }
             temp_file.clear();
@@ -615,7 +618,6 @@ auto reserve_unique_temp_file(const std::filesystem::path &output_file,
 #endif
         temp_stream = ::fdopen(descriptor, "w+b");
         if (temp_stream != nullptr) {
-            temp_file = candidate_temp_file;
             return {};
         }
         const auto stream_error = errno;
