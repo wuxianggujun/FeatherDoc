@@ -365,6 +365,8 @@ Release governance 与发布材料
   reviewer-facing 入口。
 - ``scripts/release_blocker_metadata_helpers.ps1``：提供 release blocker 元数据、
   action 指引和质量检查 helper。
+- ``scripts/catalog_patch_plan_markdown_helpers.ps1``：为 release blocker rollup、
+  pipeline 和 handoff 报告统一渲染 catalog patch plan Markdown。
 - ``scripts/release_visual_metadata_helpers.ps1``：提供 release 视觉复核 metadata
   汇总、路径解析和任务 verdict helper。
 - ``scripts/assert_release_material_safety.ps1``：检查 staged release materials 的
