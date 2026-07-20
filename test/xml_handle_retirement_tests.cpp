@@ -384,6 +384,151 @@ class global_allocation_guard final {
     return text;
 }
 
+enum class table_batch_text_operation {
+    row = 0,
+    rows,
+    cell_block,
+};
+
+struct table_batch_text_inputs final {
+    std::vector<std::string> row_texts;
+    std::vector<std::vector<std::string>> rows_texts;
+    std::vector<std::vector<std::string>> cell_block_texts;
+    std::string normalized_large_text;
+};
+
+[[nodiscard]] auto make_table_batch_text_inputs()
+    -> table_batch_text_inputs {
+    const auto large_text = replacement_cell_text();
+    return table_batch_text_inputs{
+        {"行批量中文😀", large_text},
+        {{"多行中文00", "多行中文01"}, {"多行中文10", large_text}},
+        {{"区块中文01"}, {large_text}},
+        normalized_replacement_cell_text(),
+    };
+}
+
+[[nodiscard]] auto
+table_batch_operation_name(table_batch_text_operation operation) -> const char * {
+    switch (operation) {
+    case table_batch_text_operation::row:
+        return "TableRow::set_texts";
+    case table_batch_text_operation::rows:
+        return "Table::set_rows_texts";
+    case table_batch_text_operation::cell_block:
+        return "Table::set_cell_block_texts";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] auto apply_table_batch_text_operation(
+    featherdoc::Table &table, table_batch_text_operation operation,
+    const table_batch_text_inputs &inputs) -> bool {
+    switch (operation) {
+    case table_batch_text_operation::row: {
+        auto row = table.find_row(0U);
+        return row.has_value() && row->set_texts(inputs.row_texts);
+    }
+    case table_batch_text_operation::rows:
+        return table.set_rows_texts(0U, inputs.rows_texts);
+    case table_batch_text_operation::cell_block:
+        return table.set_cell_block_texts(0U, 1U,
+                                          inputs.cell_block_texts);
+    }
+    return false;
+}
+
+struct table_cell_coordinate final {
+    std::size_t row{};
+    std::size_t column{};
+};
+
+[[nodiscard]] auto batch_target_coordinates(
+    table_batch_text_operation operation)
+    -> std::vector<table_cell_coordinate> {
+    switch (operation) {
+    case table_batch_text_operation::row:
+        return {{0U, 0U}, {0U, 1U}};
+    case table_batch_text_operation::rows:
+        return {{0U, 0U}, {0U, 1U}, {1U, 0U}, {1U, 1U}};
+    case table_batch_text_operation::cell_block:
+        return {{0U, 1U}, {1U, 1U}};
+    }
+    return {};
+}
+
+struct table_cell_handle_snapshot final {
+    featherdoc::TableCell cell;
+    featherdoc::Paragraph paragraph;
+    featherdoc::Run run;
+};
+
+[[nodiscard]] auto capture_table_cell_handle_snapshots(
+    featherdoc::Table &table,
+    const std::vector<table_cell_coordinate> &coordinates)
+    -> std::vector<table_cell_handle_snapshot> {
+    auto snapshots = std::vector<table_cell_handle_snapshot>{};
+    snapshots.reserve(coordinates.size());
+
+    for (const auto coordinate : coordinates) {
+        auto cell = table.find_cell(coordinate.row, coordinate.column);
+        REQUIRE(cell.has_value());
+        auto paragraph = cell->paragraphs();
+        auto run = paragraph.runs();
+        snapshots.push_back({*cell, paragraph, run});
+    }
+
+    return snapshots;
+}
+
+void check_table_cell_handle_snapshots_valid(
+    const std::vector<table_cell_handle_snapshot> &snapshots) {
+    for (const auto &snapshot : snapshots) {
+        CHECK(snapshot.cell.valid());
+        CHECK(snapshot.paragraph.valid());
+        CHECK(snapshot.run.valid());
+    }
+}
+
+void check_table_cell_body_handles_retired(
+    const std::vector<table_cell_handle_snapshot> &snapshots) {
+    for (const auto &snapshot : snapshots) {
+        CHECK(snapshot.cell.valid());
+        CHECK_FALSE(snapshot.paragraph.valid());
+        CHECK_FALSE(snapshot.run.valid());
+    }
+}
+
+[[nodiscard]] auto expected_table_batch_texts(
+    table_batch_text_operation operation,
+    const table_batch_text_inputs &inputs)
+    -> std::array<std::string_view, 4U> {
+    switch (operation) {
+    case table_batch_text_operation::row:
+        return {inputs.row_texts[0U], inputs.normalized_large_text,
+                "原始中文1-0", "原始中文1-1"};
+    case table_batch_text_operation::rows:
+        return {inputs.rows_texts[0U][0U], inputs.rows_texts[0U][1U],
+                inputs.rows_texts[1U][0U], inputs.normalized_large_text};
+    case table_batch_text_operation::cell_block:
+        return {"原始中文0-0", inputs.cell_block_texts[0U][0U],
+                "原始中文1-0", inputs.normalized_large_text};
+    }
+    return {};
+}
+
+void check_table_cell_texts(
+    featherdoc::Table &table,
+    const std::array<std::string_view, 4U> &expected_texts) {
+    for (std::size_t row = 0U; row < 2U; ++row) {
+        for (std::size_t column = 0U; column < 2U; ++column) {
+            auto cell = table.find_cell(row, column);
+            REQUIRE(cell.has_value());
+            CHECK_EQ(cell->get_text(), expected_texts[row * 2U + column]);
+        }
+    }
+}
+
 } // namespace
 
 #if defined(FEATHERDOC_ALLOCATION_FAILURE_TEST_BINARY) &&                     \
@@ -1915,6 +2060,170 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
         REQUIRE_FALSE(document.save());
         CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
                  xml_before);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table batch text replacement APIs are atomic for every pugixml "
+    "allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto inputs = make_table_batch_text_inputs();
+    constexpr auto original_texts = std::array<std::string_view, 4U>{
+        "原始中文0-0", "原始中文0-1", "原始中文1-0", "原始中文1-1"};
+    constexpr auto operations = std::array{
+        table_batch_text_operation::row, table_batch_text_operation::rows,
+        table_batch_text_operation::cell_block};
+
+    for (const auto operation : operations) {
+        CAPTURE(table_batch_operation_name(operation));
+        const auto scenario_suffix =
+            std::to_string(static_cast<std::size_t>(operation));
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                "批量文本XML基线" + scenario_suffix, 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto replaced = false;
+            {
+                pugi_allocator_guard guard;
+                replaced =
+                    apply_table_batch_text_operation(table, operation, inputs);
+                successful_allocation_count = pugi_allocation_calls;
+            }
+            REQUIRE(replaced);
+            REQUIRE_GT(successful_allocation_count, 0U);
+            check_table_cell_texts(
+                table, expected_table_batch_texts(operation, inputs));
+        }
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                "批量文本XML失败" + scenario_suffix, failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            const auto coordinates = batch_target_coordinates(operation);
+            const auto target_snapshots =
+                capture_table_cell_handle_snapshots(table, coordinates);
+
+            auto replaced = true;
+            {
+                pugi_allocator_guard guard;
+                pugi_failure_call = failure_call;
+                replaced =
+                    apply_table_batch_text_operation(table, operation, inputs);
+            }
+
+            REQUIRE_FALSE(replaced);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            check_table_cell_handle_snapshots_valid(target_snapshots);
+            check_table_cell_texts(table, original_texts);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(
+                apply_table_batch_text_operation(table, operation, inputs));
+            check_table_cell_body_handles_retired(target_snapshots);
+            check_table_cell_texts(
+                table, expected_table_batch_texts(operation, inputs));
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table batch text replacement APIs are atomic for every global "
+    "allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto inputs = make_table_batch_text_inputs();
+    constexpr auto original_texts = std::array<std::string_view, 4U>{
+        "原始中文0-0", "原始中文0-1", "原始中文1-0", "原始中文1-1"};
+    constexpr auto operations = std::array{
+        table_batch_text_operation::row, table_batch_text_operation::rows,
+        table_batch_text_operation::cell_block};
+
+    for (const auto operation : operations) {
+        CAPTURE(table_batch_operation_name(operation));
+        const auto scenario_suffix =
+            std::to_string(static_cast<std::size_t>(operation));
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                "批量文本全局基线" + scenario_suffix, 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto replaced = false;
+            {
+                global_allocation_guard guard{0U};
+                replaced =
+                    apply_table_batch_text_operation(table, operation, inputs);
+            }
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+            REQUIRE(replaced);
+            REQUIRE_GT(successful_allocation_count, 0U);
+            check_table_cell_texts(
+                table, expected_table_batch_texts(operation, inputs));
+        }
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                "批量文本全局失败" + scenario_suffix, failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            const auto coordinates = batch_target_coordinates(operation);
+            const auto target_snapshots =
+                capture_table_cell_handle_snapshots(table, coordinates);
+
+            auto replaced = true;
+            try {
+                global_allocation_guard guard{failure_call};
+                replaced =
+                    apply_table_batch_text_operation(table, operation, inputs);
+            } catch (const std::bad_alloc &) {
+                replaced = false;
+            }
+
+            REQUIRE_FALSE(replaced);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            check_table_cell_handle_snapshots_valid(target_snapshots);
+            check_table_cell_texts(table, original_texts);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(
+                apply_table_batch_text_operation(table, operation, inputs));
+            check_table_cell_body_handles_retired(target_snapshots);
+            check_table_cell_texts(
+                table, expected_table_batch_texts(operation, inputs));
+        }
     }
 }
 

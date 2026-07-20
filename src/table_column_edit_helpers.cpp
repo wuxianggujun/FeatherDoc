@@ -4,6 +4,7 @@
 #include "xml_helpers.hpp"
 
 #include <limits>
+#include <new>
 #include <string>
 
 namespace featherdoc::detail {
@@ -167,6 +168,27 @@ struct staged_table_child final {
         throw;
     }
     return &staged_properties.back();
+}
+
+[[nodiscard]] auto append_staged_table_cell_text(pugi::xml_node parent,
+                                                 const char *text)
+    -> pugi::xml_node {
+    if (parent == pugi::xml_node{} || text == nullptr) {
+        return {};
+    }
+
+    auto cell = checked_append_xml_element(parent, "w:tc");
+    auto paragraph = cell == pugi::xml_node{}
+                         ? pugi::xml_node{}
+                         : checked_append_xml_element(cell, "w:p");
+    if (paragraph == pugi::xml_node{}) {
+        return {};
+    }
+
+    if (text[0] != '\0' && !append_plain_text_run(paragraph, text)) {
+        return {};
+    }
+    return cell;
 }
 
 } // namespace
@@ -1263,6 +1285,44 @@ auto replace_cell_body_contents(
         }
     }
     return true;
+}
+
+auto replace_table_cell_texts(
+    std::span<const tracked_table_cell_text_replacement> replacements) -> bool {
+    if (replacements.empty()) {
+        return true;
+    }
+
+    try {
+        pugi::xml_document staging_document;
+        const auto staging_root = checked_append_xml_element(
+            staging_document, "featherdoc-table-cell-text-replacements");
+        if (staging_root == pugi::xml_node{}) {
+            return false;
+        }
+
+        auto body_replacements = std::vector<tracked_cell_body_replacement>{};
+        body_replacements.reserve(replacements.size());
+        for (const auto &replacement : replacements) {
+            if (!replacement.target_cell.has_node() ||
+                replacement.text == nullptr) {
+                return false;
+            }
+
+            const auto source_cell =
+                append_staged_table_cell_text(staging_root, replacement.text);
+            if (source_cell == pugi::xml_node{}) {
+                return false;
+            }
+            body_replacements.push_back(tracked_cell_body_replacement{
+                replacement.target_cell, source_cell});
+        }
+
+        return replace_cell_body_contents(replacements.front().target_cell,
+                                          body_replacements);
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
 }
 
 auto successor_vertical_merge_promotions_for_row_removal(pugi::xml_node row)

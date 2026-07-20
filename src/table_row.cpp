@@ -1,5 +1,7 @@
 #include "table_method_dependencies.hpp"
 
+#include <new>
+
 namespace featherdoc {
 
 TableRow::TableRow() = default;
@@ -376,15 +378,27 @@ bool TableRow::set_texts(const std::vector<std::string> &texts) {
         return false;
     }
 
-    auto cell_handle = this->cells();
-    for (std::size_t index = 0U; index < texts.size(); ++index) {
-        if (!cell_handle.has_next() || !cell_handle.set_text(texts[index])) {
-            return false;
+    auto replacements = std::vector<tracked_table_cell_text_replacement>{};
+    try {
+        replacements.reserve(texts.size());
+        auto cell_node = this->current.child("w:tc");
+        for (std::size_t index = 0U; index < texts.size(); ++index) {
+            if (cell_node == pugi::xml_node{}) {
+                return false;
+            }
+            replacements.push_back(tracked_table_cell_text_replacement{
+                this->parent.with_node(cell_node), texts[index].c_str()});
+            cell_node = detail::next_named_sibling(cell_node, "w:tc");
         }
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
 
-        if (index + 1U < texts.size()) {
-            cell_handle.next();
-        }
+    const auto replacement_span =
+        std::span<const tracked_table_cell_text_replacement>{
+            replacements.data(), replacements.size()};
+    if (!replace_table_cell_texts(replacement_span)) {
+        return false;
     }
 
     return true;

@@ -51,6 +51,11 @@ struct tracked_cell_body_replacement final {
     pugi::xml_node source_cell;
 };
 
+struct tracked_table_cell_text_replacement final {
+    tracked_xml_node target_cell;
+    const char *text{};
+};
+
 struct staged_cell_properties final {
     pugi::xml_node cell;
     pugi::xml_node original;
@@ -135,6 +140,8 @@ clear_cell_contents_for_vertical_merge(
     const tracked_xml_node &retirement_anchor,
     const std::vector<tracked_cell_body_replacement> &replacements,
     std::span<const pugi::xml_node> additional_retirement_roots = {}) -> bool;
+[[nodiscard]] auto replace_table_cell_texts(
+    std::span<const tracked_table_cell_text_replacement> replacements) -> bool;
 [[nodiscard]] auto successor_vertical_merge_promotions_for_row_removal(
     pugi::xml_node row) -> std::vector<std::pair<pugi::xml_node, pugi::xml_node>>;
 

@@ -1,5 +1,8 @@
 #include "table_method_dependencies.hpp"
 
+#include <limits>
+#include <new>
+
 namespace featherdoc {
 
 Table::Table() = default;
@@ -109,34 +112,56 @@ bool Table::set_rows_texts(std::size_t start_row_index,
         return true;
     }
 
-    const auto count_row_cells = [](TableRow row_handle) -> std::size_t {
-        auto count = std::size_t{0U};
-        for (auto cell_handle = row_handle.cells(); cell_handle.has_next();
-             cell_handle.next()) {
-            ++count;
+    auto replacements = std::vector<tracked_table_cell_text_replacement>{};
+    try {
+        auto replacement_count = std::size_t{0U};
+        for (const auto &row_texts : rows) {
+            if (row_texts.size() >
+                std::numeric_limits<std::size_t>::max() - replacement_count) {
+                return false;
+            }
+            replacement_count += row_texts.size();
         }
-        return count;
-    };
+        replacements.reserve(replacement_count);
 
-    auto row_handles = std::vector<TableRow>{};
-    row_handles.reserve(rows.size());
-    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
-        auto row_handle = this->find_row(start_row_index + row_offset);
-        if (!row_handle.has_value()) {
-            return false;
+        for (std::size_t row_offset = 0U; row_offset < rows.size();
+             ++row_offset) {
+            if (row_offset >
+                std::numeric_limits<std::size_t>::max() - start_row_index) {
+                return false;
+            }
+
+            auto row_handle = this->find_row(start_row_index + row_offset);
+            if (!row_handle.has_value()) {
+                return false;
+            }
+
+            const auto &row_texts = rows[row_offset];
+            auto cell_count = std::size_t{0U};
+            for (auto cell = row_handle->current.child("w:tc");
+                 cell != pugi::xml_node{};
+                 cell = detail::next_named_sibling(cell, "w:tc")) {
+                if (cell_count == row_texts.size()) {
+                    return false;
+                }
+                replacements.push_back(tracked_table_cell_text_replacement{
+                    this->parent.with_node(cell),
+                    row_texts[cell_count].c_str()});
+                ++cell_count;
+            }
+            if (cell_count != row_texts.size()) {
+                return false;
+            }
         }
-
-        if (count_row_cells(*row_handle) != rows[row_offset].size()) {
-            return false;
-        }
-
-        row_handles.push_back(*row_handle);
+    } catch (const std::bad_alloc &) {
+        return false;
     }
 
-    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
-        if (!row_handles[row_offset].set_texts(rows[row_offset])) {
-            return false;
-        }
+    const auto replacement_span =
+        std::span<const tracked_table_cell_text_replacement>{
+            replacements.data(), replacements.size()};
+    if (!replace_table_cell_texts(replacement_span)) {
+        return false;
     }
 
     return true;
@@ -156,55 +181,70 @@ bool Table::set_cell_block_texts(
         return true;
     }
 
-    const auto count_row_cells = [](TableRow row_handle) -> std::size_t {
-        auto count = std::size_t{0U};
-        for (auto cell_handle = row_handle.cells(); cell_handle.has_next();
-             cell_handle.next()) {
-            ++count;
+    auto replacements = std::vector<tracked_table_cell_text_replacement>{};
+    try {
+        auto replacement_count = std::size_t{0U};
+        for (const auto &row_texts : rows) {
+            if (row_texts.size() >
+                std::numeric_limits<std::size_t>::max() - replacement_count) {
+                return false;
+            }
+            replacement_count += row_texts.size();
         }
-        return count;
-    };
+        replacements.reserve(replacement_count);
 
-    auto row_handles = std::vector<TableRow>{};
-    row_handles.reserve(rows.size());
-    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
-        auto row_handle = this->find_row(start_row_index + row_offset);
-        if (!row_handle.has_value()) {
-            return false;
-        }
-
-        const auto row_cell_count = count_row_cells(*row_handle);
-        if (start_cell_index > row_cell_count ||
-            rows[row_offset].size() > row_cell_count - start_cell_index) {
-            return false;
-        }
-
-        row_handles.push_back(*row_handle);
-    }
-
-    for (std::size_t row_offset = 0U; row_offset < rows.size(); ++row_offset) {
-        if (rows[row_offset].empty()) {
-            continue;
-        }
-
-        auto cell_handle = row_handles[row_offset].find_cell(start_cell_index);
-        if (!cell_handle.has_value()) {
-            return false;
-        }
-
-        for (std::size_t cell_offset = 0U; cell_offset < rows[row_offset].size();
-             ++cell_offset) {
-            if (!cell_handle->set_text(rows[row_offset][cell_offset])) {
+        for (std::size_t row_offset = 0U; row_offset < rows.size();
+             ++row_offset) {
+            if (row_offset >
+                std::numeric_limits<std::size_t>::max() - start_row_index) {
                 return false;
             }
 
-            if (cell_offset + 1U < rows[row_offset].size()) {
-                cell_handle->next();
-                if (!cell_handle->has_next()) {
+            auto row_handle = this->find_row(start_row_index + row_offset);
+            if (!row_handle.has_value()) {
+                return false;
+            }
+
+            const auto &row_texts = rows[row_offset];
+            const auto row_cell_count =
+                count_named_children(row_handle->current, "w:tc");
+            if (start_cell_index > row_cell_count ||
+                row_texts.size() > row_cell_count - start_cell_index) {
+                return false;
+            }
+            if (row_texts.empty()) {
+                continue;
+            }
+
+            auto cell = row_handle->current.child("w:tc");
+            for (std::size_t skipped = 0U; skipped < start_cell_index;
+                 ++skipped) {
+                if (cell == pugi::xml_node{}) {
                     return false;
                 }
+                cell = detail::next_named_sibling(cell, "w:tc");
+            }
+
+            for (std::size_t cell_offset = 0U; cell_offset < row_texts.size();
+                 ++cell_offset) {
+                if (cell == pugi::xml_node{}) {
+                    return false;
+                }
+                replacements.push_back(tracked_table_cell_text_replacement{
+                    this->parent.with_node(cell),
+                    row_texts[cell_offset].c_str()});
+                cell = detail::next_named_sibling(cell, "w:tc");
             }
         }
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+
+    const auto replacement_span =
+        std::span<const tracked_table_cell_text_replacement>{
+            replacements.data(), replacements.size()};
+    if (!replace_table_cell_texts(replacement_span)) {
+        return false;
     }
 
     return true;
