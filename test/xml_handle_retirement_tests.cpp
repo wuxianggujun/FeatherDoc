@@ -2932,6 +2932,265 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     }
 }
 
+TEST_CASE("column width updates preserve handles and unrelated XML content") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    scoped_test_path path{make_test_path("列宽句柄与扩展保留", 0U)};
+    write_test_docx(path.path(), fixture_xml);
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+
+    auto table = document.tables();
+    auto row = table.rows();
+    auto first_cell = row.cells();
+    auto second_cell = first_cell;
+    second_cell.next();
+    auto paragraph = first_cell.paragraphs();
+    auto run = paragraph.runs();
+
+    REQUIRE(table.set_column_width_twips(0U, 1800U));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    REQUIRE(table.column_width_twips(0U).has_value());
+    CHECK_EQ(*table.column_width_twips(0U), 1800U);
+    REQUIRE(first_cell.width_twips().has_value());
+    CHECK_EQ(*first_cell.width_twips(), 1800U);
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE(table.clear_column_width(0U));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    CHECK_FALSE(table.column_width_twips(0U).has_value());
+    CHECK_FALSE(first_cell.width_twips().has_value());
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE_FALSE(document.save());
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto saved_table =
+        saved_document.child("w:document").child("w:body").child("w:tbl");
+    const auto saved_properties = saved_table.child("w:tblPr");
+    const auto saved_grid = saved_table.child("w:tblGrid");
+    REQUIRE(saved_properties != pugi::xml_node{});
+    REQUIRE(saved_grid != pugi::xml_node{});
+    CHECK_FALSE(
+        std::string_view{saved_properties.attribute("data-large").value()}
+            .empty());
+    CHECK_FALSE(
+        std::string_view{saved_grid.attribute("data-large").value()}.empty());
+    const auto first_grid_column = saved_grid.child("w:gridCol");
+    const auto second_grid_column = first_grid_column.next_sibling("w:gridCol");
+    REQUIRE(first_grid_column != pugi::xml_node{});
+    REQUIRE(second_grid_column != pugi::xml_node{});
+    CHECK_EQ(first_grid_column.attribute("w:w"), pugi::xml_attribute{});
+    CHECK_EQ(std::string_view{second_grid_column.attribute("w:w").value()},
+             "1200");
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "column width set and clear are atomic for every pugixml allocation "
+    "failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    for (const auto clear_width : {false, true}) {
+        CAPTURE(clear_width);
+        const auto apply_update = [clear_width](featherdoc::Table &table) {
+            return clear_width ? table.clear_column_width(0U)
+                               : table.set_column_width_twips(0U, 1800U);
+        };
+
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                clear_width ? "清除列宽XML基线" : "设置列宽XML基线", 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto updated = false;
+            {
+                pugi_allocator_guard guard;
+                updated = apply_update(table);
+                successful_allocation_count = pugi_allocation_calls;
+            }
+            REQUIRE(updated);
+        }
+        REQUIRE_GT(successful_allocation_count, 0U);
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                clear_width ? "清除列宽XML失败" : "设置列宽XML失败",
+                failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto first_cell = row.cells();
+            auto second_cell = first_cell;
+            second_cell.next();
+            auto paragraph = first_cell.paragraphs();
+            auto run = paragraph.runs();
+            auto updated = true;
+            auto observed_failure_allocation_count = std::size_t{0U};
+            {
+                pugi_allocator_guard guard;
+                pugi_failure_call = failure_call;
+                updated = apply_update(table);
+                observed_failure_allocation_count = pugi_allocation_calls;
+            }
+
+            REQUIRE_FALSE(updated);
+            REQUIRE_GE(observed_failure_allocation_count, failure_call);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.column_width_twips(0U).has_value());
+            CHECK_EQ(*table.column_width_twips(0U), 1200U);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), 1200U);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(apply_update(table));
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            if (clear_width) {
+                CHECK_FALSE(table.column_width_twips(0U).has_value());
+                CHECK_FALSE(first_cell.width_twips().has_value());
+            } else {
+                REQUIRE(table.column_width_twips(0U).has_value());
+                CHECK_EQ(*table.column_width_twips(0U), 1800U);
+                REQUIRE(first_cell.width_twips().has_value());
+                CHECK_EQ(*first_cell.width_twips(), 1800U);
+            }
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "column width set and clear are atomic for every global allocation "
+    "failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    for (const auto clear_width : {false, true}) {
+        CAPTURE(clear_width);
+        const auto apply_update = [clear_width](featherdoc::Table &table) {
+            return clear_width ? table.clear_column_width(0U)
+                               : table.set_column_width_twips(0U, 1800U);
+        };
+
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                clear_width ? "清除列宽全局基线" : "设置列宽全局基线", 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto updated = false;
+            {
+                global_allocation_guard guard{0U};
+                updated = apply_update(table);
+                successful_allocation_count =
+                    observed_allocation_calls.load(std::memory_order_relaxed);
+            }
+            REQUIRE(updated);
+        }
+        REQUIRE_GT(successful_allocation_count, 0U);
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                clear_width ? "清除列宽全局失败" : "设置列宽全局失败",
+                failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto first_cell = row.cells();
+            auto second_cell = first_cell;
+            second_cell.next();
+            auto paragraph = first_cell.paragraphs();
+            auto run = paragraph.runs();
+            auto updated = true;
+            auto observed_failure_allocation_count = std::size_t{0U};
+            {
+                global_allocation_guard guard{failure_call};
+                updated = apply_update(table);
+                observed_failure_allocation_count =
+                    observed_allocation_calls.load(std::memory_order_relaxed);
+            }
+
+            REQUIRE_FALSE(updated);
+            REQUIRE_GE(observed_failure_allocation_count, failure_call);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.column_width_twips(0U).has_value());
+            CHECK_EQ(*table.column_width_twips(0U), 1200U);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), 1200U);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(apply_update(table));
+            if (clear_width) {
+                CHECK_FALSE(table.column_width_twips(0U).has_value());
+                CHECK_FALSE(first_cell.width_twips().has_value());
+            } else {
+                REQUIRE(table.column_width_twips(0U).has_value());
+                CHECK_EQ(*table.column_width_twips(0U), 1800U);
+                REQUIRE(first_cell.width_twips().has_value());
+                CHECK_EQ(*first_cell.width_twips(), 1800U);
+            }
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+        }
+    }
+}
+
 FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     "document and template table append roll back whole tables for every "
     "pugixml allocation failure") {

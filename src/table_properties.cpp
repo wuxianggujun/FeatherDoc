@@ -4,6 +4,7 @@
 #include <array>
 #include <new>
 #include <span>
+#include <vector>
 
 namespace featherdoc {
 
@@ -69,7 +70,8 @@ std::optional<std::uint32_t> Table::column_width_twips(std::size_t column_index)
     return parse_unsigned_attribute(grid_column, "w:w");
 }
 
-bool Table::set_column_width_twips(std::size_t column_index, std::uint32_t width_twips) {
+bool Table::set_column_width_twips(std::size_t column_index,
+                                   std::uint32_t width_twips) {
     if (this->current == pugi::xml_node{}) {
         return false;
     }
@@ -79,18 +81,63 @@ bool Table::set_column_width_twips(std::size_t column_index, std::uint32_t width
         return false;
     }
 
-    if (!ensure_table_grid_columns(this->current, *column_count)) {
+    auto staged_layout = std::optional<staged_table_layout>{};
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+        if (staged_layout.has_value()) {
+            rollback_staged_table_layout(*staged_layout);
+        }
+    };
+
+    try {
+        staged_layout = stage_table_layout(this->current.node(), *column_count);
+        if (!staged_layout.has_value()) {
+            rollback();
+            return false;
+        }
+
+        const auto grid_column =
+            find_table_grid_column(this->current.node(), column_index);
+        const auto width_text = std::to_string(width_twips);
+        if (grid_column == pugi::xml_node{} ||
+            grid_column.parent() != staged_layout->replacement_grid ||
+            !detail::checked_set_xml_attribute_value(grid_column, "w:w",
+                                                     width_text) ||
+            !stage_fixed_layout_cell_widths(this->current.node(), {},
+                                            staged_properties)) {
+            rollback();
+            return false;
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_properties.size() + 2U);
+        for (const auto &staged : staged_properties) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (staged_layout->original_properties != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_layout->original_properties);
+        }
+        if (staged_layout->original_grid != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_layout->original_grid);
+        }
+        if (!this->current.retire_subtrees(std::span<const pugi::xml_node>{
+                retirement_roots.data(), retirement_roots.size()})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
-    }
-    const auto grid_column = find_table_grid_column(this->current, column_index);
-    if (grid_column == pugi::xml_node{}) {
-        return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto width_text = std::to_string(width_twips);
-    ensure_attribute_value(grid_column, "w:w", width_text.c_str());
-    synchronize_fixed_layout_cell_widths_from_grid(this->current);
-    return true;
+    return commit_staged_cell_properties(staged_properties) &&
+           commit_staged_table_layout(*staged_layout);
 }
 
 bool Table::clear_column_width(std::size_t column_index) {
@@ -103,17 +150,66 @@ bool Table::clear_column_width(std::size_t column_index) {
         return false;
     }
 
-    auto grid_column = find_table_grid_column(this->current, column_index);
-    if (grid_column == pugi::xml_node{} || grid_column.attribute("w:w") == pugi::xml_attribute{}) {
+    const auto grid_column =
+        find_table_grid_column(this->current, column_index);
+    if (grid_column == pugi::xml_node{} ||
+        grid_column.attribute("w:w") == pugi::xml_attribute{}) {
         return true;
     }
 
-    if (!grid_column.remove_attribute("w:w")) {
+    auto staged_grid = std::optional<staged_table_child>{};
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+        if (staged_grid.has_value()) {
+            rollback_staged_table_child(*staged_grid);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_grid = stage_table_child(table, "w:tblGrid", {});
+        if (!staged_grid.has_value()) {
+            rollback();
+            return false;
+        }
+
+        auto replacement_grid_column =
+            find_table_grid_column(table, column_index);
+        if (replacement_grid_column == pugi::xml_node{} ||
+            replacement_grid_column.parent() != staged_grid->replacement ||
+            !replacement_grid_column.remove_attribute("w:w") ||
+            !stage_cleared_fixed_layout_cell_widths_covering_column(
+                table, column_index, staged_properties)) {
+            rollback();
+            return false;
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_properties.size() + 1U);
+        for (const auto &staged : staged_properties) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (staged_grid->original != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_grid->original);
+        }
+        if (!this->current.retire_subtrees(std::span<const pugi::xml_node>{
+                retirement_roots.data(), retirement_roots.size()})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    clear_fixed_layout_cell_widths_covering_column(this->current, column_index);
-    return true;
+    return commit_staged_cell_properties(staged_properties) &&
+           commit_staged_table_child(*staged_grid);
 }
 
 std::optional<featherdoc::table_layout_mode> Table::layout_mode() const {

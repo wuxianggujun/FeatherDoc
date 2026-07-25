@@ -62,6 +62,12 @@ struct staged_cell_properties final {
     pugi::xml_node replacement;
 };
 
+struct staged_table_child final {
+    pugi::xml_node table;
+    pugi::xml_node original;
+    pugi::xml_node replacement;
+};
+
 enum class table_grid_edit_kind {
     normalize = 0,
     insert_column,
@@ -121,6 +127,15 @@ void rollback_staged_cell_properties(
 [[nodiscard]] auto commit_staged_cell_properties(
     const std::vector<staged_cell_properties> &staged_properties) noexcept
     -> bool;
+[[nodiscard]] auto stage_table_child(pugi::xml_node table,
+                                     const char *child_name,
+                                     pugi::xml_node insertion_anchor)
+    -> std::optional<staged_table_child>;
+void rollback_staged_table_child(
+    const staged_table_child &staged_child) noexcept;
+[[nodiscard]] auto
+commit_staged_table_child(const staged_table_child &staged_child) noexcept
+    -> bool;
 [[nodiscard]] auto stage_table_layout(pugi::xml_node table,
                                       std::size_t normalized_column_count,
                                       table_grid_edit grid_edit = {})
@@ -131,6 +146,9 @@ void rollback_staged_table_layout(
     const staged_table_layout &staged_layout) noexcept -> bool;
 [[nodiscard]] auto stage_fixed_layout_cell_widths(
     pugi::xml_node table, std::span<const pugi::xml_node> excluded_cells,
+    std::vector<staged_cell_properties> &staged_properties) -> bool;
+[[nodiscard]] auto stage_cleared_fixed_layout_cell_widths_covering_column(
+    pugi::xml_node table, std::size_t target_column_index,
     std::vector<staged_cell_properties> &staged_properties) -> bool;
 [[nodiscard]] auto
 clear_cell_contents_for_vertical_merge(
