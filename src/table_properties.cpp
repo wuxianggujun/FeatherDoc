@@ -1,4 +1,9 @@
 #include "table_method_dependencies.hpp"
+#include "xml_document_clone_helpers.hpp"
+
+#include <array>
+#include <new>
+#include <span>
 
 namespace featherdoc {
 
@@ -294,22 +299,240 @@ bool Table::clear_cell_spacing() {
     return spacing == pugi::xml_node{} || table_properties.remove_child(spacing);
 }
 
-void set_optional_unsigned_attribute(pugi::xml_node node, const char *name,
-                                     std::optional<std::uint32_t> value) {
-    if (node == pugi::xml_node{}) {
-        return;
-    }
+namespace {
 
-    if (value.has_value()) {
-        const auto text = std::to_string(*value);
-        ensure_attribute_value(node, name, text.c_str());
-        return;
-    }
+struct staged_table_position final {
+    pugi::xml_node original_position;
+    pugi::xml_node replacement_position;
+    pugi::xml_node original_overlap;
+    pugi::xml_node replacement_overlap;
+};
 
-    if (node.attribute(name) != pugi::xml_attribute{}) {
-        node.remove_attribute(name);
-    }
+[[nodiscard]] auto checked_remove_xml_attribute(pugi::xml_node node,
+                                                const char *name) -> bool {
+    const auto attribute = node.attribute(name);
+    return attribute == pugi::xml_attribute{} ||
+           node.remove_attribute(attribute);
 }
+
+[[nodiscard]] auto
+checked_set_optional_unsigned_attribute(pugi::xml_node node, const char *name,
+                                        std::optional<std::uint32_t> value)
+    -> bool {
+    if (!value.has_value()) {
+        return checked_remove_xml_attribute(node, name);
+    }
+
+    const auto text = std::to_string(*value);
+    return detail::checked_set_xml_attribute_value(node, name, text);
+}
+
+[[nodiscard]] auto
+checked_insert_table_position_node(pugi::xml_node table_properties)
+    -> pugi::xml_node {
+    const auto insert_before = [&](pugi::xml_node anchor) {
+        return detail::checked_insert_xml_element_before(table_properties,
+                                                         "w:tblpPr", anchor);
+    };
+    const auto insert_after = [&](pugi::xml_node anchor) {
+        const auto next = anchor.next_sibling();
+        return next != pugi::xml_node{} ? insert_before(next)
+                                        : detail::checked_append_xml_element(
+                                              table_properties, "w:tblpPr");
+    };
+
+    if (const auto table_style = table_properties.child("w:tblStyle");
+        table_style != pugi::xml_node{}) {
+        return insert_after(table_style);
+    }
+    if (const auto first_child = table_properties.first_child();
+        first_child != pugi::xml_node{}) {
+        return insert_before(first_child);
+    }
+    return detail::checked_append_xml_element(table_properties, "w:tblpPr");
+}
+
+[[nodiscard]] auto
+checked_insert_table_overlap_node(pugi::xml_node table_properties,
+                                  pugi::xml_node position_node)
+    -> pugi::xml_node {
+    const auto next = position_node.next_sibling();
+    if (next != pugi::xml_node{}) {
+        return detail::checked_insert_xml_element_before(table_properties,
+                                                         "w:tblOverlap", next);
+    }
+    return detail::checked_append_xml_element(table_properties, "w:tblOverlap");
+}
+
+[[nodiscard]] auto checked_copy_xml_node_contents(pugi::xml_node source,
+                                                  pugi::xml_node destination)
+    -> bool {
+    if (!detail::xml_document_clone_detail::copy_node_contents(source,
+                                                               destination)) {
+        return false;
+    }
+    for (auto child = source.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (detail::checked_append_copy_xml_node(child, destination) !=
+            detail::xml_document_clone_status::success) {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] auto has_duplicate_child(pugi::xml_node parent, const char *name)
+    -> bool {
+    const auto first = parent.child(name);
+    return first != pugi::xml_node{} &&
+           first.next_sibling(name) != pugi::xml_node{};
+}
+
+[[nodiscard]] auto stage_table_position_nodes(pugi::xml_node table_properties,
+                                              bool stage_overlap)
+    -> std::optional<staged_table_position> {
+    if (has_duplicate_child(table_properties, "w:tblpPr") ||
+        has_duplicate_child(table_properties, "w:tblOverlap")) {
+        return std::nullopt;
+    }
+
+    auto staged = staged_table_position{table_properties.child("w:tblpPr"),
+                                        {},
+                                        table_properties.child("w:tblOverlap"),
+                                        {}};
+    const auto rollback = [&]() noexcept {
+        if (staged.replacement_overlap != pugi::xml_node{}) {
+            (void)table_properties.remove_child(staged.replacement_overlap);
+        }
+        if (staged.replacement_position != pugi::xml_node{}) {
+            (void)table_properties.remove_child(staged.replacement_position);
+        }
+    };
+
+    try {
+        staged.replacement_position =
+            checked_insert_table_position_node(table_properties);
+        if (staged.replacement_position != pugi::xml_node{} &&
+            staged.original_position != pugi::xml_node{} &&
+            !checked_copy_xml_node_contents(staged.original_position,
+                                            staged.replacement_position)) {
+            rollback();
+            return std::nullopt;
+        }
+        if (staged.replacement_position == pugi::xml_node{}) {
+            rollback();
+            return std::nullopt;
+        }
+
+        if (stage_overlap) {
+            staged.replacement_overlap = checked_insert_table_overlap_node(
+                table_properties, staged.replacement_position);
+            if (staged.replacement_overlap == pugi::xml_node{}) {
+                rollback();
+                return std::nullopt;
+            }
+            if (staged.original_overlap != pugi::xml_node{} &&
+                !checked_copy_xml_node_contents(staged.original_overlap,
+                                                staged.replacement_overlap)) {
+                rollback();
+                return std::nullopt;
+            }
+        }
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return staged;
+}
+
+[[nodiscard]] auto
+apply_table_position_attributes(pugi::xml_node position_node,
+                                const featherdoc::table_position &position)
+    -> bool {
+    const auto horizontal_offset =
+        std::to_string(position.horizontal_offset_twips);
+    const auto vertical_offset = std::to_string(position.vertical_offset_twips);
+
+    if (!detail::checked_set_xml_attribute_value(
+            position_node, "w:horzAnchor",
+            to_xml_table_position_horizontal_reference(
+                position.horizontal_reference)) ||
+        !detail::checked_set_xml_attribute_value(position_node, "w:tblpX",
+                                                 horizontal_offset)) {
+        return false;
+    }
+    if (position.horizontal_spec.has_value()) {
+        if (!detail::checked_set_xml_attribute_value(
+                position_node, "w:tblpXSpec",
+                to_xml_table_position_horizontal_spec(
+                    *position.horizontal_spec))) {
+            return false;
+        }
+    } else if (!checked_remove_xml_attribute(position_node, "w:tblpXSpec")) {
+        return false;
+    }
+
+    if (!detail::checked_set_xml_attribute_value(
+            position_node, "w:vertAnchor",
+            to_xml_table_position_vertical_reference(
+                position.vertical_reference)) ||
+        !detail::checked_set_xml_attribute_value(position_node, "w:tblpY",
+                                                 vertical_offset)) {
+        return false;
+    }
+    if (position.vertical_spec.has_value()) {
+        if (!detail::checked_set_xml_attribute_value(
+                position_node, "w:tblpYSpec",
+                to_xml_table_position_vertical_spec(*position.vertical_spec))) {
+            return false;
+        }
+    } else if (!checked_remove_xml_attribute(position_node, "w:tblpYSpec")) {
+        return false;
+    }
+
+    if (!checked_set_optional_unsigned_attribute(
+            position_node, "w:leftFromText", position.left_from_text_twips) ||
+        !checked_set_optional_unsigned_attribute(
+            position_node, "w:rightFromText", position.right_from_text_twips) ||
+        !checked_set_optional_unsigned_attribute(
+            position_node, "w:topFromText", position.top_from_text_twips) ||
+        !checked_set_optional_unsigned_attribute(
+            position_node, "w:bottomFromText",
+            position.bottom_from_text_twips)) {
+        return false;
+    }
+
+    return checked_remove_xml_attribute(position_node, "w:tblOverlap");
+}
+
+[[nodiscard]] auto
+apply_table_overlap_attribute(pugi::xml_node overlap_node,
+                              featherdoc::table_overlap overlap) -> bool {
+    return overlap_node != pugi::xml_node{} &&
+           detail::checked_set_xml_attribute_value(
+               overlap_node, "w:val", to_xml_table_overlap(overlap));
+}
+
+[[nodiscard]] auto checked_ensure_table_properties_node(pugi::xml_node table,
+                                                        bool &created)
+    -> pugi::xml_node {
+    auto table_properties = table.child("w:tblPr");
+    if (table_properties != pugi::xml_node{}) {
+        created = false;
+        return table_properties;
+    }
+
+    created = true;
+    if (const auto first_child = table.first_child();
+        first_child != pugi::xml_node{}) {
+        return detail::checked_insert_xml_element_before(table, "w:tblPr",
+                                                         first_child);
+    }
+    return detail::checked_append_xml_element(table, "w:tblPr");
+}
+
+} // namespace
 
 std::optional<featherdoc::table_position> Table::position() const {
     if (this->current == pugi::xml_node{}) {
@@ -322,22 +545,26 @@ std::optional<featherdoc::table_position> Table::position() const {
     }
 
     auto position = featherdoc::table_position{};
-    if (const auto horizontal_reference = parse_table_position_horizontal_reference(
-            std::string_view{position_node.attribute("w:horzAnchor").value()})) {
+    if (const auto horizontal_reference =
+            parse_table_position_horizontal_reference(std::string_view{
+                position_node.attribute("w:horzAnchor").value()})) {
         position.horizontal_reference = *horizontal_reference;
     }
-    if (const auto horizontal_offset = parse_signed_attribute(position_node, "w:tblpX")) {
+    if (const auto horizontal_offset =
+            parse_signed_attribute(position_node, "w:tblpX")) {
         position.horizontal_offset_twips = *horizontal_offset;
     }
     if (const auto horizontal_spec = parse_table_position_horizontal_spec(
             std::string_view{position_node.attribute("w:tblpXSpec").value()})) {
         position.horizontal_spec = *horizontal_spec;
     }
-    if (const auto vertical_reference = parse_table_position_vertical_reference(
-            std::string_view{position_node.attribute("w:vertAnchor").value()})) {
+    if (const auto vertical_reference =
+            parse_table_position_vertical_reference(std::string_view{
+                position_node.attribute("w:vertAnchor").value()})) {
         position.vertical_reference = *vertical_reference;
     }
-    if (const auto vertical_offset = parse_signed_attribute(position_node, "w:tblpY")) {
+    if (const auto vertical_offset =
+            parse_signed_attribute(position_node, "w:tblpY")) {
         position.vertical_offset_twips = *vertical_offset;
     }
     if (const auto vertical_spec = parse_table_position_vertical_spec(
@@ -352,8 +579,16 @@ std::optional<featherdoc::table_position> Table::position() const {
         parse_unsigned_attribute(position_node, "w:topFromText");
     position.bottom_from_text_twips =
         parse_unsigned_attribute(position_node, "w:bottomFromText");
-    if (const auto overlap = parse_table_overlap(
-            std::string_view{position_node.attribute("w:tblOverlap").value()})) {
+    const auto overlap_node = position_node.parent().child("w:tblOverlap");
+    auto overlap = overlap_node != pugi::xml_node{}
+                       ? parse_table_overlap(std::string_view{
+                             overlap_node.attribute("w:val").value()})
+                       : std::nullopt;
+    if (!overlap.has_value()) {
+        overlap = parse_table_overlap(
+            std::string_view{position_node.attribute("w:tblOverlap").value()});
+    }
+    if (overlap.has_value()) {
         position.overlap = *overlap;
     }
 
@@ -365,48 +600,65 @@ bool Table::set_position(featherdoc::table_position position) {
         return false;
     }
 
-    auto position_node = ensure_table_position_node(this->current);
-    if (position_node == pugi::xml_node{}) {
+    auto table = this->current.node();
+    auto created_table_properties = false;
+    auto table_properties =
+        checked_ensure_table_properties_node(table, created_table_properties);
+    if (table_properties == pugi::xml_node{}) {
         return false;
     }
+    auto tracked_table_properties = this->current.with_node(table_properties);
 
-    const auto horizontal_offset = std::to_string(position.horizontal_offset_twips);
-    const auto vertical_offset = std::to_string(position.vertical_offset_twips);
-    ensure_attribute_value(position_node, "w:horzAnchor",
-                           to_xml_table_position_horizontal_reference(
-                               position.horizontal_reference));
-    ensure_attribute_value(position_node, "w:tblpX", horizontal_offset.c_str());
-    if (position.horizontal_spec.has_value()) {
-        ensure_attribute_value(
-            position_node, "w:tblpXSpec",
-            to_xml_table_position_horizontal_spec(*position.horizontal_spec));
-    } else if (position_node.attribute("w:tblpXSpec") != pugi::xml_attribute{}) {
-        position_node.remove_attribute("w:tblpXSpec");
+    auto staged = std::optional<staged_table_position>{};
+    const auto rollback = [&]() noexcept {
+        if (staged.has_value()) {
+            if (staged->replacement_overlap != pugi::xml_node{}) {
+                (void)table_properties.remove_child(
+                    staged->replacement_overlap);
+            }
+            if (staged->replacement_position != pugi::xml_node{}) {
+                (void)table_properties.remove_child(
+                    staged->replacement_position);
+            }
+        }
+        if (created_table_properties) {
+            (void)table.remove_child(table_properties);
+        }
+    };
+
+    try {
+        staged = stage_table_position_nodes(table_properties,
+                                            position.overlap.has_value());
+        if (!staged.has_value() ||
+            !apply_table_position_attributes(staged->replacement_position,
+                                             position) ||
+            (position.overlap.has_value() &&
+             !apply_table_overlap_attribute(staged->replacement_overlap,
+                                            *position.overlap))) {
+            rollback();
+            return false;
+        }
+
+        const auto retirement_roots =
+            std::array{staged->original_position, staged->original_overlap};
+        if (!tracked_table_properties.retire_subtrees(
+                std::span<const pugi::xml_node>{retirement_roots})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
-    ensure_attribute_value(position_node, "w:vertAnchor",
-                           to_xml_table_position_vertical_reference(
-                               position.vertical_reference));
-    ensure_attribute_value(position_node, "w:tblpY", vertical_offset.c_str());
-    if (position.vertical_spec.has_value()) {
-        ensure_attribute_value(
-            position_node, "w:tblpYSpec",
-            to_xml_table_position_vertical_spec(*position.vertical_spec));
-    } else if (position_node.attribute("w:tblpYSpec") != pugi::xml_attribute{}) {
-        position_node.remove_attribute("w:tblpYSpec");
+
+    if (staged->original_position != pugi::xml_node{}) {
+        (void)table_properties.remove_child(staged->original_position);
     }
-    set_optional_unsigned_attribute(position_node, "w:leftFromText",
-                                    position.left_from_text_twips);
-    set_optional_unsigned_attribute(position_node, "w:rightFromText",
-                                    position.right_from_text_twips);
-    set_optional_unsigned_attribute(position_node, "w:topFromText",
-                                    position.top_from_text_twips);
-    set_optional_unsigned_attribute(position_node, "w:bottomFromText",
-                                    position.bottom_from_text_twips);
-    if (position.overlap.has_value()) {
-        ensure_attribute_value(position_node, "w:tblOverlap",
-                               to_xml_table_overlap(*position.overlap));
-    } else if (position_node.attribute("w:tblOverlap") != pugi::xml_attribute{}) {
-        position_node.remove_attribute("w:tblOverlap");
+    if (staged->original_overlap != pugi::xml_node{}) {
+        (void)table_properties.remove_child(staged->original_overlap);
     }
     return true;
 }
@@ -421,9 +673,35 @@ bool Table::clear_position() {
         return true;
     }
 
-    const auto position_node = table_properties.child("w:tblpPr");
-    return position_node == pugi::xml_node{} ||
-           table_properties.remove_child(position_node);
+    auto table_properties_node = table_properties.node();
+    if (has_duplicate_child(table_properties_node, "w:tblpPr") ||
+        has_duplicate_child(table_properties_node, "w:tblOverlap")) {
+        return false;
+    }
+
+    const auto retirement_roots =
+        std::array{table_properties_node.child("w:tblpPr"),
+                   table_properties_node.child("w:tblOverlap")};
+    if (retirement_roots[0] == pugi::xml_node{} &&
+        retirement_roots[1] == pugi::xml_node{}) {
+        return true;
+    }
+
+    try {
+        if (!table_properties.retire_subtrees(
+                std::span<const pugi::xml_node>{retirement_roots})) {
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        return false;
+    }
+
+    for (const auto node : retirement_roots) {
+        if (node != pugi::xml_node{}) {
+            (void)table_properties_node.remove_child(node);
+        }
+    }
+    return true;
 }
 
 std::optional<std::uint32_t> Table::cell_margin_twips(

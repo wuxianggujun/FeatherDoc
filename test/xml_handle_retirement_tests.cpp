@@ -247,6 +247,109 @@ class scoped_test_path final {
     return xml;
 }
 
+enum class table_position_fixture_state {
+    properties_without_position = 0,
+    existing_position,
+    no_properties,
+    empty_properties,
+};
+
+[[nodiscard]] auto table_position_allocation_fixture_xml(
+    std::size_t padding_paragraph_count,
+    table_position_fixture_state state =
+        table_position_fixture_state::properties_without_position)
+    -> std::string {
+    auto xml = std::string{
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:tbl>)"};
+    if (state != table_position_fixture_state::no_properties) {
+        xml += "<w:tblPr>";
+        if (state != table_position_fixture_state::empty_properties) {
+            xml += R"(<w:tblStyle w:val="TableGrid"/>)";
+            if (state == table_position_fixture_state::existing_position) {
+                xml += R"(<w:tblpPr data-custom="preserved"
+      w:horzAnchor="margin" w:tblpX="12" w:tblpXSpec="left"
+      w:vertAnchor="page" w:tblpY="34" w:tblpYSpec="top"
+      w:leftFromText="1" w:rightFromText="2" w:topFromText="3"
+      w:bottomFromText="4" w:tblOverlap="never"><w:custom data-child="preserved"><w:nested>payload</w:nested></w:custom></w:tblpPr>
+    <w:tblOverlap w:val="overlap" data-overlap-custom="preserved"><w:overlapCustom data-child="preserved"><w:nested>overlap-payload</w:nested></w:overlapCustom></w:tblOverlap>)";
+            }
+            xml +=
+                R"(<w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="04A0"/>)";
+        }
+        xml += "</w:tblPr>";
+    }
+    xml += R"(<w:tblGrid><w:gridCol w:w="1200"/></w:tblGrid>
+  <w:tr><w:tc><w:tcPr><w:tcW w:w="1200" w:type="dxa"/></w:tcPr>
+  <w:p><w:r><w:t>原始中文0-0</w:t></w:r></w:p></w:tc></w:tr></w:tbl>)";
+    for (std::size_t index = 0U; index < padding_paragraph_count; ++index) {
+        xml += "<w:p><w:r><w:t>allocation-padding</w:t></w:r></w:p>";
+    }
+    xml += "</w:body></w:document>";
+    return xml;
+}
+
+[[nodiscard]] auto full_table_position_replacement()
+    -> featherdoc::table_position {
+    auto replacement = featherdoc::table_position{};
+    replacement.horizontal_reference =
+        featherdoc::table_position_horizontal_reference::page;
+    replacement.horizontal_offset_twips = 720;
+    replacement.horizontal_spec =
+        featherdoc::table_position_horizontal_spec::center;
+    replacement.vertical_reference =
+        featherdoc::table_position_vertical_reference::paragraph;
+    replacement.vertical_offset_twips = -120;
+    replacement.vertical_spec =
+        featherdoc::table_position_vertical_spec::bottom;
+    replacement.left_from_text_twips = 144U;
+    replacement.right_from_text_twips = 288U;
+    replacement.top_from_text_twips = 72U;
+    replacement.bottom_from_text_twips = 216U;
+    replacement.overlap = featherdoc::table_overlap::never;
+    return replacement;
+}
+
+[[nodiscard]] auto table_position_revision_tail_fixture_xml() -> std::string {
+    return R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:tbl><w:tblPr><w:tblPrChange w:id="1"/></w:tblPr>
+  <w:tblGrid><w:gridCol w:w="1200"/></w:tblGrid>
+  <w:tr><w:tc><w:tcPr/><w:p/></w:tc></w:tr></w:tbl>
+  </w:body>
+</w:document>)";
+}
+
+[[nodiscard]] auto legacy_table_position_fixture_xml() -> std::string {
+    return R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/>
+  <w:tblW w:w="0" w:type="auto"/><w:tblpPr w:horzAnchor="margin"
+    w:tblpX="12" w:vertAnchor="page" w:tblpY="34"
+    w:tblOverlap="overlap"/></w:tblPr>
+  <w:tblGrid><w:gridCol w:w="1200"/></w:tblGrid>
+  <w:tr><w:tc><w:tcPr/><w:p/></w:tc></w:tr></w:tbl>
+  </w:body>
+</w:document>)";
+}
+
+[[nodiscard]] auto duplicate_table_position_fixture_xml() -> std::string {
+    return R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:tbl><w:tblPr>
+  <w:tblpPr w:horzAnchor="margin" w:tblpX="12"
+    w:vertAnchor="page" w:tblpY="34"/>
+  <w:tblpPr w:horzAnchor="page" w:tblpX="56"
+    w:vertAnchor="text" w:tblpY="78"/>
+  <w:tblOverlap w:val="overlap"/><w:tblOverlap w:val="never"/>
+  <w:tblW w:w="0" w:type="auto"/></w:tblPr>
+  <w:tblGrid><w:gridCol w:w="1200"/></w:tblGrid>
+  <w:tr><w:tc><w:tcPr/><w:p/></w:tc></w:tr></w:tbl>
+  </w:body>
+</w:document>)";
+}
+
 [[nodiscard]] auto separated_tables_fixture_xml() -> std::string {
     return R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -2224,6 +2327,608 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
             check_table_cell_texts(
                 table, expected_table_batch_texts(operation, inputs));
         }
+    }
+}
+
+TEST_CASE(
+    "table floating position uses schema order before property revisions") {
+    scoped_test_path path{make_test_path("浮动表格位置顺序", 0U)};
+    write_test_docx(path.path(), table_position_revision_tail_fixture_xml());
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+    auto table = document.tables();
+    REQUIRE(table.set_position(full_table_position_replacement()));
+    REQUIRE_FALSE(document.save());
+
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto table_properties = saved_document.child("w:document")
+                                      .child("w:body")
+                                      .child("w:tbl")
+                                      .child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    const auto position = table_properties.first_child();
+    REQUIRE(position != pugi::xml_node{});
+    CHECK_EQ(std::string_view{position.name()}, "w:tblpPr");
+    CHECK_EQ(position.attribute("w:tblOverlap"), pugi::xml_attribute{});
+    const auto overlap = position.next_sibling();
+    REQUIRE(overlap != pugi::xml_node{});
+    CHECK_EQ(std::string_view{overlap.name()}, "w:tblOverlap");
+    CHECK_EQ(std::string_view{overlap.attribute("w:val").value()}, "never");
+    CHECK_EQ(std::string_view{overlap.next_sibling().name()}, "w:tblPrChange");
+}
+
+TEST_CASE("table floating position migrates legacy overlap into schema order") {
+    scoped_test_path path{make_test_path("legacy-table-position", 0U)};
+    write_test_docx(path.path(), legacy_table_position_fixture_xml());
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+    auto table = document.tables();
+
+    const auto legacy_position = table.position();
+    REQUIRE(legacy_position.has_value());
+    REQUIRE(legacy_position->overlap.has_value());
+    CHECK_EQ(*legacy_position->overlap, featherdoc::table_overlap::allow);
+
+    REQUIRE(table.set_position(full_table_position_replacement()));
+    REQUIRE_FALSE(document.save());
+
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto table_properties = saved_document.child("w:document")
+                                      .child("w:body")
+                                      .child("w:tbl")
+                                      .child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    const auto style = table_properties.first_child();
+    REQUIRE(style != pugi::xml_node{});
+    CHECK_EQ(std::string_view{style.name()}, "w:tblStyle");
+    const auto position = style.next_sibling();
+    REQUIRE(position != pugi::xml_node{});
+    CHECK_EQ(std::string_view{position.name()}, "w:tblpPr");
+    CHECK_EQ(position.attribute("w:tblOverlap"), pugi::xml_attribute{});
+    const auto overlap = position.next_sibling();
+    REQUIRE(overlap != pugi::xml_node{});
+    CHECK_EQ(std::string_view{overlap.name()}, "w:tblOverlap");
+    CHECK_EQ(std::string_view{overlap.attribute("w:val").value()}, "never");
+    CHECK_EQ(std::string_view{overlap.next_sibling().name()}, "w:tblW");
+}
+
+TEST_CASE("table floating position prefers standard overlap and preserves "
+          "extensions") {
+    scoped_test_path path{make_test_path("standard-table-overlap", 0U)};
+    write_test_docx(path.path(),
+                    table_position_allocation_fixture_xml(
+                        0U, table_position_fixture_state::existing_position));
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+    auto table = document.tables();
+
+    const auto original_position = table.position();
+    REQUIRE(original_position.has_value());
+    REQUIRE(original_position->overlap.has_value());
+    CHECK_EQ(*original_position->overlap, featherdoc::table_overlap::allow);
+
+    REQUIRE(table.set_position(full_table_position_replacement()));
+    REQUIRE_FALSE(document.save());
+
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto table_properties = saved_document.child("w:document")
+                                      .child("w:body")
+                                      .child("w:tbl")
+                                      .child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    const auto position = table_properties.child("w:tblpPr");
+    REQUIRE(position != pugi::xml_node{});
+    CHECK_EQ(position.attribute("w:tblOverlap"), pugi::xml_attribute{});
+    const auto overlap = table_properties.child("w:tblOverlap");
+    REQUIRE(overlap != pugi::xml_node{});
+    CHECK_EQ(std::string_view{overlap.attribute("w:val").value()}, "never");
+    CHECK_EQ(std::string_view{overlap.attribute("data-overlap-custom").value()},
+             "preserved");
+    const auto overlap_custom = overlap.child("w:overlapCustom");
+    REQUIRE(overlap_custom != pugi::xml_node{});
+    CHECK_EQ(std::string_view{overlap_custom.attribute("data-child").value()},
+             "preserved");
+    const auto nested = overlap_custom.child("w:nested");
+    REQUIRE(nested != pugi::xml_node{});
+    CHECK_EQ(std::string_view{nested.text().get()}, "overlap-payload");
+}
+
+TEST_CASE("table floating position rejects duplicate schema nodes atomically") {
+    scoped_test_path path{make_test_path("duplicate-table-position", 0U)};
+    write_test_docx(path.path(), duplicate_table_position_fixture_xml());
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+    REQUIRE_FALSE(document.save());
+    const auto xml_before =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    auto table = document.tables();
+
+    CHECK_FALSE(table.set_position(full_table_position_replacement()));
+    CHECK_FALSE(table.clear_position());
+    REQUIRE_FALSE(document.save());
+    CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+             xml_before);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table floating position is atomic for every pugixml allocation failure") {
+    constexpr auto padding_paragraph_count = std::size_t{99U};
+    const auto fixture_xml =
+        table_position_allocation_fixture_xml(padding_paragraph_count);
+    const auto replacement = full_table_position_replacement();
+
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{make_test_path("浮动表格位置XML基线", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto positioned = false;
+        {
+            pugi_allocator_guard guard;
+            positioned = table.set_position(replacement);
+            successful_allocation_count = pugi_allocation_calls;
+        }
+        REQUIRE(positioned);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("浮动表格位置XML失败", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto cell = row.cells();
+        auto paragraph = cell.paragraphs();
+        auto run = paragraph.runs();
+        auto positioned = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            pugi_allocator_guard guard;
+            pugi_failure_call = failure_call;
+            positioned = table.set_position(replacement);
+            observed_failure_allocation_count = pugi_allocation_calls;
+        }
+
+        REQUIRE_FALSE(positioned);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(table.position().has_value());
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(table.set_position(replacement));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto applied = table.position();
+        REQUIRE(applied.has_value());
+        CHECK_EQ(applied->horizontal_reference,
+                 replacement.horizontal_reference);
+        CHECK_EQ(applied->horizontal_offset_twips,
+                 replacement.horizontal_offset_twips);
+        CHECK_EQ(applied->horizontal_spec, replacement.horizontal_spec);
+        CHECK_EQ(applied->vertical_reference, replacement.vertical_reference);
+        CHECK_EQ(applied->vertical_offset_twips,
+                 replacement.vertical_offset_twips);
+        CHECK_EQ(applied->vertical_spec, replacement.vertical_spec);
+        CHECK_EQ(applied->left_from_text_twips,
+                 replacement.left_from_text_twips);
+        CHECK_EQ(applied->right_from_text_twips,
+                 replacement.right_from_text_twips);
+        CHECK_EQ(applied->top_from_text_twips, replacement.top_from_text_twips);
+        CHECK_EQ(applied->bottom_from_text_twips,
+                 replacement.bottom_from_text_twips);
+        CHECK_EQ(applied->overlap, replacement.overlap);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table floating position replacement and property creation roll back for "
+    "every pugixml allocation failure") {
+    constexpr auto scenarios = std::array{
+        std::pair{table_position_fixture_state::existing_position,
+                  std::size_t{90U}},
+        std::pair{table_position_fixture_state::no_properties,
+                  std::size_t{101U}},
+        std::pair{table_position_fixture_state::empty_properties,
+                  std::size_t{101U}},
+    };
+    const auto replacement = full_table_position_replacement();
+
+    for (const auto &[state, padding_paragraph_count] : scenarios) {
+        CAPTURE(static_cast<int>(state));
+        const auto scenario_suffix =
+            state == table_position_fixture_state::existing_position
+                ? std::string{"已有位置"}
+            : state == table_position_fixture_state::no_properties
+                ? std::string{"无表格属性"}
+                : std::string{"空表格属性"};
+        auto scenario_replacement = replacement;
+        if (state == table_position_fixture_state::existing_position) {
+            scenario_replacement.horizontal_spec.reset();
+            scenario_replacement.vertical_spec.reset();
+            scenario_replacement.left_from_text_twips.reset();
+            scenario_replacement.right_from_text_twips.reset();
+            scenario_replacement.top_from_text_twips.reset();
+            scenario_replacement.bottom_from_text_twips.reset();
+        }
+
+        const auto fixture_xml = table_position_allocation_fixture_xml(
+            padding_paragraph_count, state);
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{
+                make_test_path("浮动表格位置边界基线" + scenario_suffix, 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto positioned = false;
+            {
+                pugi_allocator_guard guard;
+                positioned = table.set_position(scenario_replacement);
+                successful_allocation_count = pugi_allocation_calls;
+            }
+            REQUIRE(positioned);
+        }
+        REQUIRE_GT(successful_allocation_count, 0U);
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                "浮动表格位置边界失败" + scenario_suffix, failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto cell = row.cells();
+            auto paragraph = cell.paragraphs();
+            auto run = paragraph.runs();
+            const auto original_position = table.position();
+            if (state == table_position_fixture_state::existing_position) {
+                REQUIRE(original_position.has_value());
+                CHECK_EQ(
+                    original_position->horizontal_reference,
+                    featherdoc::table_position_horizontal_reference::margin);
+                CHECK_EQ(original_position->horizontal_offset_twips, 12);
+                CHECK_EQ(
+                    original_position->vertical_reference,
+                    featherdoc::table_position_vertical_reference::page);
+                CHECK_EQ(original_position->vertical_offset_twips, 34);
+                CHECK_EQ(original_position->overlap,
+                         featherdoc::table_overlap::allow);
+            } else {
+                REQUIRE_FALSE(original_position.has_value());
+            }
+
+            auto positioned = true;
+            auto observed_failure_allocation_count = std::size_t{0U};
+            {
+                pugi_allocator_guard guard;
+                pugi_failure_call = failure_call;
+                positioned = table.set_position(scenario_replacement);
+                observed_failure_allocation_count = pugi_allocation_calls;
+            }
+
+            REQUIRE_FALSE(positioned);
+            REQUIRE_GE(observed_failure_allocation_count, failure_call);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            const auto position_after_failure = table.position();
+            if (state == table_position_fixture_state::existing_position) {
+                REQUIRE(position_after_failure.has_value());
+                CHECK_EQ(
+                    position_after_failure->horizontal_reference,
+                    featherdoc::table_position_horizontal_reference::margin);
+                CHECK_EQ(position_after_failure->horizontal_offset_twips, 12);
+                CHECK_EQ(
+                    position_after_failure->vertical_reference,
+                    featherdoc::table_position_vertical_reference::page);
+                CHECK_EQ(position_after_failure->vertical_offset_twips, 34);
+                CHECK_EQ(position_after_failure->overlap,
+                         featherdoc::table_overlap::allow);
+            } else {
+                CHECK_FALSE(position_after_failure.has_value());
+            }
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(table.set_position(scenario_replacement));
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            const auto applied = table.position();
+            REQUIRE(applied.has_value());
+            CHECK_EQ(applied->horizontal_reference,
+                     scenario_replacement.horizontal_reference);
+            CHECK_EQ(applied->horizontal_offset_twips,
+                     scenario_replacement.horizontal_offset_twips);
+            CHECK_EQ(applied->vertical_reference,
+                     scenario_replacement.vertical_reference);
+            CHECK_EQ(applied->vertical_offset_twips,
+                     scenario_replacement.vertical_offset_twips);
+            CHECK_EQ(applied->horizontal_spec,
+                     scenario_replacement.horizontal_spec);
+            CHECK_EQ(applied->vertical_spec,
+                     scenario_replacement.vertical_spec);
+            CHECK_EQ(applied->left_from_text_twips,
+                     scenario_replacement.left_from_text_twips);
+            CHECK_EQ(applied->right_from_text_twips,
+                     scenario_replacement.right_from_text_twips);
+            CHECK_EQ(applied->top_from_text_twips,
+                     scenario_replacement.top_from_text_twips);
+            CHECK_EQ(applied->bottom_from_text_twips,
+                     scenario_replacement.bottom_from_text_twips);
+            CHECK_EQ(applied->overlap, scenario_replacement.overlap);
+
+            REQUIRE_FALSE(document.save());
+            const auto saved_xml =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+            pugi::xml_document saved_document;
+            REQUIRE(saved_document.load_string(saved_xml.c_str()));
+            const auto table_properties = saved_document.child("w:document")
+                                              .child("w:body")
+                                              .child("w:tbl")
+                                              .child("w:tblPr");
+            REQUIRE(table_properties != pugi::xml_node{});
+            const auto position_node = table_properties.child("w:tblpPr");
+            REQUIRE(position_node != pugi::xml_node{});
+            CHECK_EQ(position_node.next_sibling("w:tblpPr"), pugi::xml_node{});
+            if (state == table_position_fixture_state::existing_position) {
+                CHECK_EQ(
+                    std::string_view{
+                        position_node.attribute("data-custom").value()},
+                    "preserved");
+                const auto custom = position_node.child("w:custom");
+                REQUIRE(custom != pugi::xml_node{});
+                CHECK_EQ(
+                    std::string_view{custom.attribute("data-child").value()},
+                    "preserved");
+                CHECK_EQ(
+                    std::string_view{custom.child("w:nested").text().get()},
+                    "payload");
+                CHECK_EQ(position_node.attribute("w:tblpXSpec"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:tblpYSpec"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:leftFromText"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:rightFromText"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:topFromText"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:bottomFromText"),
+                         pugi::xml_attribute{});
+                CHECK_EQ(position_node.attribute("w:tblOverlap"),
+                         pugi::xml_attribute{});
+                const auto overlap_node =
+                    table_properties.child("w:tblOverlap");
+                REQUIRE(overlap_node != pugi::xml_node{});
+                CHECK_EQ(
+                    std::string_view{overlap_node.attribute("w:val").value()},
+                    "never");
+                CHECK_EQ(std::string_view{
+                             overlap_node.attribute("data-overlap-custom")
+                                 .value()},
+                         "preserved");
+                const auto overlap_custom =
+                    overlap_node.child("w:overlapCustom");
+                REQUIRE(overlap_custom != pugi::xml_node{});
+                CHECK_EQ(std::string_view{
+                             overlap_custom.attribute("data-child").value()},
+                         "preserved");
+                const auto nested = overlap_custom.child("w:nested");
+                REQUIRE(nested != pugi::xml_node{});
+                CHECK_EQ(std::string_view{nested.text().get()},
+                         "overlap-payload");
+            }
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table floating position replacement is atomic for every global "
+    "allocation failure") {
+    const auto fixture_xml = table_position_allocation_fixture_xml(
+        0U, table_position_fixture_state::existing_position);
+    const auto replacement = full_table_position_replacement();
+
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{make_test_path("浮动表格位置全局基线", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto positioned = false;
+        {
+            global_allocation_guard guard{0U};
+            positioned = table.set_position(replacement);
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+        REQUIRE(positioned);
+        REQUIRE_GT(successful_allocation_count, 0U);
+    }
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("浮动表格位置全局失败", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto cell = row.cells();
+        auto paragraph = cell.paragraphs();
+        auto run = paragraph.runs();
+        auto positioned = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            global_allocation_guard guard{failure_call};
+            positioned = table.set_position(replacement);
+            observed_failure_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_FALSE(positioned);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto position_after_failure = table.position();
+        REQUIRE(position_after_failure.has_value());
+        CHECK_EQ(position_after_failure->horizontal_offset_twips, 12);
+        CHECK_EQ(position_after_failure->vertical_offset_twips, 34);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(table.set_position(replacement));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto applied = table.position();
+        REQUIRE(applied.has_value());
+        CHECK_EQ(applied->horizontal_offset_twips,
+                 replacement.horizontal_offset_twips);
+        CHECK_EQ(applied->vertical_offset_twips,
+                 replacement.vertical_offset_twips);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "clearing table floating position is atomic for every global allocation "
+    "failure") {
+    const auto fixture_xml = table_position_allocation_fixture_xml(
+        0U, table_position_fixture_state::existing_position);
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{
+            make_test_path("clear-table-position-baseline", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto cleared = false;
+        {
+            global_allocation_guard guard{0U};
+            cleared = table.clear_position();
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+        REQUIRE(cleared);
+        REQUIRE_GT(successful_allocation_count, 0U);
+    }
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("clear-table-position-failure", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto cell = row.cells();
+        auto paragraph = cell.paragraphs();
+        auto run = paragraph.runs();
+        auto cleared = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            global_allocation_guard guard{failure_call};
+            cleared = table.clear_position();
+            observed_failure_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_FALSE(cleared);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto position_after_failure = table.position();
+        REQUIRE(position_after_failure.has_value());
+        CHECK_EQ(position_after_failure->overlap,
+                 featherdoc::table_overlap::allow);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(table.clear_position());
+        CHECK_FALSE(table.position().has_value());
+        REQUIRE_FALSE(document.save());
+        const auto saved_xml =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+        pugi::xml_document saved_document;
+        REQUIRE(saved_document.load_string(saved_xml.c_str()));
+        const auto table_properties = saved_document.child("w:document")
+                                          .child("w:body")
+                                          .child("w:tbl")
+                                          .child("w:tblPr");
+        REQUIRE(table_properties != pugi::xml_node{});
+        CHECK_EQ(table_properties.child("w:tblpPr"), pugi::xml_node{});
+        CHECK_EQ(table_properties.child("w:tblOverlap"), pugi::xml_node{});
     }
 }
 

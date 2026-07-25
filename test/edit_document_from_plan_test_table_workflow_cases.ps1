@@ -428,7 +428,7 @@ Assert-Equal -Actual $setTablePositionSummary.operations[0].command -Expected "s
 Assert-DocxXPath `
     -Document $tablePositionedDocument `
     -NamespaceManager $tablePositionedNamespaceManager `
-    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='page' and @w:tblpX='360' and @w:tblpXSpec='center' and @w:vertAnchor='page' and @w:tblpYSpec='bottom' and @w:bottomFromText='288' and @w:tblOverlap='never']" `
+    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='page' and @w:tblpX='360' and @w:tblpXSpec='center' and @w:vertAnchor='page' and @w:tblpYSpec='bottom' and @w:bottomFromText='288']/following-sibling::*[1][self::w:tblOverlap and @w:val='never']" `
     -Message "Set-table-position output should contain the requested floating table position."
 
 $clearTablePositionPlanPath = Join-Path $resolvedWorkingDir "invoice.clear_table_position_plan.json"
@@ -475,3 +475,5 @@ Assert-Equal -Actual $clearTablePositionSummary.operations[0].command -Expected 
     -Message "Clear-table-position operation should use the CLI clear-table-position command."
 Assert-True -Condition ($null -eq $tablePositionClearedDocument.SelectSingleNode("//w:tbl[1]/w:tblPr/w:tblpPr", $tablePositionClearedNamespaceManager)) `
     -Message "Clear-table-position output should remove the floating table position."
+Assert-True -Condition ($null -eq $tablePositionClearedDocument.SelectSingleNode("//w:tbl[1]/w:tblPr/w:tblOverlap", $tablePositionClearedNamespaceManager)) `
+    -Message "Clear-table-position output should remove the table overlap setting."
