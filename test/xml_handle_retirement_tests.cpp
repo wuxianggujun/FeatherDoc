@@ -212,8 +212,10 @@ class scoped_test_path final {
     return xml;
 }
 
-[[nodiscard]] auto allocation_heavy_table_fixture_xml(std::size_t rows,
-                                                       std::size_t columns)
+[[nodiscard]] auto allocation_heavy_table_fixture_xml(
+    std::size_t rows, std::size_t columns,
+    std::string_view layout_type = "fixed",
+    std::string_view cell_width = "1200")
     -> std::string {
     const auto large_value = large_cell_property_value();
     auto xml = std::string{
@@ -221,7 +223,9 @@ class scoped_test_path final {
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body><w:tbl><w:tblPr data-large=")"};
     xml += large_value;
-    xml += R"("><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/>
+    xml += R"("><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type=")";
+    xml += layout_type;
+    xml += R"("/>
     <w:tblLook w:val="04A0" w:firstRow="1" w:firstColumn="1" w:lastRow="0"
       w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>
   <w:tblGrid data-large=")";
@@ -234,7 +238,9 @@ class scoped_test_path final {
     for (std::size_t row = 0U; row < rows; ++row) {
         xml += "<w:tr>";
         for (std::size_t column = 0U; column < columns; ++column) {
-            xml += R"(<w:tc><w:tcPr><w:tcW w:w="1200" w:type="dxa"/></w:tcPr>)";
+            xml += R"(<w:tc><w:tcPr><w:tcW w:w=")";
+            xml += cell_width;
+            xml += R"(" w:type="dxa"/></w:tcPr>)";
             xml += "<w:p><w:r><w:t>原始中文";
             xml += std::to_string(row);
             xml += "-";
@@ -2929,6 +2935,257 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
         REQUIRE(table_properties != pugi::xml_node{});
         CHECK_EQ(table_properties.child("w:tblpPr"), pugi::xml_node{});
         CHECK_EQ(table_properties.child("w:tblOverlap"), pugi::xml_node{});
+    }
+}
+
+TEST_CASE("layout mode updates preserve handles extensions and fixed widths") {
+    const auto fixture_xml =
+        allocation_heavy_table_fixture_xml(2U, 2U, "autofit", "600");
+    scoped_test_path path{make_test_path("布局模式句柄与扩展保留", 0U)};
+    write_test_docx(path.path(), fixture_xml);
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+
+    auto table = document.tables();
+    auto row = table.rows();
+    auto first_cell = row.cells();
+    auto second_cell = first_cell;
+    second_cell.next();
+    auto paragraph = first_cell.paragraphs();
+    auto run = paragraph.runs();
+
+    REQUIRE(table.set_layout_mode(featherdoc::table_layout_mode::fixed));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    REQUIRE(table.layout_mode().has_value());
+    CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(first_cell.width_twips().has_value());
+    CHECK_EQ(*first_cell.width_twips(), 1200U);
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE_FALSE(document.save());
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto saved_table =
+        saved_document.child("w:document").child("w:body").child("w:tbl");
+    const auto saved_properties = saved_table.child("w:tblPr");
+    const auto saved_grid = saved_table.child("w:tblGrid");
+    REQUIRE(saved_properties != pugi::xml_node{});
+    REQUIRE(saved_grid != pugi::xml_node{});
+    CHECK_FALSE(
+        std::string_view{saved_properties.attribute("data-large").value()}
+            .empty());
+    CHECK_FALSE(
+        std::string_view{saved_grid.attribute("data-large").value()}.empty());
+    const auto saved_layout = saved_properties.child("w:tblLayout");
+    REQUIRE(saved_layout != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_layout.attribute("w:type").value()},
+             "fixed");
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "layout mode updates are atomic for every pugixml allocation failure") {
+    for (const auto target_layout : {featherdoc::table_layout_mode::fixed,
+                                     featherdoc::table_layout_mode::autofit}) {
+        const auto target_fixed =
+            target_layout == featherdoc::table_layout_mode::fixed;
+        const auto initial_layout = target_fixed
+                                        ? featherdoc::table_layout_mode::autofit
+                                        : featherdoc::table_layout_mode::fixed;
+        const auto initial_width = target_fixed ? 600U : 1200U;
+        const auto scenario_suffix =
+            target_fixed ? std::string{"固定"} : std::string{"自动适应"};
+        const auto fixture_xml = allocation_heavy_table_fixture_xml(
+            2U, 2U, target_fixed ? "autofit" : "fixed",
+            target_fixed ? "600" : "1200");
+        CAPTURE(scenario_suffix);
+
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                "布局模式XML基线" + scenario_suffix, 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto updated = false;
+            {
+                pugi_allocator_guard guard;
+                updated = table.set_layout_mode(target_layout);
+                successful_allocation_count = pugi_allocation_calls;
+            }
+            REQUIRE(updated);
+        }
+        REQUIRE_GT(successful_allocation_count, 0U);
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                "布局模式XML失败" + scenario_suffix, failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto first_cell = row.cells();
+            auto second_cell = first_cell;
+            second_cell.next();
+            auto paragraph = first_cell.paragraphs();
+            auto run = paragraph.runs();
+            auto updated = true;
+            auto observed_failure_allocation_count = std::size_t{0U};
+            {
+                pugi_allocator_guard guard;
+                pugi_failure_call = failure_call;
+                updated = table.set_layout_mode(target_layout);
+                observed_failure_allocation_count = pugi_allocation_calls;
+            }
+
+            REQUIRE_FALSE(updated);
+            REQUIRE_GE(observed_failure_allocation_count, failure_call);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.layout_mode().has_value());
+            CHECK_EQ(*table.layout_mode(), initial_layout);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), initial_width);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), initial_width);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(table.set_layout_mode(target_layout));
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.layout_mode().has_value());
+            CHECK_EQ(*table.layout_mode(), target_layout);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), 1200U);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "layout mode updates are atomic for every global allocation failure") {
+    for (const auto target_layout : {featherdoc::table_layout_mode::fixed,
+                                     featherdoc::table_layout_mode::autofit}) {
+        const auto target_fixed =
+            target_layout == featherdoc::table_layout_mode::fixed;
+        const auto initial_layout = target_fixed
+                                        ? featherdoc::table_layout_mode::autofit
+                                        : featherdoc::table_layout_mode::fixed;
+        const auto initial_width = target_fixed ? 600U : 1200U;
+        const auto scenario_suffix =
+            target_fixed ? std::string{"固定"} : std::string{"自动适应"};
+        const auto fixture_xml = allocation_heavy_table_fixture_xml(
+            2U, 2U, target_fixed ? "autofit" : "fixed",
+            target_fixed ? "600" : "1200");
+        CAPTURE(scenario_suffix);
+
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                "布局模式全局基线" + scenario_suffix, 0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto table = document.tables();
+            auto updated = false;
+            {
+                global_allocation_guard guard{0U};
+                updated = table.set_layout_mode(target_layout);
+                successful_allocation_count =
+                    observed_allocation_calls.load(std::memory_order_relaxed);
+            }
+            REQUIRE(updated);
+        }
+        REQUIRE_GT(successful_allocation_count, 0U);
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                "布局模式全局失败" + scenario_suffix, failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto first_cell = row.cells();
+            auto second_cell = first_cell;
+            second_cell.next();
+            auto paragraph = first_cell.paragraphs();
+            auto run = paragraph.runs();
+            auto updated = true;
+            auto observed_failure_allocation_count = std::size_t{0U};
+            {
+                global_allocation_guard guard{failure_call};
+                updated = table.set_layout_mode(target_layout);
+                observed_failure_allocation_count =
+                    observed_allocation_calls.load(std::memory_order_relaxed);
+            }
+
+            REQUIRE_FALSE(updated);
+            REQUIRE_GE(observed_failure_allocation_count, failure_call);
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.layout_mode().has_value());
+            CHECK_EQ(*table.layout_mode(), initial_layout);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), initial_width);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), initial_width);
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            REQUIRE(table.set_layout_mode(target_layout));
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(first_cell.valid());
+            CHECK(second_cell.valid());
+            CHECK(paragraph.valid());
+            CHECK(run.valid());
+            REQUIRE(table.layout_mode().has_value());
+            CHECK_EQ(*table.layout_mode(), target_layout);
+            REQUIRE(first_cell.width_twips().has_value());
+            CHECK_EQ(*first_cell.width_twips(), 1200U);
+            REQUIRE(second_cell.width_twips().has_value());
+            CHECK_EQ(*second_cell.width_twips(), 1200U);
+        }
     }
 }
 

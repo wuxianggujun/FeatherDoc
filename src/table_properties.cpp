@@ -231,16 +231,92 @@ bool Table::set_layout_mode(featherdoc::table_layout_mode layout_mode) {
         return false;
     }
 
-    const auto layout_node = ensure_table_layout_node(this->current);
-    if (layout_node == pugi::xml_node{}) {
+    const auto column_count = current_table_column_count(this->current);
+    const auto synchronize_cell_widths =
+        layout_mode == featherdoc::table_layout_mode::fixed &&
+        column_count.has_value() && *column_count > 0U;
+    auto staged_layout = std::optional<staged_table_layout>{};
+    auto staged_table_properties = std::optional<staged_table_child>{};
+    auto staged_cells = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_cells);
+        if (staged_layout.has_value()) {
+            rollback_staged_table_layout(*staged_layout);
+        }
+        if (staged_table_properties.has_value()) {
+            rollback_staged_table_child(*staged_table_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        if (synchronize_cell_widths) {
+            staged_layout = stage_table_layout(table, *column_count);
+        } else {
+            staged_table_properties =
+                stage_table_child(table, "w:tblPr", table.first_child());
+        }
+        if (!staged_layout.has_value() &&
+            !staged_table_properties.has_value()) {
+            rollback();
+            return false;
+        }
+
+        auto replacement_table_properties = pugi::xml_node{};
+        if (staged_layout.has_value()) {
+            replacement_table_properties =
+                staged_layout->replacement_properties;
+        } else {
+            replacement_table_properties = staged_table_properties->replacement;
+        }
+        const auto layout_node = ensure_table_layout_node(table);
+        if (layout_node == pugi::xml_node{} ||
+            std::string_view{layout_node.name()} != "w:tblLayout" ||
+            layout_node.parent() != replacement_table_properties ||
+            !detail::checked_set_xml_attribute_value(
+                layout_node, "w:type", to_xml_table_layout_mode(layout_mode)) ||
+            (synchronize_cell_widths &&
+             !stage_fixed_layout_cell_widths(table, {}, staged_cells))) {
+            rollback();
+            return false;
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_cells.size() + 2U);
+        for (const auto &staged : staged_cells) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (staged_layout.has_value()) {
+            if (staged_layout->original_properties != pugi::xml_node{}) {
+                retirement_roots.push_back(staged_layout->original_properties);
+            }
+            if (staged_layout->original_grid != pugi::xml_node{}) {
+                retirement_roots.push_back(staged_layout->original_grid);
+            }
+        } else if (staged_table_properties->original != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_table_properties->original);
+        }
+        if (!this->current.retire_subtrees(std::span<const pugi::xml_node>{
+                retirement_roots.data(), retirement_roots.size()})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    ensure_attribute_value(layout_node, "w:type", to_xml_table_layout_mode(layout_mode));
-    if (layout_mode == featherdoc::table_layout_mode::fixed) {
-        synchronize_fixed_layout_cell_widths_from_grid(this->current);
+    if (!commit_staged_cell_properties(staged_cells)) {
+        return false;
     }
-    return true;
+    return staged_layout.has_value()
+               ? commit_staged_table_layout(*staged_layout)
+               : commit_staged_table_child(*staged_table_properties);
 }
 
 bool Table::clear_layout_mode() {
