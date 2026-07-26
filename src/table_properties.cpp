@@ -27,15 +27,48 @@ bool Table::set_width_twips(std::uint32_t width_twips) {
         return false;
     }
 
-    const auto width_node = ensure_table_width_node(this->current);
-    if (width_node == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto width_node = ensure_table_width_node(table);
+        const auto width_text = std::to_string(width_twips);
+        if (width_node == pugi::xml_node{} ||
+            std::string_view{width_node.name()} != "w:tblW" ||
+            width_node.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(width_node, "w:w",
+                                                     width_text) ||
+            !detail::checked_set_xml_attribute_value(width_node, "w:type",
+                                                     "dxa")) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto width_text = std::to_string(width_twips);
-    ensure_attribute_value(width_node, "w:w", width_text.c_str());
-    ensure_attribute_value(width_node, "w:type", "dxa");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_width() {
