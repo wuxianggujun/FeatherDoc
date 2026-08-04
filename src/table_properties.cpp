@@ -385,13 +385,45 @@ bool Table::set_alignment(featherdoc::table_alignment alignment) {
         return false;
     }
 
-    const auto alignment_node = ensure_table_alignment_node(this->current);
-    if (alignment_node == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto alignment_node = ensure_table_alignment_node(table);
+        if (alignment_node == pugi::xml_node{} ||
+            std::string_view{alignment_node.name()} != "w:jc" ||
+            alignment_node.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(
+                alignment_node, "w:val", to_xml_table_alignment(alignment))) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    ensure_attribute_value(alignment_node, "w:val", to_xml_table_alignment(alignment));
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_alignment() {
