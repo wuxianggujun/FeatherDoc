@@ -1033,15 +1033,51 @@ bool Table::set_cell_margin_twips(featherdoc::cell_margin_edge edge,
         return false;
     }
 
-    const auto margin = ensure_table_cell_margin_node(this->current, to_xml_margin_name(edge));
-    if (margin == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto margin_name = to_xml_margin_name(edge);
+        const auto margin = ensure_table_cell_margin_node(table, margin_name);
+        const auto margins = margin.parent();
+        const auto margin_text = std::to_string(margin_twips);
+        if (margin == pugi::xml_node{} ||
+            std::string_view{margin.name()} != margin_name ||
+            margins == pugi::xml_node{} ||
+            std::string_view{margins.name()} != "w:tblCellMar" ||
+            margins.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(margin, "w:w",
+                                                     margin_text) ||
+            !detail::checked_set_xml_attribute_value(margin, "w:type", "dxa")) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto margin_text = std::to_string(margin_twips);
-    ensure_attribute_value(margin, "w:w", margin_text.c_str());
-    ensure_attribute_value(margin, "w:type", "dxa");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_cell_margin(featherdoc::cell_margin_edge edge) {
