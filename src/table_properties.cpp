@@ -1224,23 +1224,65 @@ bool Table::set_style_look(featherdoc::table_style_look style_look) {
         return false;
     }
 
-    const auto table_look_node = ensure_table_look_node(this->current);
-    if (table_look_node == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto table_look_node = ensure_table_look_node(table);
+        const auto encoded_value =
+            format_short_hex(encode_table_style_look(style_look));
+        if (table_look_node == pugi::xml_node{} ||
+            std::string_view{table_look_node.name()} != "w:tblLook" ||
+            table_look_node.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(table_look_node, "w:val",
+                                                     encoded_value) ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:firstRow",
+                style_look.first_row ? "1" : "0") ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:lastRow",
+                style_look.last_row ? "1" : "0") ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:firstColumn",
+                style_look.first_column ? "1" : "0") ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:lastColumn",
+                style_look.last_column ? "1" : "0") ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:noHBand",
+                style_look.banded_rows ? "0" : "1") ||
+            !detail::checked_set_xml_attribute_value(
+                table_look_node, "w:noVBand",
+                style_look.banded_columns ? "0" : "1")) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto encoded_value = format_short_hex(encode_table_style_look(style_look));
-    ensure_attribute_value(table_look_node, "w:val", encoded_value.c_str());
-    ensure_attribute_value(table_look_node, "w:firstRow", style_look.first_row ? "1" : "0");
-    ensure_attribute_value(table_look_node, "w:lastRow", style_look.last_row ? "1" : "0");
-    ensure_attribute_value(table_look_node, "w:firstColumn",
-                           style_look.first_column ? "1" : "0");
-    ensure_attribute_value(table_look_node, "w:lastColumn",
-                           style_look.last_column ? "1" : "0");
-    ensure_attribute_value(table_look_node, "w:noHBand", style_look.banded_rows ? "0" : "1");
-    ensure_attribute_value(table_look_node, "w:noVBand",
-                           style_look.banded_columns ? "0" : "1");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_style_look() {
