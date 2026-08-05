@@ -544,15 +544,48 @@ bool Table::set_cell_spacing_twips(std::uint32_t spacing_twips) {
         return false;
     }
 
-    const auto spacing = ensure_table_cell_spacing_node(this->current);
-    if (spacing == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto spacing = ensure_table_cell_spacing_node(table);
+        const auto spacing_text = std::to_string(spacing_twips);
+        if (spacing == pugi::xml_node{} ||
+            std::string_view{spacing.name()} != "w:tblCellSpacing" ||
+            spacing.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(spacing, "w:w",
+                                                     spacing_text) ||
+            !detail::checked_set_xml_attribute_value(spacing, "w:type",
+                                                     "dxa")) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto spacing_text = std::to_string(spacing_twips);
-    ensure_attribute_value(spacing, "w:w", spacing_text.c_str());
-    ensure_attribute_value(spacing, "w:type", "dxa");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_cell_spacing() {
