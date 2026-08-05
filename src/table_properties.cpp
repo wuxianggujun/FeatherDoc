@@ -1122,18 +1122,51 @@ bool Table::set_style_id(std::string_view style_id) {
         return false;
     }
 
-    if (this->owner != nullptr && this->owner->ensure_styles_part_attached()) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        if (this->owner != nullptr &&
+            this->owner->ensure_styles_part_attached()) {
+            return false;
+        }
+
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto style_node = ensure_table_style_node(table);
+        const auto style_text = std::string{style_id};
+        if (style_node == pugi::xml_node{} ||
+            std::string_view{style_node.name()} != "w:tblStyle" ||
+            style_node.parent() != staged_properties->replacement ||
+            !detail::checked_set_xml_attribute_value(style_node, "w:val",
+                                                     style_text.c_str())) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto style_node = ensure_table_style_node(this->current);
-    if (style_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    const auto style_text = std::string{style_id};
-    ensure_attribute_value(style_node, "w:val", style_text.c_str());
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_style_id() {
