@@ -39,6 +39,26 @@ ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 6. Do not mix unrelated refactors, formatting sweeps, and behavior changes in
    one pull request.
 
+### Validation Tiers
+
+Use the following validation order so routine development gets fast feedback
+without duplicating hosted CI on the developer workstation:
+
+1. For focused changes, build the affected targets and run the relevant CTest
+   cases locally on Windows/MSVC. Run the full Windows suite when the change's
+   blast radius warrants it.
+2. Let GitHub Actions provide the normal cross-platform gate through
+   `windows-msvc.yml`, `linux-cmake.yml`, `macos-cmake.yml`, and
+   `security-sanitizers-fuzz.yml`. A transient service or rate-limit failure
+   should be retried with backoff instead of being treated as a code failure.
+3. Use a local Linux or WSL build only for release preparation, a broad
+   cross-module change that needs early Linux feedback, or reproduction of a
+   specific hosted CI failure. Use bounded concurrency (one build job by
+   default) and remove isolated temporary worktrees/builds after the check.
+
+A routine focused change does not require a local WSL build before it is pushed
+for hosted CI validation.
+
 ### Test Safety Matrix
 
 Windows is the ordinary Release/MSVC validation platform. Keep allocation
@@ -49,15 +69,17 @@ filesystem failure injection requires the explicit
 ``--no-breaks=true`` to native test executables so unexpected assertions are
 reported without opening an interactive assertion dialog.
 
-Run deterministic allocation-failure coverage only in an isolated Linux or WSL
-build (prefer a native ext4 directory rather than ``/mnt/c``):
+The `security-sanitizers-fuzz.yml` workflow is the default execution environment
+for deterministic allocation-failure and sanitizer coverage. When a local
+Linux reproduction is justified by the validation tiers above, use an isolated
+Linux or WSL build (prefer a native ext4 directory rather than ``/mnt/c``):
 
 ```sh
 cmake -S . -B build-fault \
   -DBUILD_TESTING=ON \
   -DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=ON \
   -DFEATHERDOC_ENABLE_SANITIZERS=ON
-cmake --build build-fault --parallel 2
+cmake --build build-fault --parallel 1
 ctest --test-dir build-fault -L allocation-failure --output-on-failure
 ```
 
