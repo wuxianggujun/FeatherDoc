@@ -3864,6 +3864,237 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     }
 }
 
+TEST_CASE("table indent updates preserve handles and unrelated XML content") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    scoped_test_path path{make_test_path("表格缩进句柄与扩展保留", 0U)};
+    write_test_docx(path.path(), fixture_xml);
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+
+    auto table = document.tables();
+    auto row = table.rows();
+    auto first_cell = row.cells();
+    auto second_cell = first_cell;
+    second_cell.next();
+    auto paragraph = first_cell.paragraphs();
+    auto run = paragraph.runs();
+    CHECK_FALSE(table.indent_twips().has_value());
+
+    REQUIRE(table.set_indent_twips(720U));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    REQUIRE(table.indent_twips().has_value());
+    CHECK_EQ(*table.indent_twips(), 720U);
+    REQUIRE(table.layout_mode().has_value());
+    CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(first_cell.width_twips().has_value());
+    CHECK_EQ(*first_cell.width_twips(), 1200U);
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE_FALSE(document.save());
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto saved_table =
+        saved_document.child("w:document").child("w:body").child("w:tbl");
+    const auto saved_properties = saved_table.child("w:tblPr");
+    const auto saved_grid = saved_table.child("w:tblGrid");
+    REQUIRE(saved_properties != pugi::xml_node{});
+    REQUIRE(saved_grid != pugi::xml_node{});
+    CHECK_FALSE(
+        std::string_view{saved_properties.attribute("data-large").value()}
+            .empty());
+    CHECK_FALSE(
+        std::string_view{saved_grid.attribute("data-large").value()}.empty());
+
+    const auto saved_width = saved_properties.child("w:tblW");
+    REQUIRE(saved_width != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_width.attribute("w:w").value()}, "0");
+    CHECK_EQ(std::string_view{saved_width.attribute("w:type").value()}, "auto");
+    const auto saved_indent = saved_properties.child("w:tblInd");
+    REQUIRE(saved_indent != pugi::xml_node{});
+    CHECK_EQ(saved_indent.next_sibling("w:tblInd"), pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_indent.attribute("w:w").value()}, "720");
+    CHECK_EQ(std::string_view{saved_indent.attribute("w:type").value()}, "dxa");
+    const auto saved_layout = saved_properties.child("w:tblLayout");
+    REQUIRE(saved_layout != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_layout.attribute("w:type").value()},
+             "fixed");
+    const auto saved_look = saved_properties.child("w:tblLook");
+    REQUIRE(saved_look != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_look.attribute("w:val").value()}, "04A0");
+    CHECK_EQ(std::string_view{saved_look.attribute("w:firstRow").value()}, "1");
+    CHECK_EQ(std::string_view{saved_look.attribute("w:noVBand").value()}, "1");
+    CHECK_EQ(saved_properties.first_child(), saved_width);
+    CHECK_EQ(saved_width.next_sibling(), saved_indent);
+    CHECK_EQ(saved_indent.next_sibling(), saved_layout);
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table indent updates are atomic for every pugixml allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{make_test_path("表格缩进XML基线", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto updated = false;
+        {
+            pugi_allocator_guard guard;
+            updated = table.set_indent_twips(720U);
+            successful_allocation_count = pugi_allocation_calls;
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{make_test_path("表格缩进XML失败", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            pugi_allocator_guard guard;
+            pugi_failure_call = failure_call;
+            updated = table.set_indent_twips(720U);
+            observed_failure_allocation_count = pugi_allocation_calls;
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(table.indent_twips().has_value());
+        REQUIRE(table.layout_mode().has_value());
+        CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(table.set_indent_twips(720U));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        REQUIRE(table.indent_twips().has_value());
+        CHECK_EQ(*table.indent_twips(), 720U);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table indent updates are atomic for every global allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{make_test_path("表格缩进全局基线", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto updated = false;
+        {
+            global_allocation_guard guard{0U};
+            updated = table.set_indent_twips(720U);
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{make_test_path("表格缩进全局失败", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            global_allocation_guard guard{failure_call};
+            updated = table.set_indent_twips(720U);
+            observed_failure_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(table.indent_twips().has_value());
+        REQUIRE(table.layout_mode().has_value());
+        CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(table.set_indent_twips(720U));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        REQUIRE(table.indent_twips().has_value());
+        CHECK_EQ(*table.indent_twips(), 720U);
+    }
+}
+
 TEST_CASE("column width updates preserve handles and unrelated XML content") {
     const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
     scoped_test_path path{make_test_path("列宽句柄与扩展保留", 0U)};
