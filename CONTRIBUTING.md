@@ -23,7 +23,8 @@ directly as a focused pull request.
 1. Keep each pull request focused on one topic.
 2. Prefer modern C++ style over compatibility layers for obsolete patterns.
 3. Add or update tests when behavior changes.
-4. Keep MSVC buildability intact. The current baseline validation flow is:
+4. Keep MSVC buildability intact. Use the following full baseline only at the
+   full-validation gates defined below, not after every small change:
 
 ```bat
 cmake -S . -B build-msvc-nmake -G "NMake Makefiles" ^
@@ -39,40 +40,72 @@ ctest --test-dir build-msvc-nmake --output-on-failure --timeout 60
 6. Do not mix unrelated refactors, formatting sweeps, and behavior changes in
    one pull request.
 
-### Validation Tiers
+### Validation Scope Policy
 
-Use the following validation order so routine development gets fast feedback
-without duplicating hosted CI on the developer workstation:
+This policy is mandatory. Small changes use targeted validation only. Full
+builds and full test suites are completion gates for large work, not feedback
+loops for each incremental edit.
 
-1. For focused changes, build the affected targets and run the relevant CTest
-   cases locally on Windows/MSVC. Run the full Windows suite when the change's
-   blast radius warrants it.
-2. Let GitHub Actions provide the normal cross-platform gate through
-   `windows-msvc.yml`, `linux-cmake.yml`, `macos-cmake.yml`, and
-   `security-sanitizers-fuzz.yml`. A transient service or rate-limit failure
-   should be retried with backoff instead of being treated as a code failure.
-3. Use a local Linux or WSL build only for release preparation, a broad
-   cross-module change that needs early Linux feedback, or reproduction of a
-   specific hosted CI failure. Use bounded concurrency (one build job by
-   default) and remove isolated temporary worktrees/builds after the check.
+| Change scope | Required local validation | Full suite / full CI matrix |
+| --- | --- | --- |
+| Documentation-only change | `git diff --check` and only the relevant documentation checker, if one exists | No |
+| Small feature, focused bug fix, setter/method change, isolated refactor, or focused test addition | Build only the affected target and run only the exact related test case(s) on Windows/MSVC | No |
+| Completed large feature or completed module milestone | Full Windows build and full Windows test suite | Yes |
+| Cross-module integration checkpoint or release candidate | Full Windows validation plus the required cross-platform/release gates | Yes |
+| Reproduction of a specific CI-only failure | Only the failing platform, target, and test group needed to reproduce it | Only if the work also reaches a full-validation gate |
 
-A routine focused change does not require a local WSL build before it is pushed
-for hosted CI validation.
+For a small change, reuse an existing Windows build directory and run a command
+equivalent to:
+
+```powershell
+cmake --build <windows-build-dir> --target <affected-test-target> --parallel 1
+ctest --test-dir <windows-build-dir> -R "^<affected-test-name>$" --output-on-failure
+```
+
+The following actions are prohibited by default for a small change:
+
+- building the default/all target when a narrower target exists;
+- running unfiltered `ctest` or the complete test suite;
+- running local WSL/Linux, Sanitizer, fuzzing, or allocation-failure suites;
+- manually triggering or waiting for every GitHub Actions workflow as the
+  feedback loop for each method, setter, small fix, or test addition.
+
+If a targeted test fails, expand validation gradually: exact test case first,
+then the nearest component test group. Do not jump directly to the full suite.
+
+A sequence of small implementation steps remains small validation work until
+the maintainer declares the large feature or module milestone complete. At that
+completion point, run the full Windows suite and require the GitHub Actions
+matrix: `windows-msvc.yml`, `linux-cmake.yml`, `macos-cmake.yml`, and
+`security-sanitizers-fuzz.yml`.
+
+Automatic CI triggered by an intermediate push does not require blocking local
+progress or monitoring every workflow unless the push is a declared
+full-validation gate. Transient service or HTTP 429 failures should be retried
+with backoff instead of being treated as code failures.
+
+Use a local Linux or WSL build only for release preparation, a completed broad
+cross-module validation gate that needs local Linux evidence, or reproduction
+of a specific hosted CI failure. Use bounded concurrency (one build job by
+default) and remove isolated temporary worktrees/builds after the check.
 
 ### Test Safety Matrix
 
-Windows is the ordinary Release/MSVC validation platform. Keep allocation
-failure tests, Windows filesystem failure injection, sanitizers, and fuzzers
-disabled there. CMake rejects unsupported configurations, and Windows-specific
-filesystem failure injection requires the explicit
+When a full-validation gate is reached, Windows is the ordinary Release/MSVC
+validation platform. For small changes, follow the targeted validation policy
+above. Keep allocation failure tests, Windows filesystem failure injection,
+sanitizers, and fuzzers disabled on Windows. CMake rejects unsupported
+configurations, and Windows-specific filesystem failure injection requires the
+explicit
 ``FEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=ON`` opt-in. CTest adds
 ``--no-breaks=true`` to native test executables so unexpected assertions are
 reported without opening an interactive assertion dialog.
 
-The `security-sanitizers-fuzz.yml` workflow is the default execution environment
-for deterministic allocation-failure and sanitizer coverage. When a local
-Linux reproduction is justified by the validation tiers above, use an isolated
-Linux or WSL build (prefer a native ext4 directory rather than ``/mnt/c``):
+At a full-validation gate, the `security-sanitizers-fuzz.yml` workflow is the
+default execution environment for deterministic allocation-failure and
+sanitizer coverage. When a local Linux reproduction is justified by the policy
+above, use an isolated Linux or WSL build (prefer a native ext4 directory rather
+than ``/mnt/c``):
 
 ```sh
 cmake -S . -B build-fault \
