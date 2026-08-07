@@ -1317,22 +1317,66 @@ bool Table::set_border(featherdoc::table_border_edge edge,
         return false;
     }
 
-    auto table_borders = ensure_table_borders_node(this->current);
-    if (table_borders == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto border_name = to_xml_border_name(edge);
+        auto table_borders = ensure_table_borders_node(table);
+        auto border_node = table_borders.child(border_name);
+        if (border_node == pugi::xml_node{}) {
+            border_node = table_borders.append_child(border_name);
+        }
+
+        const auto expected_size = std::to_string(border.size_eighth_points);
+        const auto expected_space = std::to_string(border.space_points);
+        const auto expected_color = border.color.empty()
+                                        ? std::string{"auto"}
+                                        : std::string{border.color};
+        apply_border_definition(border_node, border);
+        if (table_borders == pugi::xml_node{} ||
+            std::string_view{table_borders.name()} != "w:tblBorders" ||
+            table_borders.parent() != staged_properties->replacement ||
+            border_node == pugi::xml_node{} ||
+            std::string_view{border_node.name()} != border_name ||
+            border_node.parent() != table_borders ||
+            std::string_view{border_node.attribute("w:val").value()} !=
+                to_xml_border_style(border.style) ||
+            std::string_view{border_node.attribute("w:sz").value()} !=
+                expected_size ||
+            std::string_view{border_node.attribute("w:space").value()} !=
+                expected_space ||
+            std::string_view{border_node.attribute("w:color").value()} !=
+                expected_color) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto border_name = to_xml_border_name(edge);
-    auto border_node = table_borders.child(border_name);
-    if (border_node == pugi::xml_node{}) {
-        border_node = table_borders.append_child(border_name);
-    }
-    if (border_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    apply_border_definition(border_node, border);
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool Table::clear_border(featherdoc::table_border_edge edge) {

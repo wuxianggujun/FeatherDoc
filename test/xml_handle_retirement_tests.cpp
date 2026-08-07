@@ -290,6 +290,11 @@ class scoped_test_path final {
     return style_look;
 }
 
+[[nodiscard]] auto replacement_table_border(std::string_view color = "12AB34")
+    -> featherdoc::border_definition {
+    return {featherdoc::border_style::double_line, 16U, color, 2U};
+}
+
 enum class table_position_fixture_state {
     properties_without_position = 0,
     existing_position,
@@ -5140,6 +5145,266 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
         CHECK(updated_style_look->last_column);
         CHECK_FALSE(updated_style_look->banded_rows);
         CHECK(updated_style_look->banded_columns);
+    }
+}
+
+TEST_CASE("table border updates preserve handles and unrelated XML content") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    scoped_test_path path{make_test_path("table-border-handles", 0U)};
+    write_test_docx(path.path(), fixture_xml);
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+
+    auto table = document.tables();
+    auto row = table.rows();
+    auto first_cell = row.cells();
+    auto second_cell = first_cell;
+    second_cell.next();
+    auto paragraph = first_cell.paragraphs();
+    auto run = paragraph.runs();
+    CHECK_FALSE(table.border(featherdoc::table_border_edge::top).has_value());
+
+    const auto replacement = replacement_table_border();
+    REQUIRE(table.set_border(featherdoc::table_border_edge::top, replacement));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    const auto updated_border =
+        table.border(featherdoc::table_border_edge::top);
+    REQUIRE(updated_border.has_value());
+    CHECK_EQ(updated_border->style, featherdoc::border_style::double_line);
+    CHECK_EQ(updated_border->size_eighth_points, 16U);
+    CHECK_EQ(updated_border->color, "12AB34");
+    CHECK_EQ(updated_border->space_points, 2U);
+    REQUIRE(table.layout_mode().has_value());
+    CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+    REQUIRE(first_cell.width_twips().has_value());
+    CHECK_EQ(*first_cell.width_twips(), 1200U);
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE_FALSE(document.save());
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto saved_table =
+        saved_document.child("w:document").child("w:body").child("w:tbl");
+    const auto saved_properties = saved_table.child("w:tblPr");
+    const auto saved_grid = saved_table.child("w:tblGrid");
+    REQUIRE(saved_properties != pugi::xml_node{});
+    REQUIRE(saved_grid != pugi::xml_node{});
+    CHECK_FALSE(
+        std::string_view{saved_properties.attribute("data-large").value()}
+            .empty());
+    CHECK_FALSE(
+        std::string_view{saved_grid.attribute("data-large").value()}.empty());
+
+    const auto saved_layout = saved_properties.child("w:tblLayout");
+    const auto saved_look = saved_properties.child("w:tblLook");
+    const auto saved_borders = saved_properties.child("w:tblBorders");
+    REQUIRE(saved_layout != pugi::xml_node{});
+    REQUIRE(saved_look != pugi::xml_node{});
+    REQUIRE(saved_borders != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_layout.attribute("w:type").value()},
+             "fixed");
+    CHECK_EQ(saved_look.next_sibling(), saved_borders);
+    const auto saved_top_border = saved_borders.child("w:top");
+    REQUIRE(saved_top_border != pugi::xml_node{});
+    CHECK_EQ(saved_top_border.next_sibling("w:top"), pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_top_border.attribute("w:val").value()},
+             "double");
+    CHECK_EQ(std::string_view{saved_top_border.attribute("w:sz").value()},
+             "16");
+    CHECK_EQ(std::string_view{saved_top_border.attribute("w:space").value()},
+             "2");
+    CHECK_EQ(std::string_view{saved_top_border.attribute("w:color").value()},
+             "12AB34");
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table border updates are atomic for every pugixml allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto replacement = replacement_table_border();
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{make_test_path("table-border-xml-baseline", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto updated = false;
+        {
+            pugi_allocator_guard guard;
+            updated = table.set_border(featherdoc::table_border_edge::top,
+                                       replacement);
+            successful_allocation_count = pugi_allocation_calls;
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("table-border-xml-failure", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            pugi_allocator_guard guard;
+            pugi_failure_call = failure_call;
+            updated = table.set_border(featherdoc::table_border_edge::top,
+                                       replacement);
+            observed_failure_allocation_count = pugi_allocation_calls;
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(
+            table.border(featherdoc::table_border_edge::top).has_value());
+        REQUIRE(table.layout_mode().has_value());
+        CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(
+            table.set_border(featherdoc::table_border_edge::top, replacement));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto updated_border =
+            table.border(featherdoc::table_border_edge::top);
+        REQUIRE(updated_border.has_value());
+        CHECK_EQ(updated_border->style, featherdoc::border_style::double_line);
+        CHECK_EQ(updated_border->size_eighth_points, 16U);
+        CHECK_EQ(updated_border->color, "12AB34");
+        CHECK_EQ(updated_border->space_points, 2U);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table border updates are atomic for every global allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto updated_color = std::string(4096U, 'A');
+    const auto replacement = replacement_table_border(updated_color);
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{
+            make_test_path("table-border-global-baseline", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto table = document.tables();
+        auto updated = false;
+        {
+            global_allocation_guard guard{0U};
+            updated = table.set_border(featherdoc::table_border_edge::top,
+                                       replacement);
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("table-border-global-failure", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            global_allocation_guard guard{failure_call};
+            updated = table.set_border(featherdoc::table_border_edge::top,
+                                       replacement);
+            observed_failure_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(
+            table.border(featherdoc::table_border_edge::top).has_value());
+        REQUIRE(table.layout_mode().has_value());
+        CHECK_EQ(*table.layout_mode(), featherdoc::table_layout_mode::fixed);
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(
+            table.set_border(featherdoc::table_border_edge::top, replacement));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        const auto updated_border =
+            table.border(featherdoc::table_border_edge::top);
+        REQUIRE(updated_border.has_value());
+        CHECK_EQ(updated_border->style, featherdoc::border_style::double_line);
+        CHECK_EQ(updated_border->size_eighth_points, 16U);
+        CHECK_EQ(updated_border->color, updated_color);
+        CHECK_EQ(updated_border->space_points, 2U);
     }
 }
 
