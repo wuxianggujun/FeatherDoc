@@ -1,5 +1,7 @@
 #include "table_method_dependencies.hpp"
 
+#include <new>
+
 namespace featherdoc {
 
 TableCell::TableCell() = default;
@@ -906,22 +908,64 @@ bool TableCell::set_border(featherdoc::cell_border_edge edge,
         return false;
     }
 
-    auto cell_borders = ensure_cell_borders_node(this->current);
-    if (cell_borders == pugi::xml_node{}) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto border_name = to_xml_border_name(edge);
+        auto cell_borders = ensure_cell_borders_node(this->current.node());
+        auto border_node = cell_borders.child(border_name);
+        if (border_node == pugi::xml_node{}) {
+            border_node = cell_borders.append_child(border_name);
+        }
+
+        const auto expected_size = std::to_string(border.size_eighth_points);
+        const auto expected_space = std::to_string(border.space_points);
+        const auto expected_color = border.color.empty()
+                                        ? std::string{"auto"}
+                                        : std::string{border.color};
+        apply_border_definition(border_node, border);
+        if (cell_borders == pugi::xml_node{} ||
+            std::string_view{cell_borders.name()} != "w:tcBorders" ||
+            cell_borders.parent() != staged_properties.front().replacement ||
+            border_node == pugi::xml_node{} ||
+            std::string_view{border_node.name()} != border_name ||
+            border_node.parent() != cell_borders ||
+            std::string_view{border_node.attribute("w:val").value()} !=
+                to_xml_border_style(border.style) ||
+            std::string_view{border_node.attribute("w:sz").value()} !=
+                expected_size ||
+            std::string_view{border_node.attribute("w:space").value()} !=
+                expected_space ||
+            std::string_view{border_node.attribute("w:color").value()} !=
+                expected_color) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto border_name = to_xml_border_name(edge);
-    auto border_node = cell_borders.child(border_name);
-    if (border_node == pugi::xml_node{}) {
-        border_node = cell_borders.append_child(border_name);
-    }
-    if (border_node == pugi::xml_node{}) {
-        return false;
-    }
-
-    apply_border_definition(border_node, border);
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 bool TableCell::clear_border(featherdoc::cell_border_edge edge) {
