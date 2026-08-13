@@ -5409,6 +5409,245 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
 }
 
 TEST_CASE(
+    "table cell fill updates preserve handles and unrelated XML content") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    scoped_test_path path{make_test_path("table-cell-fill-handles", 0U)};
+    write_test_docx(path.path(), fixture_xml);
+    featherdoc::Document document(path.path());
+    REQUIRE_FALSE(document.open());
+
+    auto table = document.tables();
+    auto row = table.rows();
+    auto first_cell = row.cells();
+    auto second_cell = first_cell;
+    second_cell.next();
+    auto paragraph = first_cell.paragraphs();
+    auto run = paragraph.runs();
+    CHECK_FALSE(first_cell.fill_color().has_value());
+
+    REQUIRE(first_cell.set_fill_color("12AB34"));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(first_cell.valid());
+    CHECK(second_cell.valid());
+    CHECK(paragraph.valid());
+    CHECK(run.valid());
+    REQUIRE(first_cell.fill_color().has_value());
+    CHECK_EQ(*first_cell.fill_color(), "12AB34");
+    REQUIRE(first_cell.width_twips().has_value());
+    CHECK_EQ(*first_cell.width_twips(), 1200U);
+    REQUIRE(second_cell.width_twips().has_value());
+    CHECK_EQ(*second_cell.width_twips(), 1200U);
+
+    REQUIRE_FALSE(document.save());
+    const auto saved_xml =
+        read_test_docx_entry(path.path(), test_document_xml_entry);
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(saved_xml.c_str()));
+    const auto saved_table =
+        saved_document.child("w:document").child("w:body").child("w:tbl");
+    const auto saved_properties = saved_table.child("w:tblPr");
+    const auto saved_grid = saved_table.child("w:tblGrid");
+    const auto saved_row = saved_table.child("w:tr");
+    const auto saved_first_cell = saved_row.child("w:tc");
+    const auto saved_second_cell = saved_first_cell.next_sibling("w:tc");
+    REQUIRE(saved_properties != pugi::xml_node{});
+    REQUIRE(saved_grid != pugi::xml_node{});
+    REQUIRE(saved_first_cell != pugi::xml_node{});
+    REQUIRE(saved_second_cell != pugi::xml_node{});
+    CHECK_FALSE(
+        std::string_view{saved_properties.attribute("data-large").value()}
+            .empty());
+    CHECK_FALSE(
+        std::string_view{saved_grid.attribute("data-large").value()}.empty());
+
+    const auto saved_first_properties = saved_first_cell.child("w:tcPr");
+    const auto saved_first_width = saved_first_properties.child("w:tcW");
+    const auto saved_shading = saved_first_properties.child("w:shd");
+    REQUIRE(saved_first_properties != pugi::xml_node{});
+    REQUIRE(saved_first_width != pugi::xml_node{});
+    REQUIRE(saved_shading != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_first_width.attribute("w:w").value()},
+             "1200");
+    CHECK_EQ(saved_first_width.next_sibling(), saved_shading);
+    CHECK_EQ(saved_shading.next_sibling("w:shd"), pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_shading.attribute("w:val").value()},
+             "clear");
+    CHECK_EQ(std::string_view{saved_shading.attribute("w:color").value()},
+             "auto");
+    CHECK_EQ(std::string_view{saved_shading.attribute("w:fill").value()},
+             "12AB34");
+    const auto saved_second_width =
+        saved_second_cell.child("w:tcPr").child("w:tcW");
+    REQUIRE(saved_second_width != pugi::xml_node{});
+    CHECK_EQ(std::string_view{saved_second_width.attribute("w:w").value()},
+             "1200");
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table cell fill updates are atomic for every pugixml allocation "
+    "failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    constexpr auto updated_color = std::string_view{"12AB34"};
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{
+            make_test_path("table-cell-fill-xml-baseline", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto first_cell = document.tables().rows().cells();
+        auto updated = false;
+        {
+            pugi_allocator_guard guard;
+            updated = first_cell.set_fill_color(updated_color);
+            successful_allocation_count = pugi_allocation_calls;
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("table-cell-fill-xml-failure", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            pugi_allocator_guard guard;
+            pugi_failure_call = failure_call;
+            updated = first_cell.set_fill_color(updated_color);
+            observed_failure_allocation_count = pugi_allocation_calls;
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(first_cell.fill_color().has_value());
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(first_cell.set_fill_color(updated_color));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        REQUIRE(first_cell.fill_color().has_value());
+        CHECK_EQ(*first_cell.fill_color(), updated_color);
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "table cell fill updates are atomic for every global allocation "
+    "failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto updated_color = std::string(4096U, 'C');
+    auto successful_allocation_count = std::size_t{0U};
+    {
+        scoped_test_path path{
+            make_test_path("table-cell-fill-global-baseline", 0U)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        auto first_cell = document.tables().rows().cells();
+        auto updated = false;
+        {
+            global_allocation_guard guard{0U};
+            updated = first_cell.set_fill_color(updated_color);
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+        REQUIRE(updated);
+    }
+    REQUIRE_GT(successful_allocation_count, 0U);
+
+    for (std::size_t failure_call = 1U;
+         failure_call <= successful_allocation_count; ++failure_call) {
+        CAPTURE(failure_call);
+        CAPTURE(successful_allocation_count);
+        scoped_test_path path{
+            make_test_path("table-cell-fill-global-failure", failure_call)};
+        write_test_docx(path.path(), fixture_xml);
+        featherdoc::Document document(path.path());
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(path.path(), test_document_xml_entry);
+
+        auto table = document.tables();
+        auto row = table.rows();
+        auto first_cell = row.cells();
+        auto second_cell = first_cell;
+        second_cell.next();
+        auto paragraph = first_cell.paragraphs();
+        auto run = paragraph.runs();
+        auto updated = true;
+        auto observed_failure_allocation_count = std::size_t{0U};
+        {
+            global_allocation_guard guard{failure_call};
+            updated = first_cell.set_fill_color(updated_color);
+            observed_failure_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_FALSE(updated);
+        REQUIRE_GE(observed_failure_allocation_count, failure_call);
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK_FALSE(first_cell.fill_color().has_value());
+        REQUIRE(first_cell.width_twips().has_value());
+        CHECK_EQ(*first_cell.width_twips(), 1200U);
+        REQUIRE(second_cell.width_twips().has_value());
+        CHECK_EQ(*second_cell.width_twips(), 1200U);
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                 xml_before);
+
+        REQUIRE(first_cell.set_fill_color(updated_color));
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(first_cell.valid());
+        CHECK(second_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        REQUIRE(first_cell.fill_color().has_value());
+        CHECK_EQ(*first_cell.fill_color(), updated_color);
+    }
+}
+
+TEST_CASE(
     "table cell border updates preserve handles and unrelated XML content") {
     const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
     scoped_test_path path{make_test_path("table-cell-border-handles", 0U)};

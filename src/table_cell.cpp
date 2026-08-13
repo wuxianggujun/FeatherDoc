@@ -806,16 +806,49 @@ bool TableCell::set_fill_color(std::string_view fill_color) {
         return false;
     }
 
-    const auto shading = ensure_cell_shading_node(this->current);
-    if (shading == pugi::xml_node{}) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto fill_text = std::string{fill_color};
+        const auto shading = ensure_cell_shading_node(this->current.node());
+        ensure_attribute_value(shading, "w:val", "clear");
+        ensure_attribute_value(shading, "w:color", "auto");
+        ensure_attribute_value(shading, "w:fill", fill_text.c_str());
+        if (shading == pugi::xml_node{} ||
+            std::string_view{shading.name()} != "w:shd" ||
+            shading.parent() != staged_properties.front().replacement ||
+            std::string_view{shading.attribute("w:val").value()} != "clear" ||
+            std::string_view{shading.attribute("w:color").value()} != "auto" ||
+            std::string_view{shading.attribute("w:fill").value()} !=
+                fill_text) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto fill_text = std::string{fill_color};
-    ensure_attribute_value(shading, "w:val", "clear");
-    ensure_attribute_value(shading, "w:color", "auto");
-    ensure_attribute_value(shading, "w:fill", fill_text.c_str());
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 bool TableCell::clear_fill_color() {

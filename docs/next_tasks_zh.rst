@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-07-15
+状态日期：2026-08-13
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -93,14 +93,26 @@ P0：Word/DOCX 安全与兼容性
 7. 保存管线以及已迁移的 singleton、分节、样式等关键 mutation 已具备隔离事务和
    fail-Nth 故障注入回归；``save_as()`` 还遍历当前观测到的全部标准 ``new`` 分配点，
    验证失败时原目标不变、无临时文件残留且同一对象可重试。尚未逐项迁移的任意 DOM mutation
-   仍缺少统一的 generation-aware transaction；这部分继续作为独立架构任务延期，
+   仍缺少统一的 generation-aware transaction；这部分继续作为独立架构任务推进，
    不能据此宣称整个 API 已具备通用 OOM 原子性。
-8. 本轮本地定向验证（2026-07-19）：release material safety 契约测试通过；Windows
-   Release 增量构建的 ``FeatherDoc`` / ``featherdoc_cli`` 通过；security label
-   通过 ``12/12``，CLI 纯 C++ 测试通过 ``55/55``。这些证据来自当前脏工作树，不能
-   替代干净检出、完整 CTest 或远端 CI。
-9. 提交前集成门槛：CMake 已引用的新增源码和测试仍有 untracked 文件，必须在同一组
-   提交中纳入版本控制，并在干净检出中重新配置、编译和验证，不能只依赖当前工作区。
+8. 表格属性 mutation 已按小功能逐项迁移：``Table`` 的 cell spacing、cell margin、
+   style id、style look 和 border setter，以及 ``TableCell::set_border()``、
+   ``TableCell::set_fill_color()`` 已完成 ``w:tblPr`` / ``w:tcPr`` 暂存、验证、退休和
+   提交事务。后续仍按 width、vertical alignment、text direction、cell margin 等独立
+   setter 逐项处理，不在一个提交中混合多个 API。
+9. 每个 setter 小改动只在 Windows/MSVC 构建受影响的
+   ``xml_handle_retirement_tests`` target，并只运行对应精确 doctest case；不运行本地
+   WSL、完整 CTest、sanitizer/fuzz 或全矩阵 CI。PugiXML/global fail-Nth 用例保留在
+   allocation-failure 专用配置中，由 GitHub Actions 的专用矩阵在里程碑 gate 验证。
+10. 临时构建目录统一放在仓库 ``.codex-temp`` 下，构建使用 ``--parallel 1``；每轮
+    定向验证结束后确认 ``cmake`` / ``ninja`` / ``cl`` / ``link`` / ``ctest`` 已退出，
+    再删除该轮不再复用的临时构建目录。只有维护者明确宣布大功能、模块里程碑、跨模块
+    集成或发布 gate 时，才执行完整 Windows 验证和 GitHub Actions 矩阵。
+11. ``TableCell::set_fill_color()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
+    成功构建 ``xml_handle_retirement_tests`` 单 target；精确 case
+    ``table cell fill updates preserve handles and unrelated XML content`` 通过 ``1/1``、
+    ``48/48``。两项相关文档契约测试通过；未运行 WSL 或全量测试，临时构建目录和本轮
+    构建进程已回收。
 
 
 P1：模板契约与项目模板工作流
@@ -554,15 +566,18 @@ P3：文档、测试与索引治理
 
 最小下一步按下面顺序执行：
 
-1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
-   最新 ``dev`` CI；若新 CI 失败，先抓日志修 CI。
-2. 完成当前 ``Unreleased`` 的 ZIP/UTF-8、reader close、XML 深度/资源、Custom XML、
-   图片/字号、表格、编号/review ID、失败原子性和句柄生命周期修复，保证每个可预期
-   失败路径都有错误码、精确 entry name 或 DOM 不变回归。
-3. 运行相关 C++ targets、Word-only 全量 CTest、UTF-8/中文路径、sanitizer/fuzz、
-   ``git diff --check`` 和双语文档契约测试。
-4. 审查完整 diff 后单独提交并推送 ``dev``，等待 Windows、Linux、macOS、Docs Pages
-   和 sanitizer CI 全绿；失败时先修 CI 或源码，不提前决定下一 patch 版本。
-5. 全部验证稳定后再评估是否发布后续 patch；既有 ``v1.13.3`` tag 和 Release 不修改。
+1. 开始下一轮前复查 ``git status --short --branch`` 和构建进程；只清理仓库
+   ``.codex-temp`` 下已经停止使用的临时构建产物，不删除正式 build/cache，也不结束
+   非当前任务启动的外部进程。
+2. ``TableCell::set_fill_color()`` 已完成暂存事务与精确回归；提交后下一项推进
+   ``TableCell::set_width_twips()``，再按 vertical alignment、text direction、
+   cell margin 的顺序逐项处理。
+3. 每个小功能只构建受影响 target、运行对应精确 case 和 ``git diff --check``；不跑
+   WSL、完整 CTest、Word/PDF visual gate 或 sanitizer/fuzz。本轮没有新增中文源码文本，
+   测试文件名和文档继续使用 UTF-8，并由 MSVC ``/utf-8`` 配置验证编译。
+4. 审查完整 diff 后单独提交并推送 ``dev``；中间小提交不等待全矩阵 CI。遇到服务端
+   HTTP 429 时按退避策略重试，不把 429 当成代码失败或中断长期任务。
+5. 只有维护者宣布 Table/TableCell 原子化模块里程碑完成、跨模块集成或发布 gate 后，
+   才运行 Word-only/Windows 全量 CTest、UTF-8 路径、sanitizer/fuzz 与跨平台 CI 矩阵。
 6. ``P0-WORD-SAFETY-01`` 收口后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；该长期
    backlog 保持 ``GUARDED``，不与安全修复混合重构。

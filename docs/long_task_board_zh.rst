@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-07-15
+状态日期：2026-08-13
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -29,6 +29,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 3. 新增能力必须同时考虑源码、脚本、文档、测试和 release governance。
 4. 中文文档、PowerShell 输出和测试样例默认保持 UTF-8。
 5. 不整分支合并旧参考分支；只摘当前 ``dev`` 缺失且可验证的小能力。
+6. setter 等小功能只做 Windows/MSVC 单 target 和精确 case 验证；只有维护者宣布模块
+   里程碑、跨模块集成或发布 gate 时才运行完整 Windows/跨平台验证。
+7. 构建默认 ``--parallel 1``；每轮结束回收当前任务启动的构建进程，并清理
+   ``.codex-temp`` 下不再复用的临时构建目录，不动正式 build/cache 或外部进程。
 
 
 状态说明
@@ -103,14 +107,21 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 7. 保存管线以及已迁移的 singleton、分节、样式等关键 mutation 已完成隔离事务和
    fail-Nth 故障注入验证；``save_as()`` 当前观测到的全部标准 ``new`` 分配点也已验证
    原目标不变、无临时文件残留且可重试。尚未逐项迁移的任意 DOM mutation 仍缺少统一的
-   generation-aware transaction，继续作为独立架构任务延期；当前不能宣称整个 API
+   generation-aware transaction，继续作为独立架构任务推进；当前不能宣称整个 API
    已具备通用 OOM 原子性。
-8. 本轮本地定向验证（2026-07-19）：release material safety 契约测试通过；Windows
-   Release 增量构建的 ``FeatherDoc`` / ``featherdoc_cli`` 通过；security label
-   通过 ``12/12``，CLI 纯 C++ 测试通过 ``55/55``。这些证据来自当前脏工作树，不能
-   替代干净检出、完整 CTest 或远端 CI。
-9. 提交前集成门槛：CMake 已引用的新增源码和测试仍有 untracked 文件，必须在同一组
-   提交中纳入版本控制，并在干净检出中重新配置、编译和验证，不能只依赖当前工作区。
+8. 表格属性原子化已完成 ``Table`` 的 cell spacing、cell margin、style id、style look、
+   border setter 和 ``TableCell::set_border()``、``TableCell::set_fill_color()``。每个
+   setter 都要求成功路径保持相关句柄和无关 XML，fail-Nth 路径保持 DOM 字节不变且同一
+   对象可重试；下一项是 ``TableCell::set_width_twips()``。
+9. 当前小功能验证固定为 Windows/MSVC 的 ``xml_handle_retirement_tests`` 单 target 和
+   一个精确 doctest case；PugiXML/global allocation-failure 回归只在专用 CI 配置注册。
+   不在每个 setter 后运行 WSL、完整 CTest 或等待全部 GitHub Actions。
+10. 本轮结束时必须确认当前任务启动的 ``cmake`` / ``ninja`` / ``cl`` / ``link`` /
+    ``ctest`` 已退出，并清理 ``.codex-temp`` 下不再复用的临时构建目录；完整验证留到
+    维护者明确宣布的模块里程碑、跨模块集成或发布 gate。
+11. 2026-08-13 定向证据：Windows/MSVC Release 的 ``xml_handle_retirement_tests`` 单
+    target 构建成功，fill 精确 case 通过 ``1/1``、``48/48``；相关文档契约测试通过，
+    未运行 WSL/全量测试，本轮临时构建目录与构建进程已回收。
 
 
 近期执行队列
