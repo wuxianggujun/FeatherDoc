@@ -308,15 +308,51 @@ bool TableCell::set_width_twips(std::uint32_t width_twips) {
         return false;
     }
 
-    const auto width_node = ensure_cell_width_node(this->current);
-    if (width_node == pugi::xml_node{}) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto width_node = ensure_cell_width_node(this->current.node());
+        const auto width_text = std::to_string(width_twips);
+        if (width_node == pugi::xml_node{} ||
+            std::string_view{width_node.name()} != "w:tcW" ||
+            width_node.parent() != staged_properties.front().replacement) {
+            rollback();
+            return false;
+        }
+        ensure_attribute_value(width_node, "w:w", width_text.c_str());
+        ensure_attribute_value(width_node, "w:type", "dxa");
+        if (std::string_view{width_node.attribute("w:w").value()} !=
+                width_text ||
+            std::string_view{width_node.attribute("w:type").value()} !=
+                "dxa") {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto width_text = std::to_string(width_twips);
-    ensure_attribute_value(width_node, "w:w", width_text.c_str());
-    ensure_attribute_value(width_node, "w:type", "dxa");
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 bool TableCell::clear_width() {

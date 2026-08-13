@@ -97,9 +97,9 @@ P0：Word/DOCX 安全与兼容性
    不能据此宣称整个 API 已具备通用 OOM 原子性。
 8. 表格属性 mutation 已按小功能逐项迁移：``Table`` 的 cell spacing、cell margin、
    style id、style look 和 border setter，以及 ``TableCell::set_border()``、
-   ``TableCell::set_fill_color()`` 已完成 ``w:tblPr`` / ``w:tcPr`` 暂存、验证、退休和
-   提交事务。后续仍按 width、vertical alignment、text direction、cell margin 等独立
-   setter 逐项处理，不在一个提交中混合多个 API。
+   ``TableCell::set_fill_color()``、``TableCell::set_width_twips()`` 已完成
+   ``w:tblPr`` / ``w:tcPr`` 暂存、验证、退休和提交事务。后续仍按 vertical alignment、
+   text direction、cell margin 等独立 setter 逐项处理，不在一个提交中混合多个 API。
 9. 每个 setter 小改动只在 Windows/MSVC 构建受影响的
    ``xml_handle_retirement_tests`` target，并只运行对应精确 doctest case；不运行本地
    WSL、完整 CTest、sanitizer/fuzz 或全矩阵 CI。PugiXML/global fail-Nth 用例保留在
@@ -113,6 +113,11 @@ P0：Word/DOCX 安全与兼容性
     ``table cell fill updates preserve handles and unrelated XML content`` 通过 ``1/1``、
     ``48/48``。两项相关文档契约测试通过；未运行 WSL 或全量测试，临时构建目录和本轮
     构建进程已回收。
+12. ``TableCell::set_width_twips()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
+    成功构建 ``xml_handle_retirement_tests`` 单 target；精确 case
+    ``table cell width updates preserve handles and unrelated XML content`` 通过 ``1/1``、
+    ``44/44``。首次增量编译暴露 checked helper 未经当前依赖头声明，已改用本文件既有
+    属性写入加值验证并重新编译通过；未运行 WSL 或全量测试，临时构建目录和进程已回收。
 
 
 P1：模板契约与项目模板工作流
@@ -569,9 +574,9 @@ P3：文档、测试与索引治理
 1. 开始下一轮前复查 ``git status --short --branch`` 和构建进程；只清理仓库
    ``.codex-temp`` 下已经停止使用的临时构建产物，不删除正式 build/cache，也不结束
    非当前任务启动的外部进程。
-2. ``TableCell::set_fill_color()`` 已完成暂存事务与精确回归；提交后下一项推进
-   ``TableCell::set_width_twips()``，再按 vertical alignment、text direction、
-   cell margin 的顺序逐项处理。
+2. ``TableCell::set_fill_color()`` 和 ``TableCell::set_width_twips()`` 已完成暂存事务
+   与精确回归；提交后下一项推进 ``TableCell::set_vertical_alignment()``，再按
+   text direction、cell margin 的顺序逐项处理。
 3. 每个小功能只构建受影响 target、运行对应精确 case 和 ``git diff --check``；不跑
    WSL、完整 CTest、Word/PDF visual gate 或 sanitizer/fuzz。本轮没有新增中文源码文本，
    测试文件名和文档继续使用 UTF-8，并由 MSVC ``/utf-8`` 配置验证编译。

@@ -110,9 +110,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    generation-aware transaction，继续作为独立架构任务推进；当前不能宣称整个 API
    已具备通用 OOM 原子性。
 8. 表格属性原子化已完成 ``Table`` 的 cell spacing、cell margin、style id、style look、
-   border setter 和 ``TableCell::set_border()``、``TableCell::set_fill_color()``。每个
-   setter 都要求成功路径保持相关句柄和无关 XML，fail-Nth 路径保持 DOM 字节不变且同一
-   对象可重试；下一项是 ``TableCell::set_width_twips()``。
+   border setter 和 ``TableCell::set_border()``、``TableCell::set_fill_color()``、
+   ``TableCell::set_width_twips()``。每个 setter 都要求成功路径保持相关句柄和无关 XML，
+   fail-Nth 路径保持 DOM 字节不变且同一对象可重试；下一项是
+   ``TableCell::set_vertical_alignment()``。
 9. 当前小功能验证固定为 Windows/MSVC 的 ``xml_handle_retirement_tests`` 单 target 和
    一个精确 doctest case；PugiXML/global allocation-failure 回归只在专用 CI 配置注册。
    不在每个 setter 后运行 WSL、完整 CTest 或等待全部 GitHub Actions。
@@ -122,6 +123,9 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 11. 2026-08-13 定向证据：Windows/MSVC Release 的 ``xml_handle_retirement_tests`` 单
     target 构建成功，fill 精确 case 通过 ``1/1``、``48/48``；相关文档契约测试通过，
     未运行 WSL/全量测试，本轮临时构建目录与构建进程已回收。
+12. 同日 width setter 的同一单 target 构建成功，width 精确 case 通过 ``1/1``、
+    ``44/44``；中间发现的 helper 声明可见性编译问题已在当前 setter 内收敛修复并复编
+    通过，未扩大依赖边界。临时构建目录和本轮构建进程已回收。
 
 
 近期执行队列
