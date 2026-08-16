@@ -49,18 +49,33 @@ loops for each incremental edit.
 | Change scope | Required local validation | Full suite / full CI matrix |
 | --- | --- | --- |
 | Documentation-only change | `git diff --check` and only the relevant documentation checker, if one exists | No |
-| Small feature, focused bug fix, setter/method change, isolated refactor, or focused test addition | Build only the affected target and run only the exact related test case(s) on Windows/MSVC | No |
+| Single isolated small feature, focused bug fix, setter/method change, isolated refactor, or focused test addition | Build only the affected target and run only the exact related test case(s) on Windows/MSVC | No |
+| Planned batch of adjacent small APIs in one component | Use `git diff --check` for each source step, then build the affected targets and run the exact component tests once when the batch closes | No |
 | Completed large feature or completed module milestone | Full Windows build and full Windows test suite | Yes |
 | Cross-module integration checkpoint or release candidate | Full Windows validation plus the required cross-platform/release gates | Yes |
 | Reproduction of a specific CI-only failure | Only the failing platform, target, and test group needed to reproduce it | Only if the work also reaches a full-validation gate |
 
-For a small change, reuse an existing Windows build directory and run a command
+Do not rebuild and rerun the same test executable after every API in a planned
+source batch. Keep each API independently reviewable, run `git diff --check`,
+and close the batch with one Windows/MSVC validation pass over the union of its
+affected targets and exact tests. A compile-sensitive or urgent standalone fix
+can still use immediate targeted validation.
+
+When multiple agents advance a batch, give each agent exclusive ownership of a
+different source file. Agents should leave commits, pushes, builds, and tests to
+the coordinating task so shared-worktree changes remain reviewable. Prefer one
+API per commit even when the validation pass covers several commits.
+
+Reuse an existing Windows build directory when practical and run commands
 equivalent to:
 
 ```powershell
 cmake --build <windows-build-dir> --target <affected-test-target> --parallel 1
 ctest --test-dir <windows-build-dir> -R "^<affected-test-name>$" --output-on-failure
 ```
+
+For the current table-property transaction boundary and its grouped Windows
+targets, see `docs/table_mutation_atomicity.md`.
 
 The following actions are prohibited by default for a small change:
 
@@ -87,7 +102,10 @@ with backoff instead of being treated as code failures.
 Use a local Linux or WSL build only for release preparation, a completed broad
 cross-module validation gate that needs local Linux evidence, or reproduction
 of a specific hosted CI failure. Use bounded concurrency (one build job by
-default) and remove isolated temporary worktrees/builds after the check.
+default). After a check, stop or wait for its build/test processes, remove only
+the isolated temporary worktree/build created for that check, and verify that
+the repository worktree remains clean. Do not delete shared build caches merely
+to satisfy cleanup.
 
 ### Test Safety Matrix
 

@@ -195,6 +195,15 @@ performance.
 
 ### Fixed
 
+- Make direct table, row, and cell property updates publish staged
+  WordprocessingML subtrees instead of mutating live `w:tblPr`, `w:trPr`, or
+  `w:tcPr` nodes incrementally. The completed batch covers table width, layout,
+  alignment, indent, spacing, floating position, default margins, style, and
+  border clears; row height, cant-split, and repeated-header set/clear pairs;
+  and cell width, fill, border, margin, vertical-alignment, and text-direction
+  updates. Allocation or checked-XML failure now rolls back the replacement and
+  preserves unrelated XML. Clearing the last nested margin, border, or row
+  property also preserves the established empty-container deletion semantics.
 - Map pugixml ``status_out_of_memory`` consistently to
   ``std::errc::not_enough_memory`` across eager open, tolerant OPC validation,
   lazy singleton loads, related parts, OMML fragments, and Custom XML sync.
