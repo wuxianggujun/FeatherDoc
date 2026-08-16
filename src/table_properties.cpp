@@ -1182,40 +1182,77 @@ bool Table::clear_position() {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
-    auto table_properties_node = table_properties.node();
+    const auto table_properties_node = table_properties.node();
     if (has_duplicate_child(table_properties_node, "w:tblpPr") ||
         has_duplicate_child(table_properties_node, "w:tblOverlap")) {
         return false;
     }
 
-    const auto retirement_roots =
-        std::array{table_properties_node.child("w:tblpPr"),
-                   table_properties_node.child("w:tblOverlap")};
-    if (retirement_roots[0] == pugi::xml_node{} &&
-        retirement_roots[1] == pugi::xml_node{}) {
+    const auto original_position = table_properties_node.child("w:tblpPr");
+    const auto original_overlap = table_properties_node.child("w:tblOverlap");
+    if (original_position == pugi::xml_node{} &&
+        original_overlap == pugi::xml_node{}) {
         return true;
     }
 
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
     try {
-        if (!table_properties.retire_subtrees(
-                std::span<const pugi::xml_node>{retirement_roots})) {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_position =
+            staged_properties->replacement.child("w:tblpPr");
+        const auto replacement_overlap =
+            staged_properties->replacement.child("w:tblOverlap");
+        const auto remove_replacement = [&](pugi::xml_node original,
+                                            pugi::xml_node replacement,
+                                            const char *name) {
+            if ((original != pugi::xml_node{}) !=
+                (replacement != pugi::xml_node{})) {
+                return false;
+            }
+            return replacement == pugi::xml_node{} ||
+                   (std::string_view{replacement.name()} == name &&
+                    replacement.parent() == staged_properties->replacement &&
+                    staged_properties->replacement.remove_child(replacement));
+        };
+        if (!remove_replacement(original_position, replacement_position,
+                                "w:tblpPr") ||
+            !remove_replacement(original_overlap, replacement_overlap,
+                                "w:tblOverlap")) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
             return false;
         }
     } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    for (const auto node : retirement_roots) {
-        if (node != pugi::xml_node{}) {
-            (void)table_properties_node.remove_child(node);
-        }
-    }
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 std::optional<std::uint32_t> Table::cell_margin_twips(
