@@ -10,6 +10,14 @@ performance.
 
 ### Changed
 
+- ``TableCell::unmerge_right()`` and ``TableCell::unmerge_down()`` now treat
+  structural unmerge operations as transactions. Horizontal unmerge stages
+  the anchor properties, inserted cells, and fixed-layout width updates before
+  publication; vertical unmerge stages the complete ``w:vMerge`` chain. Any
+  pre-publication failure restores the original XML and inserted-node state,
+  while structural ``std::bad_alloc`` failures roll back and preserve the
+  existing exception contract. Grouped Windows/MSVC validation is deferred
+  until the remaining structural table batch closes.
 - ``Document`` move operations now use library-defined handle-invalidation
   semantics while preserving the 1.13 object layout and the existing
   ``noexcept`` move-construction and move-assignment traits. The additional

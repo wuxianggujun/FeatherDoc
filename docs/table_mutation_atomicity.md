@@ -1,7 +1,7 @@
 # Table Mutation Atomicity
 
 This document records the transaction contract and validation boundary for
-direct WordprocessingML table-property mutations.
+direct WordprocessingML table-property and structural table mutations.
 
 ## Current Milestone
 
@@ -18,6 +18,28 @@ This milestone does not declare all structural table operations complete.
 Row/column insertion and removal, merge/unmerge, grid-span mutation, and
 vertical-merge mutation have separate multi-node transaction rules and must be
 reviewed independently.
+
+## Structural Unmerge Checkpoint
+
+The first structural checkpoint completed on 2026-08-17 in commits
+`970b6ae6`, `23b27d63`, `38559de6`, and `8e8265a5`. It covers:
+
+| Owner | APIs completed in this checkpoint |
+| --- | --- |
+| `TableCell` | `unmerge_right`, `unmerge_down` |
+
+`unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
+fixed-layout table/grid/cell-width updates before retiring any published
+subtree. `unmerge_down` stages every `w:tcPr` in the planned vertical merge
+chain and removes empty staged property containers before commit. A failure
+before publication rolls back all staged replacements and inserted cells.
+Structural mutations retain the existing exception behavior: a
+`std::bad_alloc` is rolled back and rethrown, while ordinary checked XML
+failures return `false`.
+
+This checkpoint does not yet cover row/column insertion or removal,
+`merge_right` / `merge_down`, or independent grid-span and vertical-merge
+setters. Those APIs remain in the structural review queue.
 
 ## Transaction Contract
 
@@ -38,6 +60,11 @@ Property setters and clear operations must follow this order:
 Rollback must remove every staged replacement. `std::bad_alloc` returns
 `false` after rollback; other exceptions roll back and propagate. A failed
 operation must leave the published XML and unrelated content unchanged.
+
+The paragraph above is the contract for table-property setters and clear
+operations. Structural table mutations have a separate compatibility rule:
+they must roll back all staged/publication work and rethrow `std::bad_alloc`
+unless an API-specific contract is deliberately changed and documented.
 
 Use the existing helpers instead of introducing an independent transaction
 framework:
@@ -102,6 +129,25 @@ ctest --test-dir <windows-build-dir> `
 The 2026-08-16 Windows/MSVC run passed all six tests. No local WSL/Linux test
 was required. Linux, sanitizer, allocation-failure, and fuzz validation remain
 CI or explicit release/integration work as defined in `CONTRIBUTING.md`.
+
+The structural unmerge checkpoint has only received per-API source review and
+`git diff --check` so far. Its grouped Windows/MSVC targets are intentionally
+deferred until the remaining structural table batch closes; no local WSL/Linux
+or allocation-failure run is implied by this checkpoint.
+
+At that structural batch boundary, build and run only the affected Windows
+targets with concurrency one:
+
+```powershell
+cmake --build <windows-build-dir> --target `
+  table_structure_unit_tests `
+  xml_handle_retirement_tests `
+  --parallel 1
+
+ctest --test-dir <windows-build-dir> `
+  -R "^(table_structure_unit|xml_handle_retirement)$" `
+  --output-on-failure -j 1
+```
 
 Use an isolated directory under `.codex-temp` when no reusable Windows build
 exists. After validation, confirm that no compiler, build, or test process still
