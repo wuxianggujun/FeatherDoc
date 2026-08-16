@@ -1385,13 +1385,54 @@ bool Table::clear_style_id() {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto style_node = table_properties.child("w:tblStyle");
-    return style_node == pugi::xml_node{} || table_properties.remove_child(style_node);
+    if (style_node == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_style =
+            staged_properties->replacement.child("w:tblStyle");
+        if (replacement_style == pugi::xml_node{} ||
+            replacement_style.parent() != staged_properties->replacement ||
+            !staged_properties->replacement.remove_child(replacement_style)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 std::optional<featherdoc::table_style_look> Table::style_look() const {
