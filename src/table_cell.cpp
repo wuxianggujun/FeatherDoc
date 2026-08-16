@@ -997,15 +997,56 @@ bool TableCell::set_margin_twips(featherdoc::cell_margin_edge edge, std::uint32_
         return false;
     }
 
-    const auto margin = ensure_cell_margin_node(this->current, to_xml_margin_name(edge));
-    if (margin == pugi::xml_node{}) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto margin_name = to_xml_margin_name(edge);
+        const auto margin =
+            ensure_cell_margin_node(this->current.node(), margin_name);
+        const auto margins = margin.parent();
+        if (margins == pugi::xml_node{} ||
+            std::string_view{margins.name()} != "w:tcMar" ||
+            margins.parent() != staged_properties.front().replacement ||
+            margin == pugi::xml_node{} ||
+            std::string_view{margin.name()} != margin_name ||
+            margin.parent() != margins) {
+            rollback();
+            return false;
+        }
+
+        const auto margin_text = std::to_string(margin_twips);
+        ensure_attribute_value(margin, "w:w", margin_text.c_str());
+        ensure_attribute_value(margin, "w:type", "dxa");
+        if (std::string_view{margin.attribute("w:w").value()} != margin_text ||
+            std::string_view{margin.attribute("w:type").value()} != "dxa") {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto margin_text = std::to_string(margin_twips);
-    ensure_attribute_value(margin, "w:w", margin_text.c_str());
-    ensure_attribute_value(margin, "w:type", "dxa");
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 bool TableCell::clear_margin(featherdoc::cell_margin_edge edge) {
