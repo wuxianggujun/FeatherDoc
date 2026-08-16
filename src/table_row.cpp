@@ -357,18 +357,66 @@ bool TableRow::clear_repeats_header() {
         return false;
     }
 
-    auto row_properties = this->current.child("w:trPr");
+    const auto row_properties = this->current.child("w:trPr");
     if (row_properties == pugi::xml_node{}) {
         return true;
     }
 
-    if (const auto table_header = row_properties.child("w:tblHeader");
-        table_header != pugi::xml_node{}) {
-        row_properties.remove_child(table_header);
+    const auto table_header = row_properties.child("w:tblHeader");
+    if (table_header == pugi::xml_node{}) {
+        return true;
     }
 
-    remove_empty_container(this->current, "w:trPr");
-    return true;
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto row = this->current.node();
+        staged_properties =
+            stage_table_child(row, "w:trPr", row.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_table_header =
+            staged_properties->replacement.child("w:tblHeader");
+        if (replacement_table_header == pugi::xml_node{} ||
+            std::string_view{replacement_table_header.name()} != "w:tblHeader" ||
+            replacement_table_header.parent() != staged_properties->replacement ||
+            !staged_properties->replacement.remove_child(
+                replacement_table_header)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->replacement.first_child() == pugi::xml_node{} &&
+            staged_properties->replacement.first_attribute() ==
+                pugi::xml_attribute{}) {
+            if (!row.remove_child(staged_properties->replacement)) {
+                rollback();
+                return false;
+            }
+            staged_properties->replacement = {};
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool TableRow::remove() {
