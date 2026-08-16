@@ -139,13 +139,47 @@ bool TableRow::set_cant_split() {
         return false;
     }
 
-    const auto cant_split = ensure_row_cant_split_node(this->current);
-    if (cant_split == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto row = this->current.node();
+        staged_properties =
+            stage_table_child(row, "w:trPr", row.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto cant_split = ensure_row_cant_split_node(row);
+        ensure_attribute_value(cant_split, "w:val", "1");
+        if (cant_split == pugi::xml_node{} ||
+            std::string_view{cant_split.name()} != "w:cantSplit" ||
+            cant_split.parent() != staged_properties->replacement ||
+            count_named_children(staged_properties->replacement,
+                                 "w:cantSplit") != 1U ||
+            std::string_view{cant_split.attribute("w:val").value()} != "1") {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    ensure_attribute_value(cant_split, "w:val", "1");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool TableRow::clear_cant_split() {
