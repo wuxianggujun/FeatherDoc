@@ -214,13 +214,47 @@ bool TableRow::set_repeats_header() {
         return false;
     }
 
-    const auto table_header = ensure_row_header_node(this->current);
-    if (table_header == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto row = this->current.node();
+        staged_properties =
+            stage_table_child(row, "w:trPr", row.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto table_header = ensure_row_header_node(row);
+        ensure_attribute_value(table_header, "w:val", "1");
+        if (table_header == pugi::xml_node{} ||
+            std::string_view{table_header.name()} != "w:tblHeader" ||
+            table_header.parent() != staged_properties->replacement ||
+            count_named_children(staged_properties->replacement,
+                                 "w:tblHeader") != 1U ||
+            std::string_view{table_header.attribute("w:val").value()} != "1") {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    ensure_attribute_value(table_header, "w:val", "1");
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool TableRow::clear_repeats_header() {
