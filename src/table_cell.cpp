@@ -815,26 +815,79 @@ bool TableCell::unmerge_down() {
         return false;
     }
 
-    const auto merge_chain = plan_vertical_merge_chain(this->current);
-    if (!merge_chain.has_value()) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        const auto merge_chain = plan_vertical_merge_chain(this->current);
+        if (!merge_chain.has_value()) {
+            return false;
+        }
+
+        staged_properties.reserve(merge_chain->cells.size());
+        for (const auto cell : merge_chain->cells) {
+            const auto staged = stage_cell_properties(cell);
+            if (!staged.has_value()) {
+                rollback();
+                return false;
+            }
+            staged_properties.push_back(*staged);
+
+            auto replacement_properties =
+                staged_properties.back().replacement;
+            const auto replacement_vertical_merge =
+                replacement_properties.child("w:vMerge");
+            if (std::string_view{replacement_properties.name()} != "w:tcPr" ||
+                replacement_properties.parent() != cell ||
+                count_named_children(replacement_properties, "w:vMerge") !=
+                    1U ||
+                replacement_vertical_merge == pugi::xml_node{} ||
+                std::string_view{replacement_vertical_merge.name()} !=
+                    "w:vMerge" ||
+                replacement_vertical_merge.parent() !=
+                    replacement_properties ||
+                !replacement_properties.remove_child(
+                    replacement_vertical_merge)) {
+                rollback();
+                return false;
+            }
+
+            if (replacement_properties.first_child() == pugi::xml_node{} &&
+                replacement_properties.first_attribute() ==
+                    pugi::xml_attribute{}) {
+                auto mutable_cell = cell;
+                if (!mutable_cell.remove_child(replacement_properties)) {
+                    rollback();
+                    return false;
+                }
+                staged_properties.back().replacement = {};
+            }
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_properties.size());
+        for (const auto &staged : staged_properties) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (!this->current.retire_subtrees(
+                std::span<const pugi::xml_node>{retirement_roots.data(),
+                                                retirement_roots.size()})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    for (const auto cell : merge_chain->cells) {
-        auto cell_properties = cell.child("w:tcPr");
-        if (cell_properties == pugi::xml_node{}) {
-            return false;
-        }
-
-        const auto vertical_merge = cell_properties.child("w:vMerge");
-        if (vertical_merge == pugi::xml_node{} || !cell_properties.remove_child(vertical_merge)) {
-            return false;
-        }
-
-        remove_empty_cell_properties(cell);
-    }
-
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 featherdoc::cell_vertical_merge TableCell::vertical_merge() const {
