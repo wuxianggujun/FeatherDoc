@@ -876,9 +876,6 @@ bool TableCell::unmerge_down() {
             rollback();
             return false;
         }
-    } catch (const std::bad_alloc &) {
-        rollback();
-        return false;
     } catch (...) {
         rollback();
         throw;
