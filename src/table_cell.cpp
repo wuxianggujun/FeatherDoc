@@ -679,7 +679,8 @@ bool TableCell::unmerge_right() {
         return false;
     }
 
-    if (!current_table_column_count(table).has_value()) {
+    const auto column_count = current_table_column_count(table);
+    if (!column_count.has_value()) {
         return false;
     }
 
@@ -694,32 +695,112 @@ bool TableCell::unmerge_right() {
 
     const auto insert_before = this->current.next_sibling();
     auto inserted_cells = std::vector<pugi::xml_node>{};
-    inserted_cells.reserve(span - 1U);
-    for (std::size_t i = 0U; i + 1U < span; ++i) {
-        const auto inserted_cell =
-            insert_empty_clone_cell(this->parent, this->current, insert_before);
-        if (inserted_cell == pugi::xml_node{}) {
-            rollback_inserted_table_cells(inserted_cells);
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    auto staged_layout = std::optional<staged_table_layout>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+        if (staged_layout.has_value()) {
+            rollback_staged_table_layout(*staged_layout);
+        }
+        rollback_inserted_table_cells(inserted_cells);
+    };
+
+    try {
+        inserted_cells.reserve(span - 1U);
+        for (std::size_t i = 0U; i + 1U < span; ++i) {
+            const auto inserted_cell = insert_empty_clone_cell(
+                this->parent, this->current, insert_before);
+            if (inserted_cell == pugi::xml_node{}) {
+                rollback();
+                return false;
+            }
+            inserted_cells.push_back(inserted_cell);
+        }
+
+        staged_properties.reserve(inserted_cells.size() + 1U);
+        const auto staged_anchor =
+            stage_cell_properties(this->current.node());
+        if (!staged_anchor.has_value()) {
+            rollback();
             return false;
         }
-        inserted_cells.push_back(inserted_cell);
-    }
+        staged_properties.push_back(*staged_anchor);
 
-    auto cell_properties = this->current.child("w:tcPr");
-    if (cell_properties == pugi::xml_node{}) {
-        rollback_inserted_table_cells(inserted_cells);
+        auto replacement_properties =
+            staged_properties.front().replacement;
+        const auto replacement_grid_span =
+            replacement_properties.child("w:gridSpan");
+        if (std::string_view{replacement_properties.name()} != "w:tcPr" ||
+            replacement_properties.parent() != this->current.node() ||
+            replacement_grid_span == pugi::xml_node{} ||
+            std::string_view{replacement_grid_span.name()} != "w:gridSpan" ||
+            replacement_grid_span.parent() != replacement_properties ||
+            !replacement_properties.remove_child(replacement_grid_span)) {
+            rollback();
+            return false;
+        }
+
+        if (table_uses_fixed_layout(table)) {
+            const auto layout_column_count = std::max(
+                *column_count,
+                count_named_children(table.child("w:tblGrid"),
+                                     "w:gridCol"));
+            staged_layout = stage_table_layout(table, layout_column_count);
+            if (!staged_layout.has_value()) {
+                rollback();
+                return false;
+            }
+        }
+        if (!stage_fixed_layout_cell_widths(table, {}, staged_properties)) {
+            rollback();
+            return false;
+        }
+
+        replacement_properties = staged_properties.front().replacement;
+        if (replacement_properties.first_child() == pugi::xml_node{} &&
+            replacement_properties.first_attribute() ==
+                pugi::xml_attribute{}) {
+            auto anchor_cell = this->current.node();
+            if (!anchor_cell.remove_child(replacement_properties)) {
+                rollback();
+                return false;
+            }
+            staged_properties.front().replacement = {};
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_properties.size() + 2U);
+        for (const auto &staged : staged_properties) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (staged_layout.has_value()) {
+            if (staged_layout->original_properties != pugi::xml_node{}) {
+                retirement_roots.push_back(
+                    staged_layout->original_properties);
+            }
+            if (staged_layout->original_grid != pugi::xml_node{}) {
+                retirement_roots.push_back(staged_layout->original_grid);
+            }
+        }
+        if (!this->current.retire_subtrees(
+                std::span<const pugi::xml_node>{retirement_roots.data(),
+                                                retirement_roots.size()})) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto grid_span = cell_properties.child("w:gridSpan");
-    if (grid_span == pugi::xml_node{} || !cell_properties.remove_child(grid_span)) {
-        rollback_inserted_table_cells(inserted_cells);
-        return false;
-    }
-
-    remove_empty_cell_properties(this->current);
-    synchronize_fixed_layout_cell_widths_from_grid(table);
-    return true;
+    return commit_staged_cell_properties(staged_properties) &&
+           (!staged_layout.has_value() ||
+            commit_staged_table_layout(*staged_layout));
 }
 
 bool TableCell::unmerge_down() {
