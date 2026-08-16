@@ -836,13 +836,49 @@ bool TableCell::set_text_direction(featherdoc::cell_text_direction direction) {
         return false;
     }
 
-    const auto text_direction = ensure_cell_text_direction_node(this->current);
-    if (text_direction == pugi::xml_node{}) {
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto direction_text = to_xml_cell_text_direction(direction);
+        const auto text_direction =
+            ensure_cell_text_direction_node(this->current.node());
+        if (text_direction == pugi::xml_node{} ||
+            std::string_view{text_direction.name()} != "w:textDirection" ||
+            text_direction.parent() != staged_properties.front().replacement) {
+            rollback();
+            return false;
+        }
+        ensure_attribute_value(text_direction, "w:val", direction_text);
+        if (std::string_view{text_direction.attribute("w:val").value()} !=
+            direction_text) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    ensure_attribute_value(text_direction, "w:val", to_xml_cell_text_direction(direction));
-    return true;
+    return commit_staged_cell_properties(staged_properties);
 }
 
 bool TableCell::clear_text_direction() {
