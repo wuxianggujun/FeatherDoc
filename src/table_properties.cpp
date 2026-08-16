@@ -761,13 +761,56 @@ bool Table::clear_cell_spacing() {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto spacing = table_properties.child("w:tblCellSpacing");
-    return spacing == pugi::xml_node{} || table_properties.remove_child(spacing);
+    if (spacing == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_spacing =
+            staged_properties->replacement.child("w:tblCellSpacing");
+        if (replacement_spacing == pugi::xml_node{} ||
+            replacement_spacing.parent() !=
+                staged_properties->replacement ||
+            !staged_properties->replacement.remove_child(
+                replacement_spacing)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 namespace {
