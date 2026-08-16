@@ -130,7 +130,7 @@ bool TableRow::clear_height() {
     };
 
     try {
-        const auto row = this->current.node();
+        auto row = this->current.node();
         staged_properties =
             stage_table_child(row, "w:trPr", row.first_child());
         if (!staged_properties.has_value()) {
@@ -252,7 +252,7 @@ bool TableRow::clear_cant_split() {
     };
 
     try {
-        const auto row = this->current.node();
+        auto row = this->current.node();
         staged_properties =
             stage_table_child(row, "w:trPr", row.first_child());
         if (!staged_properties.has_value()) {
@@ -375,7 +375,7 @@ bool TableRow::clear_repeats_header() {
     };
 
     try {
-        const auto row = this->current.node();
+        auto row = this->current.node();
         staged_properties =
             stage_table_child(row, "w:trPr", row.first_child());
         if (!staged_properties.has_value()) {
