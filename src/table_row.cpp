@@ -58,15 +58,53 @@ bool TableRow::set_height_twips(std::uint32_t height_twips,
         return false;
     }
 
-    const auto row_height = ensure_row_height_node(this->current);
-    if (row_height == pugi::xml_node{}) {
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto row = this->current.node();
+        staged_properties =
+            stage_table_child(row, "w:trPr", row.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto height_text = std::to_string(height_twips);
+        const auto height_rule_text = to_xml_row_height_rule(height_rule);
+        const auto row_height = ensure_row_height_node(row);
+        ensure_attribute_value(row_height, "w:val", height_text.c_str());
+        ensure_attribute_value(row_height, "w:hRule", height_rule_text);
+        if (row_height == pugi::xml_node{} ||
+            std::string_view{row_height.name()} != "w:trHeight" ||
+            row_height.parent() != staged_properties->replacement ||
+            count_named_children(staged_properties->replacement,
+                                 "w:trHeight") != 1U ||
+            std::string_view{row_height.attribute("w:val").value()} !=
+                height_text ||
+            std::string_view{row_height.attribute("w:hRule").value()} !=
+                height_rule_text) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
         return false;
+    } catch (...) {
+        rollback();
+        throw;
     }
 
-    const auto height_text = std::to_string(height_twips);
-    ensure_attribute_value(row_height, "w:val", height_text.c_str());
-    ensure_attribute_value(row_height, "w:hRule", to_xml_row_height_rule(height_rule));
-    return true;
+    return commit_staged_table_child(*staged_properties);
 }
 
 bool TableRow::clear_height() {
