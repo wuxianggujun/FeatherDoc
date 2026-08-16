@@ -514,13 +514,56 @@ bool Table::clear_alignment() {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto alignment_node = table_properties.child("w:jc");
-    return alignment_node == pugi::xml_node{} || table_properties.remove_child(alignment_node);
+    if (alignment_node == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_alignment =
+            staged_properties->replacement.child("w:jc");
+        if (replacement_alignment == pugi::xml_node{} ||
+            replacement_alignment.parent() !=
+                staged_properties->replacement ||
+            !staged_properties->replacement.remove_child(
+                replacement_alignment)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 std::optional<std::uint32_t> Table::indent_twips() const {
