@@ -1768,23 +1768,75 @@ bool Table::clear_border(featherdoc::table_border_edge edge) {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
-    auto table_borders = table_properties.child("w:tblBorders");
+    const auto table_borders = table_properties.child("w:tblBorders");
     if (table_borders == pugi::xml_node{}) {
         return true;
     }
 
-    if (const auto border_node = table_borders.child(to_xml_border_name(edge));
-        border_node != pugi::xml_node{}) {
-        table_borders.remove_child(border_node);
+    const auto border_name = to_xml_border_name(edge);
+    if (table_borders.child(border_name) == pugi::xml_node{}) {
+        return true;
     }
 
-    remove_empty_container(table_properties, "w:tblBorders");
-    return true;
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        auto replacement_properties = staged_properties->replacement;
+        auto replacement_borders =
+            replacement_properties.child("w:tblBorders");
+        const auto replacement_border =
+            replacement_borders.child(border_name);
+        if (std::string_view{replacement_properties.name()} != "w:tblPr" ||
+            replacement_properties.parent() != table ||
+            replacement_borders == pugi::xml_node{} ||
+            std::string_view{replacement_borders.name()} != "w:tblBorders" ||
+            replacement_borders.parent() != replacement_properties ||
+            replacement_border == pugi::xml_node{} ||
+            std::string_view{replacement_border.name()} != border_name ||
+            replacement_border.parent() != replacement_borders ||
+            !replacement_borders.remove_child(replacement_border)) {
+            rollback();
+            return false;
+        }
+
+        if (replacement_borders.first_child() == pugi::xml_node{} &&
+            replacement_borders.first_attribute() == pugi::xml_attribute{} &&
+            !replacement_properties.remove_child(replacement_borders)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 } // namespace featherdoc
