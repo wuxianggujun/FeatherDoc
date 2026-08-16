@@ -638,13 +638,55 @@ bool Table::clear_indent() {
         return false;
     }
 
-    auto table_properties = this->current.child("w:tblPr");
+    const auto table_properties = this->current.child("w:tblPr");
     if (table_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto indent_node = table_properties.child("w:tblInd");
-    return indent_node == pugi::xml_node{} || table_properties.remove_child(indent_node);
+    if (indent_node == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::optional<staged_table_child>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_properties.has_value()) {
+            rollback_staged_table_child(*staged_properties);
+        }
+    };
+
+    try {
+        const auto table = this->current.node();
+        staged_properties =
+            stage_table_child(table, "w:tblPr", table.first_child());
+        if (!staged_properties.has_value()) {
+            return false;
+        }
+
+        const auto replacement_indent =
+            staged_properties->replacement.child("w:tblInd");
+        if (replacement_indent == pugi::xml_node{} ||
+            replacement_indent.parent() != staged_properties->replacement ||
+            !staged_properties->replacement.remove_child(
+                replacement_indent)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties->original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties->original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_table_child(*staged_properties);
 }
 
 std::optional<std::uint32_t> Table::cell_spacing_twips() const {
