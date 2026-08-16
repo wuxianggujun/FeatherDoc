@@ -1217,22 +1217,72 @@ bool TableCell::clear_margin(featherdoc::cell_margin_edge edge) {
         return false;
     }
 
-    auto cell_properties = this->current.child("w:tcPr");
+    const auto cell_properties = this->current.child("w:tcPr");
     if (cell_properties == pugi::xml_node{}) {
         return true;
     }
 
-    auto margins = cell_properties.child("w:tcMar");
+    const auto margins = cell_properties.child("w:tcMar");
     if (margins == pugi::xml_node{}) {
         return true;
     }
 
-    if (const auto margin = margins.child(to_xml_margin_name(edge)); margin != pugi::xml_node{}) {
-        margins.remove_child(margin);
+    const auto margin_name = to_xml_margin_name(edge);
+    if (margins.child(margin_name) == pugi::xml_node{}) {
+        return true;
     }
 
-    remove_empty_container(cell_properties, "w:tcMar");
-    return true;
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        auto replacement_properties = staged_properties.front().replacement;
+        auto replacement_margins = replacement_properties.child("w:tcMar");
+        const auto replacement_margin =
+            replacement_margins.child(margin_name);
+        if (std::string_view{replacement_properties.name()} != "w:tcPr" ||
+            replacement_properties.parent() != this->current.node() ||
+            replacement_margins == pugi::xml_node{} ||
+            std::string_view{replacement_margins.name()} != "w:tcMar" ||
+            replacement_margins.parent() != replacement_properties ||
+            replacement_margin == pugi::xml_node{} ||
+            std::string_view{replacement_margin.name()} != margin_name ||
+            replacement_margin.parent() != replacement_margins ||
+            !replacement_margins.remove_child(replacement_margin)) {
+            rollback();
+            return false;
+        }
+
+        if (replacement_margins.first_child() == pugi::xml_node{} &&
+            replacement_margins.first_attribute() == pugi::xml_attribute{} &&
+            !replacement_properties.remove_child(replacement_margins)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_cell_properties(staged_properties);
 }
 
 std::optional<featherdoc::border_inspection_summary>
