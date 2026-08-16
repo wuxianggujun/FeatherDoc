@@ -1368,23 +1368,73 @@ bool TableCell::clear_border(featherdoc::cell_border_edge edge) {
         return false;
     }
 
-    auto cell_properties = this->current.child("w:tcPr");
+    const auto cell_properties = this->current.child("w:tcPr");
     if (cell_properties == pugi::xml_node{}) {
         return true;
     }
 
-    auto cell_borders = cell_properties.child("w:tcBorders");
+    const auto cell_borders = cell_properties.child("w:tcBorders");
     if (cell_borders == pugi::xml_node{}) {
         return true;
     }
 
-    if (const auto border_node = cell_borders.child(to_xml_border_name(edge));
-        border_node != pugi::xml_node{}) {
-        cell_borders.remove_child(border_node);
+    const auto border_name = to_xml_border_name(edge);
+    if (cell_borders.child(border_name) == pugi::xml_node{}) {
+        return true;
     }
 
-    remove_empty_container(cell_properties, "w:tcBorders");
-    return true;
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        auto replacement_properties = staged_properties.front().replacement;
+        auto replacement_borders =
+            replacement_properties.child("w:tcBorders");
+        const auto replacement_border =
+            replacement_borders.child(border_name);
+        if (std::string_view{replacement_properties.name()} != "w:tcPr" ||
+            replacement_properties.parent() != this->current.node() ||
+            replacement_borders == pugi::xml_node{} ||
+            std::string_view{replacement_borders.name()} != "w:tcBorders" ||
+            replacement_borders.parent() != replacement_properties ||
+            replacement_border == pugi::xml_node{} ||
+            std::string_view{replacement_border.name()} != border_name ||
+            replacement_border.parent() != replacement_borders ||
+            !replacement_borders.remove_child(replacement_border)) {
+            rollback();
+            return false;
+        }
+
+        if (replacement_borders.first_child() == pugi::xml_node{} &&
+            replacement_borders.first_attribute() == pugi::xml_attribute{} &&
+            !replacement_properties.remove_child(replacement_borders)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_cell_properties(staged_properties);
 }
 
 TableCell &TableCell::next() {
