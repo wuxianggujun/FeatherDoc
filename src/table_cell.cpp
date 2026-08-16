@@ -790,9 +790,6 @@ bool TableCell::unmerge_right() {
             rollback();
             return false;
         }
-    } catch (const std::bad_alloc &) {
-        rollback();
-        return false;
     } catch (...) {
         rollback();
         throw;
