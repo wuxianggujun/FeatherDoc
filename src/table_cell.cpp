@@ -360,13 +360,54 @@ bool TableCell::clear_width() {
         return false;
     }
 
-    auto cell_properties = this->current.child("w:tcPr");
+    const auto cell_properties = this->current.child("w:tcPr");
     if (cell_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto width_node = cell_properties.child("w:tcW");
-    return width_node == pugi::xml_node{} || cell_properties.remove_child(width_node);
+    if (width_node == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto replacement_width =
+            staged_properties.front().replacement.child("w:tcW");
+        if (replacement_width == pugi::xml_node{} ||
+            replacement_width.parent() !=
+                staged_properties.front().replacement ||
+            !staged_properties.front().replacement.remove_child(
+                replacement_width)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_cell_properties(staged_properties);
 }
 
 std::size_t TableCell::column_span() const { return cell_column_span(this->current); }
