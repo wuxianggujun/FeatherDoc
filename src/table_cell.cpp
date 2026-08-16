@@ -1086,13 +1086,54 @@ bool TableCell::clear_fill_color() {
         return false;
     }
 
-    auto cell_properties = this->current.child("w:tcPr");
+    const auto cell_properties = this->current.child("w:tcPr");
     if (cell_properties == pugi::xml_node{}) {
         return true;
     }
 
     const auto shading = cell_properties.child("w:shd");
-    return shading == pugi::xml_node{} || cell_properties.remove_child(shading);
+    if (shading == pugi::xml_node{}) {
+        return true;
+    }
+
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
+
+    try {
+        staged_properties.reserve(1U);
+        const auto staged = stage_cell_properties(this->current.node());
+        if (!staged.has_value()) {
+            return false;
+        }
+        staged_properties.push_back(*staged);
+
+        const auto replacement_shading =
+            staged_properties.front().replacement.child("w:shd");
+        if (replacement_shading == pugi::xml_node{} ||
+            replacement_shading.parent() !=
+                staged_properties.front().replacement ||
+            !staged_properties.front().replacement.remove_child(
+                replacement_shading)) {
+            rollback();
+            return false;
+        }
+
+        if (staged_properties.front().original != pugi::xml_node{} &&
+            !this->current.retire_subtree(staged_properties.front().original)) {
+            rollback();
+            return false;
+        }
+    } catch (const std::bad_alloc &) {
+        rollback();
+        return false;
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    return commit_staged_cell_properties(staged_properties);
 }
 
 std::optional<std::uint32_t> TableCell::margin_twips(featherdoc::cell_margin_edge edge) const {
