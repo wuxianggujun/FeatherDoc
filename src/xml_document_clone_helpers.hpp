@@ -15,6 +15,11 @@ enum class xml_document_clone_status {
     allocation_failure,
 };
 
+enum class xml_clone_exception_policy {
+    return_failure,
+    propagate,
+};
+
 // pugixml's append_attribute(name) overload can return a non-null attribute
 // even when allocating/copying the name failed. Create an empty attribute and
 // check both string assignments explicitly. This always appends, so checked
@@ -205,7 +210,9 @@ checked_clone_xml_document(const pugi::xml_document &source,
 // and publish that document only after this function succeeds.
 [[nodiscard]] inline auto
 checked_append_copy_xml_node(pugi::xml_node source,
-                             pugi::xml_node destination_parent)
+                             pugi::xml_node destination_parent,
+                             xml_clone_exception_policy exception_policy =
+                                 xml_clone_exception_policy::return_failure)
     -> xml_document_clone_status {
     if (source == pugi::xml_node{} || source.type() == pugi::node_document ||
         destination_parent == pugi::xml_node{}) {
@@ -242,6 +249,9 @@ checked_append_copy_xml_node(pugi::xml_node source,
         }
         return xml_document_clone_status::success;
     } catch (...) {
+        if (exception_policy == xml_clone_exception_policy::propagate) {
+            throw;
+        }
         return xml_document_clone_status::allocation_failure;
     }
 }

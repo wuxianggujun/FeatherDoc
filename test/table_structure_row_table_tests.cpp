@@ -1170,6 +1170,9 @@ TEST_CASE("table clone insertions reject invalid column geometry atomically") {
             "summed_span_64",
             R"(<w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>left</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
         geometry_case{
+            "zero_span",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
             "missing_span_value",
             R"(<w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
         geometry_case{

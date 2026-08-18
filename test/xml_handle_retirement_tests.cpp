@@ -56,10 +56,22 @@ pugi::allocation_function delegated_pugi_allocate = nullptr;
 std::size_t pugi_allocation_calls = 0U;
 std::size_t pugi_failure_call = 0U;
 
+enum class pugi_failure_mode {
+    return_null,
+    throw_bad_alloc,
+};
+
+pugi_failure_mode controlled_pugi_failure_mode =
+    pugi_failure_mode::return_null;
+
 auto controlled_pugi_allocate(std::size_t size) -> void * {
     ++pugi_allocation_calls;
     if (pugi_failure_call != 0U &&
         pugi_allocation_calls == pugi_failure_call) {
+        if (controlled_pugi_failure_mode ==
+            pugi_failure_mode::throw_bad_alloc) {
+            throw std::bad_alloc{};
+        }
         return nullptr;
     }
     return delegated_pugi_allocate(size);
@@ -67,12 +79,14 @@ auto controlled_pugi_allocate(std::size_t size) -> void * {
 
 class pugi_allocator_guard final {
   public:
-    pugi_allocator_guard()
+    explicit pugi_allocator_guard(
+        pugi_failure_mode failure_mode = pugi_failure_mode::return_null)
         : previous_allocate_(pugi::get_memory_allocation_function()),
           previous_deallocate_(pugi::get_memory_deallocation_function()) {
         delegated_pugi_allocate = this->previous_allocate_;
         pugi_allocation_calls = 0U;
         pugi_failure_call = 0U;
+        controlled_pugi_failure_mode = failure_mode;
         pugi::set_memory_management_functions(controlled_pugi_allocate,
                                               this->previous_deallocate_);
     }
@@ -87,6 +101,7 @@ class pugi_allocator_guard final {
         delegated_pugi_allocate = nullptr;
         pugi_allocation_calls = 0U;
         pugi_failure_call = 0U;
+        controlled_pugi_failure_mode = pugi_failure_mode::return_null;
     }
 
   private:
@@ -6642,6 +6657,90 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
             CHECK(old_run.valid());
             CHECK(unaffected_row.valid());
             CHECK(unaffected_cell.valid());
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "row clone insertion rolls back and rethrows thrown pugixml allocator "
+    "failures") {
+    const auto fixture_xml = table_fixture_xml(2U, 2U);
+    for (const auto insert_after : {false, true}) {
+        CAPTURE(insert_after);
+
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{
+                make_test_path("row-clone-throw-baseline", insert_after)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto row = document.tables().rows();
+            auto inserted = featherdoc::TableRow{};
+            {
+                pugi_allocator_guard guard;
+                inserted = insert_after ? row.insert_row_after()
+                                        : row.insert_row_before();
+                successful_allocation_count = pugi_allocation_calls;
+            }
+            REQUIRE(inserted.valid());
+            REQUIRE_GT(successful_allocation_count, 0U);
+        }
+
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{
+                make_test_path("row-clone-throw-failure",
+                               static_cast<std::size_t>(insert_after) * 1000U +
+                                   failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto table = document.tables();
+            auto row = table.rows();
+            auto old_row = row;
+            auto old_cell = old_row.cells();
+            auto old_paragraph = old_cell.paragraphs();
+            auto old_run = old_paragraph.runs();
+            auto inserted = featherdoc::TableRow{};
+            auto observed_bad_alloc = false;
+            try {
+                pugi_allocator_guard guard{
+                    pugi_failure_mode::throw_bad_alloc};
+                pugi_failure_call = failure_call;
+                inserted = insert_after ? row.insert_row_after()
+                                        : row.insert_row_before();
+            } catch (const std::bad_alloc &) {
+                observed_bad_alloc = true;
+            }
+
+            REQUIRE(observed_bad_alloc);
+            CHECK_FALSE(inserted.valid());
+            CHECK(table.valid());
+            CHECK(row.valid());
+            CHECK(old_row.valid());
+            CHECK(old_cell.valid());
+            CHECK(old_paragraph.valid());
+            CHECK(old_run.valid());
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(),
+                                          test_document_xml_entry),
+                     xml_before);
+
+            inserted = insert_after ? row.insert_row_after()
+                                    : row.insert_row_before();
+            REQUIRE(inserted.valid());
+            CHECK_EQ(inserted.cells().get_text(), "");
+            CHECK(old_row.valid());
+            CHECK(old_cell.valid());
+            CHECK(old_paragraph.valid());
+            CHECK(old_run.valid());
         }
     }
 }

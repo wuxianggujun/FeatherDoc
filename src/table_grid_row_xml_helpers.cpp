@@ -12,7 +12,9 @@ namespace featherdoc::detail {
 namespace {
 
 [[nodiscard]] auto checked_insert_copy_xml_node(
-    pugi::xml_node parent, pugi::xml_node source, pugi::xml_node anchor)
+    pugi::xml_node parent, pugi::xml_node source, pugi::xml_node anchor,
+    xml_clone_exception_policy exception_policy =
+        xml_clone_exception_policy::return_failure)
     -> pugi::xml_node {
     if (parent == pugi::xml_node{} || source == pugi::xml_node{} ||
         source.type() == pugi::node_document ||
@@ -20,24 +22,28 @@ namespace {
         return {};
     }
 
-    auto inserted = anchor != pugi::xml_node{}
-                        ? parent.insert_child_before(source.type(), anchor)
-                        : parent.append_child(source.type());
-    if (inserted == pugi::xml_node{}) {
-        return {};
-    }
-
+    auto inserted = pugi::xml_node{};
     const auto rollback = [&]() noexcept {
-        (void)parent.remove_child(inserted);
+        if (inserted != pugi::xml_node{}) {
+            (void)parent.remove_child(inserted);
+        }
     };
     try {
+        inserted = anchor != pugi::xml_node{}
+                       ? parent.insert_child_before(source.type(), anchor)
+                       : parent.append_child(source.type());
+        if (inserted == pugi::xml_node{}) {
+            return {};
+        }
+
         if (!xml_document_clone_detail::copy_node_contents(source, inserted)) {
             rollback();
             return {};
         }
         for (auto child = source.first_child(); child != pugi::xml_node{};
              child = child.next_sibling()) {
-            if (checked_append_copy_xml_node(child, inserted) !=
+            if (checked_append_copy_xml_node(child, inserted,
+                                             exception_policy) !=
                 xml_document_clone_status::success) {
                 rollback();
                 return {};
@@ -45,6 +51,9 @@ namespace {
         }
     } catch (...) {
         rollback();
+        if (exception_policy == xml_clone_exception_policy::propagate) {
+            throw;
+        }
         return {};
     }
 
@@ -414,18 +423,27 @@ auto insert_empty_clone_row(pugi::xml_node table, pugi::xml_node source_row,
     }
 
     const auto anchor = insert_after ? source_row.next_sibling() : source_row;
-    auto inserted_row =
-        checked_insert_copy_xml_node(table, source_row, anchor);
+    auto inserted_row = checked_insert_copy_xml_node(
+        table, source_row, anchor, xml_clone_exception_policy::propagate);
     if (inserted_row == pugi::xml_node{}) {
         return {};
     }
 
-    for (auto row_cell = inserted_row.child("w:tc"); row_cell != pugi::xml_node{};
-         row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
-        if (!replace_table_cell_text(row_cell, "")) {
-            (void)table.remove_child(inserted_row);
-            return {};
+    const auto rollback = [&]() noexcept {
+        (void)table.remove_child(inserted_row);
+    };
+    try {
+        for (auto row_cell = inserted_row.child("w:tc");
+             row_cell != pugi::xml_node{};
+             row_cell = detail::next_named_sibling(row_cell, "w:tc")) {
+            if (!replace_table_cell_text(row_cell, "")) {
+                rollback();
+                return {};
+            }
         }
+    } catch (...) {
+        rollback();
+        throw;
     }
 
     return inserted_row;
