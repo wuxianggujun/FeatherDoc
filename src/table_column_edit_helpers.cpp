@@ -740,39 +740,47 @@ auto insert_empty_clone_cell(pugi::xml_node row, pugi::xml_node source_cell,
     }
 
     auto inserted_cell = pugi::xml_node{};
-    if (insert_before != pugi::xml_node{}) {
-        inserted_cell = row.insert_child_before(source_cell.type(),
-                                                insert_before);
-    } else {
-        inserted_cell = row.insert_child_after(source_cell.type(), source_cell);
-    }
-    if (inserted_cell == pugi::xml_node{}) {
-        return {};
-    }
-
+    const auto rollback = [&]() noexcept {
+        if (inserted_cell != pugi::xml_node{}) {
+            (void)row.remove_child(inserted_cell);
+        }
+    };
     try {
+        if (insert_before != pugi::xml_node{}) {
+            inserted_cell = row.insert_child_before(source_cell.type(),
+                                                    insert_before);
+        } else {
+            inserted_cell =
+                row.insert_child_after(source_cell.type(), source_cell);
+        }
+        if (inserted_cell == pugi::xml_node{}) {
+            return {};
+        }
+
         if (!xml_document_clone_detail::copy_node_contents(source_cell,
                                                            inserted_cell)) {
-            (void)row.remove_child(inserted_cell);
+            rollback();
             return {};
         }
         for (auto child = source_cell.first_child();
              child != pugi::xml_node{}; child = child.next_sibling()) {
-            if (checked_append_copy_xml_node(child, inserted_cell) !=
+            if (checked_append_copy_xml_node(
+                    child, inserted_cell,
+                    xml_clone_exception_policy::propagate) !=
                 xml_document_clone_status::success) {
-                (void)row.remove_child(inserted_cell);
+                rollback();
                 return {};
             }
         }
-    } catch (...) {
-        (void)row.remove_child(inserted_cell);
-        throw;
-    }
 
-    normalize_inserted_table_cell(inserted_cell);
-    if (!replace_table_cell_text(inserted_cell, "")) {
-        row.remove_child(inserted_cell);
-        return {};
+        normalize_inserted_table_cell(inserted_cell);
+        if (!replace_table_cell_text(inserted_cell, "")) {
+            rollback();
+            return {};
+        }
+    } catch (...) {
+        rollback();
+        throw;
     }
 
     return inserted_cell;

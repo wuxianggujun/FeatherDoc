@@ -4,6 +4,125 @@
 
 namespace featherdoc {
 
+namespace {
+
+[[nodiscard]] auto insert_table_column_cell(
+    const detail::tracked_xml_node &row, pugi::xml_node current_cell,
+    bool insert_after) -> pugi::xml_node {
+    if (!row.has_node() || current_cell == pugi::xml_node{} ||
+        current_cell.parent() != row.node()) {
+        return {};
+    }
+
+    const auto table = row.parent().node();
+    if (table == pugi::xml_node{}) {
+        return {};
+    }
+
+    const auto insertion_plan =
+        plan_table_column_insertion(current_cell, insert_after);
+    if (!insertion_plan.has_value()) {
+        return {};
+    }
+
+    auto inserted_current_row_cell = pugi::xml_node{};
+    auto inserted_cells = std::vector<pugi::xml_node>{};
+    auto staged_properties = std::vector<staged_cell_properties>{};
+    auto staged_layout = std::optional<staged_table_layout>{};
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+        if (staged_layout.has_value()) {
+            rollback_staged_table_layout(*staged_layout);
+        }
+        rollback_inserted_table_cells(inserted_cells);
+    };
+
+    try {
+        inserted_cells.reserve(insertion_plan->targets.size());
+        for (const auto &target : insertion_plan->targets) {
+            const auto inserted_cell = insert_empty_clone_cell(
+                target.row, target.clone_source, target.insert_before);
+            if (inserted_cell == pugi::xml_node{}) {
+                rollback();
+                return {};
+            }
+            inserted_cells.push_back(inserted_cell);
+            if (target.row == row.node()) {
+                inserted_current_row_cell = inserted_cell;
+            }
+        }
+
+        if (inserted_current_row_cell == pugi::xml_node{}) {
+            rollback();
+            return {};
+        }
+
+        staged_layout = stage_table_layout(
+            table, insertion_plan->column_count_before_insertion,
+            table_grid_edit{table_grid_edit_kind::insert_column,
+                            insertion_plan->boundary_column_index,
+                            insertion_plan->grid_width_source_column_index});
+        if (!staged_layout.has_value() ||
+            !stage_fixed_layout_cell_widths(table, {}, staged_properties)) {
+            rollback();
+            return {};
+        }
+
+        for (const auto &staged : staged_properties) {
+            if (staged.cell == pugi::xml_node{} ||
+                staged.replacement == pugi::xml_node{} ||
+                staged.replacement.parent() != staged.cell ||
+                (staged.original != pugi::xml_node{} &&
+                 staged.original.parent() != staged.cell)) {
+                rollback();
+                return {};
+            }
+        }
+        if (staged_layout->table != table ||
+            staged_layout->replacement_properties == pugi::xml_node{} ||
+            staged_layout->replacement_properties.parent() != table ||
+            staged_layout->replacement_grid == pugi::xml_node{} ||
+            staged_layout->replacement_grid.parent() != table ||
+            (staged_layout->original_properties != pugi::xml_node{} &&
+             staged_layout->original_properties.parent() != table) ||
+            (staged_layout->original_grid != pugi::xml_node{} &&
+             staged_layout->original_grid.parent() != table)) {
+            rollback();
+            return {};
+        }
+
+        auto retirement_roots = std::vector<pugi::xml_node>{};
+        retirement_roots.reserve(staged_properties.size() + 2U);
+        for (const auto &staged : staged_properties) {
+            if (staged.original != pugi::xml_node{}) {
+                retirement_roots.push_back(staged.original);
+            }
+        }
+        if (staged_layout->original_properties != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_layout->original_properties);
+        }
+        if (staged_layout->original_grid != pugi::xml_node{}) {
+            retirement_roots.push_back(staged_layout->original_grid);
+        }
+        if (!row.retire_subtrees(std::span<const pugi::xml_node>{
+                retirement_roots.data(), retirement_roots.size()})) {
+            rollback();
+            return {};
+        }
+    } catch (...) {
+        rollback();
+        throw;
+    }
+
+    if (!commit_staged_cell_properties(staged_properties) ||
+        !commit_staged_table_layout(*staged_layout)) {
+        return {};
+    }
+    return inserted_current_row_cell;
+}
+
+} // namespace
+
 TableCell::TableCell() = default;
 
 TableCell::TableCell(detail::tracked_xml_node parent, pugi::xml_node current) {
@@ -152,141 +271,25 @@ bool TableCell::remove() {
 }
 
 TableCell TableCell::insert_cell_before() {
-    if (this->current == pugi::xml_node{} || this->parent == pugi::xml_node{}) {
+    const auto inserted_cell =
+        insert_table_column_cell(this->parent, this->current.node(), false);
+    if (inserted_cell == pugi::xml_node{}) {
         return {};
     }
 
-    const auto table = this->parent.parent();
-    if (table == pugi::xml_node{}) {
-        return {};
-    }
-
-    const auto insertion_plan = plan_table_column_insertion(this->current, false);
-    if (!insertion_plan.has_value()) {
-        return {};
-    }
-
-    pugi::xml_node inserted_current_row_cell;
-    auto inserted_cells = std::vector<pugi::xml_node>{};
-    inserted_cells.reserve(insertion_plan->targets.size());
-    for (const auto &target : insertion_plan->targets) {
-        const auto inserted_cell =
-            insert_empty_clone_cell(target.row, target.clone_source, target.insert_before);
-        if (inserted_cell == pugi::xml_node{}) {
-            rollback_inserted_table_cells(inserted_cells);
-            return {};
-        }
-        inserted_cells.push_back(inserted_cell);
-        if (target.row == this->parent) {
-            inserted_current_row_cell = inserted_cell;
-        }
-    }
-
-    if (inserted_current_row_cell == pugi::xml_node{}) {
-        rollback_inserted_table_cells(inserted_cells);
-        return {};
-    }
-
-    auto staged_properties = std::vector<staged_cell_properties>{};
-    auto staged_layout = std::optional<staged_table_layout>{};
-    const auto rollback = [&]() noexcept {
-        rollback_staged_cell_properties(staged_properties);
-        if (staged_layout.has_value()) {
-            rollback_staged_table_layout(*staged_layout);
-        }
-        rollback_inserted_table_cells(inserted_cells);
-    };
-    try {
-        staged_layout = stage_table_layout(
-            table, insertion_plan->column_count_before_insertion,
-            table_grid_edit{table_grid_edit_kind::insert_column,
-                            insertion_plan->boundary_column_index,
-                            insertion_plan->grid_width_source_column_index});
-        if (!staged_layout.has_value() ||
-            !stage_fixed_layout_cell_widths(table, {}, staged_properties)) {
-            rollback();
-            return {};
-        }
-    } catch (...) {
-        rollback();
-        throw;
-    }
-    if (!commit_staged_cell_properties(staged_properties) ||
-        !commit_staged_table_layout(*staged_layout)) {
-        return {};
-    }
-
-    this->set_current(inserted_current_row_cell);
-    return TableCell(this->parent, inserted_current_row_cell);
+    this->set_current(inserted_cell);
+    return TableCell(this->parent, inserted_cell);
 }
 
 TableCell TableCell::insert_cell_after() {
-    if (this->current == pugi::xml_node{} || this->parent == pugi::xml_node{}) {
+    const auto inserted_cell =
+        insert_table_column_cell(this->parent, this->current.node(), true);
+    if (inserted_cell == pugi::xml_node{}) {
         return {};
     }
 
-    const auto table = this->parent.parent();
-    if (table == pugi::xml_node{}) {
-        return {};
-    }
-
-    const auto insertion_plan = plan_table_column_insertion(this->current, true);
-    if (!insertion_plan.has_value()) {
-        return {};
-    }
-
-    pugi::xml_node inserted_current_row_cell;
-    auto inserted_cells = std::vector<pugi::xml_node>{};
-    inserted_cells.reserve(insertion_plan->targets.size());
-    for (const auto &target : insertion_plan->targets) {
-        const auto inserted_cell =
-            insert_empty_clone_cell(target.row, target.clone_source, target.insert_before);
-        if (inserted_cell == pugi::xml_node{}) {
-            rollback_inserted_table_cells(inserted_cells);
-            return {};
-        }
-        inserted_cells.push_back(inserted_cell);
-        if (target.row == this->parent) {
-            inserted_current_row_cell = inserted_cell;
-        }
-    }
-
-    if (inserted_current_row_cell == pugi::xml_node{}) {
-        rollback_inserted_table_cells(inserted_cells);
-        return {};
-    }
-
-    auto staged_properties = std::vector<staged_cell_properties>{};
-    auto staged_layout = std::optional<staged_table_layout>{};
-    const auto rollback = [&]() noexcept {
-        rollback_staged_cell_properties(staged_properties);
-        if (staged_layout.has_value()) {
-            rollback_staged_table_layout(*staged_layout);
-        }
-        rollback_inserted_table_cells(inserted_cells);
-    };
-    try {
-        staged_layout = stage_table_layout(
-            table, insertion_plan->column_count_before_insertion,
-            table_grid_edit{table_grid_edit_kind::insert_column,
-                            insertion_plan->boundary_column_index,
-                            insertion_plan->grid_width_source_column_index});
-        if (!staged_layout.has_value() ||
-            !stage_fixed_layout_cell_widths(table, {}, staged_properties)) {
-            rollback();
-            return {};
-        }
-    } catch (...) {
-        rollback();
-        throw;
-    }
-    if (!commit_staged_cell_properties(staged_properties) ||
-        !commit_staged_table_layout(*staged_layout)) {
-        return {};
-    }
-
-    this->set_current(inserted_current_row_cell);
-    return TableCell(this->parent, inserted_current_row_cell);
+    this->set_current(inserted_cell);
+    return TableCell(this->parent, inserted_cell);
 }
 
 std::optional<std::uint32_t> TableCell::width_twips() const {

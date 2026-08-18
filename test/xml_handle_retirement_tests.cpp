@@ -1873,6 +1873,81 @@ FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
 }
 
 FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
+    "cell insertion before and after preserves DOM and old handles for every "
+    "global allocation failure") {
+    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 3U);
+    for (const auto insert_after : {false, true}) {
+        CAPTURE(insert_after);
+        auto successful_allocation_count = std::size_t{0U};
+        {
+            scoped_test_path path{make_test_path(
+                insert_after ? "后插单元格全局基线" : "前插单元格全局基线",
+                0U)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            auto anchor = document.tables().rows().cells();
+            auto inserted = featherdoc::TableCell{};
+            {
+                global_allocation_guard guard{0U};
+                inserted = insert_after ? anchor.insert_cell_after()
+                                        : anchor.insert_cell_before();
+            }
+            REQUIRE(inserted.valid());
+            successful_allocation_count =
+                observed_allocation_calls.load(std::memory_order_relaxed);
+        }
+
+        REQUIRE_GT(successful_allocation_count, 0U);
+        for (std::size_t failure_call = 1U;
+             failure_call <= successful_allocation_count; ++failure_call) {
+            CAPTURE(failure_call);
+            CAPTURE(successful_allocation_count);
+            scoped_test_path path{make_test_path(
+                insert_after ? "后插单元格全局失败" : "前插单元格全局失败",
+                failure_call)};
+            write_test_docx(path.path(), fixture_xml);
+            featherdoc::Document document(path.path());
+            REQUIRE_FALSE(document.open());
+            REQUIRE_FALSE(document.save());
+            const auto xml_before =
+                read_test_docx_entry(path.path(), test_document_xml_entry);
+
+            auto row = document.tables().rows();
+            auto anchor = row.cells();
+            auto old_anchor = anchor;
+            auto old_paragraph = old_anchor.paragraphs();
+            auto old_run = old_paragraph.runs();
+            auto inserted = featherdoc::TableCell{};
+            try {
+                global_allocation_guard guard{failure_call};
+                inserted = insert_after ? anchor.insert_cell_after()
+                                        : anchor.insert_cell_before();
+            } catch (const std::bad_alloc &) {
+                inserted = featherdoc::TableCell{};
+            }
+
+            REQUIRE_FALSE(inserted.valid());
+            CHECK(anchor.valid());
+            CHECK(old_anchor.valid());
+            CHECK(old_paragraph.valid());
+            CHECK(old_run.valid());
+            CHECK_EQ(old_anchor.get_text(), "原始中文0-0");
+            REQUIRE_FALSE(document.save());
+            CHECK_EQ(read_test_docx_entry(path.path(), test_document_xml_entry),
+                     xml_before);
+
+            inserted = insert_after ? anchor.insert_cell_after()
+                                    : anchor.insert_cell_before();
+            REQUIRE(inserted.valid());
+            CHECK(old_anchor.valid());
+            CHECK(old_paragraph.valid());
+            CHECK(old_run.valid());
+        }
+    }
+}
+
+FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     "table insertion before and after preserves DOM and old handles for every "
     "pugixml allocation failure") {
     const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);

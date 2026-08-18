@@ -1184,6 +1184,8 @@ TEST_CASE("table clone insertions reject invalid column geometry atomically") {
         std::string_view{"insert_row_after"},
         std::string_view{"insert_table_like_before"},
         std::string_view{"insert_table_like_after"},
+        std::string_view{"insert_cell_before"},
+        std::string_view{"insert_cell_after"},
     };
 
     for (const auto &geometry : geometry_cases) {
@@ -1222,11 +1224,20 @@ TEST_CASE("table clone insertions reject invalid column geometry atomically") {
                                           ? row.insert_row_before()
                                           : row.insert_row_after();
                 CHECK_FALSE(inserted.has_next());
-            } else {
+            } else if (operation_index < 4U) {
                 const auto inserted = operation_index == 2U
                                           ? table.insert_table_like_before()
                                           : table.insert_table_like_after();
                 CHECK_FALSE(inserted.has_next());
+            } else {
+                auto row = table.rows();
+                REQUIRE(row.has_next());
+                auto cell = row.cells();
+                REQUIRE(cell.has_next());
+                const auto inserted = operation_index == 4U
+                                          ? cell.insert_cell_before()
+                                          : cell.insert_cell_after();
+                CHECK_FALSE(inserted.valid());
             }
 
             REQUIRE_FALSE(document.save_as(after));
