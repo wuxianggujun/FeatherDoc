@@ -740,7 +740,7 @@ bool TableCell::unmerge_right() {
             return false;
         }
 
-        if (table_uses_fixed_layout(table)) {
+        if (detail::table_uses_fixed_layout(table)) {
             const auto layout_column_count = std::max(
                 *column_count,
                 count_named_children(table.child("w:tblGrid"),
