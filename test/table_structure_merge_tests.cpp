@@ -1,3 +1,4 @@
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -462,6 +463,92 @@ TEST_CASE("fixed-layout merge down preserves cell widths on merged columns") {
     CHECK_EQ(*reopened_cell.width_twips(), 1800U);
 
     fs::remove(target);
+}
+
+TEST_CASE("table merge right rejects invalid geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view cells_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "single_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "summed_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "zero_span",
+            R"(<w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "missing_span_value",
+            R"(<w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "invalid_span_value",
+            R"(<w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="invalid"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "duplicate_span",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="1"/><w:gridSpan w:val="1"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "duplicate_properties",
+            R"(<w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr/><w:tcPr/><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        const auto target = fs::current_path() /
+                            ("table_merge_right_invalid_" +
+                             std::string{geometry.name} + ".docx");
+        fs::remove(target);
+        write_test_docx(
+            target,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr>)"} +
+                std::string{geometry.cells_xml} +
+                R"(</w:tr></w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto row = table.rows();
+        REQUIRE(row.valid());
+        auto anchor = row.cells();
+        REQUIRE(anchor.valid());
+        auto anchor_paragraph = anchor.paragraphs();
+        auto anchor_run = anchor_paragraph.runs();
+        REQUIRE(anchor_paragraph.valid());
+        REQUIRE(anchor_run.valid());
+        auto removed = anchor;
+        removed.next();
+        REQUIRE(removed.valid());
+        auto removed_paragraph = removed.paragraphs();
+        auto removed_run = removed_paragraph.runs();
+        REQUIRE(removed_paragraph.valid());
+        REQUIRE(removed_run.valid());
+
+        CHECK_FALSE(anchor.merge_right(1U));
+        CHECK(anchor.valid());
+        CHECK(anchor_paragraph.valid());
+        CHECK(anchor_run.valid());
+        CHECK(removed.valid());
+        CHECK(removed_paragraph.valid());
+        CHECK(removed_run.valid());
+        CHECK(row.valid());
+        CHECK(table.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target);
+    }
 }
 
 TEST_CASE("table span mutations reject oversized grid spans atomically") {

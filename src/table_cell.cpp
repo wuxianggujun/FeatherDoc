@@ -478,8 +478,10 @@ bool TableCell::merge_right(std::size_t additional_cells) {
         return false;
     }
 
-    const auto table = this->parent.parent();
-    if (table == pugi::xml_node{}) {
+    const auto current_row = this->parent.node();
+    const auto current_cell = this->current.node();
+    const auto table = current_row.parent();
+    if (current_cell.parent() != current_row || table == pugi::xml_node{}) {
         return false;
     }
 
@@ -491,6 +493,11 @@ bool TableCell::merge_right(std::size_t additional_cells) {
     if (!column_count.has_value()) {
         return false;
     }
+    const auto current_properties = current_cell.child("w:tcPr");
+    if (count_named_children(current_cell, "w:tcPr") > 1U ||
+        count_named_children(current_properties, "w:gridSpan") > 1U) {
+        return false;
+    }
 
     std::vector<pugi::xml_node> cells_to_remove;
 
@@ -498,6 +505,12 @@ bool TableCell::merge_right(std::size_t additional_cells) {
     auto next_cell = detail::next_named_sibling(this->current, "w:tc");
     for (std::size_t i = 0; i < additional_cells; ++i) {
         if (next_cell == pugi::xml_node{}) {
+            return false;
+        }
+        const auto next_properties = next_cell.child("w:tcPr");
+        if (next_cell.parent() != current_row ||
+            count_named_children(next_cell, "w:tcPr") > 1U ||
+            count_named_children(next_properties, "w:gridSpan") > 1U) {
             return false;
         }
 
@@ -534,7 +547,10 @@ bool TableCell::merge_right(std::size_t additional_cells) {
 
         const auto grid_span_node = ensure_cell_grid_span_node(this->current);
         if (grid_span_node == pugi::xml_node{} ||
-            std::string_view{grid_span_node.name()} != "w:gridSpan") {
+            std::string_view{grid_span_node.name()} != "w:gridSpan" ||
+            grid_span_node.parent() != staged_anchor->replacement ||
+            count_named_children(staged_anchor->replacement, "w:gridSpan") !=
+                1U) {
             rollback();
             return false;
         }
@@ -553,6 +569,49 @@ bool TableCell::merge_right(std::size_t additional_cells) {
                 std::span<const pugi::xml_node>{cells_to_remove.data(),
                                                 cells_to_remove.size()},
                 staged_properties)) {
+            rollback();
+            return false;
+        }
+
+        for (std::size_t staged_index = 0U;
+             staged_index < staged_properties.size(); ++staged_index) {
+            const auto &staged = staged_properties[staged_index];
+            const auto staged_row = staged.cell.parent();
+            if (staged.cell == pugi::xml_node{} ||
+                staged_row == pugi::xml_node{} ||
+                staged_row.parent() != table ||
+                staged.replacement == pugi::xml_node{} ||
+                staged.replacement.parent() != staged.cell ||
+                (staged.original != pugi::xml_node{} &&
+                 staged.original.parent() != staged.cell)) {
+                rollback();
+                return false;
+            }
+            for (const auto removed_cell : cells_to_remove) {
+                if (staged.cell == removed_cell) {
+                    rollback();
+                    return false;
+                }
+            }
+            for (std::size_t previous_index = 0U;
+                 previous_index < staged_index; ++previous_index) {
+                if (staged.cell == staged_properties[previous_index].cell) {
+                    rollback();
+                    return false;
+                }
+            }
+        }
+        if (staged_properties.empty() ||
+            staged_properties.front().cell != current_cell ||
+            staged_layout->table != table ||
+            staged_layout->replacement_properties == pugi::xml_node{} ||
+            staged_layout->replacement_properties.parent() != table ||
+            staged_layout->replacement_grid == pugi::xml_node{} ||
+            staged_layout->replacement_grid.parent() != table ||
+            (staged_layout->original_properties != pugi::xml_node{} &&
+             staged_layout->original_properties.parent() != table) ||
+            (staged_layout->original_grid != pugi::xml_node{} &&
+             staged_layout->original_grid.parent() != table)) {
             rollback();
             return false;
         }
@@ -587,7 +646,7 @@ bool TableCell::merge_right(std::size_t additional_cells) {
         !commit_staged_table_layout(*staged_layout)) {
         return false;
     }
-    auto row_node = this->parent.node();
+    auto row_node = current_row;
     for (const auto cell : cells_to_remove) {
         if (!row_node.remove_child(cell)) {
             return false;
