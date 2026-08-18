@@ -13,6 +13,7 @@ performance.
 - ``TableCell::unmerge_right()``, ``TableCell::unmerge_down()``,
   ``TableCell::insert_cell_before()``, ``TableCell::insert_cell_after()``,
   ``TableCell::remove()``, ``TableCell::merge_right()``,
+  ``TableCell::merge_down()``,
   ``TableRow::remove()``, ``TableRow::insert_row_before()``, and
   ``TableRow::insert_row_after()`` now enforce their structural transaction
   boundaries. Horizontal unmerge stages the anchor properties, inserted cells,
@@ -29,7 +30,10 @@ performance.
   Horizontal merge additionally rejects malformed or duplicate cell-property
   and grid-span geometry, then validates the anchor, removed sibling cells, and
   every staged fixed-layout replacement before the same allocation-free
-  publication boundary.
+  publication boundary. Vertical merge preserves its zero-row no-op, rejects
+  malformed or duplicate cell-property, grid-span, and vertical-merge geometry,
+  and validates the existing continuation chain, new targets, and every staged
+  ``w:vMerge`` before retiring target contents or original properties.
   Pre-publication failures restore the original XML and inserted-node state,
   while structural ``std::bad_alloc`` failures roll back and preserve the
   existing exception contract. The focused Windows/MSVC structure and

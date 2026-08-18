@@ -22,15 +22,15 @@ reviewed independently.
 ## Structural Mutation Checkpoint
 
 The Windows-validated structural checkpoint advanced on 2026-08-18 at
-`6042090c`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`49e0421a`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
 `38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, row insertion
 hardening is `caaff31d`, column insertion hardening is `d919a7ad`, and column
-removal hardening is `333ba3fa`; horizontal-merge hardening is `6042090c`. It
-covers:
+removal hardening is `333ba3fa`, horizontal-merge hardening is `6042090c`, and
+vertical-merge hardening is `49e0421a`. It covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
-| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove`, `merge_right` |
+| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove`, `merge_right`, `merge_down` |
 | `TableRow` | `remove`, `insert_row_before`, `insert_row_after` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
@@ -59,6 +59,16 @@ retirement. Commit and sibling removal then use only the validated,
 allocation-free publication path. Rejection preserves serialized XML and all
 anchor, removed-cell, paragraph, run, row, and table handles.
 
+`TableCell::merge_down` preserves a zero-row no-op and validates actual merges
+before staging. It rejects malformed or duplicate `w:tcPr`, `w:gridSpan`, and
+`w:vMerge` nodes across the anchor, existing continuation chain, and new target
+cells; verifies every row/cell owner and unique target; and proves that staged
+properties cover exactly the anchor plus new targets with one expected
+`w:vMerge` value each. All staging remains inside the rollback boundary. Target
+body replacement then batch-retires old contents and original properties before
+an allocation-free property commit. Rejection preserves serialized XML plus all
+existing cell, paragraph, run, row, and table handles.
+
 `TableRow::remove` now rejects malformed or oversized table geometry before
 staging. Vertical-merge promotions validate their source and target rows,
 unique target ownership, staged `w:tcPr` parent relationships, and exactly one
@@ -80,8 +90,8 @@ failures remove all unpublished cells and staged nodes; thrown allocation
 failures perform the same rollback and propagate. Invalid or oversized column
 geometry is rejected before mutation.
 
-This checkpoint does not yet cover `merge_down` or independent grid-span and
-vertical-merge setters. Those APIs remain in the structural review queue.
+This checkpoint does not yet cover independent grid-span and vertical-merge
+setters. Those APIs remain in the structural review queue.
 
 ## Transaction Contract
 
@@ -212,6 +222,20 @@ Both focused tests passed:
 The ordinary Windows regression covers invalid, oversized, duplicate, and
 missing span/property geometry plus handle and serialized-XML preservation. No
 local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
+
+The 2026-08-18 vertical-merge checkpoint at `49e0421a` used the isolated
+`.codex-temp/merge-down-windows-msvc` Release/NMake build with concurrency one.
+Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The structure regression covers extending an existing vertical merge chain and
+atomically rejecting invalid, oversized, duplicate, and missing
+span/property/merge geometry while preserving serialized XML and handles. The
+ordinary Windows build type-checked but did not register the CI-only allocation
+failure sweeps. No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite
+was run.
 
 Use the following focused commands for the next structural batch boundary:
 
