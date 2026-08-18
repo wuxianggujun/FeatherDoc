@@ -131,7 +131,8 @@ TEST_CASE("table cells can merge down across following rows") {
     REQUIRE(merged_row.has_next());
     auto merged_cell = merged_row.cells();
     REQUIRE(merged_cell.has_next());
-    CHECK(merged_cell.merge_down(2U));
+    CHECK(merged_cell.merge_down(1U));
+    CHECK(merged_cell.merge_down(1U));
     CHECK_FALSE(merged_cell.merge_down(1U));
 
     CHECK_FALSE(doc.save());
@@ -548,6 +549,104 @@ TEST_CASE("table merge right rejects invalid geometry atomically") {
                  xml_before);
 
         fs::remove(target);
+    }
+}
+
+TEST_CASE("table merge down rejects invalid geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view rows_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "single_span_64",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "summed_span_64",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>anchor right</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>target right</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "zero_span",
+            R"(<w:tr><w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "missing_span_value",
+            R"(<w:tr><w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "invalid_span_value",
+            R"(<w:tr><w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan w:val="invalid"/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_span",
+            R"(<w:tr><w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:gridSpan w:val="1"/><w:gridSpan w:val="1"/></w:tcPr><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_properties",
+            R"(<w:tr><w:tc><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:tcPr/><w:tcPr/><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_vertical_merge",
+            R"(<w:tr><w:tc><w:tcPr><w:vMerge w:val="restart"/><w:vMerge w:val="restart"/></w:tcPr><w:p><w:r><w:t>anchor</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p><w:r><w:t>target</w:t></w:r></w:p></w:tc></w:tr>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        CAPTURE(geometry.name);
+        const auto target_path =
+            fs::current_path() /
+            ("table_merge_down_invalid_" + std::string{geometry.name} +
+             ".docx");
+        fs::remove(target_path);
+        write_test_docx(
+            target_path,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl>)"} +
+                std::string{geometry.rows_xml} +
+                R"(</w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target_path);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target_path, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto first_row = table.rows();
+        REQUIRE(first_row.valid());
+        auto second_row = first_row;
+        second_row.next();
+        REQUIRE(second_row.valid());
+
+        auto anchor = first_row.cells();
+        REQUIRE(anchor.valid());
+        auto anchor_paragraph = anchor.paragraphs();
+        auto anchor_run = anchor_paragraph.runs();
+        REQUIRE(anchor_paragraph.valid());
+        REQUIRE(anchor_run.valid());
+
+        auto merge_target = second_row.cells();
+        REQUIRE(merge_target.valid());
+        auto target_paragraph = merge_target.paragraphs();
+        auto target_run = target_paragraph.runs();
+        REQUIRE(target_paragraph.valid());
+        REQUIRE(target_run.valid());
+
+        CHECK_FALSE(anchor.merge_down(1U));
+        CHECK(anchor.valid());
+        CHECK_EQ(anchor.get_text(), "anchor");
+        CHECK(anchor_paragraph.valid());
+        CHECK(anchor_run.valid());
+        CHECK(merge_target.valid());
+        CHECK_EQ(merge_target.get_text(), "target");
+        CHECK(target_paragraph.valid());
+        CHECK(target_run.valid());
+        CHECK(first_row.valid());
+        CHECK(second_row.valid());
+        CHECK(table.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target_path, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target_path);
     }
 }
 

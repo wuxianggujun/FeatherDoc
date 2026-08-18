@@ -665,29 +665,49 @@ bool TableCell::merge_down(std::size_t additional_rows) {
         return true;
     }
 
+    const auto current_cell = this->current.node();
+    const auto current_row = this->parent.node();
     const auto table = this->parent.parent();
-    if (table == pugi::xml_node{} ||
+    if (current_cell.parent() != current_row ||
+        current_row.parent() != table || table == pugi::xml_node{} ||
         !current_table_column_count(table).has_value()) {
         return false;
     }
 
-    const auto current_merge_state = cell_vertical_merge_state_for(this->current);
+    const auto has_valid_merge_structure =
+        [](pugi::xml_node cell, pugi::xml_node row) noexcept -> bool {
+        const auto properties = cell.child("w:tcPr");
+        return cell != pugi::xml_node{} && row != pugi::xml_node{} &&
+               cell.parent() == row &&
+               count_named_children(cell, "w:tcPr") <= 1U &&
+               count_named_children(properties, "w:gridSpan") <= 1U &&
+               count_named_children(properties, "w:vMerge") <= 1U;
+    };
+    if (!has_valid_merge_structure(current_cell, current_row)) {
+        return false;
+    }
+
+    const auto current_merge_state = cell_vertical_merge_state_for(current_cell);
     if (current_merge_state == cell_vertical_merge_state::continue_merge) {
         return false;
     }
 
-    const auto column_index = cell_column_index(this->current);
+    const auto column_index = cell_column_index(current_cell);
     if (!column_index.has_value()) {
         return false;
     }
 
-    const auto column_span = cell_column_span(this->current);
-    auto anchor_row = this->parent;
+    const auto column_span = cell_column_span(current_cell);
+    auto continued_cells = std::vector<pugi::xml_node>{};
+    auto anchor_row = current_row;
     if (current_merge_state == cell_vertical_merge_state::restart) {
         while (true) {
             const auto next_row = detail::next_named_sibling(anchor_row, "w:tr");
             if (next_row == pugi::xml_node{}) {
                 break;
+            }
+            if (next_row.parent() != table) {
+                return false;
             }
 
             const auto continued_cell =
@@ -698,6 +718,20 @@ bool TableCell::merge_down(std::size_t additional_rows) {
                 break;
             }
 
+            if (!has_valid_merge_structure(continued_cell, next_row)) {
+                return false;
+            }
+            if (continued_cell == current_cell) {
+                return false;
+            }
+            for (const auto existing : continued_cells) {
+                if (existing == continued_cell ||
+                    existing.parent() == next_row) {
+                    return false;
+                }
+            }
+
+            continued_cells.push_back(continued_cell);
             anchor_row = next_row;
         }
     }
@@ -707,15 +741,30 @@ bool TableCell::merge_down(std::size_t additional_rows) {
     auto row_cursor = anchor_row;
     for (std::size_t i = 0; i < additional_rows; ++i) {
         row_cursor = detail::next_named_sibling(row_cursor, "w:tr");
-        if (row_cursor == pugi::xml_node{}) {
+        if (row_cursor == pugi::xml_node{} || row_cursor.parent() != table) {
             return false;
         }
 
         const auto target_cell =
             find_row_cell_at_columns(row_cursor, *column_index, column_span);
         if (target_cell == pugi::xml_node{} ||
-            cell_vertical_merge_state_for(target_cell) != cell_vertical_merge_state::none) {
+            !has_valid_merge_structure(target_cell, row_cursor) ||
+            cell_vertical_merge_state_for(target_cell) !=
+                cell_vertical_merge_state::none) {
             return false;
+        }
+        if (target_cell == current_cell) {
+            return false;
+        }
+        for (const auto continued_cell : continued_cells) {
+            if (continued_cell == target_cell) {
+                return false;
+            }
+        }
+        for (const auto existing : target_cells) {
+            if (existing == target_cell || existing.parent() == row_cursor) {
+                return false;
+            }
         }
 
         target_cells.push_back(target_cell);
@@ -729,16 +778,33 @@ bool TableCell::merge_down(std::size_t additional_rows) {
 
     auto staged_properties = std::vector<staged_cell_properties>{};
     staged_properties.reserve(target_cells.size() + 1U);
+    const auto rollback = [&]() noexcept {
+        rollback_staged_cell_properties(staged_properties);
+    };
     const auto stage_vertical_merge_value =
         [&](pugi::xml_node cell, const char *value) -> bool {
         const auto staged = stage_cell_properties(cell);
         if (!staged.has_value()) {
             return false;
         }
-        staged_properties.push_back(*staged);
+        try {
+            staged_properties.push_back(*staged);
+        } catch (...) {
+            auto mutable_cell = cell;
+            (void)mutable_cell.remove_child(staged->replacement);
+            throw;
+        }
         const auto vertical_merge_node = ensure_cell_vertical_merge_node(cell);
-        if (vertical_merge_node == pugi::xml_node{} ||
-            std::string_view{vertical_merge_node.name()} != "w:vMerge") {
+        if (staged->cell != cell ||
+            staged->replacement == pugi::xml_node{} ||
+            std::string_view{staged->replacement.name()} != "w:tcPr" ||
+            staged->replacement.parent() != cell ||
+            (staged->original != pugi::xml_node{} &&
+             staged->original.parent() != cell) ||
+            vertical_merge_node == pugi::xml_node{} ||
+            std::string_view{vertical_merge_node.name()} != "w:vMerge" ||
+            vertical_merge_node.parent() != staged->replacement ||
+            count_named_children(staged->replacement, "w:vMerge") != 1U) {
             return false;
         }
         ensure_attribute_value(vertical_merge_node, "w:val", value);
@@ -747,18 +813,94 @@ bool TableCell::merge_down(std::size_t additional_rows) {
                std::string_view{value_attribute.value()} == value;
     };
 
-    if (!stage_vertical_merge_value(this->current.node(), "restart")) {
-        rollback_staged_cell_properties(staged_properties);
-        return false;
-    }
-    for (const auto target_cell : target_cells) {
-        if (!stage_vertical_merge_value(target_cell, "continue")) {
-            rollback_staged_cell_properties(staged_properties);
+    try {
+        if (!stage_vertical_merge_value(current_cell, "restart")) {
+            rollback();
             return false;
         }
-    }
+        for (const auto target_cell : target_cells) {
+            if (!stage_vertical_merge_value(target_cell, "continue")) {
+                rollback();
+                return false;
+            }
+        }
 
-    try {
+        if (staged_properties.size() != target_cells.size() + 1U) {
+            rollback();
+            return false;
+        }
+        for (std::size_t staged_index = 0U;
+             staged_index < staged_properties.size(); ++staged_index) {
+            const auto &staged = staged_properties[staged_index];
+            const auto expected_cell = staged_index == 0U
+                                           ? current_cell
+                                           : target_cells[staged_index - 1U];
+            const auto expected_value =
+                staged_index == 0U ? "restart" : "continue";
+            const auto staged_row = staged.cell.parent();
+            const auto replacement_vertical_merge =
+                staged.replacement.child("w:vMerge");
+            const auto expected_property_count =
+                staged.original == pugi::xml_node{} ? 1U : 2U;
+            if (staged.cell != expected_cell ||
+                staged_row == pugi::xml_node{} ||
+                staged_row.parent() != table ||
+                count_named_children(staged.cell, "w:tcPr") !=
+                    expected_property_count ||
+                staged.replacement == pugi::xml_node{} ||
+                std::string_view{staged.replacement.name()} != "w:tcPr" ||
+                staged.replacement.parent() != staged.cell ||
+                staged.replacement == staged.original ||
+                (staged.original != pugi::xml_node{} &&
+                 (std::string_view{staged.original.name()} != "w:tcPr" ||
+                  staged.original.parent() != staged.cell)) ||
+                replacement_vertical_merge == pugi::xml_node{} ||
+                std::string_view{replacement_vertical_merge.name()} !=
+                    "w:vMerge" ||
+                replacement_vertical_merge.parent() != staged.replacement ||
+                count_named_children(staged.replacement, "w:vMerge") != 1U ||
+                replacement_vertical_merge.attribute("w:val") ==
+                    pugi::xml_attribute{} ||
+                std::string_view{replacement_vertical_merge
+                                     .attribute("w:val")
+                                     .value()} != expected_value) {
+                rollback();
+                return false;
+            }
+            for (std::size_t previous_index = 0U;
+                 previous_index < staged_index; ++previous_index) {
+                if (staged.cell == staged_properties[previous_index].cell) {
+                    rollback();
+                    return false;
+                }
+            }
+        }
+        if (tracked_target_cells.size() != target_cells.size()) {
+            rollback();
+            return false;
+        }
+        for (std::size_t target_index = 0U;
+             target_index < target_cells.size(); ++target_index) {
+            if (tracked_target_cells[target_index].node() !=
+                target_cells[target_index]) {
+                rollback();
+                return false;
+            }
+        }
+        if (current_cell.parent() != current_row ||
+            current_row.parent() != table) {
+            rollback();
+            return false;
+        }
+        for (const auto continued_cell : continued_cells) {
+            const auto continued_row = continued_cell.parent();
+            if (!has_valid_merge_structure(continued_cell, continued_row) ||
+                continued_row.parent() != table) {
+                rollback();
+                return false;
+            }
+        }
+
         auto property_retirement_roots = std::vector<pugi::xml_node>{};
         property_retirement_roots.reserve(staged_properties.size());
         for (const auto &staged : staged_properties) {
@@ -771,11 +913,11 @@ bool TableCell::merge_down(std::size_t additional_rows) {
                 std::span<const pugi::xml_node>{
                     property_retirement_roots.data(),
                     property_retirement_roots.size()})) {
-            rollback_staged_cell_properties(staged_properties);
+            rollback();
             return false;
         }
     } catch (...) {
-        rollback_staged_cell_properties(staged_properties);
+        rollback();
         throw;
     }
     if (!commit_staged_cell_properties(staged_properties)) {
