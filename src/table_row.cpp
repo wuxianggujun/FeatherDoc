@@ -427,8 +427,15 @@ bool TableRow::remove() {
     if (count_named_children(this->parent, "w:tr") <= 1U) {
         return false;
     }
+    if (!current_table_column_count(this->parent).has_value()) {
+        return false;
+    }
 
     const auto removed_row = this->current.node();
+    auto table_node = this->parent.node();
+    if (removed_row.parent() != table_node) {
+        return false;
+    }
     const auto next_row = detail::next_named_sibling(removed_row, "w:tr");
     const auto previous_row = detail::previous_named_sibling(removed_row, "w:tr");
     const auto promotions =
@@ -442,6 +449,18 @@ bool TableRow::remove() {
     additional_retirement_roots.push_back(removed_row);
     try {
         for (const auto &[source_cell, target_cell] : promotions) {
+            if (source_cell.parent() != removed_row ||
+                target_cell.parent() != next_row) {
+                rollback_staged_cell_properties(staged_properties);
+                return false;
+            }
+            for (const auto &existing : staged_properties) {
+                if (existing.cell == target_cell) {
+                    rollback_staged_cell_properties(staged_properties);
+                    return false;
+                }
+            }
+
             const auto staged = stage_cell_properties(target_cell);
             if (!staged.has_value()) {
                 rollback_staged_cell_properties(staged_properties);
@@ -454,8 +473,15 @@ bool TableRow::remove() {
 
             const auto target_merge =
                 ensure_cell_vertical_merge_node(target_cell);
-            if (target_merge == pugi::xml_node{} ||
-                std::string_view{target_merge.name()} != "w:vMerge") {
+            if (staged->cell != target_cell ||
+                staged->replacement == pugi::xml_node{} ||
+                staged->replacement.parent() != target_cell ||
+                (staged->original != pugi::xml_node{} &&
+                 staged->original.parent() != target_cell) ||
+                target_merge == pugi::xml_node{} ||
+                std::string_view{target_merge.name()} != "w:vMerge" ||
+                target_merge.parent() != staged->replacement ||
+                count_named_children(staged->replacement, "w:vMerge") != 1U) {
                 rollback_staged_cell_properties(staged_properties);
                 return false;
             }
@@ -471,7 +497,8 @@ bool TableRow::remove() {
                 this->parent.with_node(target_cell), source_cell});
         }
 
-        if (!replace_cell_body_contents(
+        if (removed_row.parent() != table_node ||
+            !replace_cell_body_contents(
                 this->parent, replacements,
                 std::span<const pugi::xml_node>{
                     additional_retirement_roots.data(),
@@ -488,7 +515,6 @@ bool TableRow::remove() {
         return false;
     }
 
-    auto table_node = this->parent.node();
     if (!table_node.remove_child(removed_row)) {
         return false;
     }

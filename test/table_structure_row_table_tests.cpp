@@ -830,6 +830,78 @@ TEST_CASE("table row remove promotes the next vertical-merge continuation row") 
     fs::remove(target);
 }
 
+TEST_CASE("table row remove rejects invalid column geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view cells_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "single_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "summed_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>left</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "zero_span",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "missing_span_value",
+            R"(<w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "invalid_span_value",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="invalid"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        const auto target = fs::current_path() /
+                            ("table_row_remove_invalid_" +
+                             std::string{geometry.name} + ".docx");
+        fs::remove(target);
+        write_test_docx(
+            target,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr>)"} +
+                std::string{geometry.cells_xml} +
+                R"(</w:tr><w:tr><w:tc><w:p><w:r><w:t>keep</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto row = table.rows();
+        REQUIRE(row.valid());
+        auto old_row = row;
+        auto cell = row.cells();
+        REQUIRE(cell.valid());
+        auto paragraph = cell.paragraphs();
+        auto run = paragraph.runs();
+        REQUIRE(paragraph.valid());
+        REQUIRE(run.valid());
+
+        CHECK_FALSE(row.remove());
+        CHECK(row.valid());
+        CHECK(old_row.valid());
+        CHECK(cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK(table.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target);
+    }
+}
+
 TEST_CASE("table append row rejects oversized grid spans without changing the table") {
     namespace fs = std::filesystem;
 
