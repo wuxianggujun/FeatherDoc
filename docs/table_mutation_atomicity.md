@@ -19,14 +19,16 @@ Row/column insertion and removal, merge/unmerge, grid-span mutation, and
 vertical-merge mutation have separate multi-node transaction rules and must be
 reviewed independently.
 
-## Structural Unmerge Checkpoint
+## Structural Mutation Checkpoint
 
-The first structural checkpoint completed on 2026-08-17 in commits
-`970b6ae6`, `23b27d63`, `38559de6`, and `8e8265a5`. It covers:
+The first Windows-validated structural checkpoint completed on 2026-08-18 at
+`ad4d53db`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`. It covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
 | `TableCell` | `unmerge_right`, `unmerge_down` |
+| `TableRow` | `remove` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
 fixed-layout table/grid/cell-width updates before retiring any published
@@ -37,7 +39,12 @@ Structural mutations retain the existing exception behavior: a
 `std::bad_alloc` is rolled back and rethrown, while ordinary checked XML
 failures return `false`.
 
-This checkpoint does not yet cover row/column insertion or removal,
+`TableRow::remove` now rejects malformed or oversized table geometry before
+staging. Vertical-merge promotions validate their source and target rows,
+unique target ownership, staged `w:tcPr` parent relationships, and exactly one
+replacement `w:vMerge` before the removed row or old cell contents are retired.
+
+This checkpoint does not yet cover row insertion, column insertion/removal,
 `merge_right` / `merge_down`, or independent grid-span and vertical-merge
 setters. Those APIs remain in the structural review queue.
 
@@ -130,13 +137,15 @@ The 2026-08-16 Windows/MSVC run passed all six tests. No local WSL/Linux test
 was required. Linux, sanitizer, allocation-failure, and fuzz validation remain
 CI or explicit release/integration work as defined in `CONTRIBUTING.md`.
 
-The structural unmerge checkpoint has only received per-API source review and
-`git diff --check` so far. Its grouped Windows/MSVC targets are intentionally
-deferred until the remaining structural table batch closes; no local WSL/Linux
-or allocation-failure run is implied by this checkpoint.
+The 2026-08-18 structural checkpoint used an isolated Release/NMake MSVC build
+with concurrency one. Both focused tests passed:
 
-At that structural batch boundary, build and run only the affected Windows
-targets with concurrency one:
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
+
+Use the following focused commands for the next structural batch boundary:
 
 ```powershell
 cmake --build <windows-build-dir> --target `
