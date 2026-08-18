@@ -21,14 +21,15 @@ reviewed independently.
 
 ## Structural Mutation Checkpoint
 
-The first Windows-validated structural checkpoint completed on 2026-08-18 at
-`ad4d53db`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
-`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`. It covers:
+The Windows-validated structural checkpoint advanced on 2026-08-18 at
+`caaff31d`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, and row
+insertion hardening is `caaff31d`. It covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
 | `TableCell` | `unmerge_right`, `unmerge_down` |
-| `TableRow` | `remove` |
+| `TableRow` | `remove`, `insert_row_before`, `insert_row_after` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
 fixed-layout table/grid/cell-width updates before retiring any published
@@ -44,9 +45,16 @@ staging. Vertical-merge promotions validate their source and target rows,
 unique target ownership, staged `w:tcPr` parent relationships, and exactly one
 replacement `w:vMerge` before the removed row or old cell contents are retired.
 
-This checkpoint does not yet cover row insertion, column insertion/removal,
-`merge_right` / `merge_down`, or independent grid-span and vertical-merge
-setters. Those APIs remain in the structural review queue.
+`TableRow::insert_row_before` and `insert_row_after` validate complete table and
+source-row geometry plus vertical-merge guards before mutation. Their checked
+deep clone propagates thrown exceptions, and any failure while cloning or
+clearing cloned cell bodies removes the unpublished row before returning or
+rethrowing. The caller wrapper moves to the inserted row only after the clone is
+complete.
+
+This checkpoint does not yet cover column insertion/removal, `merge_right` /
+`merge_down`, or independent grid-span and vertical-merge setters. Those APIs
+remain in the structural review queue.
 
 ## Transaction Contract
 
@@ -137,8 +145,8 @@ The 2026-08-16 Windows/MSVC run passed all six tests. No local WSL/Linux test
 was required. Linux, sanitizer, allocation-failure, and fuzz validation remain
 CI or explicit release/integration work as defined in `CONTRIBUTING.md`.
 
-The 2026-08-18 structural checkpoint used an isolated Release/NMake MSVC build
-with concurrency one. Both focused tests passed:
+The 2026-08-18 row-insertion checkpoint at `caaff31d` used an isolated
+Release/NMake MSVC build with concurrency one. Both focused tests passed:
 
 - `table_structure_unit`
 - `xml_handle_retirement`
