@@ -12,6 +12,7 @@ performance.
 
 - ``TableCell::unmerge_right()``, ``TableCell::unmerge_down()``,
   ``TableCell::insert_cell_before()``, ``TableCell::insert_cell_after()``,
+  ``TableCell::remove()``,
   ``TableRow::remove()``, ``TableRow::insert_row_before()``, and
   ``TableRow::insert_row_after()`` now enforce their structural transaction
   boundaries. Horizontal unmerge stages the anchor properties, inserted cells,
@@ -22,6 +23,9 @@ performance.
   remove unpublished clones when deep copying or clearing cell bodies fails.
   Column insertion also stages all row cells, fixed-layout ``w:tcPr`` updates,
   ``w:tblPr``, and ``w:tblGrid`` before retiring original property subtrees.
+  Column removal rejects malformed geometry and validates every target cell,
+  surviving wrapper target, and staged property/grid parent relationship before
+  batch-retiring the removed cells and original layout subtrees.
   Pre-publication failures restore the original XML and inserted-node state,
   while structural ``std::bad_alloc`` failures roll back and preserve the
   existing exception contract. The focused Windows/MSVC structure and
