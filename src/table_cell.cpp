@@ -178,6 +178,12 @@ bool TableCell::remove() {
         return false;
     }
 
+    const auto current_row = this->parent.node();
+    const auto current_cell = this->current.node();
+    if (current_cell.parent() != current_row) {
+        return false;
+    }
+
     const auto table = this->parent.parent();
     if (table == pugi::xml_node{}) {
         return false;
@@ -201,8 +207,33 @@ bool TableCell::remove() {
     }
     auto cells_to_remove = std::vector<pugi::xml_node>{};
     cells_to_remove.reserve(removal_plan->targets.size());
-    for (const auto &target : removal_plan->targets) {
+    auto removes_current_cell = false;
+    auto removes_surviving_cell = false;
+    for (std::size_t target_index = 0U;
+         target_index < removal_plan->targets.size(); ++target_index) {
+        const auto &target = removal_plan->targets[target_index];
+        if (target.row == pugi::xml_node{} ||
+            target.row.parent() != table ||
+            target.cell == pugi::xml_node{} ||
+            target.cell.parent() != target.row) {
+            return false;
+        }
+        for (std::size_t previous_index = 0U;
+             previous_index < target_index; ++previous_index) {
+            const auto &previous = removal_plan->targets[previous_index];
+            if (target.row == previous.row || target.cell == previous.cell) {
+                return false;
+            }
+        }
+        removes_current_cell =
+            removes_current_cell || target.cell == current_cell;
+        removes_surviving_cell =
+            removes_surviving_cell || target.cell == surviving_cell;
         cells_to_remove.push_back(target.cell);
+    }
+    if (!removes_current_cell || removes_surviving_cell ||
+        surviving_cell.parent() != current_row) {
+        return false;
     }
 
     auto staged_properties = std::vector<staged_cell_properties>{};
@@ -224,6 +255,29 @@ bool TableCell::remove() {
                 std::span<const pugi::xml_node>{cells_to_remove.data(),
                                                 cells_to_remove.size()},
                 staged_properties)) {
+            rollback();
+            return false;
+        }
+
+        for (const auto &staged : staged_properties) {
+            if (staged.cell == pugi::xml_node{} ||
+                staged.replacement == pugi::xml_node{} ||
+                staged.replacement.parent() != staged.cell ||
+                (staged.original != pugi::xml_node{} &&
+                 staged.original.parent() != staged.cell)) {
+                rollback();
+                return false;
+            }
+        }
+        if (staged_layout->table != table ||
+            staged_layout->replacement_properties == pugi::xml_node{} ||
+            staged_layout->replacement_properties.parent() != table ||
+            staged_layout->replacement_grid == pugi::xml_node{} ||
+            staged_layout->replacement_grid.parent() != table ||
+            (staged_layout->original_properties != pugi::xml_node{} &&
+             staged_layout->original_properties.parent() != table) ||
+            (staged_layout->original_grid != pugi::xml_node{} &&
+             staged_layout->original_grid.parent() != table)) {
             rollback();
             return false;
         }
