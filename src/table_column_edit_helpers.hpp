@@ -90,6 +90,7 @@ struct staged_table_layout final {
 
 [[nodiscard]] auto cell_column_index(pugi::xml_node cell)
     -> std::optional<std::size_t>;
+[[nodiscard]] auto table_uses_fixed_layout(pugi::xml_node table) -> bool;
 void synchronize_fixed_layout_cell_widths_from_grid(pugi::xml_node table);
 void clear_fixed_layout_cell_widths_covering_column(
     pugi::xml_node table, std::size_t target_column_index);
