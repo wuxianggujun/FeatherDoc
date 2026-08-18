@@ -22,14 +22,15 @@ reviewed independently.
 ## Structural Mutation Checkpoint
 
 The Windows-validated structural checkpoint advanced on 2026-08-18 at
-`333ba3fa`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`6042090c`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
 `38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, row insertion
 hardening is `caaff31d`, column insertion hardening is `d919a7ad`, and column
-removal hardening is `333ba3fa`. It covers:
+removal hardening is `333ba3fa`; horizontal-merge hardening is `6042090c`. It
+covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
-| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove` |
+| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove`, `merge_right` |
 | `TableRow` | `remove`, `insert_row_before`, `insert_row_after` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
@@ -48,6 +49,15 @@ and the replacement `w:tblPr` / `w:tblGrid` parent relationships. Publication
 then commits the staged layout and removes the retired cells without further
 allocation. Rejection preserves the original XML and existing cell, paragraph,
 run, row, and table handles.
+
+`TableCell::merge_right` preserves a zero-count no-op, but validates actual
+merges before publication. It rejects malformed, oversized, or duplicate
+`w:tcPr` / `w:gridSpan` geometry; verifies anchor and removed-sibling ownership;
+stages the anchor span, fixed-layout cell widths, `w:tblPr`, and `w:tblGrid`;
+and validates every staged parent relationship and exclusion before batch
+retirement. Commit and sibling removal then use only the validated,
+allocation-free publication path. Rejection preserves serialized XML and all
+anchor, removed-cell, paragraph, run, row, and table handles.
 
 `TableRow::remove` now rejects malformed or oversized table geometry before
 staging. Vertical-merge promotions validate their source and target rows,
@@ -70,9 +80,8 @@ failures remove all unpublished cells and staged nodes; thrown allocation
 failures perform the same rollback and propagate. Invalid or oversized column
 geometry is rejected before mutation.
 
-This checkpoint does not yet cover `merge_right` / `merge_down` or independent
-grid-span and vertical-merge setters. Those APIs remain in the structural
-review queue.
+This checkpoint does not yet cover `merge_down` or independent grid-span and
+vertical-merge setters. Those APIs remain in the structural review queue.
 
 ## Transaction Contract
 
@@ -192,6 +201,17 @@ one. Both focused tests passed:
 The regression covers invalid and oversized `w:gridSpan` geometry plus handle
 and serialized-XML preservation. No local WSL/Linux, sanitizer, fuzz, or
 allocation-failure suite was run.
+
+The 2026-08-18 horizontal-merge checkpoint at `6042090c` used the isolated
+`.codex-temp/merge-right-windows-msvc` Release/NMake build with concurrency one.
+Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The ordinary Windows regression covers invalid, oversized, duplicate, and
+missing span/property geometry plus handle and serialized-XML preservation. No
+local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
 
 Use the following focused commands for the next structural batch boundary:
 
