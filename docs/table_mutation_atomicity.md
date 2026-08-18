@@ -22,13 +22,14 @@ reviewed independently.
 ## Structural Mutation Checkpoint
 
 The Windows-validated structural checkpoint advanced on 2026-08-18 at
-`caaff31d`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
-`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, and row
-insertion hardening is `caaff31d`. It covers:
+`d919a7ad`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, row insertion
+hardening is `caaff31d`, and column insertion hardening is `d919a7ad`. It
+covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
-| `TableCell` | `unmerge_right`, `unmerge_down` |
+| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after` |
 | `TableRow` | `remove`, `insert_row_before`, `insert_row_after` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
@@ -52,7 +53,16 @@ clearing cloned cell bodies removes the unpublished row before returning or
 rethrowing. The caller wrapper moves to the inserted row only after the clone is
 complete.
 
-This checkpoint does not yet cover column insertion/removal, `merge_right` /
+`TableCell::insert_cell_before` and `insert_cell_after` now share one column
+insertion transaction. It inserts and clears cloned cells across every target
+row, stages fixed-layout cell widths plus replacement `w:tblPr` and `w:tblGrid`
+subtrees, validates every staged parent relationship, and batch-retires all old
+property/grid roots immediately before allocation-free publication. Checked XML
+failures remove all unpublished cells and staged nodes; thrown allocation
+failures perform the same rollback and propagate. Invalid or oversized column
+geometry is rejected before mutation.
+
+This checkpoint does not yet cover column removal, `merge_right` /
 `merge_down`, or independent grid-span and vertical-merge setters. Those APIs
 remain in the structural review queue.
 
@@ -152,6 +162,17 @@ Release/NMake MSVC build with concurrency one. Both focused tests passed:
 - `xml_handle_retirement`
 
 No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
+
+The 2026-08-18 column-insertion checkpoint at `d919a7ad` used the same focused
+Windows boundary in the isolated `.codex-temp/column-insertion-windows-msvc`
+Release/NMake build. Both focused tests passed again:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The ordinary Windows build type-checked but did not register the CI-only global
+allocation-failure sweep. No local WSL/Linux, sanitizer, fuzz, or
+allocation-failure suite was run.
 
 Use the following focused commands for the next structural batch boundary:
 
