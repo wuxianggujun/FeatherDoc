@@ -231,7 +231,8 @@ class scoped_test_path final {
     std::size_t rows, std::size_t columns,
     std::string_view layout_type = "fixed",
     std::string_view cell_width = "1200", std::string_view style_id = {},
-    bool include_style_look = true) -> std::string {
+    bool include_style_look = true,
+    bool include_large_target_cell_properties = false) -> std::string {
     const auto large_value = large_cell_property_value();
     auto xml = std::string{
         R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -262,7 +263,14 @@ class scoped_test_path final {
     for (std::size_t row = 0U; row < rows; ++row) {
         xml += "<w:tr>";
         for (std::size_t column = 0U; column < columns; ++column) {
-            xml += R"(<w:tc><w:tcPr><w:tcW w:w=")";
+            xml += "<w:tc><w:tcPr";
+            if (include_large_target_cell_properties && row == 0U &&
+                column == 0U) {
+                xml += " data-large=\"";
+                xml += large_value;
+                xml += "\"";
+            }
+            xml += R"(><w:tcW w:w=")";
             xml += cell_width;
             xml += R"(" w:type="dxa"/></w:tcPr>)";
             xml += "<w:p><w:r><w:t>原始中文";
@@ -275,6 +283,12 @@ class scoped_test_path final {
     }
     xml += "</w:tbl></w:body></w:document>";
     return xml;
+}
+
+[[nodiscard]] auto allocation_heavy_cell_property_fixture_xml(
+    std::size_t rows, std::size_t columns) -> std::string {
+    return allocation_heavy_table_fixture_xml(
+        rows, columns, "fixed", "1200", {}, true, true);
 }
 
 [[nodiscard]] auto table_style_id_fixture_styles_xml() -> std::string {
@@ -5571,7 +5585,8 @@ TEST_CASE(
 FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     "table cell width updates are atomic for every pugixml allocation "
     "failure") {
-    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto fixture_xml =
+        allocation_heavy_cell_property_fixture_xml(2U, 2U);
     auto successful_allocation_count = std::size_t{0U};
     {
         scoped_test_path path{
@@ -5806,7 +5821,8 @@ TEST_CASE(
 FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     "table cell fill updates are atomic for every pugixml allocation "
     "failure") {
-    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto fixture_xml =
+        allocation_heavy_cell_property_fixture_xml(2U, 2U);
     constexpr auto updated_color = std::string_view{"12AB34"};
     auto successful_allocation_count = std::size_t{0U};
     {
@@ -6057,7 +6073,8 @@ TEST_CASE(
 FEATHERDOC_ALLOCATION_FAILURE_TEST_CASE(
     "table cell border updates are atomic for every pugixml allocation "
     "failure") {
-    const auto fixture_xml = allocation_heavy_table_fixture_xml(2U, 2U);
+    const auto fixture_xml =
+        allocation_heavy_cell_property_fixture_xml(2U, 2U);
     const auto replacement = replacement_table_border();
     auto successful_allocation_count = std::size_t{0U};
     {
