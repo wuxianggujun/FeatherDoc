@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-08-13
+状态日期：2026-08-21
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -109,11 +109,11 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    原目标不变、无临时文件残留且可重试。尚未逐项迁移的任意 DOM mutation 仍缺少统一的
    generation-aware transaction，继续作为独立架构任务推进；当前不能宣称整个 API
    已具备通用 OOM 原子性。
-8. 表格属性原子化已完成 ``Table`` 的 cell spacing、cell margin、style id、style look、
-   border setter 和 ``TableCell::set_border()``、``TableCell::set_fill_color()``、
-   ``TableCell::set_width_twips()``。每个 setter 都要求成功路径保持相关句柄和无关 XML，
-   fail-Nth 路径保持 DOM 字节不变且同一对象可重试；下一项是
-   ``TableCell::set_vertical_alignment()``。
+8. 表格属性原子化已完成当前公开 setter/clear 批次；结构事务已完成 cell/row
+   插入删除、merge/unmerge、列插入删除和 ``TableRow::append_cell()``。后者统一覆盖
+   现有行追加与迭代器末尾新建行，拒绝重复/非法表格几何，并在退休旧表布局后无分配
+   提交。``gridSpan`` / ``vMerge`` 没有独立公开 setter，不再作为虚假待办；下一项是
+   ``Table::append_row()``。
 9. 当前小功能验证固定为 Windows/MSVC 的 ``xml_handle_retirement_tests`` 单 target 和
    一个精确 doctest case；PugiXML/global allocation-failure 回归只在专用 CI 配置注册。
    不在每个 setter 后运行 WSL、完整 CTest 或等待全部 GitHub Actions。
@@ -126,6 +126,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 12. 同日 width setter 的同一单 target 构建成功，width 精确 case 通过 ``1/1``、
     ``44/44``；中间发现的 helper 声明可见性编译问题已在当前 setter 内收敛修复并复编
     通过，未扩大依赖边界。临时构建目录和本轮构建进程已回收。
+13. 2026-08-21 ``TableRow::append_cell()`` 已完成结构事务迁移；Windows/MSVC
+    Release/NMake 并发 1 构建相关 targets 成功，精确 ``table append cell*`` 通过
+    ``2/2``、``331/331``。同批修复 Clang 下 3 个 PugiXML fail-Nth fixture 的零分配
+    基线误报，实际 allocation-failure 结果由推送后的 security workflow 验证。
 
 
 近期执行队列
@@ -525,13 +529,14 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 
 1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先回到 ``P0-CI-01`` 抓日志修失败。
-2. 完成当前 ``Unreleased`` 的 ZIP/UTF-8、reader close、XML 深度/资源、Custom XML、
-   图片/字号、表格、编号/review ID、失败原子性与句柄生命周期修复，补齐精确错误码、
-   entry name 与失败后 DOM 不变测试。
-3. 运行相关 C++ targets、Word-only 全量 CTest、UTF-8/中文路径、sanitizer/fuzz、
-   双语文档契约、``git diff --check`` 与工作树审查。
-4. 单独提交并推送 ``dev`` 后等待 Windows、Linux、macOS、Docs Pages 和 sanitizer
-   workflow 全绿；任一失败都先修复，不提前决定下一 patch 版本。
+2. 继续当前 ``Unreleased`` 的 DOM mutation 原子化：下一批审阅
+   ``Table::append_row()``，随后按表级 insert/clone/remove 与 document/template 表入口
+   推进；每个小功能只补对应源码、回归和 Windows/MSVC 精确验证。
+3. 每个小功能只运行相关 Windows/MSVC target、精确 case、``git diff --check`` 与
+   工作树审查；只有完成大功能、模块里程碑或发布 gate 时，才运行 Word-only 全量
+   CTest、UTF-8/中文路径、sanitizer/fuzz 和跨平台矩阵。
+4. 单独提交并推送 ``dev``；若相关 GitHub Actions 失败，先抓日志修复，不提前叠加
+   下一个相邻功能或决定下一 patch 版本。
 5. 验证稳定后再评估后续 patch 发布；不修改既有 ``v1.13.3`` tag 或 Release。
 6. 当前安全队列完成后恢复 ``P1-SCHEMA-01`` 真实业务语料校准。
 

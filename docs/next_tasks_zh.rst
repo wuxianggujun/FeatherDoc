@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-08-13
+状态日期：2026-08-21
 
 本页是当前长任务的可执行 backlog。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
@@ -95,15 +95,15 @@ P0：Word/DOCX 安全与兼容性
    验证失败时原目标不变、无临时文件残留且同一对象可重试。尚未逐项迁移的任意 DOM mutation
    仍缺少统一的 generation-aware transaction；这部分继续作为独立架构任务推进，
    不能据此宣称整个 API 已具备通用 OOM 原子性。
-8. 表格属性 mutation 已按小功能逐项迁移：``Table`` 的 cell spacing、cell margin、
-   style id、style look 和 border setter，以及 ``TableCell::set_border()``、
-   ``TableCell::set_fill_color()``、``TableCell::set_width_twips()`` 已完成
-   ``w:tblPr`` / ``w:tcPr`` 暂存、验证、退休和提交事务。后续仍按 vertical alignment、
-   text direction、cell margin 等独立 setter 逐项处理，不在一个提交中混合多个 API。
-9. 每个 setter 小改动只在 Windows/MSVC 构建受影响的
-   ``xml_handle_retirement_tests`` target，并只运行对应精确 doctest case；不运行本地
-   WSL、完整 CTest、sanitizer/fuzz 或全矩阵 CI。PugiXML/global fail-Nth 用例保留在
-   allocation-failure 专用配置中，由 GitHub Actions 的专用矩阵在里程碑 gate 验证。
+8. 表格属性 mutation 已完成当前公开 setter/clear 批次；结构 mutation 已逐项完成
+   cell/row 插入删除、merge/unmerge、列插入删除和 ``TableRow::append_cell()``。
+   ``gridSpan`` / ``vMerge`` 没有独立公开 setter，由已完成的 merge/unmerge API 管理。
+   下一项按 ``Table::append_row()``、表级 insert/clone/remove 的真实公开 API 顺序推进，
+   不再追踪不存在的 setter。
+9. 每个小 API 改动只在 Windows/MSVC 构建受影响的 target，并只运行对应精确
+   doctest case；不运行本地 WSL、完整 CTest、sanitizer/fuzz 或全矩阵 CI。
+   PugiXML/global fail-Nth 用例保留在 allocation-failure 专用配置中，由 GitHub
+   Actions 的专用矩阵验证。
 10. 临时构建目录统一放在仓库 ``.codex-temp`` 下，构建使用 ``--parallel 1``；每轮
     定向验证结束后确认 ``cmake`` / ``ninja`` / ``cl`` / ``link`` / ``ctest`` 已退出，
     再删除该轮不再复用的临时构建目录。只有维护者明确宣布大功能、模块里程碑、跨模块
@@ -118,6 +118,11 @@ P0：Word/DOCX 安全与兼容性
     ``table cell width updates preserve handles and unrelated XML content`` 通过 ``1/1``、
     ``44/44``。首次增量编译暴露 checked helper 未经当前依赖头声明，已改用本文件既有
     属性写入加值验证并重新编译通过；未运行 WSL 或全量测试，临时构建目录和进程已回收。
+13. ``TableRow::append_cell()`` 本地定向验证（2026-08-21）：Windows/MSVC Release/NMake
+    并发 1 成功构建 ``table_structure_unit_tests``，精确 ``table append cell*`` 两个 case
+    通过 ``2/2``、``331/331``；``xml_handle_retirement_tests`` target 同时完成 CI-only
+    fixture 类型检查。未运行本地 WSL、完整 CTest、sanitizer/fuzz 或 allocation-failure
+    suite；Clang fixture 由推送后的 security workflow 验证。
 
 
 P1：模板契约与项目模板工作流

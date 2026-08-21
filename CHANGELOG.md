@@ -14,8 +14,9 @@ performance.
   ``TableCell::insert_cell_before()``, ``TableCell::insert_cell_after()``,
   ``TableCell::remove()``, ``TableCell::merge_right()``,
   ``TableCell::merge_down()``,
-  ``TableRow::remove()``, ``TableRow::insert_row_before()``, and
-  ``TableRow::insert_row_after()`` now enforce their structural transaction
+  ``TableRow::remove()``, ``TableRow::insert_row_before()``,
+  ``TableRow::insert_row_after()``, and ``TableRow::append_cell()`` now enforce
+  their structural transaction
   boundaries. Horizontal unmerge stages the anchor properties, inserted cells,
   and fixed-layout width updates before publication; vertical unmerge stages
   the complete ``w:vMerge`` chain. Row removal rejects malformed table geometry
@@ -37,7 +38,15 @@ performance.
   Pre-publication failures restore the original XML and inserted-node state,
   while structural ``std::bad_alloc`` failures roll back and preserve the
   existing exception contract. The focused Windows/MSVC structure and
-  XML-handle tests pass for this checkpoint.
+  XML-handle tests pass for this checkpoint. Cell append additionally rejects
+  duplicate table, grid, cell-property, and grid-span geometry before adding an
+  unpublished cell or row, validates and retires the staged table layout before
+  its allocation-free commit, and preserves existing table/row/cell/text
+  handles on success or rejection.
+- Make the table-cell property PugiXML allocation-failure fixtures reserve a
+  large target ``w:tcPr`` value. The fail-Nth sweeps now exercise an actual
+  PugiXML page allocation on Clang instead of failing their baseline when an
+  existing parser page has enough spare capacity for a small property clone.
 - ``Document`` move operations now use library-defined handle-invalidation
   semantics while preserving the 1.13 object layout and the existing
   ``noexcept`` move-construction and move-assignment traits. The additional

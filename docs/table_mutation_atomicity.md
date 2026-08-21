@@ -21,17 +21,18 @@ reviewed independently.
 
 ## Structural Mutation Checkpoint
 
-The Windows-validated structural checkpoint advanced on 2026-08-18 at
-`49e0421a`. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+The Windows-validated structural checkpoint advanced through `f3cc1a11` on
+2026-08-21. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
 `38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, row insertion
 hardening is `caaff31d`, column insertion hardening is `d919a7ad`, and column
 removal hardening is `333ba3fa`, horizontal-merge hardening is `6042090c`, and
-vertical-merge hardening is `49e0421a`. It covers:
+vertical-merge hardening is `49e0421a`. Cell-append hardening is `f3cc1a11`.
+It covers:
 
 | Owner | APIs completed in this checkpoint |
 | --- | --- |
 | `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove`, `merge_right`, `merge_down` |
-| `TableRow` | `remove`, `insert_row_before`, `insert_row_after` |
+| `TableRow` | `remove`, `insert_row_before`, `insert_row_after`, `append_cell` |
 
 `unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
 fixed-layout table/grid/cell-width updates before retiring any published
@@ -90,8 +91,18 @@ failures remove all unpublished cells and staged nodes; thrown allocation
 failures perform the same rollback and propagate. Invalid or oversized column
 geometry is rejected before mutation.
 
-This checkpoint does not yet cover independent grid-span and vertical-merge
-setters. Those APIs remain in the structural review queue.
+`TableRow::append_cell` validates the complete table geometry and rejects
+duplicate `w:tblPr`, `w:tblGrid`, `w:tcPr`, or `w:gridSpan` nodes before
+mutation. Existing-row append and exhausted-row-iterator append use one
+rollback boundary for the unpublished cell or row and staged `w:tblPr` /
+`w:tblGrid`. The staged layout's cardinality, parents, and grid-column count are
+validated before original layout retirement; commit is allocation-free.
+Success preserves existing row, cell, paragraph, run, and table handles.
+
+The public API has no independent grid-span or vertical-merge setter. Those
+nodes are mutated through the completed merge/unmerge APIs above. The remaining
+structural review queue starts with `Table::append_row`, followed by table-level
+insert/clone/remove operations and their document/template entry points.
 
 ## Transaction Contract
 
@@ -236,6 +247,17 @@ span/property/merge geometry while preserving serialized XML and handles. The
 ordinary Windows build type-checked but did not register the CI-only allocation
 failure sweeps. No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite
 was run.
+
+The 2026-08-21 cell-append checkpoint at `f3cc1a11` used the isolated
+`.codex-temp/append-cell-windows-msvc` Release/NMake MSVC build with concurrency
+one. The ordinary `xml_handle_retirement_tests` target type-checked the adjusted
+CI-only fixture, and the two exact `table append cell*` structure cases passed
+with 331 assertions. They cover existing-row append, exhausted-iterator row
+creation, handle preservation, grid extension, and atomic rejection of invalid,
+oversized, missing, or duplicate table/cell span geometry. No local WSL/Linux,
+sanitizer, fuzz, allocation-failure, or full CTest suite was run. The Clang
+allocation-failure fixture correction is validated by the hosted security
+workflow after push.
 
 Use the following focused commands for the next structural batch boundary:
 
