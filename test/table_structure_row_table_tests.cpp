@@ -996,51 +996,149 @@ TEST_CASE("table append row rejects a checked grid span sum above the safety lim
     fs::remove(target);
 }
 
-TEST_CASE("table append cell rejects oversized grid spans without changing the row") {
+TEST_CASE(
+    "table append cell preserves existing handles and extends the grid atomically") {
     namespace fs = std::filesystem;
 
     const fs::path target =
-        fs::current_path() / "table_append_cell_oversized_grid_span.docx";
+        fs::current_path() / "table_append_cell_handles.docx";
     fs::remove(target);
 
-    write_test_docx(
-        target,
-        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    <w:tbl>
-      <w:tr>
-        <w:tc>
-          <w:tcPr><w:gridSpan w:val="64"/></w:tcPr>
-          <w:p><w:r><w:t>original</w:t></w:r></w:p>
-        </w:tc>
-      </w:tr>
-    </w:tbl>
-  </w:body>
-</w:document>)");
-
     featherdoc::Document doc(target);
-    REQUIRE_FALSE(doc.open());
-    auto table = doc.tables();
-    REQUIRE(table.has_next());
+    REQUIRE_FALSE(doc.create_empty());
+    auto table = doc.append_table(1U, 1U);
+    REQUIRE(table.valid());
     auto row = table.rows();
-    REQUIRE(row.has_next());
+    REQUIRE(row.valid());
+    auto original_cell = row.cells();
+    REQUIRE(original_cell.valid());
+    REQUIRE(original_cell.set_text("original"));
+    auto original_paragraph = original_cell.paragraphs();
+    auto original_run = original_paragraph.runs();
+    auto original_row = row;
+    REQUIRE(original_paragraph.valid());
+    REQUIRE(original_run.valid());
 
-    const auto appended = row.append_cell();
-    CHECK_FALSE(appended.has_next());
-    CHECK_EQ(collect_table_text(doc), "original\n");
+    auto appended = row.append_cell();
+    REQUIRE(appended.valid());
+    REQUIRE(appended.set_text("appended"));
+    CHECK(table.valid());
+    CHECK(row.valid());
+    CHECK(original_cell.valid());
+    CHECK(original_paragraph.valid());
+    CHECK(original_run.valid());
+    CHECK_EQ(original_cell.get_text(), "original");
+    CHECK_EQ(appended.get_text(), "appended");
 
-    CHECK_FALSE(doc.save());
+    row.next();
+    REQUIRE_FALSE(row.valid());
+    auto new_row_cell = row.append_cell();
+    REQUIRE(new_row_cell.valid());
+    REQUIRE(new_row_cell.set_text("new row"));
+    CHECK(row.valid());
+    CHECK(original_row.valid());
+    CHECK(original_cell.valid());
+    CHECK(original_paragraph.valid());
+    CHECK(original_run.valid());
+
+    REQUIRE_FALSE(doc.save());
     const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
     pugi::xml_document xml_document;
     REQUIRE(xml_document.load_string(xml_text.c_str()));
     const auto table_node =
         xml_document.child("w:document").child("w:body").child("w:tbl");
-    REQUIRE(table_node != pugi::xml_node{});
-    CHECK_EQ(count_named_children(table_node.child("w:tr"), "w:tc"), 1U);
-    CHECK(table_node.child("w:tblGrid") == pugi::xml_node{});
+    CHECK_EQ(count_named_children(table_node.child("w:tblGrid"), "w:gridCol"),
+             2U);
+    CHECK_EQ(count_named_children(table_node, "w:tr"), 2U);
+    CHECK_EQ(count_named_children(table_node.child("w:tr"), "w:tc"), 2U);
+    CHECK_EQ(collect_table_text(doc), "original\nappended\nnew row\n");
 
     fs::remove(target);
+}
+
+TEST_CASE("table append cell rejects invalid geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view table_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "single_span_64",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "summed_span_64",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "zero_span",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "missing_span_value",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "invalid_span_value",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="invalid"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_span",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="1"/><w:gridSpan w:val="1"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_cell_properties",
+            R"(<w:tr><w:tc><w:tcPr/><w:tcPr/><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_table_properties",
+            R"(<w:tblPr/><w:tblPr/><w:tr><w:tc><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_table_grid",
+            R"(<w:tblGrid><w:gridCol/></w:tblGrid><w:tblGrid><w:gridCol/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        CAPTURE(geometry.name);
+        const auto target =
+            fs::current_path() /
+            ("table_append_cell_invalid_" + std::string{geometry.name} +
+             ".docx");
+        fs::remove(target);
+        write_test_docx(
+            target,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl>)"} +
+                std::string{geometry.table_xml} +
+                R"(</w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto row = table.rows();
+        REQUIRE(row.valid());
+        auto original_cell = row.cells();
+        REQUIRE(original_cell.valid());
+        auto original_paragraph = original_cell.paragraphs();
+        auto original_run = original_paragraph.runs();
+        REQUIRE(original_paragraph.valid());
+        REQUIRE(original_run.valid());
+
+        const auto appended = row.append_cell();
+        CHECK_FALSE(appended.valid());
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(original_cell.valid());
+        CHECK(original_paragraph.valid());
+        CHECK(original_run.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target);
+    }
 }
 
 TEST_CASE("table row and cell append reject column counts above the safety limit") {

@@ -1,8 +1,43 @@
 #include "table_method_dependencies.hpp"
+#include "xml_document_clone_helpers.hpp"
 
+#include <array>
 #include <new>
 
 namespace featherdoc {
+
+namespace {
+
+[[nodiscard]] auto table_geometry_is_valid_for_cell_append(
+    pugi::xml_node table) -> bool {
+    if (table == pugi::xml_node{} ||
+        std::string_view{table.name()} != "w:tbl" ||
+        count_named_children(table, "w:tblPr") > 1U ||
+        count_named_children(table, "w:tblGrid") > 1U) {
+        return false;
+    }
+
+    for (auto row = table.child("w:tr"); row != pugi::xml_node{};
+         row = detail::next_named_sibling(row, "w:tr")) {
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = detail::next_named_sibling(cell, "w:tc")) {
+            if (count_named_children(cell, "w:tcPr") > 1U) {
+                return false;
+            }
+            const auto properties = cell.child("w:tcPr");
+            if (count_named_children(properties, "w:gridSpan") > 1U) {
+                return false;
+            }
+        }
+        if (!current_table_row_column_count(row).has_value()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+} // namespace
 
 TableRow::TableRow() = default;
 
@@ -559,55 +594,130 @@ TableCell TableRow::append_cell() {
         return {};
     }
 
-    const auto table_column_count = current_table_column_count(this->parent);
+    auto table = this->parent.node();
+    if (!table_geometry_is_valid_for_cell_append(table)) {
+        return {};
+    }
+
+    const auto table_column_count = current_table_column_count(table);
     if (!table_column_count.has_value()) {
         return {};
     }
 
-    if (this->current == pugi::xml_node{}) {
-        const auto new_row = append_row_node(this->parent.node(), 1U);
-        if (new_row == pugi::xml_node{}) {
-            return {};
-        }
-        const auto new_cell = new_row.child("w:tc");
-        this->set_current(new_row);
-        return TableCell(this->current, new_cell);
+    auto row = this->current.node();
+    const auto creates_row = row == pugi::xml_node{};
+    if (!creates_row && row.parent() != table) {
+        return {};
     }
-
-    const auto existing_row_column_count =
-        current_table_row_column_count(this->current);
+    const auto existing_row_column_count = creates_row
+                                               ? std::optional<std::size_t>{0U}
+                                               : current_table_row_column_count(row);
     if (!existing_row_column_count.has_value()) {
         return {};
     }
-    const auto row_column_count = *existing_row_column_count;
-
-    if (row_column_count >= max_table_grid_columns) {
+    if (*existing_row_column_count >= max_table_grid_columns) {
         return {};
     }
 
     const auto required_columns =
-        std::max(*table_column_count, row_column_count + 1U);
-    auto row_node = this->current.node();
-    const auto new_cell = append_cell_node(row_node);
-    if (new_cell == pugi::xml_node{}) {
-        return {};
-    }
+        std::max(*table_column_count, *existing_row_column_count + 1U);
+    const auto existing_cell_count =
+        creates_row ? 0U : count_named_children(row, "w:tc");
+
+    auto new_cell = pugi::xml_node{};
+    auto staged_layout = std::optional<staged_table_layout>{};
+    const auto rollback = [&]() noexcept {
+        if (staged_layout.has_value()) {
+            rollback_staged_table_layout(*staged_layout);
+        }
+        if (creates_row && row != pugi::xml_node{}) {
+            (void)table.remove_child(row);
+        } else if (new_cell != pugi::xml_node{}) {
+            (void)row.remove_child(new_cell);
+        }
+    };
+
     try {
-        const auto staged_layout =
-            stage_table_layout(this->parent.node(), required_columns);
-        if (!staged_layout.has_value()) {
-            (void)row_node.remove_child(new_cell);
+        if (creates_row) {
+            row = detail::checked_append_xml_element(table, "w:tr");
+            if (row == pugi::xml_node{}) {
+                return {};
+            }
+        }
+        new_cell = append_cell_node(row);
+        if (new_cell == pugi::xml_node{}) {
+            rollback();
             return {};
         }
-        if (!commit_staged_table_layout(*staged_layout)) {
-            (void)row_node.remove_child(new_cell);
+
+        staged_layout = stage_table_layout(table, required_columns);
+        const auto expected_table_properties_count =
+            staged_layout.has_value() &&
+                    staged_layout->original_properties != pugi::xml_node{}
+                ? 2U
+                : 1U;
+        const auto expected_table_grid_count =
+            staged_layout.has_value() &&
+                    staged_layout->original_grid != pugi::xml_node{}
+                ? 2U
+                : 1U;
+        if (!staged_layout.has_value() ||
+            new_cell.parent() != row ||
+            std::string_view{new_cell.name()} != "w:tc" ||
+            count_named_children(row, "w:tc") != existing_cell_count + 1U ||
+            count_named_children(new_cell, "w:tcPr") != 1U ||
+            count_named_children(new_cell.child("w:tcPr"), "w:tcW") != 1U ||
+            count_named_children(new_cell, "w:p") != 1U ||
+            staged_layout->table != table ||
+            staged_layout->replacement_properties == pugi::xml_node{} ||
+            std::string_view{staged_layout->replacement_properties.name()} !=
+                "w:tblPr" ||
+            staged_layout->replacement_properties.parent() != table ||
+            staged_layout->replacement_grid == pugi::xml_node{} ||
+            std::string_view{staged_layout->replacement_grid.name()} !=
+                "w:tblGrid" ||
+            staged_layout->replacement_grid.parent() != table ||
+            (staged_layout->original_properties != pugi::xml_node{} &&
+             staged_layout->original_properties.parent() != table) ||
+            (staged_layout->original_grid != pugi::xml_node{} &&
+             staged_layout->original_grid.parent() != table) ||
+            count_named_children(table, "w:tblPr") !=
+                expected_table_properties_count ||
+            count_named_children(table, "w:tblGrid") !=
+                expected_table_grid_count ||
+            count_named_children(staged_layout->replacement_grid,
+                                 "w:gridCol") != required_columns) {
+            rollback();
+            return {};
+        }
+
+        auto retirement_roots = std::array<pugi::xml_node, 2U>{};
+        auto retirement_root_count = std::size_t{0U};
+        if (staged_layout->original_properties != pugi::xml_node{}) {
+            retirement_roots[retirement_root_count++] =
+                staged_layout->original_properties;
+        }
+        if (staged_layout->original_grid != pugi::xml_node{}) {
+            retirement_roots[retirement_root_count++] =
+                staged_layout->original_grid;
+        }
+        if (retirement_root_count > 0U &&
+            !this->parent.retire_subtrees(std::span<const pugi::xml_node>{
+                retirement_roots.data(), retirement_root_count})) {
+            rollback();
             return {};
         }
     } catch (...) {
-        (void)row_node.remove_child(new_cell);
+        rollback();
         throw;
     }
 
+    if (!commit_staged_table_layout(*staged_layout)) {
+        return {};
+    }
+    if (creates_row) {
+        this->set_current(row);
+    }
     this->cell.set_parent(this->current);
     this->cell.set_current(new_cell);
     return TableCell(this->current, new_cell);
