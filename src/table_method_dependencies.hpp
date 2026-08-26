@@ -118,6 +118,7 @@ using detail::tracked_cell_body_replacement;
 using detail::tracked_table_cell_text_replacement;
 using detail::table_grid_edit;
 using detail::table_grid_edit_kind;
+using detail::table_geometry_is_valid_for_append;
 using detail::to_xml_border_name;
 using detail::to_xml_border_style;
 using detail::to_xml_cell_text_direction;

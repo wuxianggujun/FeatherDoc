@@ -260,6 +260,34 @@ auto current_table_column_count(pugi::xml_node table)
     return column_count;
 }
 
+auto table_geometry_is_valid_for_append(pugi::xml_node table) -> bool {
+    if (table == pugi::xml_node{} ||
+        std::string_view{table.name()} != "w:tbl" ||
+        count_named_children(table, "w:tblPr") > 1U ||
+        count_named_children(table, "w:tblGrid") > 1U) {
+        return false;
+    }
+
+    for (auto row = table.child("w:tr"); row != pugi::xml_node{};
+         row = detail::next_named_sibling(row, "w:tr")) {
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = detail::next_named_sibling(cell, "w:tc")) {
+            if (count_named_children(cell, "w:tcPr") > 1U) {
+                return false;
+            }
+            const auto properties = cell.child("w:tcPr");
+            if (count_named_children(properties, "w:gridSpan") > 1U) {
+                return false;
+            }
+        }
+        if (!current_table_row_column_count(row).has_value()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 auto ensure_table_grid_columns(pugi::xml_node table, std::size_t column_count)
     -> bool {
     if (table == pugi::xml_node{} || column_count > max_table_grid_columns) {

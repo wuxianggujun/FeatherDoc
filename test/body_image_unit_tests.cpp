@@ -10,6 +10,7 @@
 
 #ifndef _WIN32
 #include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
@@ -182,7 +183,15 @@ TEST_CASE("external image loader accepts only supported regular files") {
     }
 
 #ifndef _WIN32
-    const auto fifo_path = fs::current_path() / "external_image_fifo.png";
+    // The CTest working directory may live on a mounted filesystem such as
+    // WSL DrvFS, which does not support creating FIFOs. Keep the image files in
+    // the test working directory, but create this POSIX-only fixture on the
+    // native temporary filesystem so the non-regular-file coverage remains
+    // effective.
+    const auto fifo_path =
+        fs::temp_directory_path() /
+        ("featherdoc_external_image_fifo_" +
+         std::to_string(static_cast<std::uint64_t>(::getpid())) + ".png");
     fs::remove(fifo_path, cleanup_error);
     REQUIRE_EQ(::mkfifo(fifo_path.c_str(), 0600), 0);
     CHECK_FALSE(featherdoc::detail::load_image_file(fifo_path, image_info,

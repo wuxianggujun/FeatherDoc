@@ -91,6 +91,8 @@ void ensure_default_table_properties(pugi::xml_node table);
     -> std::optional<std::size_t>;
 [[nodiscard]] auto current_table_row_column_count(pugi::xml_node row)
     -> std::optional<std::size_t>;
+[[nodiscard]] auto table_geometry_is_valid_for_append(pugi::xml_node table)
+    -> bool;
 [[nodiscard]] auto ensure_table_grid_columns(pugi::xml_node table,
                                              std::size_t column_count) -> bool;
 [[nodiscard]] auto find_table_grid_column(pugi::xml_node table,

@@ -997,6 +997,142 @@ TEST_CASE("table append row rejects a checked grid span sum above the safety lim
 }
 
 TEST_CASE(
+    "table append row preserves existing handles and extends the grid atomically") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "table_append_row_handles.docx";
+    fs::remove(target);
+
+    featherdoc::Document doc(target);
+    REQUIRE_FALSE(doc.create_empty());
+    auto table = doc.append_table(1U, 1U);
+    REQUIRE(table.valid());
+    auto original_row = table.rows();
+    REQUIRE(original_row.valid());
+    auto original_cell = original_row.cells();
+    REQUIRE(original_cell.valid());
+    REQUIRE(original_cell.set_text("original"));
+    auto original_paragraph = original_cell.paragraphs();
+    auto original_run = original_paragraph.runs();
+    REQUIRE(original_paragraph.valid());
+    REQUIRE(original_run.valid());
+
+    auto appended_row = table.append_row(3U);
+    REQUIRE(appended_row.valid());
+    REQUIRE(appended_row.set_texts({"new-0", "new-1", "new-2"}));
+    CHECK(table.valid());
+    CHECK(original_row.valid());
+    CHECK(original_cell.valid());
+    CHECK(original_paragraph.valid());
+    CHECK(original_run.valid());
+    CHECK_EQ(original_cell.get_text(), "original");
+
+    auto exhausted_table = doc.tables();
+    REQUIRE(exhausted_table.valid());
+    exhausted_table.next();
+    REQUIRE_FALSE(exhausted_table.valid());
+    auto appended_to_new_table = exhausted_table.append_row(2U);
+    REQUIRE(appended_to_new_table.valid());
+    REQUIRE(appended_to_new_table.set_texts({"new-table-0", "new-table-1"}));
+    CHECK(original_row.valid());
+    CHECK(original_cell.valid());
+    CHECK(original_paragraph.valid());
+    CHECK(original_run.valid());
+
+    REQUIRE_FALSE(doc.save());
+    const auto xml_text = read_test_docx_entry(target, test_document_xml_entry);
+    pugi::xml_document xml_document;
+    REQUIRE(xml_document.load_string(xml_text.c_str()));
+    const auto body = xml_document.child("w:document").child("w:body");
+    auto first_table = body.child("w:tbl");
+    REQUIRE(first_table != pugi::xml_node{});
+    CHECK_EQ(count_named_children(body, "w:tbl"), 2U);
+    CHECK_EQ(count_named_children(first_table, "w:tr"), 2U);
+    CHECK_EQ(count_named_children(first_table.child("w:tblGrid"), "w:gridCol"),
+             3U);
+    const auto second_table = first_table.next_sibling("w:tbl");
+    REQUIRE(second_table != pugi::xml_node{});
+    CHECK_EQ(count_named_children(second_table, "w:tr"), 1U);
+    CHECK_EQ(count_named_children(second_table.child("w:tblGrid"), "w:gridCol"),
+             2U);
+    CHECK_EQ(collect_table_text(doc),
+             "original\nnew-0\nnew-1\nnew-2\nnew-table-0\nnew-table-1\n");
+
+    fs::remove(target);
+}
+
+TEST_CASE("table append row rejects duplicate layout and cell geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view table_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "duplicate_span",
+            R"(<w:tr><w:tc><w:tcPr><w:gridSpan w:val="1"/><w:gridSpan w:val="1"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_cell_properties",
+            R"(<w:tr><w:tc><w:tcPr/><w:tcPr/><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_table_properties",
+            R"(<w:tblPr/><w:tblPr/><w:tr><w:tc><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+        geometry_case{
+            "duplicate_table_grid",
+            R"(<w:tblGrid><w:gridCol/></w:tblGrid><w:tblGrid><w:gridCol/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc></w:tr>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        CAPTURE(geometry.name);
+        const auto target =
+            fs::current_path() /
+            ("table_append_row_invalid_" + std::string{geometry.name} +
+             ".docx");
+        fs::remove(target);
+        write_test_docx(
+            target,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl>)"} +
+                std::string{geometry.table_xml} +
+                R"(</w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto row = table.rows();
+        REQUIRE(row.valid());
+        auto original_cell = row.cells();
+        REQUIRE(original_cell.valid());
+        auto original_paragraph = original_cell.paragraphs();
+        auto original_run = original_paragraph.runs();
+        REQUIRE(original_paragraph.valid());
+        REQUIRE(original_run.valid());
+
+        const auto appended = table.append_row();
+        CHECK_FALSE(appended.valid());
+        CHECK(table.valid());
+        CHECK(row.valid());
+        CHECK(original_cell.valid());
+        CHECK(original_paragraph.valid());
+        CHECK(original_run.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target);
+    }
+}
+
+TEST_CASE(
     "table append cell preserves existing handles and extends the grid atomically") {
     namespace fs = std::filesystem;
 
