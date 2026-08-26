@@ -304,11 +304,11 @@ CLI 自动化方面比较突出。但如果按商业级完整 Word SDK 的标准
    ``release_smoke`` 已经跑起来了；下一步更该确保 workflow、CTest label、
    发布材料契约和 Windows visual / release preview 的分层边界继续清晰。
 
-中期可以继续推进：
+进入维护模式后的建议：
 
-- 统一 ``bool`` 返回接口的错误语义，逐步引入更明确的结果类型。
-- 将模板、样式、编号、图片、表格等领域能力拆成更清晰的内部模块。
-- 为 DOCX ZIP/XML 输入增加恶意样本、损坏样本和 fuzz 风格回归。
+- 只针对可复现的 DOCX 正确性、安全性、兼容性问题补充回归。
+- 继续维护模板、样式、编号、图片、表格现有入口的契约，不以拆分模块或扩大 API 为目标。
+- 为 DOCX ZIP/XML 输入增加恶意样本、损坏样本和 fuzz 风格回归，但仅在明确的安全或 CI 需求下推进。
 - 继续维护 ``docs/script_task_index_zh.rst`` 脚本任务索引，并用
   ``scripts/check_script_task_index.ps1`` 固定索引路径、文档入口和轻量 CI
   注册的一致性。

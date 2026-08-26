@@ -1,9 +1,10 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-08-21
+状态日期：2026-08-26
 
-本页是当前长任务的可执行 backlog。它承接
+本页是当前长任务的可执行 backlog。Word/DOCX 收尾后项目进入维护模式，
+本页后续只记录 bug、安全、兼容性、构建、测试和文档维护项。它承接
 :doc:`current_direction_zh` 的三条主线，但比路线说明更具体：每个任务都要能落到
 脚本、源码、文档、测试或发布治理材料上。
 长期逐轮执行台账见 :doc:`long_task_board_zh`，本页负责保留完整 backlog。
@@ -20,7 +21,8 @@
 4. 发布治理相关改动必须能进入 reviewer-facing bundle，至少覆盖
    ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 或 ``REVIEWER_CHECKLIST.md``。
 5. Windows / PowerShell / 中文输出默认按 UTF-8 处理，避免重新引入乱码。
-6. 任何重型 Word、PDF、CMake 或完整 CTest 验证，都必须在工作区干净且改动已推送后执行。
+6. 重型 Word、PDF、CMake 或完整 CTest 验证只在明确的里程碑、集成或发布边界执行；
+   必须使用隔离构建目录、单并发，并在结束后回收本轮资源。
 
 
 P0：当前发布与 CI 守护
@@ -67,7 +69,7 @@ P0：Word/DOCX 安全与兼容性
 -------------------------
 
 本项只处理 Word/DOCX 核心，不扩展 PDF 主线。``v1.13.3`` 已完成发布，当前状态为
-``ACTIVE``，继续收口发布后确认的输入边界、失败原子性与句柄生命周期问题：
+``DONE``；后续只处理可复现的输入边界、失败原子性与句柄生命周期维护问题：
 
 1. POSIX 保存事务已补临时文件 ``0600``、目标 mode/``umask`` 继承、文件
    ``fsync`` 和替换后父目录 ``fsync``；同步失败分成替换前
@@ -98,8 +100,9 @@ P0：Word/DOCX 安全与兼容性
 8. 表格属性 mutation 已完成当前公开 setter/clear 批次；结构 mutation 已逐项完成
    cell/row 插入删除、merge/unmerge、列插入删除和 ``TableRow::append_cell()``。
    ``gridSpan`` / ``vMerge`` 没有独立公开 setter，由已完成的 merge/unmerge API 管理。
-   下一项按 ``Table::append_row()``、表级 insert/clone/remove 的真实公开 API 顺序推进，
-   不再追踪不存在的 setter。
+   ``Table::append_row()`` 已完成最后一轮收尾；表级 insert/clone/remove 和
+   document/template append 入口已完成定向审查，未发现需要扩大范围的明确缺陷。
+   本专项随后进入 ``DONE``，后续只做回归维护。
 9. 每个小 API 改动只在 Windows/MSVC 构建受影响的 target，并只运行对应精确
    doctest case；不运行本地 WSL、完整 CTest、sanitizer/fuzz 或全矩阵 CI。
    PugiXML/global fail-Nth 用例保留在 allocation-failure 专用配置中，由 GitHub
@@ -108,21 +111,30 @@ P0：Word/DOCX 安全与兼容性
     定向验证结束后确认 ``cmake`` / ``ninja`` / ``cl`` / ``link`` / ``ctest`` 已退出，
     再删除该轮不再复用的临时构建目录。只有维护者明确宣布大功能、模块里程碑、跨模块
     集成或发布 gate 时，才执行完整 Windows 验证和 GitHub Actions 矩阵。
-11. ``TableCell::set_fill_color()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
+11. ``Table::append_row()`` 收尾后冻结新的功能扩张；PDF 保持实验性 opt-in，
+    仅接受必要维护，不新增 PDF visual baseline 或大样例。
+12. ``TableCell::set_fill_color()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
     成功构建 ``xml_handle_retirement_tests`` 单 target；精确 case
     ``table cell fill updates preserve handles and unrelated XML content`` 通过 ``1/1``、
     ``48/48``。两项相关文档契约测试通过；未运行 WSL 或全量测试，临时构建目录和本轮
     构建进程已回收。
-12. ``TableCell::set_width_twips()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
+13. ``TableCell::set_width_twips()`` 本地定向验证（2026-08-13）：Windows/MSVC Release
     成功构建 ``xml_handle_retirement_tests`` 单 target；精确 case
     ``table cell width updates preserve handles and unrelated XML content`` 通过 ``1/1``、
     ``44/44``。首次增量编译暴露 checked helper 未经当前依赖头声明，已改用本文件既有
     属性写入加值验证并重新编译通过；未运行 WSL 或全量测试，临时构建目录和进程已回收。
-13. ``TableRow::append_cell()`` 本地定向验证（2026-08-21）：Windows/MSVC Release/NMake
+14. ``TableRow::append_cell()`` 本地定向验证（2026-08-21）：Windows/MSVC Release/NMake
     并发 1 成功构建 ``table_structure_unit_tests``，精确 ``table append cell*`` 两个 case
     通过 ``2/2``、``331/331``；``xml_handle_retirement_tests`` target 同时完成 CI-only
     fixture 类型检查。未运行本地 WSL、完整 CTest、sanitizer/fuzz 或 allocation-failure
     suite；Clang fixture 由推送后的 security workflow 验证。
+15. ``Table::append_row()`` 最终集成验证（2026-08-26）：隔离 WSL Release/Ninja
+    Word-only 构建通过 ``1259/1259``；精确 ``table append row*`` 通过 ``4/4``、
+    ``215/215``，``table_structure_unit`` 与 ``xml_handle_retirement`` 通过 ``2/2``。
+    首轮完整 CTest 唯一失败是 DrvFS 不支持在构建目录创建 FIFO；夹具改到原生临时目录后，
+    ``body_image_unit`` 聚焦重试 ``1/1``，最终完整 CTest ``143/143``。本地未运行
+    sanitizer、fuzz 或 allocation-failure suite；当前改动仍需下一次 Windows/MSVC
+    本地或托管验证。
 
 
 P1：模板契约与项目模板工作流
@@ -383,17 +395,17 @@ P1：Release governance 与发布材料一致性
      同时展示两组 source / action / blocker / entries，避免 release governance
      回归到只展示第一条人工处理动作。
    * release blocker rollup / release governance handoff Markdown 对
-     ``reviewer_actions`` 的透传已由最新提交补齐；当前 ``dev`` 最新 CI 仍有
-     workflow 运行中。下一步继续守护 release material safety 与 release asset
-     manifest 的发布字段 contract；若后续 CI 失败，则先修 CI。
+     ``reviewer_actions`` 的透传已由最新提交补齐；``6a438404`` 对应 Linux、macOS、
+     Windows MSVC、Docs Pages 与 security sanitizer/fuzz workflow 均已通过。后续继续
+     守护 release material safety 与 release asset manifest 的发布字段 contract；
+     若新 CI 失败，则先修 CI。
 
 
 5. 本轮收口 strict integer contract：release material safety 的 core、json、manifest
    contract 已统一改用严格整数解析 helper，测试样例同步补齐小数、字符串整数、
-   布尔值和空值负例，避免 PowerShell ``[int]`` 软转换误放行。下一步先跑
-   ``test/assert_release_material_safety_test.ps1``，再做 ``git diff --check`` 和
-   ``git status --short --branch``；通过后提交并推送 ``dev``，然后继续看最新
-   ``gh run list --branch dev``。
+   布尔值和空值负例，避免 PowerShell ``[int]`` 软转换误放行。
+   ``test/assert_release_material_safety_test.ps1`` 已通过；负例夹具输出的 forbidden
+   诊断为预期结果，不再保留“下一步先跑”的过期状态。
 
 P2：样式与编号治理
 ------------------
@@ -571,23 +583,20 @@ P3：文档、测试与索引治理
 5. 未经证据支撑的性能优化。
 
 
-当前下一步
-----------
+维护模式下的下一步
+------------------
 
 最小下一步按下面顺序执行：
 
 1. 开始下一轮前复查 ``git status --short --branch`` 和构建进程；只清理仓库
    ``.codex-temp`` 下已经停止使用的临时构建产物，不删除正式 build/cache，也不结束
    非当前任务启动的外部进程。
-2. ``TableCell::set_fill_color()`` 和 ``TableCell::set_width_twips()`` 已完成暂存事务
-   与精确回归；提交后下一项推进 ``TableCell::set_vertical_alignment()``，再按
-   text direction、cell margin 的顺序逐项处理。
-3. 每个小功能只构建受影响 target、运行对应精确 case 和 ``git diff --check``；不跑
-   WSL、完整 CTest、Word/PDF visual gate 或 sanitizer/fuzz。本轮没有新增中文源码文本，
-   测试文件名和文档继续使用 UTF-8，并由 MSVC ``/utf-8`` 配置验证编译。
-4. 审查完整 diff 后单独提交并推送 ``dev``；中间小提交不等待全矩阵 CI。遇到服务端
-   HTTP 429 时按退避策略重试，不把 429 当成代码失败或中断长期任务。
-5. 只有维护者宣布 Table/TableCell 原子化模块里程碑完成、跨模块集成或发布 gate 后，
-   才运行 Word-only/Windows 全量 CTest、UTF-8 路径、sanitizer/fuzz 与跨平台 CI 矩阵。
-6. ``P0-WORD-SAFETY-01`` 收口后恢复 ``P1-SCHEMA-01`` 的真实业务语料校准；该长期
-   backlog 保持 ``GUARDED``，不与安全修复混合重构。
+2. 新 bug 先补最小复现和精确回归，再按受影响 target 做单并发验证。
+3. 常规维护不运行 WSL、完整 CTest、PDF visual gate 或 sanitizer/fuzz；只有明确的
+   发布、跨平台集成或 CI 复现需求才升级验证范围。
+4. 保持文档、脚本索引和契约测试同步；中文内容和源码继续使用 UTF-8，并由 MSVC
+   ``/utf-8`` 配置验证编译。
+5. 审查完整 diff 后再决定提交和推送；不为追求“继续推进”而引入新的大功能。
+
+历史 backlog 标识 ``P1-SCHEMA-01`` 继续保留为 ``GUARDED`` 维护项；只有真实业务需求、
+明确范围和验证证据齐备时才重新立项，不因本轮 Word 收口而自动恢复功能开发。

@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-08-21
+状态日期：2026-08-26
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -17,10 +17,11 @@
 
 当前 active goal：
 
-``持续推进 FeatherDoc 后续开发任务：维护后续任务文档，按优先级在 dev 分支实现、验证、提交、推送，并保持 CI 绿色。``
+``完成 FeatherDoc 的 DOCX 表格结构收尾，更新维护边界，验证并回收本轮资源。``
 
-Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第二个 goal，
-只围绕本台账和 ``docs/next_tasks_zh.rst`` 逐轮推进。
+Goal 状态：``DONE``。本轮代码、文档和统一验证已经完成，隔离构建资源已按本轮
+收尾流程回收；后续不再创建功能扩张 goal，只保留 bug、安全、兼容性、构建、测试
+和文档维护任务。
 
 执行边界：
 
@@ -82,11 +83,11 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    git push origin dev
 
 
-当前专项：Word/DOCX 安全修复
-----------------------------
+已完成专项：Word/DOCX 安全修复
+------------------------------
 
-``P0-WORD-SAFETY-01`` 当前状态为 ``ACTIVE``，发布基线是 ``v1.13.3``；既有版本已
-完成 tag、GitHub Release 与资产复核，当前继续处理发布后确认的 Word/DOCX 边界错误：
+``P0-WORD-SAFETY-01`` 当前状态为 ``DONE``，发布基线是 ``v1.13.3``；既有版本已
+完成 tag、GitHub Release 与资产复核，后续只处理可复现的 Word/DOCX 维护问题：
 
 1. 保存事务：POSIX 临时文件权限、目标 mode/``umask``、文件与父目录同步已实现，
    两类同步失败有独立错误码和故障注入测试。
@@ -99,11 +100,11 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 5. install consumer 已通过并验证 Unicode 路径和 ``FeatherDoc_ABI_VERSION=1.13``；
    Windows MSVC、Linux GCC/Clang、macOS 和 sanitizer/fuzz CI 均已通过，Darwin
    父目录同步与 Windows Unicode 安装 consumer 已由对应原生平台验证。
-6. 当前 ``Unreleased`` 队列覆盖 ZIP entry 非法 UTF-8/歧义/路径穿越、lazy reopen、
+6. 当前 ``Unreleased`` 修复已覆盖 ZIP entry 非法 UTF-8/歧义/路径穿越、lazy reopen、
    图片提取与保存源复制的全包复验、reader close、XML 深度/语义资源、Custom XML、
    图片/字号边界、恶意表格跨度和列数、编号/review/tracked-change ID、可预期失败
-   原子性，以及 ``Document`` move/分节重建的旧句柄失效；全部完成后再恢复
-   ``GUARDED``。
+   原子性，以及 ``Document`` move/分节重建的旧句柄失效；后续仅接受可复现问题的
+   回归维护。
 7. 保存管线以及已迁移的 singleton、分节、样式等关键 mutation 已完成隔离事务和
    fail-Nth 故障注入验证；``save_as()`` 当前观测到的全部标准 ``new`` 分配点也已验证
    原目标不变、无临时文件残留且可重试。尚未逐项迁移的任意 DOM mutation 仍缺少统一的
@@ -112,8 +113,9 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 8. 表格属性原子化已完成当前公开 setter/clear 批次；结构事务已完成 cell/row
    插入删除、merge/unmerge、列插入删除和 ``TableRow::append_cell()``。后者统一覆盖
    现有行追加与迭代器末尾新建行，拒绝重复/非法表格几何，并在退休旧表布局后无分配
-   提交。``gridSpan`` / ``vMerge`` 没有独立公开 setter，不再作为虚假待办；下一项是
-   ``Table::append_row()``。
+   提交。``gridSpan`` / ``vMerge`` 没有独立公开 setter，不再作为虚假待办。
+   ``Table::append_row()`` 已完成最后一轮原子化收尾，表级公开入口完成定向审查，
+   本专项转为 ``DONE``，后续只做回归维护。
 9. 当前小功能验证固定为 Windows/MSVC 的 ``xml_handle_retirement_tests`` 单 target 和
    一个精确 doctest case；PugiXML/global allocation-failure 回归只在专用 CI 配置注册。
    不在每个 setter 后运行 WSL、完整 CTest 或等待全部 GitHub Actions。
@@ -130,6 +132,12 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
     Release/NMake 并发 1 构建相关 targets 成功，精确 ``table append cell*`` 通过
     ``2/2``、``331/331``。同批修复 Clang 下 3 个 PugiXML fail-Nth fixture 的零分配
     基线误报，实际 allocation-failure 结果由推送后的 security workflow 验证。
+14. 2026-08-26 ``Table::append_row()`` 完成最终结构事务收尾。隔离 WSL
+    Release/Ninja Word-only 构建通过 ``1259/1259``，精确回归通过 ``4/4``、
+    ``215/215``，相关结构/句柄测试通过 ``2/2``。首轮完整 CTest 暴露 DrvFS
+    ``mkfifo`` 夹具缺陷；改用原生临时目录且保留 FIFO 拒绝覆盖后，聚焦重试通过，
+    最终完整 CTest ``143/143``。本地未运行 sanitizer、fuzz 或 allocation-failure；
+    Windows/MSVC 仍由下一次本地或托管运行验证当前改动。
 
 
 近期执行队列
@@ -364,10 +372,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。最新修复还把
      ``upload.remote_assets`` 的 ``size_bytes`` / ``download_count`` 收紧为严格
      整数校验，并补了对应的 decimal 负例，避免 PowerShell 数值转换误放行。
-     当前这轮继续收口 strict integer contract：release material safety 的 core、
-     json、manifest contract 统一改用严格整数解析 helper，测试样例也补齐了
-     小数、字符串整数、布尔值和空值负例，下一步直接跑
-     ``test/assert_release_material_safety_test.ps1`` 复核这组 contract。
+     strict integer contract 已收口：release material safety 的 core、json、manifest
+     contract 统一改用严格整数解析 helper，测试样例补齐小数、字符串整数、布尔值和
+     空值负例；``test/assert_release_material_safety_test.ps1`` 已通过，负例夹具中的
+     forbidden 诊断为预期输出。
      package release assets 的 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
      ``REVIEWER_CHECKLIST.md`` 已补 ``reviewer_action_*`` 值级断言，确保
      readiness / onboarding no-action 语义不会只剩字段名。
@@ -522,23 +530,16 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
       ``script_task_index_docs_contract_test.ps1`` 和相关 release metadata 测试保持绿色。
 
 
-下一轮最小动作
---------------
+维护模式下的最小动作
+--------------------
 
-下一轮按这个顺序执行：
-
-1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
+1. 开始维护前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先回到 ``P0-CI-01`` 抓日志修失败。
-2. 继续当前 ``Unreleased`` 的 DOM mutation 原子化：下一批审阅
-   ``Table::append_row()``，随后按表级 insert/clone/remove 与 document/template 表入口
-   推进；每个小功能只补对应源码、回归和 Windows/MSVC 精确验证。
-3. 每个小功能只运行相关 Windows/MSVC target、精确 case、``git diff --check`` 与
-   工作树审查；只有完成大功能、模块里程碑或发布 gate 时，才运行 Word-only 全量
-   CTest、UTF-8/中文路径、sanitizer/fuzz 和跨平台矩阵。
-4. 单独提交并推送 ``dev``；若相关 GitHub Actions 失败，先抓日志修复，不提前叠加
-   下一个相邻功能或决定下一 patch 版本。
-5. 验证稳定后再评估后续 patch 发布；不修改既有 ``v1.13.3`` tag 或 Release。
-6. 当前安全队列完成后恢复 ``P1-SCHEMA-01`` 真实业务语料校准。
+2. 新 bug 先补最小复现、精确回归和根因说明，再只构建受影响 target。
+3. 常规维护保持并发 1；不运行完整 CTest、PDF visual gate、sanitizer/fuzz 或跨平台
+   矩阵，除非有明确的发布、集成或 CI 复现理由。
+4. 文档、脚本索引和契约测试随修复同步更新；验证稳定后再评估 patch 发布，
+   不修改既有 ``v1.13.3`` tag 或 Release。
 
 
 不做清单

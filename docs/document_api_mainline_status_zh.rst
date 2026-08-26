@@ -39,8 +39,9 @@
 - ``export_numbering_catalog`` 和 ``import_numbering_catalog``。
 - ``ensure_table_style`` 表格样式定义入口。
 
-因此，当前阶段继续推进“文档功能”，不是因为接口还没有开始做，而是因为发布前还需要
-把契约一致性、治理报告、真实语料校准和交付材料继续收口。
+因此，当前阶段已经不再以继续扩张“文档功能”为目标。发布后的工作进入
+Word-only maintenance mode：只维护契约一致性、治理报告、真实语料校准、交付材料和
+DOCX 正确性/安全性问题；PDF 维持实验性 opt-in，不作为近期功能主线。
 
 
 脚本与测试证据

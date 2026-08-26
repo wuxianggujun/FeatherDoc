@@ -10,6 +10,18 @@ performance.
 
 ### Changed
 
+- Complete the final Word table-structure transaction milestone with
+  ``Table::append_row()``. Existing-table and exhausted-iterator paths now share
+  rollback validation for the unpublished row/cells and staged ``w:tblPr`` /
+  ``w:tblGrid`` layout, preserve existing XML handles, reject duplicate or
+  malformed geometry atomically, and rethrow structural ``std::bad_alloc`` after
+  rollback. The table-level insert/clone/remove and document/template append
+  entry points were reviewed without expanding the mutation scope. FeatherDoc
+  now enters Word-only maintenance mode; PDF remains experimental opt-in and is
+  limited to necessary maintenance.
+- Keep the POSIX non-regular image-file regression effective when CTest runs
+  from a mounted filesystem such as WSL DrvFS by creating its FIFO fixture on
+  the native temporary filesystem.
 - ``TableCell::unmerge_right()``, ``TableCell::unmerge_down()``,
   ``TableCell::insert_cell_before()``, ``TableCell::insert_cell_after()``,
   ``TableCell::remove()``, ``TableCell::merge_right()``,

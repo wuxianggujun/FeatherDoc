@@ -99,10 +99,29 @@ rollback boundary for the unpublished cell or row and staged `w:tblPr` /
 validated before original layout retirement; commit is allocation-free.
 Success preserves existing row, cell, paragraph, run, and table handles.
 
+`Table::append_row` now uses the same transaction boundary for an existing table
+and for an exhausted table iterator that creates a new table. It validates the
+complete table geometry before mutation, inserts the unpublished row and cells,
+stages `w:tblPr` and `w:tblGrid` when the requested row widens the table, and
+validates cardinality, parents, and the final grid-column count before retiring
+the old layout. Checked XML failures roll back and return an invalid row handle;
+structural `std::bad_alloc` failures roll back and rethrow. Existing table, row,
+cell, paragraph, run, and text handles remain valid on success or rejection.
+
+The table-level `insert_table_*`, `insert_table_like_*`, `remove`,
+`Document::append_table`, and `TemplatePart::append_table` entry points were
+reviewed at this checkpoint. They already remove unpublished nodes on ordinary
+failure and preserve their established public contracts; no broader DOM
+transaction rewrite is part of this milestone.
+
+This closes the planned Word table-structure milestone. New structural features
+are frozen; future changes are maintenance-only unless a new scope decision is
+recorded with a reproducer, compatibility boundary, and focused validation.
+
 The public API has no independent grid-span or vertical-merge setter. Those
-nodes are mutated through the completed merge/unmerge APIs above. The remaining
-structural review queue starts with `Table::append_row`, followed by table-level
-insert/clone/remove operations and their document/template entry points.
+nodes are mutated through the completed merge/unmerge APIs above. The structural
+review queue is closed at this checkpoint; future work is regression-driven
+maintenance rather than another API sweep.
 
 ## Transaction Contract
 
@@ -259,7 +278,27 @@ sanitizer, fuzz, allocation-failure, or full CTest suite was run. The Clang
 allocation-failure fixture correction is validated by the hosted security
 workflow after push.
 
-Use the following focused commands for the next structural batch boundary:
+The 2026-08-26 `Table::append_row` checkpoint used the isolated
+`.codex-temp/final-word-only-wsl-20260826` Release/Ninja WSL build because an
+MSVC toolchain was not available in the local shell. PDF writer/import,
+sanitizers, fuzzers, and allocation-failure injection were disabled. The full
+build passed 1259/1259 steps, the exact `table append row*` filter passed 4/4
+cases with 215 assertions, and `table_structure_unit` plus
+`xml_handle_retirement` passed 2/2. A direct syntax-only check of the affected
+table sources also passed.
+
+The first full CTest attempt exposed one test-fixture portability defect:
+`body_image_unit` tried to create a FIFO in the DrvFS build directory, where
+`mkfifo` returned `EOPNOTSUPP`. The product behavior passed when the same binary
+ran from native `/tmp`. The fixture now creates that POSIX-only FIFO under the
+native temporary directory, preserving the non-regular-file assertion without
+skipping it. The focused retry passed 1/1 and the final full CTest passed 143/143.
+The WSL build remains supplemental evidence; current Windows/MSVC validation
+still requires the next hosted or local MSVC run. No sanitizer, fuzz, or
+allocation-failure suite was run locally.
+
+Use the following focused commands when a future structural regression requires
+the same maintenance boundary:
 
 ```powershell
 cmake --build <windows-build-dir> --target `
