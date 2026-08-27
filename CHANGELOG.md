@@ -8,6 +8,8 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.4] - 2026-08-27
+
 ### Changed
 
 - Complete the final Word table-structure transaction milestone with

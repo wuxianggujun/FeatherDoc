@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-08-26
+状态日期：2026-08-27
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -86,8 +86,9 @@ Goal 状态：``DONE``。本轮代码、文档和统一验证已经完成，隔�
 已完成专项：Word/DOCX 安全修复
 ------------------------------
 
-``P0-WORD-SAFETY-01`` 当前状态为 ``DONE``，发布基线是 ``v1.13.3``；既有版本已
-完成 tag、GitHub Release 与资产复核，后续只处理可复现的 Word/DOCX 维护问题：
+``P0-WORD-SAFETY-01`` 当前状态为 ``DONE``，发布基线是 ``v1.13.3``；当前进入
+``v1.13.4`` 发布收口，既有版本已完成 tag、GitHub Release 与资产复核，后续只处理
+可复现的 Word/DOCX 维护问题：
 
 1. 保存事务：POSIX 临时文件权限、目标 mode/``umask``、文件与父目录同步已实现，
    两类同步失败有独立错误码和故障注入测试。
@@ -100,7 +101,7 @@ Goal 状态：``DONE``。本轮代码、文档和统一验证已经完成，隔�
 5. install consumer 已通过并验证 Unicode 路径和 ``FeatherDoc_ABI_VERSION=1.13``；
    Windows MSVC、Linux GCC/Clang、macOS 和 sanitizer/fuzz CI 均已通过，Darwin
    父目录同步与 Windows Unicode 安装 consumer 已由对应原生平台验证。
-6. 当前 ``Unreleased`` 修复已覆盖 ZIP entry 非法 UTF-8/歧义/路径穿越、lazy reopen、
+6. 本次 ``v1.13.4`` 修复已覆盖 ZIP entry 非法 UTF-8/歧义/路径穿越、lazy reopen、
    图片提取与保存源复制的全包复验、reader close、XML 深度/语义资源、Custom XML、
    图片/字号边界、恶意表格跨度和列数、编号/review/tracked-change ID、可预期失败
    原子性，以及 ``Document`` move/分节重建的旧句柄失效；后续仅接受可复现问题的
@@ -150,8 +151,9 @@ Goal 状态：``DONE``。本轮代码、文档和统一验证已经完成，隔�
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
    * 当前结果：``v1.13.3`` 已于北京时间 2026-07-15 正式发布，发布提交为
      ``f6d97cd7d28010942d479651cc6c27619543da38``，tag、Release 与三份正式资产已
-     复核。当前 ``Unreleased`` 修复提交后仍须确认 Linux、macOS、Windows、Docs
-     Pages 与 sanitizer CI 全绿。live 状态以 ``gh run list --branch dev`` 为准。
+     复核。本次 ``v1.13.4`` 版本元数据提交后仍须确认 Linux、macOS、Windows、Docs
+     Pages 与 sanitizer CI 全绿，再创建 tag。live 状态以 ``gh run list --branch dev``
+     为准。
    * 已修复：上一轮 Windows MSVC 在 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 中暴露的 release entry material
      safety 误判已解除。修复点包括让 material-safety helper 在同一 anchor 的

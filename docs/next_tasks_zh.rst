@@ -1,7 +1,7 @@
 后续任务清单（中文）
 ====================
 
-状态日期：2026-08-26
+状态日期：2026-08-27
 
 本页是当前长任务的可执行 backlog。Word/DOCX 收尾后项目进入维护模式，
 本页后续只记录 bug、安全、兼容性、构建、测试和文档维护项。它承接
@@ -37,9 +37,9 @@ P0：当前发布与 CI 守护
    * Windows MSVC CI 仍是最高风险入口，因为它同时覆盖 MSVC、PowerShell、UTF-8 和发布资产预览。
    * ``v1.13.3`` 已于北京时间 2026-07-15 正式发布；tag、GitHub Release 和三份
      正式资产均已复核，发布提交为
-     ``f6d97cd7d28010942d479651cc6c27619543da38``。当前 ``Unreleased`` 工作继续
-     处理发布后发现的 Word/DOCX 边界错误，不回写或移动既有 tag。最新 CI 状态仍以
-     ``gh run list --branch dev`` 为准。
+     ``f6d97cd7d28010942d479651cc6c27619543da38``。本次 ``v1.13.4`` 版本元数据
+     提交后仍须确认对应 CI 全绿，再创建 tag，不回写或移动既有 tag。最新 CI 状态
+     仍以 ``gh run list --branch dev`` 为准。
    * 已修复 Windows MSVC 中 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 的 release material safety
      失败：入口材料现在保留完整 project-template governance contract，
@@ -87,7 +87,7 @@ P0：Word/DOCX 安全与兼容性
    已用中文、日文和 emoji 路径完成保存与重开，shared library SONAME 已验证为
    ``libFeatherDoc.so.1.13``。Windows MSVC、Linux GCC/Clang、macOS 和原生 Ubuntu
    sanitizer/fuzz CI 均已通过，Windows Unicode 回归与 Darwin 目录同步已收口。
-6. 当前 ``Unreleased`` 修复覆盖 ZIP entry 的非法 UTF-8、重复/大小写歧义、路径穿越，
+6. 本次 ``v1.13.4`` 修复覆盖 ZIP entry 的非法 UTF-8、重复/大小写歧义、路径穿越，
    lazy reopen / 图片提取 / 保存源复制的全包复验和 reader close 错误，Custom XML
    语义限制，深层 XML 迭代遍历，图片 parser/字号数值边界，恶意 ``gridSpan`` 与
    63 列上限，编号/review/tracked-change ID 耗尽及相关失败原子性，``Document`` move
