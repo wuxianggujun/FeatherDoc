@@ -83,6 +83,25 @@
 
         add_test(
             NAME
+            release_candidate_child_powershell_utf8
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/release_candidate_child_powershell_utf8_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_child_powershell_utf8
+        )
+        set_tests_properties(release_candidate_child_powershell_utf8
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;install;smoke")
+
+        add_test(
+            NAME
             release_governance_warning_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}

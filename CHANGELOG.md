@@ -12,6 +12,10 @@ performance.
 
 ### Changed
 
+- Keep the Windows/MSVC release-candidate install smoke path UTF-8 clean when
+  ``vcvars`` changes the active console code page. The nested PowerShell
+  process now restores CP65001 before emitting Unicode consumer-document paths,
+  with a regression test covering Chinese, Japanese, and emoji filenames.
 - Make `record_word_visual_review_result.ps1` recover missing evidence metadata
   from the prepared task manifest, while preserving explicit-path validation.
   Older review tasks can now be signed off without manually editing their JSON,
