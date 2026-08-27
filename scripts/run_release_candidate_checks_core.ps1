@@ -384,7 +384,13 @@ function Invoke-ChildPowerShellInMsvcEnv {
         "call"
         (Convert-ToCmdArgument -Value $MsvcBootstrap.vcvars_path)
         "&&"
+        "chcp"
+        "65001"
+        ">NUL"
+        "&&"
         "powershell.exe"
+        "-NoProfile"
+        "-NonInteractive"
         "-ExecutionPolicy"
         "Bypass"
         "-File"
