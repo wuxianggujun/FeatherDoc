@@ -317,8 +317,8 @@ foreach ($expected in @(
         '"horizontal_offset_px":96',
         '"horizontal_offset_px":148',
         '"vertical_reference":"margin"',
-        '"vertical_offset_px":120',
-        '"vertical_offset_px":162',
+        '"vertical_offset_px":300',
+        '"vertical_offset_px":342',
         '"allow_overlap":true',
         '"z_order":16',
         '"z_order":64'
@@ -392,7 +392,7 @@ Build-ContactSheet `
 $expectedVisualCues = @(
     "The orange floating image overlaps the blue floating image on the first page.",
     "The orange floating image appears above the blue floating image instead of hiding behind it.",
-    "The heading and retained explanatory body text stay readable while the overlap remains visible."
+    "The overlapping image pair sits below the retained explanatory body text, keeping the heading and all explanatory text readable."
 )
 
 $summary = [ordered]@{
@@ -457,7 +457,7 @@ $reviewChecklistLines = @(
     "- Inspect the first rendered page: $selectedPagePath",
     "- Confirm the orange floating image overlaps the blue floating image.",
     "- Confirm the orange floating image appears above the blue floating image.",
-    "- Confirm the heading and retained explanatory text still read cleanly around the overlap."
+    "- Confirm the overlapping image pair sits below the retained explanatory body text and all explanatory text remains readable."
 )
 $reviewChecklistPath = Join-Path $resolvedOutputDir "review_checklist.md"
 $reviewChecklistLines | Set-Content -Path $reviewChecklistPath -Encoding UTF8
@@ -472,7 +472,7 @@ $finalReviewLines = @(
     "- Expected cues:",
     "- The orange floating image overlaps the blue floating image.",
     "- The orange floating image appears above the blue floating image.",
-    "- The heading and retained explanatory text remain readable."
+    "- The overlapping image pair sits below the retained explanatory body text, and all explanatory text remains readable."
 )
 $finalReviewPath = Join-Path $resolvedOutputDir "final_review.md"
 $finalReviewLines | Set-Content -Path $finalReviewPath -Encoding UTF8

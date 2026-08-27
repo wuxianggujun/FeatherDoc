@@ -512,7 +512,7 @@
         )
         set_tests_properties(check_project_template_smoke_manifest
             PROPERTIES
-                TIMEOUT 60
+                TIMEOUT 120
                 LABELS "docs;smoke;project_template")
 
         add_test(

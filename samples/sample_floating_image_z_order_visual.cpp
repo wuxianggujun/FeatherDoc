@@ -167,13 +167,13 @@ int main(int argc, char **argv) {
     back_options.horizontal_offset_px = 96;
     back_options.vertical_reference =
         featherdoc::floating_image_vertical_reference::margin;
-    back_options.vertical_offset_px = 120;
+    back_options.vertical_offset_px = 300;
     back_options.allow_overlap = true;
     back_options.z_order = 16U;
 
     featherdoc::floating_image_options front_options = back_options;
     front_options.horizontal_offset_px = 148;
-    front_options.vertical_offset_px = 162;
+    front_options.vertical_offset_px = 342;
     front_options.z_order = 64U;
 
     if (!doc.append_floating_image(back_image_path, 180U, 120U, back_options)) {

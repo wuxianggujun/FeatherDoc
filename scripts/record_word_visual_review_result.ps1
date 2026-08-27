@@ -174,6 +174,112 @@ function Set-JsonProperty {
     }
 }
 
+function Resolve-ReviewEvidence {
+    param(
+        [Parameter(Mandatory = $true)]$Review,
+        [Parameter(Mandatory = $true)][string]$ReviewPath
+    )
+
+    $evidence = Get-OptionalProperty -Object $Review -Name "evidence"
+    $contactSheet = Resolve-PathForRepo `
+        -RepoRoot $repoRoot `
+        -Path (Get-OptionalString -Object $evidence -Name "contact_sheet")
+    $pageImages = @(
+        Get-OptionalArray -Object $evidence -Name "page_images" |
+            ForEach-Object { Resolve-PathForRepo -RepoRoot $repoRoot -Path ([string]$_) }
+    )
+
+    # Older prepared tasks did not include the evidence object in their seed
+    # review_result.json. Recover only missing fields from the sibling manifest,
+    # which records exact copied paths for each supported task source kind.
+    $needsContactSheet = [string]::IsNullOrWhiteSpace($contactSheet)
+    $needsPageImages = $pageImages.Count -eq 0
+    if ($needsContactSheet -or $needsPageImages) {
+        $taskDir = Split-Path -Parent (Split-Path -Parent $ReviewPath)
+        $manifestPath = Join-Path $taskDir "task_manifest.json"
+        if (Test-Path -LiteralPath $manifestPath) {
+            $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
+            $artifactNames = @(
+                "document_visual_artifacts",
+                "fixed_grid_bundle",
+                "section_page_setup_bundle",
+                "page_number_fields_bundle",
+                "visual_regression_bundle"
+            )
+            $contactPropertyNames = @(
+                "copied_contact_sheet_path",
+                "copied_aggregate_contact_sheet"
+            )
+            $pageDirectoryPropertyNames = @(
+                "copied_pages_dir",
+                "copied_aggregate_first_pages_dir",
+                "copied_aggregate_contact_sheets_dir",
+                "copied_aggregate_evidence_dir"
+            )
+
+            foreach ($artifactName in $artifactNames) {
+                $artifact = Get-OptionalProperty -Object $manifest -Name $artifactName
+                if ($null -eq $artifact) { continue }
+
+                if ($needsContactSheet) {
+                    foreach ($propertyName in $contactPropertyNames) {
+                        $candidate = Resolve-PathForRepo `
+                            -RepoRoot $repoRoot `
+                            -Path (Get-OptionalString -Object $artifact -Name $propertyName)
+                        if (-not [string]::IsNullOrWhiteSpace($candidate) -and
+                            (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                            $contactSheet = $candidate
+                            $needsContactSheet = $false
+                            break
+                        }
+                    }
+                }
+
+                if ($needsPageImages) {
+                    foreach ($propertyName in $pageDirectoryPropertyNames) {
+                        $pageDirectory = Resolve-PathForRepo `
+                            -RepoRoot $repoRoot `
+                            -Path (Get-OptionalString -Object $artifact -Name $propertyName)
+                        if ([string]::IsNullOrWhiteSpace($pageDirectory) -or
+                            -not (Test-Path -LiteralPath $pageDirectory -PathType Container)) {
+                            continue
+                        }
+
+                        $pageImages = @(
+                            Get-ChildItem -LiteralPath $pageDirectory -Recurse -Filter "*.png" -File |
+                                Sort-Object FullName |
+                                ForEach-Object {
+                                    if ([string]::Compare($_.FullName, $contactSheet, [System.StringComparison]::OrdinalIgnoreCase) -ne 0) {
+                                        $_.FullName
+                                    }
+                                }
+                        )
+                        if ($pageImages.Count -gt 0) {
+                            $needsPageImages = $false
+                            break
+                        }
+                    }
+                }
+
+                if (-not $needsContactSheet -and -not $needsPageImages) {
+                    break
+                }
+            }
+        }
+    }
+
+    if ($needsContactSheet) {
+        throw "Visual evidence contact sheet is missing from review_result.json and task_manifest.json: $ReviewPath"
+    }
+
+    return [ordered]@{
+        summary_json = Get-OptionalString -Object $evidence -Name "summary_json"
+        checklist = Get-OptionalString -Object $evidence -Name "checklist"
+        contact_sheet = $contactSheet
+        page_images = @($pageImages)
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $normalizedVerdict = Normalize-WordVisualReviewVerdict -Value $Verdict
 $status = Get-WordVisualReviewStatus -Verdict $normalizedVerdict
@@ -187,12 +293,9 @@ foreach ($reviewPathInput in @($ReviewResultJson)) {
     }
 
     $review = Get-Content -Raw -Encoding UTF8 -LiteralPath $reviewPath | ConvertFrom-Json
-    $evidence = Get-OptionalProperty -Object $review -Name "evidence"
-    $contactSheet = Resolve-PathForRepo -RepoRoot $repoRoot -Path (Get-OptionalString -Object $evidence -Name "contact_sheet")
-    $pageImages = @(
-        Get-OptionalArray -Object $evidence -Name "page_images" |
-            ForEach-Object { Resolve-PathForRepo -RepoRoot $repoRoot -Path ([string]$_) }
-    )
+    $resolvedEvidence = Resolve-ReviewEvidence -Review $review -ReviewPath $reviewPath
+    $contactSheet = $resolvedEvidence.contact_sheet
+    $pageImages = @($resolvedEvidence.page_images)
 
     $contactSheetCheck = Test-ImageNonEmpty -Path $contactSheet
     $pageImageChecks = @(
@@ -218,6 +321,7 @@ foreach ($reviewPathInput in @($ReviewResultJson)) {
             contact_sheet = $contactSheetCheck
             page_images = @($pageImageChecks)
         })
+    Set-JsonProperty -Object $review -Name "evidence" -Value $resolvedEvidence
 
     ($review | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $reviewPath -Encoding UTF8
 

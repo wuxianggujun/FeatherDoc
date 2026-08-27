@@ -12,6 +12,21 @@ performance.
 
 ### Changed
 
+- Make `record_word_visual_review_result.ps1` recover missing evidence metadata
+  from the prepared task manifest, while preserving explicit-path validation.
+  Older review tasks can now be signed off without manually editing their JSON,
+  and the recorder regression suite covers this compatibility path.
+- Give heavyweight release-governance PowerShell fixtures explicit CTest timeout
+  budgets. The release-candidate visual verdict checks now allow 180 seconds,
+  while release blocker rollup and project-template manifest checks allow 120
+  seconds, preventing cold-start or resource-contention false failures without
+  weakening their assertions.
+- Correct the final Word visual fixtures for anchored images: the header image
+  now uses page-relative coordinates in the page's top-right area, while the
+  floating-image z-order pair remains overlapped below the retained explanatory
+  text. These changes preserve the intended anchor, wrapping, overlap, and
+  z-order assertions without allowing the fixtures themselves to obscure body
+  content.
 - Complete the final Word table-structure transaction milestone with
   ``Table::append_row()``. Existing-table and exhausted-iterator paths now share
   rollback validation for the unpublished row/cells and staged ``w:tblPr`` /

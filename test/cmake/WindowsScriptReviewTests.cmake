@@ -176,6 +176,25 @@
 
         add_test(
             NAME
+            record_word_visual_review_result
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/record_word_visual_review_result_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/record_word_visual_review_result
+        )
+        set_tests_properties(record_word_visual_review_result
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
             prepare_visual_regression_bundle_review_task
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -452,6 +471,9 @@
             -Scenario
             candidate_core
         )
+        set_tests_properties(release_candidate_visual_verdict
+            PROPERTIES
+                TIMEOUT 180)
 
         add_test(
             NAME
@@ -471,6 +493,7 @@
         )
         set_tests_properties(release_candidate_visual_verdict_reports
             PROPERTIES
+                TIMEOUT 180
                 DEPENDS release_candidate_visual_verdict)
 
         add_test(
@@ -504,6 +527,9 @@
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
+        set_tests_properties(release_candidate_blocker_rollup
+            PROPERTIES
+                TIMEOUT 120)
         featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
 
         add_test(

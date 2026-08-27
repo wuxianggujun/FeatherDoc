@@ -185,4 +185,59 @@ Assert-True -Condition (($blankEvidenceOutput -join [System.Environment]::NewLin
         "At least one page image has no sampled non-white pixels") `
     -Message "Recorder should explain that blank page evidence was rejected."
 
+$preparedTaskDir = Join-Path $resolvedWorkingDir "prepared-task"
+$preparedEvidenceDir = Join-Path $preparedTaskDir "evidence\aggregate-evidence"
+$preparedSelectedPagesDir = Join-Path $preparedEvidenceDir "selected-pages"
+$preparedReportDir = Join-Path $preparedTaskDir "report"
+$preparedContactSheet = Join-Path $preparedEvidenceDir "before_after_contact_sheet.png"
+$preparedPageImage = Join-Path $preparedSelectedPagesDir "selected-page-01.png"
+$preparedReviewResult = Join-Path $preparedReportDir "review_result.json"
+New-Item -ItemType Directory -Path $preparedReportDir -Force | Out-Null
+Write-TestPng -Path $preparedContactSheet
+Write-TestPng -Path $preparedPageImage
+
+([ordered]@{
+        task_id = "prepared-task"
+        mode = "review-only"
+        generated_at = "2026-08-27T00:00:00"
+        source_kind = "visual-regression-bundle"
+        source_path = $preparedTaskDir
+        document_path = ""
+        evidence_dir = Join-Path $preparedTaskDir "evidence"
+        report_dir = $preparedReportDir
+        repair_dir = Join-Path $preparedTaskDir "repair"
+        status = "pending_review"
+        verdict = "undecided"
+        findings = @()
+        notes = @("prepared task fixture without embedded evidence")
+    } | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $preparedReviewResult -Encoding UTF8
+
+([ordered]@{
+        task_id = "prepared-task"
+        visual_regression_bundle = [ordered]@{
+            copied_aggregate_contact_sheet = $preparedContactSheet
+            copied_aggregate_evidence_dir = $preparedEvidenceDir
+        }
+    } | ConvertTo-Json -Depth 12) | Set-Content `
+    -LiteralPath (Join-Path $preparedTaskDir "task_manifest.json") -Encoding UTF8
+
+$preparedOutput = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath `
+        -ReviewResultJson $preparedReviewResult `
+        -Verdict pass `
+        -Reviewer "test-reviewer" `
+        -RequireNonEmptyEvidence 2>&1)
+if ($LASTEXITCODE -ne 0) {
+    throw "Prepared-task recorder fallback failed: $($preparedOutput -join [System.Environment]::NewLine)"
+}
+
+$preparedReview = Get-Content -Raw -Encoding UTF8 -LiteralPath $preparedReviewResult | ConvertFrom-Json
+Assert-Equal -Actual ([string]$preparedReview.evidence.contact_sheet) `
+    -Expected $preparedContactSheet `
+    -Message "Recorder should recover the contact sheet from task_manifest.json."
+Assert-Equal -Actual ([int]@($preparedReview.evidence.page_images).Count) `
+    -Expected 1 `
+    -Message "Recorder should recover prepared task page images without duplicating the contact sheet."
+Assert-True -Condition ([bool]$preparedReview.visual_evidence_check.page_images[0].non_empty_visual) `
+    -Message "Recorder should validate page images recovered from the prepared task manifest."
+
 Write-Host "Word visual review result recorder regression passed."
