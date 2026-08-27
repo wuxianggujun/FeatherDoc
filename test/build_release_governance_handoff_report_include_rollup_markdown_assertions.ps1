@@ -23,6 +23,14 @@
         -Message "Handoff Markdown should expose the DOCX readiness report markdown display."
     Assert-ContainsText -Text $markdown -ExpectedText "reviewer_actions: ``review_schema_update_candidate``" `
         -Message "Handoff Markdown should include reviewer action lists."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_business_document_type: ``notice``" `
+        -Message "Handoff Markdown should expose schema calibration source business document type metadata."
+    Assert-ContainsText -Text $markdown -ExpectedText "source_corpus_role: ``registered-business-template``" `
+        -Message "Handoff Markdown should expose schema calibration source corpus role metadata."
+    Assert-ContainsText -Text $markdown -ExpectedText "mismatched_corpus_metadata_count: ``1``" `
+        -Message "Handoff Markdown should expose schema calibration corpus metadata mismatch counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "business_document_type_mismatch: ``True``" `
+        -Message "Handoff Markdown should expose schema calibration business document type mismatch flags."
     Assert-ContainsText -Text $markdown -ExpectedText "PDF visual gate evidence source reports: ``1``" `
         -Message "Handoff Markdown should expose the PDF visual gate evidence count."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict: ``pass``" `
@@ -227,6 +235,12 @@
         "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``",
         "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``",
         "pdf_visual_gate_attempt_expected_visual_render_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``",
+        "pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``",
+        "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``",
         "pdf_visual_segmented_gate_status: ``pass``",
         "pdf_visual_segmented_gate_verdict: ``pass``",
         "pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``",

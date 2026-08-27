@@ -1,7 +1,11 @@
-#include "featherdoc.hpp"
+#include "document_archive_limit_helpers.hpp"
+#include "document_extension_state.hpp"
 #include "document_image_helpers.hpp"
+#include "featherdoc.hpp"
 #include "image_helpers.hpp"
+#include "numeric_helpers.hpp"
 #include "xml_helpers.hpp"
+#include <featherdoc/detail/path.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -10,6 +14,7 @@
 #include <fstream>
 #include <limits>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -34,16 +39,22 @@ using detail::drawingml_main_namespace_uri;
 using detail::drawingml_picture_namespace_uri;
 using detail::drawingml_picture_uri;
 using detail::ensure_attribute_value;
+using detail::erase_equivalent_image_entries;
 using detail::find_image_relationship_node;
 using detail::image_content_type_for_extension;
 using detail::image_extension_from_entry_name;
+using detail::image_extensions_equivalent;
 using detail::image_relationship_type;
 using detail::initialize_empty_relationships_document;
 using detail::is_valid_floating_crop;
 using detail::make_part_relationship_target;
-using detail::normalize_word_part_entry;
+using detail::normalize_image_extension;
 using detail::office_document_relationships_namespace_uri;
+using detail::package_part_identity_has_derivation_conflict;
+using detail::package_part_name_identity;
+using detail::package_part_names_equivalent;
 using detail::read_zip_entry_binary;
+using detail::relationships_document_allows_mutation;
 using detail::relationships_reference_image_entry;
 using detail::set_last_error;
 using detail::signed_pixels_to_emu;
@@ -51,7 +62,7 @@ using detail::to_xml_reference;
 using detail::wordprocessing_drawing_namespace_uri;
 using detail::zip_entry_binary_read_status;
 
-std::uint32_t Document::next_drawing_object_id() const {
+std::optional<std::uint32_t> Document::next_drawing_object_id() const {
     std::uint32_t max_drawing_id = 0U;
 
     if (const auto document_root = this->document.document_element();
@@ -60,18 +71,20 @@ std::uint32_t Document::next_drawing_object_id() const {
     }
 
     for (const auto &part : this->header_parts) {
-        if (const auto root = part->xml.document_element(); root != pugi::xml_node{}) {
+        if (const auto root = part->xml.document_element();
+            root != pugi::xml_node{}) {
             collect_max_drawing_object_id(root, max_drawing_id);
         }
     }
 
     for (const auto &part : this->footer_parts) {
-        if (const auto root = part->xml.document_element(); root != pugi::xml_node{}) {
+        if (const auto root = part->xml.document_element();
+            root != pugi::xml_node{}) {
             collect_max_drawing_object_id(root, max_drawing_id);
         }
     }
 
-    return max_drawing_id + 1U;
+    return featherdoc::detail::increment_identifier(max_drawing_id);
 }
 
 #include "document_image_access_methods.inc"

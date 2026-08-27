@@ -152,6 +152,8 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "add_explicit_confidence_metadata",
             "add_business_template_source_metadata",
             "add_business_template_document_type_metadata",
+            "add_business_template_corpus_role_metadata",
+            "align_business_template_corpus_metadata",
             "review_schema_patch_confidence_calibration_evidence"
         )) {
         Add-SchemaPatchConfidenceCalibrationGuidanceLines `
@@ -207,6 +209,7 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
             "register_numbering_catalog_baseline",
             "review_numbering_catalog_check_issues",
             "review_numbering_catalog_governance_sources",
+            "review_numbering_catalog_exemplar_conflict",
             "review_numbering_catalog_real_corpus_alignment",
             "review_style_numbering_audit"
         )) {
@@ -272,6 +275,32 @@ function Get-ReleaseGovernanceChecklistGuidanceLines {
                     Add-ReleaseBlockerActionGuidanceLine `
                         -Lines $guidanceLines `
                         -Text ('Current pending style merge suggestion count is `{0}`.' -f [string]$pendingCount)
+                }
+                $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "style_merge_manual_review_reason_count"
+                if ($null -eq $manualReviewReasonCount -or [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+                    $manualReviewReasonCount = Get-ReleaseBlockerPropertyObject -Object $Item -Name "manual_review_reason_count"
+                }
+                if ($null -ne $manualReviewReasonCount -and -not [string]::IsNullOrWhiteSpace([string]$manualReviewReasonCount)) {
+                    Add-ReleaseBlockerActionGuidanceLine `
+                        -Lines $guidanceLines `
+                        -Text ('Current style merge manual review reason count is `{0}`.' -f [string]$manualReviewReasonCount)
+                }
+                foreach ($reason in @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "manual_review_reasons")) {
+                    $sourceStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "source_style_id"
+                    $targetStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "target_style_id"
+                    $reasonCode = Get-ReleaseBlockerPropertyValue -Object $reason -Name "reason_code"
+                    $recommendedAction = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_action"
+                    $confidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "confidence"
+                    $recommendedMinConfidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_min_confidence"
+                    Add-ReleaseBlockerActionGuidanceLine `
+                        -Lines $guidanceLines `
+                        -Text ('Style merge manual review reason: source_style_id=`{0}` target_style_id=`{1}` reason_code=`{2}` recommended_action=`{3}` confidence=`{4}` recommended_min_confidence=`{5}`.' -f
+                            $sourceStyleId,
+                            $targetStyleId,
+                            $reasonCode,
+                            $recommendedAction,
+                            $confidence,
+                            $recommendedMinConfidence)
                 }
             }
 

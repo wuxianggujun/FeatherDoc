@@ -245,6 +245,29 @@ Run Text And Styling
      - ``std::optional<double>``
      - Read the run font size in points.
 
+The underlying ``w:sz`` value is parsed as strict unsigned half-point text in
+the range ``1..UINT32_MAX``. Empty values, signs, trailing characters, zero,
+and overflow return an empty optional instead of being partially accepted.
+
+Text Mutation Transactions And Handles
+--------------------------------------
+
+``Paragraph::set_text(...)``, ``Run::set_text(...)``, ``add_run(...)``, adjacent
+paragraph/run insertion, and the ``insert_*_like_*`` helpers build complete
+unpublished XML first. An allocation failure while creating a node name,
+attribute name or value, text, line break, or copied formatting returns
+``false`` or an empty handle without leaving an empty paragraph, empty run, or
+partial formatting. The original XML and existing handles remain unchanged.
+Chinese text, emoji, surrounding whitespace, and ``CR``/``LF``/``CRLF`` input
+are handled as UTF-8.
+
+After a successful ``Paragraph::set_text(...)``, the original ``Paragraph``
+handle remains valid, while old ``Run`` handles into the replaced content and
+their descendants are invalid; reacquire runs from the paragraph. A successful
+``Run::set_text(...)`` preserves the ``Run`` handle itself. Successful insertion
+and append operations add only the returned subtree and do not invalidate
+unremoved sibling handles.
+
 Run Language And Direction
 --------------------------
 

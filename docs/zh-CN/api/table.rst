@@ -17,6 +17,10 @@ Word 网格列。宽度、缩进、边距和间距都使用 twips。返回
 ``std::optional<T>`` 的方法在目标无法解析时返回空值；返回 ``bool`` 的方法
 表示表格 XML 是否成功修改。
 
+FeatherDoc 强制执行 Word 的 63 个网格列结构上限。创建表格、插入行/单元格、
+行/表 ``insert_*_like_*`` 克隆以及合并/取消合并操作，在即将超过上限或发现已有
+``gridSpan`` 结构非法时会失败，且不会修改表格 XML。
+
 常用任务入口
 ------------
 
@@ -374,6 +378,25 @@ TableCell
    * - ``set_border(cell_border_edge edge, border_definition border)``
      - ``bool``
      - 设置某个单元格边框。
+
+表格结构事务与句柄
+------------------
+
+``Document::append_table(...)``、``TemplatePart::append_table(...)``、表格/行/单元格
+插入、合并、取消合并和列结构修改都先完整准备目标结构。分配失败、非法网格或超过
+63 列限制时不会留下空表、部分行、部分 ``tblGrid`` 或半完成的合并；原 XML、dirty
+状态和已有句柄保持不变。``TemplatePart`` 的分配失败会在 ``last_error()`` 中携带
+``std::errc::not_enough_memory`` 及目标部件 ``entry_name``。
+
+新表格的 ``row_count`` 和 ``column_count`` 都必须大于 0，
+``Table::append_row(...)`` 也必须至少包含一个单元格。零尺寸请求不会修改 XML；
+``Document`` 和 ``TemplatePart`` 的追加操作会报告
+``std::errc::invalid_argument``，仅持有游标的 ``Table`` 操作则返回无效句柄。
+
+``TableCell::set_text(...)`` 同样以事务方式替换全部块内容。失败时单元格逐字节不变，
+原段落/run 句柄仍有效；成功时 ``Table``、``TableRow`` 和 ``TableCell`` 句柄保持有效，
+但被替换的旧段落/run 句柄失效，应从单元格重新获取。成功删除或合并节点只会使被删除
+子树及其后代句柄失效，未删除的兄弟子树继续有效。
 
 示例
 ----

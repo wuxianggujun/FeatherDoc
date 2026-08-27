@@ -1,0 +1,117 @@
+name: Security Sanitizers And Fuzzing
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - include/**
+      - src/**
+      - cli/**
+      - fuzz/**
+      - test/**
+      - thirdparty/**
+      - .github/workflows/security-sanitizers-fuzz.yml
+  pull_request:
+    branches:
+      - dev
+      - master
+    paths:
+      - CMakeLists.txt
+      - cmake/**
+      - include/**
+      - src/**
+      - cli/**
+      - fuzz/**
+      - test/**
+      - thirdparty/**
+      - .github/workflows/security-sanitizers-fuzz.yml
+  schedule:
+    - cron: "23 18 * * 1"
+  workflow_dispatch:
+
+jobs:
+  clang-sanitizers-fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      ASAN_OPTIONS: detect_leaks=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure
+        env:
+          CC: clang
+          CXX: clang++
+        run: >
+          cmake -S . -B build-security -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DBUILD_TESTING=ON
+          -DBUILD_CLI=OFF
+          -DBUILD_SAMPLES=OFF
+          -DFEATHERDOC_ENABLE_SANITIZERS=ON
+          -DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=ON
+          -DFEATHERDOC_BUILD_FUZZERS=ON
+
+      - name: Build focused security targets
+        run: >
+          cmake --build build-security --parallel 4 --target
+          pugixml_iterative_destroy_tests
+          pugixml_iterative_destroy_compact_tests
+          xml_document_clone_tests
+          xml_handle_retirement_tests
+          text_mutation_transaction_tests
+          bookmark_batch_transaction_tests
+          revision_transaction_tests
+          package_relationships_mce_tests
+          wordprocessingml_namespace_tests
+          document_core_unit_tests
+          content_controls_unit_tests
+          style_management_unit_tests
+          section_header_footer_unit_tests
+          xml_document_clone_allocation_failure_tests
+          xml_handle_retirement_allocation_failure_tests
+          text_mutation_transaction_allocation_failure_tests
+          bookmark_batch_transaction_allocation_failure_tests
+          revision_transaction_allocation_failure_tests
+          review_revisions_allocation_failure_tests
+          package_relationships_mce_allocation_failure_tests
+          document_core_allocation_failure_tests
+          content_controls_allocation_failure_tests
+          style_management_allocation_failure_tests
+          section_header_footer_allocation_failure_tests
+          section_header_footer_part_removal_allocation_failure_tests
+          source_compat_v1_13_2_tests
+          cli_json_parse_tests
+          featherdoc_docx_open_fuzzer
+          featherdoc_cli_json_fuzzer
+
+      - name: Run sanitizer regressions
+        run: >
+          ctest --test-dir build-security --output-on-failure
+          -R "^(pugixml_iterative_destroy|pugixml_iterative_destroy_compact|xml_document_clone|xml_handle_retirement|text_mutation_transaction|bookmark_batch_transaction|revision_transaction|package_relationships_mce|wordprocessingml_namespace|document_core_unit|content_controls_unit|style_management_unit|section_header_footer_unit|xml_document_clone_allocation_failure|xml_handle_retirement_allocation_failure|text_mutation_transaction_allocation_failure|bookmark_batch_transaction_allocation_failure|revision_transaction_allocation_failure|review_revisions_allocation_failure|package_relationships_mce_allocation_failure|document_core_allocation_failure|content_controls_allocation_failure|style_management_allocation_failure|section_header_footer_allocation_failure|section_header_footer_part_removal_allocation_failure|source_compat_v1_13_2|cli_json_parse)$"
+
+      - name: Prepare fuzz corpora
+        run: |
+          mkdir -p build-security/corpus/docx build-security/corpus/json
+          cp -R fuzz/corpus/docx/. build-security/corpus/docx/
+          cp -R fuzz/corpus/json/. build-security/corpus/json/
+          cp test/my_test.docx build-security/corpus/docx/valid.docx
+
+      - name: Fuzz DOCX open and save round-trip
+        run: >
+          build-security/featherdoc_docx_open_fuzzer
+          -max_total_time=30 -max_len=1048576 -timeout=5 -rss_limit_mb=2048
+          build-security/corpus/docx
+
+      - name: Fuzz CLI JSON parser
+        run: >
+          build-security/featherdoc_cli_json_fuzzer
+          -max_total_time=30 -max_len=1048576 -timeout=5 -rss_limit_mb=2048
+          build-security/corpus/json

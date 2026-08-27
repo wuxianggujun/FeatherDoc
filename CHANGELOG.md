@@ -8,8 +8,536 @@ performance.
 
 ## [Unreleased]
 
+## [1.13.4] - 2026-08-27
+
+### Changed
+
+- Make `record_word_visual_review_result.ps1` recover missing evidence metadata
+  from the prepared task manifest, while preserving explicit-path validation.
+  Older review tasks can now be signed off without manually editing their JSON,
+  and the recorder regression suite covers this compatibility path.
+- Give heavyweight release-governance PowerShell fixtures explicit CTest timeout
+  budgets. The release-candidate visual verdict checks now allow 180 seconds,
+  while release blocker rollup and project-template manifest checks allow 120
+  seconds, preventing cold-start or resource-contention false failures without
+  weakening their assertions.
+- Correct the final Word visual fixtures for anchored images: the header image
+  now uses page-relative coordinates in the page's top-right area, while the
+  floating-image z-order pair remains overlapped below the retained explanatory
+  text. These changes preserve the intended anchor, wrapping, overlap, and
+  z-order assertions without allowing the fixtures themselves to obscure body
+  content.
+- Complete the final Word table-structure transaction milestone with
+  ``Table::append_row()``. Existing-table and exhausted-iterator paths now share
+  rollback validation for the unpublished row/cells and staged ``w:tblPr`` /
+  ``w:tblGrid`` layout, preserve existing XML handles, reject duplicate or
+  malformed geometry atomically, and rethrow structural ``std::bad_alloc`` after
+  rollback. The table-level insert/clone/remove and document/template append
+  entry points were reviewed without expanding the mutation scope. FeatherDoc
+  now enters Word-only maintenance mode; PDF remains experimental opt-in and is
+  limited to necessary maintenance.
+- Keep the POSIX non-regular image-file regression effective when CTest runs
+  from a mounted filesystem such as WSL DrvFS by creating its FIFO fixture on
+  the native temporary filesystem.
+- ``TableCell::unmerge_right()``, ``TableCell::unmerge_down()``,
+  ``TableCell::insert_cell_before()``, ``TableCell::insert_cell_after()``,
+  ``TableCell::remove()``, ``TableCell::merge_right()``,
+  ``TableCell::merge_down()``,
+  ``TableRow::remove()``, ``TableRow::insert_row_before()``,
+  ``TableRow::insert_row_after()``, and ``TableRow::append_cell()`` now enforce
+  their structural transaction
+  boundaries. Horizontal unmerge stages the anchor properties, inserted cells,
+  and fixed-layout width updates before publication; vertical unmerge stages
+  the complete ``w:vMerge`` chain. Row removal rejects malformed table geometry
+  before mutation and validates every vertical-merge promotion before retiring
+  the removed row and replaced contents. Row insertion and column insertion
+  remove unpublished clones when deep copying or clearing cell bodies fails.
+  Column insertion also stages all row cells, fixed-layout ``w:tcPr`` updates,
+  ``w:tblPr``, and ``w:tblGrid`` before retiring original property subtrees.
+  Column removal rejects malformed geometry and validates every target cell,
+  surviving wrapper target, and staged property/grid parent relationship before
+  batch-retiring the removed cells and original layout subtrees.
+  Horizontal merge additionally rejects malformed or duplicate cell-property
+  and grid-span geometry, then validates the anchor, removed sibling cells, and
+  every staged fixed-layout replacement before the same allocation-free
+  publication boundary. Vertical merge preserves its zero-row no-op, rejects
+  malformed or duplicate cell-property, grid-span, and vertical-merge geometry,
+  and validates the existing continuation chain, new targets, and every staged
+  ``w:vMerge`` before retiring target contents or original properties.
+  Pre-publication failures restore the original XML and inserted-node state,
+  while structural ``std::bad_alloc`` failures roll back and preserve the
+  existing exception contract. The focused Windows/MSVC structure and
+  XML-handle tests pass for this checkpoint. Cell append additionally rejects
+  duplicate table, grid, cell-property, and grid-span geometry before adding an
+  unpublished cell or row, validates and retires the staged table layout before
+  its allocation-free commit, and preserves existing table/row/cell/text
+  handles on success or rejection.
+- Make the table-cell property PugiXML allocation-failure fixtures reserve a
+  large target ``w:tcPr`` value. The fail-Nth sweeps now exercise an actual
+  PugiXML page allocation on Clang instead of failing their baseline when an
+  existing parser page has enough spare capacity for a small property clone.
+- ``Document`` move operations now use library-defined handle-invalidation
+  semantics while preserving the 1.13 object layout and the existing
+  ``noexcept`` move-construction and move-assignment traits. The additional
+  relationship and validation state is stored in a sidecar owned through the
+  existing opaque handle-lifetime state, so this fix does not require binary
+  consumers to rebuild solely because of a ``Document`` layout change.
+- CLI paragraph, header, and footer inspection now consumes the already loaded
+  ``Document`` snapshot instead of reopening and reparsing the DOCX archive.
+  ``paragraph_inspection_options`` lets callers explicitly skip lazy numbering
+  metadata when only the in-memory paragraph snapshot is required. The new
+  option-taking entry points use the distinct ``*_with_options`` names, keeping
+  the original member-function names unambiguous for existing source that takes
+  their addresses.
+- ``archive_limits`` remains the original five-field public aggregate: entry
+  count, XML-part bytes, binary-part bytes, total uncompressed bytes, and
+  compression ratio. The 64 MiB central-directory, 511-byte physical entry-name,
+  and 8 MiB total entry-name limits are fixed internal safety defaults, avoiding
+  a public aggregate or ``Document`` layout change.
+- External-image metadata, type, open, and limit failures now have dedicated
+  ``document_errc`` values. The new enumerators are appended after all existing
+  values, preserving their numeric values and the v1.13 binary calling contract.
+- Allocation-failure tests now build as dedicated opt-in executables instead of
+  sharing ordinary regression binaries. Windows builds reject allocation-fault,
+  sanitizer, and fuzz configurations; their regular CTest commands disable
+  debugger breaks so an unexpected assertion is reported as a test failure
+  rather than an interactive dialog. Fault injection remains available on
+  Linux/WSL through ``FEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=ON``.
+  ZIP/finalize/sync failure cases are excluded from ordinary Windows binaries,
+  and the Windows-only locked-target replacement scenario now requires the
+  explicit ``FEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=ON`` opt-in.
+- Read-only ZIP handles and ``zip_entry_read`` buffers now use RAII throughout
+  eager open, lazy part loading, image/template access, and save-time source
+  verification. A ``std::bad_alloc`` therefore cannot leak an archive or entry
+  buffer. ``save_as()`` also owns its temporary stream, ZIP writer, and sibling
+  temporary path as one transaction: allocation failure is reported as
+  ``std::errc::not_enough_memory``, the original target remains unchanged before
+  replacement, temporary files are removed, and the same ``Document`` can be
+  retried. Parent-directory state and post-replacement diagnostics are prepared
+  without a fallible allocation after publication, preventing a successful
+  replacement from being misreported as OOM. Linux/WSL fail-Nth coverage checks
+  every standard-allocation point observed in this save path.
+- ``save_as()`` now decides whether it replaces the opened source by resolving
+  the actual directory-entry name. Windows respects per-directory case
+  sensitivity and expands case, 8.3, and Win32 aliases without conflating
+  distinct hard-link names; POSIX resolves symlinked parent directories while
+  likewise keeping hard-link entries separate. Source-consistency checks and
+  snapshot refreshes therefore follow the pathname that atomic replacement
+  actually publishes.
+- Windows multi-config generators now create one runtime-DLL copy script per
+  configuration, preventing Debug, Release, RelWithDebInfo, and MinSizeRel from
+  trying to generate different content at the same path.
+- Resolve core transitional WordprocessingML parts by expanded QName and
+  atomically canonicalize default, alternate, and valid UTF-8 prefixes (including
+  Chinese prefixes) to the internal ``w:`` spelling. Normal saves always
+  reserialize the main document and active header/footer parts; clean lazy
+  singleton parts remain byte-copyable, while dirty ones serialize canonically.
+  Wrong explicit ``xmlns:w`` bindings, malformed/unbound QNames, duplicate
+  expanded attributes, and bounded-traversal failures now fail closed. A wrong
+  main root is rejected by strict mode or diagnosed by tolerant mode; eager
+  header/footer roots fail both modes, and lazy singleton roots fail on first
+  access. ``commentsExtended`` remains outside this canonicalizer.
+  Allocation failures return ``std::errc::not_enough_memory`` without trying to
+  allocate another detail or entry-name string while handling the error.
+
+### Security
+
+- Treat tolerant DOCX loading as an inspection and explicit-repair workflow,
+  not as permission to edit through malformed relationship parts. When an
+  existing document, header, or footer ``.rels`` part has an invalid root,
+  child namespace, required relationship attribute, duplicate identifier, or
+  ``TargetMode``, relationship-dependent mutations now fail closed with
+  ``invalid_package_structure`` instead of replacing or extending the invalid
+  relationship tree. Dirty malformed relationship DOM is rejected again at
+  save time. Failed content-control image replacement also leaves no partially
+  inserted drawing, media part, Content Types entry, or dirty state. Custom XML
+  synchronization validates its relationship part and matches the exact
+  ``customXmlProps`` relationship type instead of accepting a URI suffix.
+  Valid OPC relationship element names are now resolved by expanded QName, so
+  default-namespace and prefixed ``Relationships``/``Relationship`` forms work
+  across root, document, header/footer, and Custom XML relationship parts.
+  Every loaded ``.rels`` part now receives ECMA-376 MCE preprocessing with only
+  the OPC Relationships namespace configured as understood. A full-tree,
+  iterative syntax pass validates namespace conformance, every MCE directive,
+  every wrapper, and nested ignored or unselected content. Branch selection
+  evaluates ``Choice/@Requires`` in order until the first supported Choice;
+  only the selected branch executes content-semantic ``ProcessContent`` and
+  ``MustUnderstand`` handling. Ignored and unselected content remains
+  syntax-checked but does not execute those semantics. A foreign element's own
+  ``Ignorable``/``ProcessContent`` declarations determine whether it is
+  discarded or unwrapped during semantic preprocessing. A foreign wrapper
+  selected by ``ProcessContent`` also
+  enforces its own ``MustUnderstand`` before the wrapper is removed. Invalid or
+  obsolete MCE fails closed in strict and
+  tolerant modes. Dirty rewrites preserve XML declarations, comments,
+  processing instructions, and valid UTF-8 relationship text/CDATA while
+  serializing only the sanitized selected view.
+  Sanitized output is bounded to 1,000,000 elements and 262,144 attributes, and
+  each element can hoist at most 4,096 effective namespace bindings, preventing
+  ``ProcessContent`` namespace-declaration amplification. Namespace resolution,
+  copying, comparison, context maintenance, sorting, and binding hoists also
+  share a cumulative 64 MiB work budget; exhaustion returns
+  ``archive_limit_exceeded`` without changing the source DOM.
+  Namespace lookup no longer allocates inside ``noexcept`` resolution, and a
+  standard allocation failure during MCE preprocessing is returned as
+  ``std::errc::not_enough_memory`` instead of terminating or escaping the public
+  document-open path. Every eager MCE preprocessing failure is an explicit fatal
+  result in both strict and tolerant modes, so root-relationship OOM cannot be
+  downgraded to a diagnostic or overwritten by a generic structure error.
+  The reserved ``xml`` namespace remains strict on MCE wrappers and package
+  elements, while ``xsi`` now follows the ordinary foreign-namespace rules: it
+  is discarded only when explicitly declared ignorable and otherwise causes a
+  namespace mismatch.
+  Mutations preserve existing prefixes and use the root prefix for new child
+  relationships; ``Id``/``Type``/``Target``/``TargetMode`` remain required to
+  be unqualified attributes. Settings, numbering, and styles attachment now
+  applies the same guard before loading or changing any package state.
+- Resolve ``[Content_Types].xml`` ``Types``/``Default``/``Override`` elements
+  by expanded QName instead of a fixed lexical spelling. Valid prefixed forms
+  can be inspected, mutated, repaired, saved, and reopened while preserving the
+  root prefix. Namespace shadowing or resets, unexpected/nested content, any
+  text or CDATA (including whitespace), and invalid attributes are diagnosed;
+  tolerant loading keeps the original part available for inspection and
+  byte-preserving save, but Content Types-dependent mutations fail closed.
+- Require every external image input to resolve to a regular file and bound it
+  to 256 MiB. Image append, replacement, bookmark, content-control, and
+  ``TemplatePart`` paths reject directories, FIFOs, sockets, devices, and
+  symlinks to non-regular targets before opening them, while preserving
+  symlink-to-regular compatibility. Unsupported extensions fail before size
+  queries, allocation, open, or data reads. Non-throwing metadata checks plus
+  same-handle type validation prevent an ordinary POSIX FIFO substituted by a
+  symlink race from waiting for a writer; this does not promise bounded latency
+  for arbitrary device drivers, FUSE implementations, or network filesystems.
+  Chunked reading and a limit-plus-one probe prevent file-growth races from
+  bypassing the in-memory input limit. Native read errors retain their numeric
+  OS error in diagnostics, and preflight/POSIX ``fstat(EOVERFLOW)`` is treated
+  as an unrepresentable, over-limit input rather than a generic metadata
+  failure.
+- Enforce entry-count and central-directory metadata limits inside miniz before
+  allocating or reading the complete ZIP directory. Physical names retain
+  their raw byte length, so embedded NUL bytes cannot be truncated into a
+  different apparently safe entry name.
+- Reject DOCX archives with unsafe, duplicate, ASCII-case-equivalent, or
+  raw/percent-equivalent physical entry names before extraction. Strict mode
+  requires ASCII package names with uppercase percent escapes; tolerant mode
+  can read valid legacy raw-Unicode names but still rejects logical collisions.
+  Diagnostics and CLI JSON escape malformed/control bytes. Rewrites emit one
+  canonical percent-encoded physical entry, so Chinese, Japanese, emoji, and
+  other Unicode logical part names remain portable across ZIP implementations.
+- Enforce the complete OPC PartName segment contract: RFC 3986 ``pchar``
+  syntax, non-empty/non-dot segments, no dot-terminated segments, and no two
+  parts where one name is derived by appending segments to the other. Content
+  type ``Override`` and ``Default`` declarations are validated and compared by
+  their case-insensitive logical identities in both strict and tolerant modes.
+  Every ``ContentType`` value must also be present, valid UTF-8, and use valid
+  media-type token, parameter, and quoted-string syntax.
+- Apply the XML part size and compression-ratio limits according to a part's
+  semantic relationship, even when an XML relationship target uses a binary
+  extension. Every lazy reopen, Custom XML synchronization, drawing-image
+  extraction, and save-source copy revalidates the complete current ZIP before
+  extraction. Reopened sources are compared with the ordered metadata snapshot
+  captured by ``open()`` (physical/canonical/logical names, CRC32, compressed and
+  uncompressed sizes, directory flag, and order); mismatches return
+  ``source_archive_changed`` before old DOM state can be combined with another
+  package generation. Same-source saves repeat the check immediately before
+  replacement, validate finalized output against the original open limits, and
+  refresh the snapshot only after replacement succeeds. CRC32 is documented as
+  a consistency signal rather than cryptographic authentication, and callers
+  still need external locking for strict multi-writer coordination.
+- Propagate ZIP reader-end/file-close failures instead of committing a lazy
+  result or replacing a save target after the source archive could not be
+  closed cleanly.
+- Replace input-depth-dependent recursive DOCX/XML traversals with iterative
+  preorder or explicit-frame walks, preventing deeply nested package XML from
+  exhausting the native call stack.
+- Destroy normal and compact pugixml subtrees iteratively so deeply nested XML
+  cannot exhaust the native stack during reset, failure cleanup, or document
+  destruction.
+- Reject malformed table geometry above Word's 63-column limit instead of
+  allowing oversized ``gridSpan`` values to reach structural or clone
+  mutations.
+- Reject non-finite or unrepresentable SVG dimensions and checked-arithmetic
+  violations in WebP chunks, TIFF offsets, and floating-image crop conversion.
+
+### Fixed
+
+- Make direct table, row, and cell property updates publish staged
+  WordprocessingML subtrees instead of mutating live `w:tblPr`, `w:trPr`, or
+  `w:tcPr` nodes incrementally. The completed batch covers table width, layout,
+  alignment, indent, spacing, floating position, default margins, style, and
+  border clears; row height, cant-split, and repeated-header set/clear pairs;
+  and cell width, fill, border, margin, vertical-alignment, and text-direction
+  updates. Allocation or checked-XML failure now rolls back the replacement and
+  preserves unrelated XML. Clearing the last nested margin, border, or row
+  property also preserves the established empty-container deletion semantics.
+- Map pugixml ``status_out_of_memory`` consistently to
+  ``std::errc::not_enough_memory`` across eager open, tolerant OPC validation,
+  lazy singleton loads, related parts, OMML fragments, and Custom XML sync.
+  Root relationships and Content Types can no longer turn parser OOM into a
+  recoverable tolerant diagnostic, and Custom XML can no longer silently skip
+  an item for that reason.
+- Replace unchecked pugixml ``reset(source)`` copies in save pruning and package
+  repair with an atomic checked clone. Every node, name, value, and attribute
+  allocation must succeed before the clone is published; clone or repair
+  mutation failure leaves the source DOM and output target unchanged and
+  returns ``std::errc::not_enough_memory``. The checked clone preserves the
+  order and multiplicity of malformed duplicate attributes so structural
+  validation still rejects them instead of accidentally normalizing the input.
+- Make Custom XML data-binding synchronization transactional across the body and
+  all loaded headers and footers. Clone or rewrite allocation failure now leaves
+  the DOM, unsaved edits, dirty state, and existing handles unchanged; a
+  successful non-empty synchronization publishes every isolated copy together
+  and invalidates the retired XML-backed handles, while a zero-update result
+  preserves them.
+- Make style rename, merge, restore, and clean multi-operation refactor batches
+  publish checked work copies of styles, body, loaded headers/footers, document
+  relationships, and Content Types exactly once. A later operation or allocation
+  failure can no longer leave an earlier style/reference rewrite committed or be
+  reported as success after ``pugixml::set_value`` silently failed. Duplicate
+  restore usage hits are rejected before mutation, and successful non-empty
+  operations explicitly retire the previous XML-handle generation.
+- Make settings, numbering, and styles singleton-part attachment transactional
+  across ``word/_rels/document.xml.rels`` and ``[Content_Types].xml``. Both
+  metadata DOMs are structurally validated, checked-cloned, and completely
+  populated before either live DOM or dirty flag is published. Parser, clone,
+  node-name, attribute, or standard allocation failure now returns an explicit
+  error without leaving a relationship, Override, or half-attached part behind;
+  the same ``Document`` can retry the operation safely. A part first attached
+  to an existing source archive is immediately marked dirty, ensuring that a
+  later content-mutation failure cannot save dangling metadata without the new
+  XML part.
+- Make ``import_numbering_catalog(...)`` an all-or-nothing transaction. ID
+  planning, every abstract definition and instance, and the returned summary
+  are completed against a checked clone before singleton metadata or the live
+  numbering DOM is published. Pugixml or standard allocation failure now leaves
+  an existing numbering part byte-preservable, leaves a missing part unattached,
+  reports zero imported items, and allows a safe retry on the same ``Document``.
+- Make direct paragraph and paragraph-style numbering mutations all-or-nothing
+  across their target XML, numbering/styles DOMs, document relationships,
+  Content Types, part-presence flags, and dirty state. Foreign or stale
+  ``Paragraph`` handles are rejected before either document is changed, and
+  every validation, identifier-planning, attachment, clone, or allocation
+  failure preserves all published state and existing handles. Setting numbering
+  canonicalizes duplicate direct ``w:numPr`` children into one schema-ordered
+  element; clearing removes every direct duplicate and treats an already-clear
+  target as a true no-op. In particular, clearing the implicit ``Normal`` style
+  in a package without a styles part no longer creates ``word/styles.xml``, a
+  relationship, a Content Types Override, or dirty state. Successful direct
+  paragraph numbering operations replace only ``w:pPr`` and preserve existing
+  ``Paragraph`` and ``Run`` handles.
+- Make direct paragraph and run style mutations reject foreign or stale handles
+  before touching either package. Setters now prepare the property subtree and
+  styles-part attachment as checked work, publish only after every fallible
+  step succeeds, preserve the same live handle for retry after allocation
+  failure, and canonicalize duplicate direct ``w:pStyle``/``w:rStyle`` children
+  to one schema-first node. Clear operations remove every duplicate style child
+  from the direct property container.
+- Resolve OPC relationship targets as platform-independent UTF-8 package paths
+  instead of host filesystem paths. Nested header/footer parts, their
+  relationship parts, and image targets now preserve Chinese, Japanese, emoji,
+  spaces, and relative ``..`` segments consistently on Windows and POSIX.
+- Preserve legal encoded ``#``/``?`` bytes and colon-bearing package segments,
+  while refusing to normalize invalid internal output names during relationship
+  emission. Image allocation, section-related parts, and semantic diff now use
+  canonical package-part identity instead of raw path spelling.
+- Validate POSIX CLI ``argv`` as UTF-8 and reject invalid Windows UTF-16
+  surrogate sequences while preserving valid empty, Chinese, Japanese, and
+  emoji arguments.
+- Preserve numbering lookup failures from ``Document`` and ``TemplatePart``
+  paragraph inspection instead of clearing the error and returning metadata
+  that appeared complete.
+- Fixed ``Document`` move construction and assignment so transferred internal
+  handles are rebound, handles previously obtained from either object are
+  invalidated, and moved-from documents remain safely reusable.
+- Made section reordering a checked clone/build/publish transaction. Allocation
+  failure now preserves the original body, settings metadata, dirty state, and
+  every existing handle; success invalidates handles into the rebuilt body
+  without invalidating unrelated header or footer handles. Reordering no longer
+  removes unrelated ``w:titlePg`` or ``w:evenAndOddHeaders`` metadata.
+- Made physical header/footer part removal transactional across the main
+  document, removed-entry bookkeeping, and part ownership while preserving
+  user-owned first-page/even-page settings metadata. Any
+  failure preserves the complete published package and existing handles; a
+  successful removal advances the document generation before destroying the
+  retired part, so no previously returned XML-backed handle can access freed
+  storage.
+- Made text replacement in an existing resolved header/footer part build and
+  validate the complete replacement in isolation before publishing it. Standard
+  or pugixml allocation failure leaves the part and all handles unchanged;
+  success retires only the replaced part subtree, while body and unrelated
+  story handles remain valid.
+- Made section append, insert, and removal prepare the complete body in an
+  isolated checked DOM. Allocation failure no longer leaves a partial section
+  break, and successful structural publication invalidates only body-backed
+  handles while preserving loaded header/footer handles. Clearing copied
+  references no longer removes the section-local ``w:titlePg`` marker, while
+  removing a final section still keeps the surviving previous section's own
+  page-mode semantics.
+- Made header/footer creation, assignment, reference copy/removal, and part
+  reordering transactional. Failed edits preserve document XML, relationships,
+  Content Types, settings, dirty state, physical part order, and all existing
+  handles. Successful non-structural reference edits and part reorders preserve
+  public story handles. Copying or removing references no longer globally
+  deletes caller-owned ``w:titlePg`` or ``w:evenAndOddHeaders`` metadata, and
+  malformed or duplicate source references are rejected instead of propagated.
+  Reference-only removal no longer requires a mutable document relationships
+  part, allowing tolerant repair workflows to remove a bad section reference
+  while byte-preserving the malformed ``document.xml.rels`` part.
+- Made ``set_section_page_setup(...)`` publish only the prepared ``w:sectPr``
+  subtree after all checked allocations succeed. Failure leaves the complete
+  document unchanged, while success preserves existing body, table, and
+  header/footer handles and unrelated section metadata.
+- Fixed review-note and tracked-change identifier allocation at signed 64-bit
+  exhaustion, including multi-ID operations that must reserve identifiers
+  before mutating XML and tracked-change scans across every applicable document
+  story.
+- Fixed existing-note/comment edits so missing, out-of-range, or structurally
+  unusable targets do not create review parts, relationships, Content Types
+  entries, or dirty package state before failing.
+- Fixed numbering mutations so ``abstractNumId`` and ``numId`` exhaustion is
+  reported accurately and both identifiers are reserved before any definition,
+  instance, style, or paragraph mutation.
+- Fixed table creation, row/cell edits, merge/unmerge, and row/table clone
+  operations so rejected or invalid 64-column geometry leaves XML unchanged.
+- Fixed Custom XML archive enumeration/read/close error propagation and applied
+  semantic XML limits to item, properties, and relationships parts regardless
+  of their extension.
+- Fixed strict run/style font-size parsing and writing for signs, trailing text,
+  zero, NaN/infinity, and unsigned half-point overflow without partial DOM
+  mutation.
+
+## [1.13.3] - 2026-07-15
+
+### Security
+
+- Hardened POSIX document saves so transaction files remain mode `0600` while
+  document bytes are being written. Existing destination permissions are
+  preserved, while new files receive the process `umask` result only before
+  synchronization and atomic replacement.
+- Fixed undefined signed arithmetic in the vendored ZIP PKWARE keystream
+  calculation and released ZIP entry state on failed output paths.
+
 ### Added
 
+- Added optional ASan/UBSan instrumentation and Clang libFuzzer targets for
+  untrusted DOCX packages and CLI JSON values, with seed corpora and a dedicated
+  GitHub Actions workflow.
+- Added a frozen `v1.13.2` source-consumer check and exported
+  `FeatherDoc_ABI_VERSION=1.13`. Linux and macOS shared libraries now encode the
+  `1.13` ABI line in their `SOVERSION`.
+- Extended install-consumer coverage to save and reopen documents below paths
+  containing Chinese, Japanese, emoji, and spaces.
+
+### Fixed
+
+- Fixed atomic saves so the temporary archive is flushed and synchronized
+  before replacement, then the parent directory is synchronized after
+  replacement on POSIX systems.
+- Added distinct errors for pre-replacement file synchronization failure and
+  post-replacement directory synchronization failure. Callers can now tell
+  whether the original file was preserved or the new file is already visible
+  but crash durability could not be confirmed.
+- Fixed output-entry cleanup after ZIP write or close failures so retries do
+  not retain entry resources and failed saves leave no transaction files.
+- Fixed the release metadata documentation checker so the repository's current
+  bilingual Sphinx index is validated independently from excluded internal
+  governance documents, with both contracts reported in its JSON summary.
+
+## [1.13.2] - 2026-07-14
+
+### Fixed
+
+- Fixed the standard Word visual smoke document so its result cell no longer
+  renders the existing `Completed` text twice before the explanatory line.
+- Fixed screenshot evidence validation so sparse Word pages are checked across
+  every pixel instead of a fixed sample grid, while genuinely blank pages are
+  still rejected.
+- Fixed the release install smoke wrapper so the expected rejection of an
+  unavailable `Pdf` component is reported as diagnostic output instead of a
+  fatal PowerShell native-command error. Core consumption and Unicode DOCX
+  output remain required before the smoke test passes.
+- Fixed the Word visual release gate on Windows hosts where Python is available
+  only through `py.exe`. All Word visual scripts now share one validated Python
+  resolver with `python`, `python3`, `py`, and
+  `FEATHERDOC_PYTHON_EXECUTABLE` support instead of carrying 49 divergent
+  command-name checks.
+- Fixed material-safety CTest shards so their explicit timeout matches the
+  release-candidate timeout budget. A successful shard that takes slightly
+  longer than 60 seconds is no longer reported as a false release failure.
+- Fixed the content-control data-binding governance regressions to use their
+  measured Windows timeout budget. Successful end-to-end CLI scenarios are no
+  longer discarded at the previous 60-second boundary.
+- Fixed the table-style quality visual regression to use a dedicated
+  three-minute Windows budget. Its completed DOCX repair and review evidence is
+  no longer discarded at the generic two-minute candidate boundary.
+- Fixed the Word visual release gate so persisted screenshot-backed task
+  verdicts are consolidated before the gate completes. A fully reviewed gate
+  now reports `pass` instead of retaining the initialization-only
+  `pending_manual_review` value.
+
+## [1.13.1] - 2026-07-13
+
+### Added
+
+- Added a relocatable installed `Pdf` CMake component when FreeType, ZLIB,
+  PNG, and enabled HarfBuzz support come from discoverable packages, including
+  an external-consumer smoke test that writes to a Unicode Windows path.
+
+### Changed
+
+- Isolated optional PDF targets, headers, CLI sources, and dependencies from
+  the default Word/Core package. Core-only consumers do not discover PDF
+  dependencies even when the installed package also contains `Pdf`.
+- Removed machine-specific vcpkg paths and cross-triplet dependency scanning
+  from PDF configuration. Build-tree fallback dependencies no longer make the
+  PDF writer appear as an installable component.
+
+### Fixed
+
+- Fixed the GitHub release transaction so CI-artifact manifests are audited
+  under their explicit skipped-visual boundary before a draft is published.
+  A failed manifest audit now leaves the release in draft state.
+
+## [1.13.0] - 2026-07-12
+
+### Breaking Changes
+
+- Removed the public raw-XML constructors and node rebinding setters from
+  `Run`, `Paragraph`, `Table`, `TableRow`, and `TableCell`. Callers must now
+  obtain these handles from `Document`, `TemplatePart`, or their parent handle.
+  Although this release remains in the 1.x series, this is an intentional
+  source-compatibility break that permanently removes the unsafe legacy API.
+- Changed no-argument `Document::open()` to perform strict OPC package
+  validation by default. Historical damaged packages must explicitly opt into
+  tolerant validation through `document_open_options`.
+
+### Security
+
+- Added bounded DOCX archive processing with limits for entry count, per-entry
+  XML and binary sizes, total uncompressed size, and compression ratio.
+- Added bounded UTF-8 CLI input handling with a 16 MiB file limit and a maximum
+  JSON nesting depth of 128.
+- Replaced permissive integer parsing and overflowing identifier allocation
+  with strict range-checked parsing and structured exhaustion errors.
+
+### Changed
+
+- Replaced non-owning raw XML handles with generation- and node-epoch-tracked
+  handles. Package reloads invalidate all previous handles, while subtree
+  removal invalidates only handles that refer to removed nodes.
+- Split the table, table-row, table-cell, and table-property implementations
+  from stitched `.inc` sources into independent translation units.
+- Added a shared CLI core library so the executable and CLI tests reuse parsing,
+  validation, and output implementations instead of compiling duplicate copies.
+- Moved XML handle lifetime bookkeeping behind an implementation boundary to
+  reduce MSVC COFF section pressure and make parallel links deterministic.
+
+### Added
+
+- Added strict and tolerant package validation modes, configurable archive
+  limits, structured DOCX package errors, and package-repair CLI support.
+- Added lifecycle, malformed-package, archive-limit, numeric-boundary, atomic
+  save, Unicode-path, CLI UTF-8, and install-consumer regression coverage.
 - Added planned project-template business corpus registration actions to the
   project-template smoke manifest check JSON/text reports so contract and
   tender template blockers remain machine-readable without reparsing the
@@ -34,6 +562,15 @@ performance.
 
 ### Fixed
 
+- Fixed DOCX saves so they use unique same-directory temporary files, verify ZIP
+  finalization and truncation, and atomically replace the destination without
+  deleting user-owned `.tmp` or `.bak` files.
+- Fixed Windows paths containing Chinese, Japanese, emoji, spaces, or long path
+  components by consistently converting filesystem paths to UTF-8 before calls
+  into miniz and CLI serialization.
+- Fixed stale document handles after reopen, repair, subtree deletion, and
+  document destruction so they fail safely instead of retaining dangling
+  `pugi::xml_node` references.
 - Fixed DOCX functional smoke readiness so default runs can fall back to the
   current release asset visual gallery and release evidence ZIPs when legacy
   Word visual smoke directories are missing or stale, while still preserving

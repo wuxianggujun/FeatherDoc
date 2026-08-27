@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -25,17 +26,21 @@ struct section_body_snapshot final {
                                           const char *reference_name,
                                           std::string_view xml_reference_type)
     -> pugi::xml_node;
-[[nodiscard]] auto read_on_off_value(pugi::xml_node node) -> std::optional<bool>;
-[[nodiscard]] auto append_section_reference(pugi::xml_node section_properties,
-                                            const char *reference_name)
+[[nodiscard]] auto section_properties_at(pugi::xml_node body,
+                                         std::size_t section_index)
     -> pugi::xml_node;
+enum class section_document_publish_result {
+    success,
+    requires_full_document_publish,
+    failure,
+};
+[[nodiscard]] auto publish_checked_section_document_update(
+    pugi::xml_document &live_document,
+    const pugi::xml_document &prepared_document, std::size_t section_index,
+    bool document_changed) -> section_document_publish_result;
+[[nodiscard]] auto read_on_off_value(pugi::xml_node node) -> std::optional<bool>;
 void clear_section_header_footer_references(pugi::xml_node section_properties);
 void remove_empty_paragraph(pugi::xml_node paragraph);
-[[nodiscard]] auto ensure_on_off_node_enabled(pugi::xml_node parent,
-                                              const char *child_name)
-    -> pugi::xml_node;
-[[nodiscard]] auto ensure_section_title_page_node(pugi::xml_node section_properties)
-    -> pugi::xml_node;
 [[nodiscard]] auto ensure_section_property_node(pugi::xml_node section_properties,
                                                 const char *child_name)
     -> pugi::xml_node;
@@ -57,10 +62,6 @@ void remove_empty_node(pugi::xml_node node);
 [[nodiscard]] auto section_has_reference_type(pugi::xml_node section_properties,
                                               const char *reference_name,
                                               std::string_view xml_reference_type)
-    -> bool;
-[[nodiscard]] auto document_has_reference_type(const pugi::xml_document &document,
-                                               const char *reference_name,
-                                               std::string_view xml_reference_type)
     -> bool;
 
 } // namespace featherdoc::detail

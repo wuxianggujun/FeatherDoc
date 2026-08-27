@@ -16,7 +16,7 @@ auto run_check_table_style_look_command(
         return 2;
     }
 
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = path_from_cli_utf8(arguments[1]);
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
     }
@@ -49,7 +49,7 @@ auto run_repair_table_style_look_command(
         return 2;
     }
 
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = path_from_cli_utf8(arguments[1]);
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
     }

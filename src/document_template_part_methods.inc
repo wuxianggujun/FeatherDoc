@@ -2,7 +2,11 @@ TemplatePart::TemplatePart() = default;
 
 TemplatePart::TemplatePart(Document *owner, pugi::xml_document *xml_document,
                            document_error_info *last_error_info, std::string entry_name)
-    : owner(owner), xml_document(xml_document), last_error_info(last_error_info),
+    : owner(owner, owner != nullptr ? owner->xml_handle_lifetime : nullptr),
+      xml_document(xml_document,
+                   owner != nullptr ? owner->xml_handle_lifetime : nullptr),
+      last_error_info(last_error_info,
+                      owner != nullptr ? owner->xml_handle_lifetime : nullptr),
       entry_name_storage(std::move(entry_name)) {}
 
 TemplatePart::operator bool() const noexcept { return this->xml_document != nullptr; }
@@ -22,7 +26,7 @@ Paragraph TemplatePart::paragraphs() {
         return {};
     }
 
-    const auto container = template_part_block_container(*this->xml_document);
+    auto container = template_part_block_container(*this->xml_document);
     if (container == pugi::xml_node{}) {
         set_last_error(*this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -32,7 +36,7 @@ Paragraph TemplatePart::paragraphs() {
     }
 
     this->last_error_info->clear();
-    return {container, container.child("w:p")};
+    return {this->owner->tracked_node(container), container.child("w:p")};
 }
 
 Paragraph TemplatePart::append_paragraph(const std::string &text,
@@ -47,7 +51,7 @@ Paragraph TemplatePart::append_paragraph(const std::string &text,
         return {};
     }
 
-    const auto container = template_part_block_container(*this->xml_document);
+    auto container = template_part_block_container(*this->xml_document);
     if (container == pugi::xml_node{}) {
         set_last_error(*this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -58,19 +62,17 @@ Paragraph TemplatePart::append_paragraph(const std::string &text,
 
     const auto paragraph_node = detail::append_paragraph_node(container);
     if (paragraph_node == pugi::xml_node{}) {
-        set_last_error(*this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to append paragraph to template part",
-                       this->entry_name_storage);
+        (void)detail::set_xml_document_mutation_allocation_failure(
+            *this->last_error_info, this->entry_name_storage);
         return {};
     }
 
-    auto paragraph = Paragraph(container, paragraph_node);
+    auto paragraph =
+        Paragraph(this->owner->tracked_node(container), paragraph_node);
     if (!text.empty() && !paragraph.add_run(text, formatting).has_next()) {
-        set_last_error(*this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to append paragraph text to template part",
-                       this->entry_name_storage);
+        (void)container.remove_child(paragraph_node);
+        (void)detail::set_xml_document_mutation_allocation_failure(
+            *this->last_error_info, this->entry_name_storage);
         return {};
     }
 

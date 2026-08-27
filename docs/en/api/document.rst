@@ -58,6 +58,17 @@ Success And Failure Semantics
        are the next editing entry point.
      - Check handle-specific validity rules before assuming the target exists.
 
+For mutating ``bool`` APIs, ``false`` is a combined “no mutation completed”
+signal rather than a structured error code. It can mean an invalid target, an
+inapplicable argument, or that the requested state was already present. Use
+``last_error()`` to distinguish a failure only when that method explicitly
+documents that it sets the error; do not attribute a stale error from an older
+operation to the current ``false`` result. Callers that need an unambiguous
+outcome should validate ``is_open()``, handle ``valid()``, and the current
+target state, then inspect the state after the mutation. The ``1.13.x`` line
+keeps these signatures source-compatible; a future breaking API may introduce
+a uniform structured mutation result.
+
 Short C++ Example
 -----------------
 
@@ -91,6 +102,10 @@ written into the resolved WordprocessingML target.
    * - ``explicit Document(std::filesystem::path path)``
      - ``path``: source or target ``.docx`` path.
      - Creates a handle; no package is loaded until ``open()``.
+   * - ``Document(Document &&other) noexcept`` / ``operator=(Document &&other) noexcept``
+     - ``other``: source document object.
+     - Transfer package state, invalidate handles from both objects, and leave
+       ``other`` closed but reusable.
    * - ``std::error_code create_empty()``
      - None.
      - Empty error code means a new package was initialized.
@@ -148,6 +163,10 @@ Open, create, save, and inspect the current package state.
      - ``path``: source or target ``.docx`` path.
      - ``Document``
      - Create a handle bound to a file path.
+   * - ``Document(Document &&other) noexcept`` / ``operator=(Document &&other) noexcept``
+     - ``other``: source document object.
+     - ``Document`` / ``Document &``
+     - Transfer package state; the source becomes closed and may be reused.
    * - ``create_empty()``
      - None.
      - ``std::error_code``
@@ -163,7 +182,21 @@ Open, create, save, and inspect the current package state.
    * - ``open()``
      - None.
      - ``std::error_code``
-     - Load the current ``.docx`` package.
+     - Load the current ``.docx`` package with strict OPC validation.
+   * - ``open(const document_open_options &options)``
+     - ``options``: validation mode and ZIP resource limits.
+     - ``std::error_code``
+     - Load with the requested policy; use ``tolerant`` only for repair input.
+   * - ``package_diagnostics() const noexcept``
+     - None.
+     - ``const std::vector<package_diagnostic> &``
+     - Return package issues, severity, entry names, and repairability recorded
+       during tolerant open.
+   * - ``repair_package(const document_repair_options &options = {})``
+     - ``options``: deterministic issue categories that may be repaired.
+     - ``std::optional<package_repair_report>``
+     - Repair package state transactionally; no partial mutation occurs when an
+       unsafe or disabled issue is present.
    * - ``save() const``
      - None.
      - ``std::error_code``
@@ -194,6 +227,385 @@ Open, create, save, and inspect the current package state.
      - ``std::optional<bool>``
      - Inspect the update-fields-on-open setting; empty means the setting could
        not be read.
+
+Path Binding And UTF-8
+----------------------
+
+Filesystem paths enter through ``std::filesystem::path``. Windows uses wide
+system calls internally, while paths passed to the ZIP layer, error details,
+and CLI JSON are converted to UTF-8. Chinese, Japanese, emoji, spaces, and
+long-path-enabled names therefore never pass through the system ANSI code
+page. Source files, documentation, CLI stdout/stderr, and JSON are UTF-8, and
+MSVC builds keep ``/utf-8`` enabled.
+
+On a successful ``open()``, FeatherDoc resolves the source against the current
+working directory and freezes that absolute I/O path. Later lazy loads of
+images, styles, numbering, headers, footers, and other parts, as well as source
+archive reopens during ``save()``, use the frozen path even if the process
+changes its current working directory. For source compatibility, ``path()``
+still returns the spelling supplied by the caller. Each
+``save_as(relative_path)`` instead resolves its output against the current
+working directory at call time; it does not change ``path()`` or the frozen
+source-archive path.
+
+Save Transaction And Durability
+-------------------------------
+
+``save()`` and ``save_as()`` exclusively create a unique sibling temporary
+file; fixed ``.tmp`` or ``.bak`` names are never used. After ZIP finalization,
+the temporary file is flushed and synchronized before an atomic same-filesystem
+replacement. POSIX then synchronizes the parent directory; Windows uses
+write-through replacement APIs. On POSIX, the temporary remains mode ``0600``
+while data is written. Replacing an existing target preserves its mode bits,
+while a new target receives permissions derived from the process ``umask``.
+
+The failure boundary is explicit:
+
+* ``output_archive_open_failed``, entry write errors,
+  ``output_archive_finalize_failed``, ``output_file_sync_failed``,
+  ``package_repair_validation_failed``, and ``output_replace_failed`` occur
+  before replacement completes, so the original target remains unchanged.
+* ``output_directory_sync_failed_after_replace`` is returned only after atomic
+  replacement succeeded but POSIX parent-directory durability could not be
+  confirmed. The new target is already visible and ``last_error().detail``
+  states that fact. Reopen and verify the target instead of assuming that the
+  old file remains.
+* A successful return means ZIP finalization, file synchronization, and the
+  platform replacement completed; on platforms that support directory
+  synchronization, it also confirms the directory entry was synchronized.
+
+Save-time pruning and package repair never use pugixml's unchecked
+``reset(source)`` copy operation. FeatherDoc builds a checked clone in an
+isolated DOM, verifies every node, name, value, and attribute allocation, and
+publishes it only after the clone is complete. Clone or repair-mutation
+allocation failure returns ``std::errc::not_enough_memory`` before a partial DOM
+can replace either the in-memory package state or the target file.
+
+All archive readers, entry buffers, the temporary output stream, and the ZIP
+writer are owned by RAII guards. A standard allocation failure before atomic
+replacement therefore closes every archive resource, removes the unique
+temporary file, leaves an existing target byte-for-byte unchanged, and permits
+the same ``Document`` instance to retry. The post-replacement durability path
+does not construct new path or diagnostic strings, so a completed replacement
+cannot later be reported as an allocation failure.
+
+Open Validation And Resource Limits
+-----------------------------------
+
+The parameterless ``open()`` uses the default ``document_open_options``. The
+default is ``package_validation_mode::strict`` and requires valid
+``[Content_Types].xml``, root relationships, ``word/document.xml``, and a
+``w:document/w:body`` structure. Callers repairing known legacy damage must
+explicitly select ``package_validation_mode::tolerant``. Tolerant validation
+does not disable archive resource limits and never silently repairs the input.
+XML parser allocation failure is an operational failure, not legacy-package
+damage: every eager and lazy package XML parse fails closed with
+``std::errc::not_enough_memory`` in both modes. It is never converted into a
+tolerant diagnostic or skipped Custom XML item.
+Both modes reject missing or malformed ``Default/@ContentType`` and
+``Override/@ContentType`` media types because their interpretation is not safe
+to guess.
+Inspect ``package_diagnostics()``, call ``repair_package()`` explicitly, and
+write the result to a new file with ``save_as()``.
+
+Tolerant mode is an inspection and explicit-repair boundary, not a general
+editing compatibility mode. A genuinely missing relationship part may be
+created by an API that owns that relationship, but an existing
+``word/_rels/document.xml.rels`` or header/footer ``.rels`` part whose root name
+or relationship child structure is invalid is never reinitialized implicitly.
+The validator rejects namespace resets, unknown or nested elements, missing
+``Id``/``Type``/``Target``, duplicate identifiers, and invalid ``TargetMode``.
+Element names are matched by expanded QName: both the default-namespace form
+and a valid namespace prefix are accepted for ``Relationships`` and
+``Relationship``. Existing child prefixes are preserved, and newly appended
+relationships use the root element's prefix. Relationship attributes remain
+unqualified; a prefixed ``Id``, ``Type``, ``Target``, or ``TargetMode`` does not
+substitute for the required OPC attribute.
+
+Every loaded ``.rels`` part is Markup Compatibility and Extensibility (MCE)
+preprocessed before its OPC schema is inspected. This preprocessing configuration
+understands only the OPC Relationships namespace and has no additional markup
+configuration namespaces. ``mc:AlternateContent`` tests ``Choice/@Requires`` in
+document order until the first supported Choice is found. Namespace
+well-formedness and MCE syntax conformance are checked across the complete XML
+tree, including every Choice/Fallback wrapper, every directive and ``Requires``
+list, and content that will later be ignored or left unselected. Only the
+selected Choice or Fallback enters content-semantic preprocessing; ignored and
+unselected content does not execute its ``ProcessContent`` or enforce its
+``MustUnderstand`` semantics. A foreign element's own ``Ignorable`` and
+``ProcessContent`` declarations participate in deciding whether that element
+is discarded or unwrapped during the semantic pass. A foreign wrapper selected
+by ``ProcessContent`` is not completely ignored: its own ``MustUnderstand`` is
+enforced before the wrapper is removed. Unknown
+``mc:MustUnderstand`` requirements, invalid MCE
+syntax, obsolete ``Preserve*`` directives, and non-ignorable extension markup
+fail closed in both strict and
+tolerant modes with ``mce_mismatch`` or ``invalid_mce_markup``.
+
+An unchanged source relationship entry can still be copied byte-for-byte. Once
+that relationship part becomes dirty, FeatherDoc writes the sanitized selected
+view: ignored content, unselected branches, and MCE control attributes are
+removed. XML declarations, comments, processing instructions, and the OPC
+``Relationship`` simple text/CDATA content are retained, including valid UTF-8
+Chinese and other Unicode text.
+
+Any relationship-dependent mutation fails closed with
+``document_errc::invalid_package_structure``. This includes hyperlink and image
+relationships, singleton-part attachment, section header/footer relationship
+edits, and content-control image replacement. The failure occurs before the
+library commits related content XML, media entries, Content Types changes, or
+dirty state. A subsequent save therefore does not replace the original invalid
+``.rels`` relationship tree; dirty malformed relationship DOM is also rejected
+by the save boundary, and content-control image operations cannot leave a
+half-completed replacement behind. Inspect the diagnostic and use an explicit,
+supported repair before resuming normal edits.
+
+``[Content_Types].xml`` follows the same expanded-QName rule. A default
+namespace or any prefix bound to the OPC Content Types namespace is accepted
+for ``Types``, ``Default``, and ``Override``. Mutations preserve the existing
+root prefix. Namespace shadowing or resets, unexpected or nested elements,
+any text or CDATA (including whitespace), and undeclared attributes are
+structural errors. Tolerant open records ``invalid_content_types_root`` and
+permits inspection or an
+unchanged round trip, but every Content Types-dependent mutation fails closed
+with ``invalid_package_structure`` instead of extending the ambiguous tree.
+
+Attaching the settings, numbering, or styles singleton part prepares checked
+copies of this DOM and ``word/_rels/document.xml.rels`` as one transaction.
+Neither copy, its dirty flag, nor the new part is published until both the
+relationship and matching ``Override`` are complete. An allocation failure
+while preparing this attachment leaves the package unchanged and the same
+``Document`` may retry safely. A part first attached to an existing source
+archive is marked dirty immediately, so a later content-mutation failure cannot
+save the relationship and ``Override`` without also writing the new XML part.
+
+The main document, headers, footers, styles, numbering, settings, footnotes,
+endnotes, and comments are likewise resolved by expanded QName. The
+transitional WordprocessingML namespace may use the default namespace or any
+valid UTF-8 NCName prefix, including a Chinese prefix. On load, FeatherDoc
+atomically canonicalizes WordprocessingML element and attribute names to its
+internal ``w:`` spelling while preserving namespace declarations, foreign
+markup, and prefix-sensitive attribute values such as MCE and data-binding
+QNames. Normal saves always reserialize the main document and active
+header/footer parts with canonical ``w:`` names. Clean, lazily loaded singleton
+parts (styles, numbering, settings, footnotes, endnotes, and comments) remain
+eligible for byte-for-byte source copying; once one becomes dirty, it is
+serialized canonically. An explicit
+``xmlns:w`` binding to any other namespace, an unbound/malformed QName, or a
+duplicate expanded attribute is rejected rather than treated as
+WordprocessingML. For the main document, a wrong root is rejected in strict
+mode and retained only as a structural diagnostic in tolerant mode. Eagerly
+loaded header/footer roots fail ``open()`` in both modes. Lazy singleton roots
+are checked on first access and fail with ``invalid_package_structure`` in both
+modes; opening the package itself may already have succeeded. ``commentsExtended``
+uses another schema and never enters this canonicalizer. The iterative pass is
+bounded to 65,536 levels, 1,000,000 elements, and 1,000,000 attributes.
+
+The public ``archive_limits`` aggregate retains its original five configurable
+members: 10,000 entries, 64 MiB per XML part, 256 MiB per binary part, 512 MiB
+total uncompressed data, and a compression ratio of 200 by default. Raise these
+limits only when the application has a concrete need and a trusted input
+boundary. Separate fixed internal metadata limits cap the central directory at
+64 MiB, one physical entry name at 511 bytes, and all physical entry names at
+8 MiB. These metadata limits are applied before allocating or reading the
+complete central directory and are intentionally not additional
+``archive_limits`` fields.
+
+Relationships MCE sanitization also caps the temporary output DOM at 1,000,000
+elements and 262,144 attributes, with at most 4,096 effective namespace bindings
+hoisted onto any one element. Namespace token resolution, copying, comparisons,
+context push/pop, sorting, and binding hoists share a cumulative 64 MiB work
+budget. These fixed internal bounds stop
+``ProcessContent`` wrapper removal from multiplying inherited namespace
+declarations into an unbounded result. A limit failure leaves the original DOM
+unchanged and is reported as ``archive_limit_exceeded``. Allocation failure is
+reported as ``std::errc::not_enough_memory`` and is never downgraded to a
+tolerant-mode package diagnostic.
+
+Physical entry names must be valid UTF-8 relative package paths and must not
+contain an embedded NUL. Strict mode additionally requires the OPC physical
+name to be canonical ASCII: UTF-8 bytes outside ASCII and spaces are represented
+with uppercase ``%HH`` escapes. Tolerant mode can read a legacy raw-Unicode or
+otherwise non-canonical spelling, but both modes reject traversal, malformed
+escapes, duplicates, ASCII case-equivalent names, and raw/percent-equivalent
+logical parts. Saving writes the canonical percent-encoded physical name. This
+keeps Chinese, Japanese, emoji, and other Unicode logical part names portable
+without depending on a ZIP implementation's raw-name behavior. Internal OPC
+relationship targets are resolved as UTF-8 package paths relative to their
+source part, without conversion through the host file-system code page.
+
+Package PartNames use the RFC 3986 ``pchar`` repertoire and additionally obey
+the OPC segment rules: no empty or all-dot segment, no segment ending in a dot,
+and no two parts where one name is derived from the other by appending path
+segments. Encoded ``#`` and ``?`` bytes (``%23`` and ``%3F``) and a literal
+colon remain valid. Content-type ``Override`` PartNames and ``Default``
+extensions are compared without ASCII case sensitivity, and duplicate logical
+declarations fail closed. ``Default/@Extension`` follows the OPC
+``ST_Extension`` lexical form; encode a Unicode extension as UTF-8 ``%HH``
+bytes rather than raw non-ASCII XML text.
+
+The internal metadata limits do not extend ``archive_limits`` or ``Document``.
+``Document`` keeps its 1.13 object layout by placing the additional package
+validation and relationship bookkeeping in a sidecar owned through the existing
+opaque handle-lifetime state. Its move constructor and move assignment remain
+``noexcept``. Existing five-value ``archive_limits`` aggregate initializers and
+code that depends on the 1.13 ``Document`` layout therefore keep their original
+source and binary mapping.
+
+Every lazy source-archive reopen first revalidates the entire current archive:
+entry count, per-entry and total sizes, compression ratio, UTF-8 path validity,
+canonical form, and uniqueness. The selected semantic XML part is then checked
+against the XML limit according to its relationship and content semantics, not
+only its file-name extension. ``save()`` and ``save_as()`` perform the same
+full-source validation before copying preserved entries. A reader-close failure
+returns ``archive_close_failed`` before a lazy result is committed or a save
+target is replaced.
+
+``open()`` also records an ordered, metadata-only source fingerprint for every
+ZIP entry: physical name, canonical name, logical identity, CRC32, compressed
+and uncompressed sizes, and the directory flag. Lazy reads and save-source
+copying compare the reopened archive against that exact snapshot. Any changed,
+added, removed, or reordered entry normally changes one or more recorded
+fingerprint fields; any such fingerprint difference returns
+``source_archive_changed`` before mixing the loaded DOM with a different
+package generation. When ``save()``
+replaces its own source path, it repeats the comparison immediately before the
+atomic replacement, reopens the finalized output under the limits originally
+used by ``open()``, and refreshes the snapshot only after replacement succeeds.
+An output that exceeds those original limits is rejected before FeatherDoc
+replaces the source path.
+Source-path identity follows directory-entry semantics: Windows resolves
+case/8.3/Win32 aliases while respecting case-sensitive directories, and POSIX
+resolves symlinked parent directories. Distinct hard-link names remain distinct
+on both platforms because atomic replacement publishes one directory entry,
+not every link to the same file object.
+
+This fingerprint is a consistency guard, not an authentication mechanism:
+ZIP CRC32 and central-directory metadata are not cryptographic integrity
+proofs. The final check is path-based and does not lock out another process in
+the small interval between closing the check handle and atomic replacement.
+Applications that require multi-writer coordination must provide an external
+file lock or higher-level version protocol.
+
+Explicit Package Repair
+-----------------------
+
+The default repair policy handles only deterministic changes that preserve
+unknown metadata: create ``w:body`` under a valid ``w:document``, create missing
+root or main-document relationships, and create missing content types or correct
+the main-document MIME. Malformed XML, invalid roots or namespaces, duplicate
+main-document declarations, and external main-document relationships return
+``package_repair_not_possible`` without applying other changes.
+
+After a successful repair, ``save()`` and ``save_as()`` write a sibling temporary
+archive and reopen it with strict validation before replacing the target. A
+failed check returns ``package_repair_validation_failed`` and preserves the
+original. The CLI exposes ``inspect-package <input.docx> --json`` and
+``repair-package <input.docx> --output <repaired.docx> --json``.
+
+Handle Invalidation
+-------------------
+
+``Paragraph``, ``Run``, ``Table``, ``TableRow``, ``TableCell``, and
+``TemplatePart`` are tracked, non-owning handles into the current DOM. Each
+handle records a package generation and a node epoch, so it neither extends
+the ``Document`` lifetime nor dereferences a pugixml node after the package or
+node has been retired.
+
+* ``set_path(...)``, ``open(...)``, and ``create_empty()`` reset the package and
+  invalidate every XML-backed handle previously returned by that ``Document``.
+* Move construction and move assignment invalidate handles previously returned
+  by the source object. Move assignment also invalidates handles from the old
+  destination state. The moved-from ``Document`` is closed and may safely be
+  assigned a path, opened, or initialized with ``create_empty()`` again.
+* A successful ``repair_package(...)`` that changes the package replaces repaired
+  DOM state, so previously retained XML-backed handles must be reacquired.
+* Removing a node invalidates handles to that node and all descendants.
+* ``Paragraph::set_text(...)`` and ``TableCell::set_text(...)`` prepare complete
+  replacement content first. Failure preserves the original XML and every
+  handle. On success, the paragraph or cell and its ancestor handles remain
+  valid, while old paragraph/run handles into replaced content are invalid.
+  ``Run::set_text(...)`` preserves the ``Run`` handle itself on success.
+  Paragraph/run/table append and insertion failures leave no empty placeholder.
+* Table insertion, row/column mutation, merge, and unmerge prepare ``tblGrid``,
+  cell properties, and removal roots as one operation. Failure preserves the
+  whole table and its handles. Success invalidates only removed or replaced
+  subtrees; unremoved table, row, cell, and sibling handles remain valid.
+* ``fill_bookmarks(...)`` and ``apply_bookmark_block_visibility(...)`` treat the
+  full bindings list as one transaction. A duplicate or invalid binding,
+  malformed structure, or allocation failure publishes none of the earlier
+  bindings and preserves the XML, error detail, and handles. Success invalidates
+  only handles into replaced or removed ranges.
+* Footnote, endnote, comment, and revision mutations prepare affected body/story
+  XML, relationships, Content Types, review sidecars, and dirty state as one
+  transaction. Allocation failure returns ``std::errc::not_enough_memory``
+  without publishing partial package state or advancing a handle epoch. On
+  success, old handles into each published body, header, or footer story become
+  invalid and must be reacquired from ``Document``; handles into stories that
+  were not published remain valid.
+* A successful ``remove_header_part(...)`` or ``remove_footer_part(...)``
+  publishes the related section-reference cleanup and destroys a physical XML
+  part. Because ``TemplatePart`` tracks that part at document generation scope,
+  the operation invalidates every XML-backed handle returned by the document;
+  a rejected or failed removal preserves the current generation and its handles.
+* ``move_section(...)`` prepares the reordered body in isolation. A failed
+  reorder preserves the body, settings metadata, and every existing handle; a
+  successful reorder invalidates body-backed handles while unrelated header and
+  footer handles remain valid.
+* ``append_section(...)``, ``insert_section(...)``, and ``remove_section(...)``
+  also prepare structural body changes in isolation. Failure preserves the
+  published body and all handles; success invalidates body-backed handles while
+  loaded header/footer handles remain valid.
+* ``set_section_page_setup(...)`` and non-structural section reference creation,
+  assignment, copy, or removal publish only a fully prepared ``w:sectPr``.
+  Failure preserves all state and handles. On a normally formed package,
+  success preserves body and related-part handles; a tolerant package whose
+  existing ``xmlns:r`` binding is incorrect may require full-document
+  publication when an operation must repair that binding, which invalidates
+  body-backed handles.
+* ``move_header_part(...)`` and ``move_footer_part(...)`` prepare relationship
+  order in isolation and reorder ownership without allocation at publication.
+  Both failure and success preserve existing body and related-part handles.
+* Replacing text in an already resolved header/footer part is transactional.
+  Allocation failure preserves the part and every existing handle; success
+  invalidates handles in that part subtree while body and other-story handles
+  remain valid. Creating a previously missing part also prepares its package
+  relationship and Content Types attachment transactionally and preserves
+  previously returned handles on a normally formed package.
+* ``sync_content_controls_from_custom_xml()`` is transactional across the body
+  and every loaded header/footer. Allocation failure leaves the published DOM,
+  unsaved edits, and existing handles unchanged. A successful synchronization
+  that updates at least one control publishes the isolated DOM copies and
+  invalidates all XML-backed handles; a zero-update result preserves them.
+* ``rename_style(...)``, ``merge_style(...)``, a clean non-empty
+  ``apply_style_refactor(...)`` batch, and a successful mutating
+  ``restore_style_refactor(...)`` publish styles, body, header/footer, and
+  styles-attachment package parts as one transaction. Allocation failure
+  preserves the complete published DOM, dirty state, and existing handles;
+  ``apply_style_refactor(...)`` never commits an earlier operation when a later
+  operation fails. A rejected restore entry does not mutate that entry, although
+  other valid entries in the same restore result may still be applied. Any
+  successful mutation invalidates all XML-backed handles, which must then be
+  reacquired from ``Document``.
+* Rebuilding a table, paragraph, content control, or template-part structure
+  invalidates handles into the replaced subtree.
+
+Use ``valid()`` for ``Paragraph``, ``Run``, ``Table``, ``TableRow``, and
+``TableCell``; use the explicit ``bool`` conversion for ``TemplatePart``.
+Reads through an invalid handle return an empty result, while mutations return
+``false`` or an empty handle. Unaffected sibling subtrees remain valid unless an
+operation above explicitly advances the complete document generation.
+Reacquire affected handles from ``Document`` or an unaffected parent.
+
+Breaking API migration
+~~~~~~~~~~~~~~~~~~~~~~
+
+Older releases exposed two-``pugi::xml_node`` constructors and public
+``set_parent`` / ``set_current`` methods for the XML-backed handle classes.
+Those entry points could not carry lifetime metadata and have been removed.
+Obtain handles only from ``Document``, ``TemplatePart``, or a parent handle;
+application code no longer needs direct pugixml DOM access through the public
+API.
 
 Template Part Access
 --------------------
@@ -245,12 +657,15 @@ Sections And Inspection
      - Purpose
    * - ``append_section(bool inherit_header_footer = true)``
      - ``inherit_header_footer``: copy the previous section references when
-       ``true``.
+       ``true``. When ``false``, no explicit references are copied; under the
+       WordprocessingML model the new section therefore remains linked to the
+       previous section rather than being forced to use blank parts.
      - ``bool``
      - Add a section to the end of the document.
    * - ``insert_section(std::size_t section_index, bool inherit_header_footer = true)``
      - ``section_index``: insertion point. ``inherit_header_footer``: copy
-       surrounding header/footer references when ``true``.
+       surrounding header/footer references when ``true``. ``false`` leaves
+       the inserted section linked-to-previous through missing local references.
      - ``bool``
      - Insert a section before an existing section.
    * - ``remove_section(std::size_t section_index)``
@@ -274,6 +689,11 @@ Sections And Inspection
      - None.
      - ``sections_inspection_summary``
      - Return section/header/footer inspection data.
+   * - ``inspect_header_parts()`` / ``inspect_footer_parts()``
+     - None.
+     - ``std::vector<related_part_inspection_summary>``
+     - Return each physical related part and the sections/reference kinds that
+       refer to it.
    * - ``inspect_section(std::size_t section_index)``
      - ``section_index``: zero-based section index.
      - ``std::optional<section_inspection_summary>``
@@ -310,11 +730,28 @@ Sections And Inspection
      - None.
      - ``std::vector<body_block_inspection_summary>``
      - Inspect paragraph/table order in the body.
+   * - ``inspect_paragraphs()`` / ``inspect_paragraphs_with_options(const paragraph_inspection_options &options)``
+     - ``options``: controls optional metadata resolution.
+     - ``std::vector<paragraph_inspection_summary>``
+     - Inspect body paragraphs, including raw numbering IDs and optionally
+       resolved numbering-definition metadata.
    * - ``compare_semantic(const Document &other, document_semantic_diff_options options = {}) const``
      - ``other``: document to compare against. ``options``: semantic diff
        toggles.
      - ``std::optional<document_semantic_diff_result>``
      - Compare semantic document content.
+
+``paragraph_inspection_options::resolve_numbering_metadata`` defaults to
+``true``. In that mode, paragraph inspection resolves ``numId`` to its
+numbering definition and propagates a source-reopen or numbering-lookup failure
+through ``last_error()`` instead of returning a partially enriched result. Set
+it to ``false`` when only the raw ``num_id`` and ``level`` are needed and the
+inspection must not trigger numbering-part resolution. ``TemplatePart`` exposes
+the same option through ``inspect_paragraphs_with_options(options)`` and
+``inspect_paragraph_with_options(index, options)`` for body, header, and footer
+parts. Distinct ``*_with_options`` names preserve unambiguous source
+compatibility for existing code that takes the address of the original
+``inspect_paragraphs`` or ``inspect_paragraph`` member.
 
 Template Filling Shortcuts
 --------------------------

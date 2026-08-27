@@ -89,7 +89,14 @@ auto parse_table_position_plan_optional_path(
                                            "' must not be empty",
                                        error_message);
     }
-    value = path_type(std::move(path_text));
+    path_type parsed_path;
+    std::string path_error;
+    if (!parse_cli_path_utf8(path_text, "'" + std::string(member_name) + "'",
+                             parsed_path, path_error)) {
+        return report_json_input_error("table position plan file", index,
+                                       path_error, error_message);
+    }
+    value = std::move(parsed_path);
     return true;
 }
 

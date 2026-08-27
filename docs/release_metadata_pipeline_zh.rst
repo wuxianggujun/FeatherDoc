@@ -334,6 +334,9 @@ rollup summary 与 Markdown 顶部还会输出 ``blocker_source_schema_summary``
 相同的 blocker / warning / action item 来源。
 历史样式合并建议计数字段 ``style_merge_suggestion_count`` 仍保留为机器字段，
 并在文档中写作 ``style_merge_suggestion_count``，避免旧 release 面板丢失该计数。
+当 document skeleton governance 传入 style merge review JSON 时，release 链路还应保留
+``style_merge_manual_review_reason_count``，并继续携带 ``manual_review_reasons`` 中的
+``manual_review_before_apply`` 建议，避免 reviewer 只能看到数量而看不到为什么需要人工复核。
 样式合并恢复审计会写出 ``featherdoc.style_merge_restore_audit.v1``。当
 ``audit_style_merge_restore_plan.ps1`` 发现 restore dry-run issue 时，
 ``release_blockers`` 会保留 ``review_handoff_steps``、``next_handoff_step``、
@@ -361,8 +364,9 @@ schema confidence calibration 和 content-control data-binding governance 的治
 ``warning_count`` 仍然只作为聚合计数使用，reviewer 必须继续读取下面的明细数组。
 其中 document skeleton governance rollup 的重复样式建议会以稳定 warning
 ``document_skeleton.style_merge_suggestions_pending`` 暴露，并保留
-``style_merge_suggestion_count``、``source_schema``、``source_report_display``、
-``source_json_display`` 与 ``open_command``，让 reviewer 能先打开 rollup summary，
+``style_merge_suggestion_count``、``style_merge_manual_review_reason_count``、
+``source_schema``、``source_report_display``、``source_json_display`` 与
+``open_command``，让 reviewer 能先打开 rollup summary，
 再回到单文档 skeleton source 或更窄的 style merge evidence。
 其中 content-control data-binding governance 的 blocker、warning 与 action item 会固定携带
 ``featherdoc.content_control_data_binding_governance_report.v1`` 作为 ``source_schema``，
@@ -423,19 +427,28 @@ recommendation 会同步成 ``action_items`` 并携带重建校准报告的 ``op
 汇总真实业务模板语料覆盖，并暴露 ``missing_source_metadata_count``、
 ``missing_project_id_count``、``missing_template_name_count`` 与
 ``missing_summary_json_count``，同时暴露
-``missing_business_document_type_count``。如果候选缺少项目、模板或来源 summary，报告会生成
+``missing_business_document_type_count``、``missing_corpus_role_count`` 与
+``mismatched_corpus_metadata_count``。如果候选缺少项目、模板或来源 summary，报告会生成
 ``schema_patch_confidence_calibration.missing_business_template_source_metadata`` warning，
 并把 ``add_business_template_source_metadata`` 同步为 action item；如果候选缺少
 ``business_document_type``，报告会生成
 ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning，
-并把 ``add_business_template_document_type_metadata`` 同步为 action item；这类问题不直接阻断
-发布，但 reviewer 不能把缺来源或缺业务文档类型的语料用于自动阈值收紧。
+并把 ``add_business_template_document_type_metadata`` 同步为 action item；如果候选缺少
+``corpus_role``，报告会生成
+``schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata`` warning，
+并把 ``add_business_template_corpus_role_metadata`` 同步为 action item；如果候选上的
+``business_document_type`` / ``corpus_role`` 与来源语料条目不一致，报告会生成
+``schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata`` warning，
+并把 ``align_business_template_corpus_metadata`` 同步为 action item；这类问题不直接阻断
+发布，但 reviewer 不能把缺来源、缺业务文档类型、缺语料角色或来源不一致的语料用于自动阈值收紧。
 默认 auto-discovery、release governance pipeline 和 handoff 都会读取
 ``schema-patch-confidence-calibration/summary.json``，因此 reviewer 可以在发布面板
 中直接看到校准 blocker / warning / action item 的 ``source_schema`` 与证据 JSON。
 其中 ``resolve_pending_schema_approvals``、``fix_invalid_approval_records``、
 ``add_explicit_confidence_metadata``、``add_business_template_source_metadata``、
-``add_business_template_document_type_metadata`` 和
+``add_business_template_document_type_metadata``、
+``add_business_template_corpus_role_metadata``、
+``align_business_template_corpus_metadata`` 和
 ``review_schema_patch_confidence_calibration_evidence`` 都映射到固定 reviewer
 runbook：先打开 ``source_report_display`` 与 ``source_json_display``，修复审批或置信度
 证据，再重跑 ``write_schema_patch_confidence_calibration_report.ps1`` 并刷新 release
@@ -445,6 +458,46 @@ governance / release note bundle。
 默认产物为 ``output/numbering-catalog-governance/summary.json``。当 catalog
 与 baseline 的真实文档键不能对齐时，报告会生成稳定阻断项
 ``numbering_catalog_governance.real_corpus_alignment_gap``；同时
+per-document ``real_corpus_alignment`` 会把 ``missing_baseline`` 与
+``missing_exemplar`` 拆成 ``numbering_catalog_governance.missing_baseline`` /
+``numbering_catalog_governance.missing_exemplar`` action item，并保留原始
+``source_schema``、``source_report_display``、``source_json_display`` 和
+``open_command``，让 reviewer 能直接回到 document skeleton rollup 或 manifest
+summary 重建证据。
+当同一个 ``document_key`` 对应多个不同的 ``exemplar_catalog_path`` 时，报告会通过
+``exemplar_conflict_count`` / ``exemplar_conflicts`` 暴露冲突，并生成
+``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 与
+``review_numbering_catalog_exemplar_conflict`` action。该 action 的 ``open_command``
+会调用 ``diff-numbering-catalog`` 比较候选 catalog，防止覆盖率对齐掩盖来源冲突。
+本轮已把该 action 衔接为结构化审阅计划 ``catalog_patch_plan``，其 schema 固定为
+``featherdoc.numbering_catalog_governance_patch_plan.v1``。治理 summary 顶层保留
+``catalog_patch_plan_count`` / ``catalog_patch_plans``，冲突、blocker 与 action 同时
+保留 ``catalog_patch_plan_id`` / ``catalog_patch_plan``，使下游不必从 Markdown 重新
+拼接计划。计划状态固定为 ``awaiting_authoritative_catalog``，并锁定
+``safe_to_apply=false``、``automatic_patch_available=false``、
+``patch_apply_supported=false``、``manual_review_required=true`` 和
+``requires_authoritative_catalog_selection=true``；候选 catalog 使用
+``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+``candidate_catalog_displays`` 表达。
+
+计划的 ``supported_patch_operations`` 只允许 ``upsert_levels``、
+``upsert_overrides``、``remove_overrides``。definition / instance topology 增删（即
+``definition_topology_changes`` 与 ``instance_topology_changes``）会留在
+``unsupported_automatic_changes``，必须由 reviewer 人工处理。计划还固定保留
+``reviewer_inputs``、``patch_counts``、``diff_commands`` / ``review_command``、
+``patch_command_template``、``lint_command_template``、
+``verification_command_template`` 与有序 ``required_steps``。标准 reviewer 链路为：
+选择 authoritative catalog，运行 diff，编写 reviewed patch，运行
+``patch-numbering-catalog``，运行 ``lint-numbering-catalog``，最后用
+``diff-numbering-catalog --fail-on-diff`` 验证预期结果；在此之前不得把计划标记为可自动
+应用。release blocker rollup、release governance pipeline stage 和 handoff 会原样
+透传 ``catalog_patch_plan_id`` / ``catalog_patch_plan``，bundle / checklist 只消费这些
+已审阅来源，不替 reviewer 选择权威源。
+``release_blocker_rollup Markdown``、``release_governance_handoff Markdown`` 与
+``release_governance_pipeline Markdown`` 也会展开同一计划的结构化摘要：明确显示 plan ID、
+schema / status、安全标志、候选 catalog、supported / unsupported operations、review / patch /
+lint / verification 命令，以及按 ``required_steps`` sequence 排序的审阅步骤；Markdown 不会
+直接 dump nested JSON。
 ``numbering_catalog_governance.real_corpus_confidence`` / ``real_corpus_confidence``
 会作为治理指标进入 rollup、handoff、bundle 与
 ``numbering_catalog_real_corpus_confidence`` 打包镜像字段。该指标必须继续携带
@@ -452,6 +505,7 @@ score / level、``catalog_coverage_percent``、``baseline_coverage_percent``、
 ``matched_document_count`` 与 ``penalty_summary``，release metadata 文档检查会
 要求这些路径继续出现在发布说明材料中，防止样式/编号治理退回到只看数量的弱检查。
 其中 ``review_numbering_catalog_real_corpus_alignment``、
+``review_numbering_catalog_exemplar_conflict``、
 ``fix_numbering_catalog_baseline_lint``、
 ``refresh_numbering_catalog_baseline_or_repair_docx``、
 ``review_numbering_catalog_check_issues``、

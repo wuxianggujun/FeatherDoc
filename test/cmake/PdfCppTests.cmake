@@ -4,7 +4,15 @@ if(TARGET FeatherDocPdf)
         pdf_font_resolver
         pdf_font_resolver_tests.cpp
     )
-    target_link_libraries(pdf_font_resolver_tests PRIVATE FeatherDoc::Pdf)
+    # The test exercises FreeType directly through ft2build.h. Keep that
+    # implementation dependency explicit instead of leaking it through the
+    # public FeatherDoc::Pdf interface.
+    target_link_libraries(
+        pdf_font_resolver_tests
+        PRIVATE
+            FeatherDoc::Pdf
+            Freetype::Freetype
+    )
     featherdoc_set_test_labels(pdf_font_resolver core smoke pdf)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_font_resolver PROPERTIES
@@ -64,6 +72,9 @@ if(TARGET FeatherDocPdf)
         )
     endif()
     featherdoc_set_test_labels(pdf_document_adapter_font core smoke pdf)
+    # This multi-file adapter matrix is a measured Windows Debug exception to
+    # the default 60-second PDF test budget.
+    set_tests_properties(pdf_document_adapter_font PROPERTIES TIMEOUT 120)
     if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
         set_tests_properties(pdf_document_adapter_font PROPERTIES
             ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
@@ -111,6 +122,9 @@ if(TARGET FeatherDocPdf)
             )
         endif()
         featherdoc_set_test_labels(pdf_cli_export cli smoke pdf)
+        # This integration executable launches the CLI repeatedly and can
+        # exceed two minutes in Windows Debug builds with real font fallback.
+        set_tests_properties(pdf_cli_export PROPERTIES TIMEOUT 180)
         if(NOT FEATHERDOC_PDF_TEST_ENVIRONMENT STREQUAL "")
             set_tests_properties(pdf_cli_export PROPERTIES
                 ENVIRONMENT "${FEATHERDOC_PDF_TEST_ENVIRONMENT}")
@@ -137,13 +151,24 @@ if(TARGET FeatherDocPdf)
         set_tests_properties(pdf_cli_import PROPERTIES
             RESOURCE_LOCK pdf_cli_import_fixtures
             TIMEOUT 120)
-        add_test(
-            NAME
-            pdf_cli_import_threshold
-            COMMAND
-            pdf_cli_import_tests
-            --source-file=*pdf_cli_import_threshold_tests.cpp
-        )
+        if(WIN32)
+            add_test(
+                NAME
+                pdf_cli_import_threshold
+                COMMAND
+                pdf_cli_import_tests
+                --source-file=*pdf_cli_import_threshold_tests.cpp
+                --no-breaks=true
+            )
+        else()
+            add_test(
+                NAME
+                pdf_cli_import_threshold
+                COMMAND
+                pdf_cli_import_tests
+                --source-file=*pdf_cli_import_threshold_tests.cpp
+            )
+        endif()
         featherdoc_set_test_labels(
             pdf_cli_import_threshold
             cli

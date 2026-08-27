@@ -1,4 +1,5 @@
 #include "featherdoc_cli_numbering_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <utility>
 
@@ -57,7 +58,7 @@ auto parse_ensure_numbering_definition_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

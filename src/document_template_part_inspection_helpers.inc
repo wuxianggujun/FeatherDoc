@@ -69,18 +69,7 @@ auto read_part_paragraph_indent_twips(pugi::xml_node paragraph_properties,
 }
 
 auto parse_u32_attribute_value(const char *text) -> std::optional<std::uint32_t> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtoul(text, &end, 10);
-    if (end == text || *end != '\0' ||
-        value > static_cast<unsigned long>(std::numeric_limits<std::uint32_t>::max())) {
-        return std::nullopt;
-    }
-
-    return static_cast<std::uint32_t>(value);
+    return featherdoc::detail::parse_integer_strict<std::uint32_t>(text);
 }
 
 auto summarize_part_paragraph_numbering(pugi::xml_node paragraph_properties)
@@ -98,22 +87,24 @@ auto summarize_part_paragraph_numbering(pugi::xml_node paragraph_properties)
     return summary;
 }
 
-auto enrich_part_paragraph_numbering(featherdoc::Document *owner,
-                                     featherdoc::paragraph_inspection_summary &summary) -> void {
+auto enrich_part_paragraph_numbering(
+    featherdoc::Document *owner,
+    featherdoc::paragraph_inspection_summary &summary) -> bool {
     if (owner == nullptr || !summary.numbering.has_value() ||
         !summary.numbering->num_id.has_value()) {
-        return;
+        return true;
     }
 
     const auto lookup = owner->find_numbering_instance(*summary.numbering->num_id);
     if (!lookup.has_value()) {
-        return;
+        return false;
     }
 
     summary.numbering->definition_id = lookup->definition_id;
     if (!lookup->definition_name.empty()) {
         summary.numbering->definition_name = lookup->definition_name;
     }
+    return true;
 }
 
 auto summarize_part_paragraph_node(pugi::xml_node paragraph_node, std::size_t paragraph_index)
@@ -135,10 +126,10 @@ auto summarize_part_paragraph_node(pugi::xml_node paragraph_node, std::size_t pa
         read_part_paragraph_indent_twips(paragraph_properties, "w:hanging");
     summary.numbering = summarize_part_paragraph_numbering(paragraph_properties);
 
-    auto paragraph_handle = featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
-    for (auto run = paragraph_handle.runs(); run.has_next(); run.next()) {
+    for (auto run = paragraph_node.child("w:r"); run != pugi::xml_node{};
+         run = featherdoc::detail::next_named_sibling(run, "w:r")) {
         ++summary.run_count;
-        summary.text += run.get_text();
+        summary.text += featherdoc::detail::collect_plain_text_from_xml(run);
     }
 
     return summary;

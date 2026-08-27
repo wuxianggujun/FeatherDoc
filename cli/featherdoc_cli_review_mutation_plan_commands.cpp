@@ -6,6 +6,7 @@
 #include "featherdoc_cli_review_mutation_plan.hpp"
 #include "featherdoc_cli_review_mutation_plan_parse.hpp"
 #include "featherdoc_cli_review_output.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -29,9 +30,9 @@ auto run_review_mutation_plan_command(
     if (command == "build-review-mutation-plan") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              "build-review-mutation-plan expects an input path",
-                              json_output);
+            print_parse_error(
+                command, "build-review-mutation-plan expects an input path",
+                json_output);
             return 2;
         }
 
@@ -41,7 +42,8 @@ auto run_review_mutation_plan_command(
             const auto argument = arguments[index];
             if (argument == "--request-file") {
                 if (request_file_path.has_value()) {
-                    print_parse_error(command, "duplicate --request-file option",
+                    print_parse_error(command,
+                                      "duplicate --request-file option",
                                       json_output);
                     return 2;
                 }
@@ -51,8 +53,7 @@ auto run_review_mutation_plan_command(
                                       json_output);
                     return 2;
                 }
-                request_file_path =
-                    path_type(std::string(arguments[index + 1U]));
+                request_file_path = path_from_cli_utf8(arguments[index + 1U]);
                 ++index;
                 continue;
             }
@@ -68,7 +69,7 @@ auto run_review_mutation_plan_command(
                                       json_output);
                     return 2;
                 }
-                output_plan_path = path_type(std::string(arguments[index + 1U]));
+                output_plan_path = path_from_cli_utf8(arguments[index + 1U]);
                 ++index;
                 continue;
             }
@@ -76,7 +77,8 @@ auto run_review_mutation_plan_command(
                 continue;
             }
 
-            print_parse_error(command, "unknown option: " + std::string(argument),
+            print_parse_error(command,
+                              "unknown option: " + std::string(argument),
                               json_output);
             return 2;
         }
@@ -95,7 +97,7 @@ auto run_review_mutation_plan_command(
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            json_output)) {
             return 1;
         }
@@ -136,8 +138,8 @@ auto run_review_mutation_plan_command(
                 std::cout, operations, resolutions, output_plan_path);
         } else if (output_plan_path.has_value()) {
             std::cout << "command: " << command << '\n'
-                      << "output_plan_path: " << output_plan_path->string()
-                      << '\n'
+                      << "output_plan_path: "
+                      << path_to_cli_utf8(*output_plan_path) << '\n'
                       << "operations_count: " << operations.size() << '\n';
         } else {
             write_json_review_mutation_plan_document(std::cout, operations);
@@ -149,9 +151,9 @@ auto run_review_mutation_plan_command(
     if (command == "preview-review-mutation-plan") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              "preview-review-mutation-plan expects an input path",
-                              json_output);
+            print_parse_error(
+                command, "preview-review-mutation-plan expects an input path",
+                json_output);
             return 2;
         }
 
@@ -169,7 +171,7 @@ auto run_review_mutation_plan_command(
                                       json_output);
                     return 2;
                 }
-                plan_file_path = path_type(std::string(arguments[index + 1U]));
+                plan_file_path = path_from_cli_utf8(arguments[index + 1U]);
                 ++index;
                 continue;
             }
@@ -177,7 +179,8 @@ auto run_review_mutation_plan_command(
                 continue;
             }
 
-            print_parse_error(command, "unknown option: " + std::string(argument),
+            print_parse_error(command,
+                              "unknown option: " + std::string(argument),
                               json_output);
             return 2;
         }
@@ -196,17 +199,16 @@ auto run_review_mutation_plan_command(
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            json_output)) {
             return 1;
         }
 
         const auto results =
             preview_review_mutation_plan_operations(doc, operations);
-        const auto failed_count =
-            static_cast<std::size_t>(std::count_if(
-                results.begin(), results.end(),
-                [](const auto &result) { return !result.ok; }));
+        const auto failed_count = static_cast<std::size_t>(
+            std::count_if(results.begin(), results.end(),
+                          [](const auto &result) { return !result.ok; }));
 
         if (json_output) {
             write_json_review_mutation_plan_preview(std::cout, results);
@@ -219,9 +221,9 @@ auto run_review_mutation_plan_command(
     if (command == "apply-review-mutation-plan") {
         const auto json_output = has_json_flag(arguments);
         if (arguments.size() < 2U) {
-            print_parse_error(command,
-                              "apply-review-mutation-plan expects an input path",
-                              json_output);
+            print_parse_error(
+                command, "apply-review-mutation-plan expects an input path",
+                json_output);
             return 2;
         }
 
@@ -240,7 +242,7 @@ auto run_review_mutation_plan_command(
                                       json_output);
                     return 2;
                 }
-                plan_file_path = path_type(std::string(arguments[index + 1U]));
+                plan_file_path = path_from_cli_utf8(arguments[index + 1U]);
                 ++index;
                 continue;
             }
@@ -255,7 +257,7 @@ auto run_review_mutation_plan_command(
                                       json_output);
                     return 2;
                 }
-                output_path = path_type(std::string(arguments[index + 1U]));
+                output_path = path_from_cli_utf8(arguments[index + 1U]);
                 ++index;
                 continue;
             }
@@ -263,7 +265,8 @@ auto run_review_mutation_plan_command(
                 continue;
             }
 
-            print_parse_error(command, "unknown option: " + std::string(argument),
+            print_parse_error(command,
+                              "unknown option: " + std::string(argument),
                               json_output);
             return 2;
         }
@@ -282,17 +285,16 @@ auto run_review_mutation_plan_command(
             return 2;
         }
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            json_output)) {
             return 1;
         }
 
         const auto preview_results =
             preview_review_mutation_plan_operations(doc, operations);
-        const auto failed_count =
-            static_cast<std::size_t>(std::count_if(
-                preview_results.begin(), preview_results.end(),
-                [](const auto &result) { return !result.ok; }));
+        const auto failed_count = static_cast<std::size_t>(
+            std::count_if(preview_results.begin(), preview_results.end(),
+                          [](const auto &result) { return !result.ok; }));
         if (failed_count != 0U) {
             if (json_output) {
                 write_json_review_mutation_plan_apply_failure(
@@ -341,8 +343,6 @@ auto run_review_mutation_plan_command(
         }
         return 0;
     }
-
-
 
     return 2;
 }

@@ -1,32 +1,91 @@
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <system_error>
 #include <utility>
 #include <vector>
 
-#include "doctest.h"
-#include "basic_docx_archive_test_support.hpp"
 #include "basic_document_xml_test_support.hpp"
+#include "basic_docx_archive_test_support.hpp"
 #include "basic_image_fixture_test_support.hpp"
+#include "doctest.h"
 
 #include <featherdoc.hpp>
+#include <featherdoc/detail/path.hpp>
 
-TEST_CASE("template part remove_drawing_image and remove_inline_image prune header media") {
+TEST_CASE(
+    "Document and TemplatePart propagate external image input limit errors") {
+    namespace fs = std::filesystem;
+
+    constexpr std::uintmax_t external_image_limit = 256ULL * 1024ULL * 1024ULL;
+    const auto image_path =
+        fs::current_path() /
+        featherdoc::detail::path_from_utf8("超出外部图片输入上限.png");
+    struct file_cleanup final {
+        fs::path path;
+        ~file_cleanup() {
+            std::error_code ignored;
+            fs::remove(path, ignored);
+        }
+    } cleanup{image_path};
+
+    fs::remove(image_path);
+    {
+        std::ofstream stream(image_path, std::ios::binary | std::ios::trunc);
+        REQUIRE(static_cast<bool>(stream));
+        stream.put('\0');
+        REQUIRE(static_cast<bool>(stream));
+    }
+    std::error_code resize_error;
+    fs::resize_file(image_path, external_image_limit + 1U, resize_error);
+    REQUIRE_FALSE(resize_error);
+    REQUIRE_EQ(fs::file_size(image_path), external_image_limit + 1U);
+
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+    CHECK_FALSE(document.append_image(image_path));
+    CHECK_EQ(document.last_error().code,
+             featherdoc::document_errc::image_input_limit_exceeded);
+    CHECK_EQ(document.last_error().entry_name,
+             featherdoc::detail::path_to_utf8(image_path));
+    CHECK_NE(document.last_error().detail.find("actual_bytes=268435457"),
+             std::string::npos);
+    CHECK_NE(document.last_error().detail.find("limit_bytes=268435456"),
+             std::string::npos);
+
+    auto body_template = document.body_template();
+    REQUIRE(static_cast<bool>(body_template));
+    CHECK_FALSE(body_template.append_image(image_path));
+    CHECK_EQ(document.last_error().code,
+             featherdoc::document_errc::image_input_limit_exceeded);
+    CHECK_EQ(document.last_error().entry_name,
+             featherdoc::detail::path_to_utf8(image_path));
+    CHECK_NE(document.last_error().detail.find("actual_bytes=268435457"),
+             std::string::npos);
+    CHECK_NE(document.last_error().detail.find("limit_bytes=268435456"),
+             std::string::npos);
+}
+
+TEST_CASE("template part remove_drawing_image and remove_inline_image prune "
+          "header media") {
     namespace fs = std::filesystem;
 
     constexpr unsigned char tiny_png_bytes[] = {
-        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
-        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
-        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
-        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
-        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
-        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
-        0x82U,
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U,
+        0x00U, 0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x00U, 0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU,
+        0x15U, 0xC4U, 0x89U, 0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U,
+        0x54U, 0x78U, 0x9CU, 0x63U, 0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U,
+        0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U, 0x00U, 0x00U, 0x00U, 0x00U, 0x49U,
+        0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U, 0x82U,
     };
 
-    const fs::path target = fs::current_path() / "template_part_remove_images.docx";
-    const fs::path image_path = fs::current_path() / "template_part_remove_images_source.png";
+    const fs::path target =
+        fs::current_path() / "template_part_remove_images.docx";
+    const fs::path image_path =
+        fs::current_path() / "template_part_remove_images_source.png";
     fs::remove(target);
     fs::remove(image_path);
 
@@ -118,23 +177,27 @@ TEST_CASE("template part remove_drawing_image and remove_inline_image prune head
 
     auto header_template = doc.section_header_template(0);
     REQUIRE(static_cast<bool>(header_template));
-    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one", image_path,
-                                                         20U, 10U),
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_one",
+                                                         image_path, 20U, 10U),
              1);
-    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two", image_path,
-                                                         30U, 15U),
+    CHECK_EQ(header_template.replace_bookmark_with_image("header_logo_two",
+                                                         image_path, 30U, 15U),
              1);
 
     auto footer_template = doc.section_footer_template(0);
     REQUIRE(static_cast<bool>(footer_template));
-    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo", image_path, 40U, 20U),
+    CHECK_EQ(footer_template.replace_bookmark_with_image("footer_logo",
+                                                         image_path, 40U, 20U),
              1);
     CHECK_FALSE(doc.save());
 
     auto anchored_header_xml = read_test_docx_entry(target, "word/header1.xml");
-    anchored_header_xml = convert_nth_inline_drawing_to_anchor(anchored_header_xml, 1U);
-    CHECK_EQ(count_substring_occurrences(anchored_header_xml, "<wp:anchor"), 1U);
-    rewrite_test_docx_entry(target, "word/header1.xml", std::move(anchored_header_xml));
+    anchored_header_xml =
+        convert_nth_inline_drawing_to_anchor(anchored_header_xml, 1U);
+    CHECK_EQ(count_substring_occurrences(anchored_header_xml, "<wp:anchor"),
+             1U);
+    rewrite_test_docx_entry(target, "word/header1.xml",
+                            std::move(anchored_header_xml));
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -169,12 +232,14 @@ TEST_CASE("template part remove_drawing_image and remove_inline_image prune head
 
     CHECK_FALSE(reopened.save());
 
-    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    const auto saved_header_xml =
+        read_test_docx_entry(target, "word/header1.xml");
     CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 0U);
     CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:anchor"), 0U);
     const auto saved_header_relationships =
         read_test_docx_entry(target, "word/_rels/header1.xml.rels");
-    CHECK_EQ(saved_header_relationships.find("relationships/image"), std::string::npos);
+    CHECK_EQ(saved_header_relationships.find("relationships/image"),
+             std::string::npos);
 
     CHECK_FALSE(test_docx_entry_exists(target, "word/media/image1.png"));
     CHECK_FALSE(test_docx_entry_exists(target, "word/media/image2.png"));
@@ -195,23 +260,26 @@ TEST_CASE("template part remove_drawing_image and remove_inline_image prune head
     fs::remove(image_path);
 }
 
-TEST_CASE("template part replace_bookmark_with_floating_image writes anchored header drawings") {
+TEST_CASE("template part replace_bookmark_with_floating_image writes anchored "
+          "header drawings") {
     namespace fs = std::filesystem;
 
     constexpr unsigned char tiny_png_bytes[] = {
-        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U, 0x00U,
-        0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U, 0x00U, 0x00U,
-        0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU, 0x15U, 0xC4U, 0x89U,
-        0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U, 0x54U, 0x78U, 0x9CU, 0x63U,
-        0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U, 0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U,
-        0x00U, 0x00U, 0x00U, 0x00U, 0x49U, 0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U,
-        0x82U,
+        0x89U, 0x50U, 0x4EU, 0x47U, 0x0DU, 0x0AU, 0x1AU, 0x0AU, 0x00U, 0x00U,
+        0x00U, 0x0DU, 0x49U, 0x48U, 0x44U, 0x52U, 0x00U, 0x00U, 0x00U, 0x01U,
+        0x00U, 0x00U, 0x00U, 0x01U, 0x08U, 0x06U, 0x00U, 0x00U, 0x00U, 0x1FU,
+        0x15U, 0xC4U, 0x89U, 0x00U, 0x00U, 0x00U, 0x0DU, 0x49U, 0x44U, 0x41U,
+        0x54U, 0x78U, 0x9CU, 0x63U, 0x60U, 0x00U, 0x00U, 0x00U, 0x02U, 0x00U,
+        0x01U, 0xE5U, 0x27U, 0xD4U, 0xA2U, 0x00U, 0x00U, 0x00U, 0x00U, 0x49U,
+        0x45U, 0x4EU, 0x44U, 0xAEU, 0x42U, 0x60U, 0x82U,
     };
 
     const fs::path target =
-        fs::current_path() / "template_part_replace_bookmark_floating_image.docx";
+        fs::current_path() /
+        "template_part_replace_bookmark_floating_image.docx";
     const fs::path image_path =
-        fs::current_path() / "template_part_replace_bookmark_floating_image.png";
+        fs::current_path() /
+        "template_part_replace_bookmark_floating_image.png";
     const fs::path extracted_path =
         fs::current_path() /
         "template_part_replace_bookmark_floating_image_extracted.png";
@@ -279,7 +347,8 @@ TEST_CASE("template part replace_bookmark_with_floating_image writes anchored he
 
     const std::string image_data(reinterpret_cast<const char *>(tiny_png_bytes),
                                  sizeof(tiny_png_bytes));
-    const std::vector<unsigned char> expected_image_data(image_data.begin(), image_data.end());
+    const std::vector<unsigned char> expected_image_data(image_data.begin(),
+                                                         image_data.end());
     write_binary_file(image_path, image_data);
 
     featherdoc::floating_image_options options;
@@ -295,21 +364,23 @@ TEST_CASE("template part replace_bookmark_with_floating_image writes anchored he
 
     auto header_template = doc.section_header_template(0);
     REQUIRE(static_cast<bool>(header_template));
-    CHECK_EQ(header_template.replace_bookmark_with_floating_image("header_logo",
-                                                                  image_path, 30U, 15U,
-                                                                  options),
+    CHECK_EQ(header_template.replace_bookmark_with_floating_image(
+                 "header_logo", image_path, 30U, 15U, options),
              1);
     CHECK_FALSE(doc.save());
 
-    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    const auto saved_header_xml =
+        read_test_docx_entry(target, "word/header1.xml");
     CHECK_NE(saved_header_xml.find("<wp:anchor"), std::string::npos);
     CHECK_NE(saved_header_xml.find("relativeFrom=\"page\""), std::string::npos);
-    CHECK_NE(saved_header_xml.find("relativeFrom=\"margin\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("relativeFrom=\"margin\""),
+             std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>381000</wp:posOffset>"),
              std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>114300</wp:posOffset>"),
              std::string::npos);
-    CHECK_EQ(saved_header_xml.find("w:name=\"header_logo\""), std::string::npos);
+    CHECK_EQ(saved_header_xml.find("w:name=\"header_logo\""),
+             std::string::npos);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -329,7 +400,8 @@ TEST_CASE("template part replace_bookmark_with_floating_image writes anchored he
     fs::remove(extracted_path);
 }
 
-TEST_CASE("body template part can append inline images and preserve them across reopen save") {
+TEST_CASE("body template part can append inline images and preserve them "
+          "across reopen save") {
     namespace fs = std::filesystem;
 
     const fs::path target =
@@ -358,14 +430,18 @@ TEST_CASE("body template part can append inline images and preserve them across 
 
     const auto saved_relationships =
         read_test_docx_entry(target, "word/_rels/document.xml.rels");
-    CHECK_EQ(count_substring_occurrences(
-                 saved_relationships,
-                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
-             2U);
-    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
-    CHECK_NE(saved_relationships.find("Target=\"media/image2.png\""), std::string::npos);
+    CHECK_EQ(
+        count_substring_occurrences(
+            saved_relationships, "Type=\"http://schemas.openxmlformats.org/"
+                                 "officeDocument/2006/relationships/image\""),
+        2U);
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
+    CHECK_NE(saved_relationships.find("Target=\"media/image2.png\""),
+             std::string::npos);
 
-    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    const auto saved_document_xml =
+        read_test_docx_entry(target, test_document_xml_entry);
     CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 2U);
     CHECK_NE(saved_document_xml.find("cx=\"9525\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("cy=\"9525\""), std::string::npos);
@@ -402,13 +478,16 @@ TEST_CASE("body template part can append inline images and preserve them across 
     fs::remove(image_path);
 }
 
-TEST_CASE("body template part can append floating images and preserve them across reopen save") {
+TEST_CASE("body template part can append floating images and preserve them "
+          "across reopen save") {
     namespace fs = std::filesystem;
 
     const fs::path target =
-        fs::current_path() / "body_template_append_floating_image_roundtrip.docx";
+        fs::current_path() /
+        "body_template_append_floating_image_roundtrip.docx";
     const fs::path image_path =
-        fs::current_path() / "body_template_append_floating_image_roundtrip.png";
+        fs::current_path() /
+        "body_template_append_floating_image_roundtrip.png";
     fs::remove(target);
     fs::remove(image_path);
 
@@ -443,28 +522,36 @@ TEST_CASE("body template part can append floating images and preserve them acros
 
     const auto saved_relationships =
         read_test_docx_entry(target, "word/_rels/document.xml.rels");
-    CHECK_EQ(count_substring_occurrences(
-                 saved_relationships,
-                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
-             1U);
-    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""), std::string::npos);
+    CHECK_EQ(
+        count_substring_occurrences(
+            saved_relationships, "Type=\"http://schemas.openxmlformats.org/"
+                                 "officeDocument/2006/relationships/image\""),
+        1U);
+    CHECK_NE(saved_relationships.find("Target=\"media/image1.png\""),
+             std::string::npos);
 
-    const auto saved_document_xml = read_test_docx_entry(target, test_document_xml_entry);
+    const auto saved_document_xml =
+        read_test_docx_entry(target, test_document_xml_entry);
     CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:anchor"), 1U);
     CHECK_EQ(count_substring_occurrences(saved_document_xml, "<wp:inline"), 0U);
-    CHECK_NE(saved_document_xml.find("relativeFrom=\"page\""), std::string::npos);
-    CHECK_NE(saved_document_xml.find("relativeFrom=\"margin\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeFrom=\"page\""),
+             std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeFrom=\"margin\""),
+             std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:posOffset>228600</wp:posOffset>"),
              std::string::npos);
     CHECK_NE(saved_document_xml.find("<wp:posOffset>-76200</wp:posOffset>"),
              std::string::npos);
     CHECK_NE(saved_document_xml.find("behindDoc=\"1\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("allowOverlap=\"0\""), std::string::npos);
-    CHECK_NE(saved_document_xml.find("relativeHeight=\"32\""), std::string::npos);
+    CHECK_NE(saved_document_xml.find("relativeHeight=\"32\""),
+             std::string::npos);
     CHECK_NE(saved_document_xml.find("distT=\"38100\""), std::string::npos);
     CHECK_NE(saved_document_xml.find("distB=\"85725\""), std::string::npos);
-    CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"), std::string::npos);
-    CHECK_NE(saved_document_xml.find("<a:srcRect l=\"2500\" t=\"5000\" r=\"7500\" b=\"10000\""),
+    CHECK_NE(saved_document_xml.find("<wp:wrapTopAndBottom"),
+             std::string::npos);
+    CHECK_NE(saved_document_xml.find(
+                 "<a:srcRect l=\"2500\" t=\"5000\" r=\"7500\" b=\"10000\""),
              std::string::npos);
 
     featherdoc::Document reopened(target);
@@ -517,7 +604,8 @@ TEST_CASE("body template part can append floating images and preserve them acros
 TEST_CASE("header template part can append inline images") {
     namespace fs = std::filesystem;
 
-    const fs::path target = fs::current_path() / "header_template_append_images.docx";
+    const fs::path target =
+        fs::current_path() / "header_template_append_images.docx";
     const fs::path image_path =
         fs::current_path() / "header_template_append_images.png";
     fs::remove(target);
@@ -545,7 +633,8 @@ TEST_CASE("header template part can append inline images") {
     CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
     CHECK(test_docx_entry_exists(target, "word/media/image2.png"));
 
-    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    const auto saved_header_xml =
+        read_test_docx_entry(target, "word/header1.xml");
     CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 2U);
     CHECK_NE(saved_header_xml.find("cx=\"9525\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("cy=\"9525\""), std::string::npos);
@@ -556,16 +645,19 @@ TEST_CASE("header template part can append inline images") {
         read_test_docx_entry(target, "word/_rels/header1.xml.rels");
     CHECK_EQ(count_substring_occurrences(
                  saved_header_relationships,
-                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/"
+                 "relationships/image\""),
              2U);
     CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
              std::string::npos);
     CHECK_NE(saved_header_relationships.find("Target=\"media/image2.png\""),
              std::string::npos);
 
-    const auto saved_content_types = read_test_docx_entry(target, test_content_types_xml_entry);
+    const auto saved_content_types =
+        read_test_docx_entry(target, test_content_types_xml_entry);
     CHECK_NE(saved_content_types.find("Extension=\"png\""), std::string::npos);
-    CHECK_NE(saved_content_types.find("ContentType=\"image/png\""), std::string::npos);
+    CHECK_NE(saved_content_types.find("ContentType=\"image/png\""),
+             std::string::npos);
 
     featherdoc::Document reopened_again(target);
     CHECK_FALSE(reopened_again.open());
@@ -581,7 +673,9 @@ TEST_CASE("header template part can append inline images") {
     CHECK_EQ(header_images[1].width_px, 30U);
     CHECK_EQ(header_images[1].height_px, 15U);
 
-    CHECK(reopened_again.header_paragraphs().add_run(" reopened edit").has_next());
+    CHECK(reopened_again.header_paragraphs()
+              .add_run(" reopened edit")
+              .has_next());
     CHECK_FALSE(reopened_again.save());
 
     const auto relationships_after_resave =
@@ -639,11 +733,13 @@ TEST_CASE("header template part can append floating images") {
     CHECK(test_docx_entry_exists(target, "word/media/image1.png"));
     CHECK_EQ(read_test_docx_entry(target, "word/media/image1.png"), image_data);
 
-    const auto saved_header_xml = read_test_docx_entry(target, "word/header1.xml");
+    const auto saved_header_xml =
+        read_test_docx_entry(target, "word/header1.xml");
     CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:anchor"), 1U);
     CHECK_EQ(count_substring_occurrences(saved_header_xml, "<wp:inline"), 0U);
     CHECK_NE(saved_header_xml.find("relativeFrom=\"page\""), std::string::npos);
-    CHECK_NE(saved_header_xml.find("relativeFrom=\"margin\""), std::string::npos);
+    CHECK_NE(saved_header_xml.find("relativeFrom=\"margin\""),
+             std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>381000</wp:posOffset>"),
              std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:posOffset>114300</wp:posOffset>"),
@@ -653,14 +749,16 @@ TEST_CASE("header template part can append floating images") {
     CHECK_NE(saved_header_xml.find("distR=\"66675\""), std::string::npos);
     CHECK_NE(saved_header_xml.find("<wp:wrapSquare wrapText=\"bothSides\""),
              std::string::npos);
-    CHECK_NE(saved_header_xml.find("<a:srcRect l=\"1000\" t=\"2000\" r=\"3000\" b=\"4000\""),
+    CHECK_NE(saved_header_xml.find(
+                 "<a:srcRect l=\"1000\" t=\"2000\" r=\"3000\" b=\"4000\""),
              std::string::npos);
 
     const auto saved_header_relationships =
         read_test_docx_entry(target, "word/_rels/header1.xml.rels");
     CHECK_EQ(count_substring_occurrences(
                  saved_header_relationships,
-                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\""),
+                 "Type=\"http://schemas.openxmlformats.org/officeDocument/2006/"
+                 "relationships/image\""),
              1U);
     CHECK_NE(saved_header_relationships.find("Target=\"media/image1.png\""),
              std::string::npos);
@@ -690,7 +788,9 @@ TEST_CASE("header template part can append floating images") {
     CHECK_EQ(drawing_images[0].floating_options->crop->bottom_per_mille, 40U);
     CHECK_EQ(header_template.inline_images().size(), 0U);
 
-    CHECK(reopened_again.header_paragraphs().add_run(" reopened edit").has_next());
+    CHECK(reopened_again.header_paragraphs()
+              .add_run(" reopened edit")
+              .has_next());
     CHECK_FALSE(reopened_again.save());
 
     const auto relationships_after_resave =

@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_table_style_audit_output_json.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -36,8 +37,8 @@ void audit_table_style_regions(
         return;
     }
 
-    std::cout << "table_style_region_audit: "
-              << (report.ok() ? "ok" : "issues") << '\n'
+    std::cout << "table_style_region_audit: " << (report.ok() ? "ok" : "issues")
+              << '\n'
               << "table_style_count: " << report.table_style_count << '\n'
               << "region_count: " << report.region_count << '\n'
               << "issue_count: " << report.issue_count() << '\n';
@@ -158,8 +159,8 @@ void audit_table_style_quality(
 }
 
 void plan_table_style_quality_fixes(
-    const featherdoc::table_style_quality_fix_plan &plan,
-    bool fail_on_issue, bool json_output) {
+    const featherdoc::table_style_quality_fix_plan &plan, bool fail_on_issue,
+    bool json_output) {
     if (json_output) {
         write_json_table_style_quality_fix_plan(std::cout, plan, fail_on_issue);
         std::cout << '\n';
@@ -209,18 +210,19 @@ void apply_table_style_quality_fixes(
               << result.before.automatic_fix_count() << '\n'
               << "after_automatic_fix_count: "
               << result.after.automatic_fix_count() << '\n'
-              << "before_manual_fix_count: "
-              << result.before.manual_fix_count() << '\n'
+              << "before_manual_fix_count: " << result.before.manual_fix_count()
+              << '\n'
               << "after_manual_fix_count: " << result.after.manual_fix_count()
               << '\n'
               << "changed_table_count: " << result.changed_table_count << '\n';
     if (result.output_path.has_value()) {
-        std::cout << "output: " << result.output_path->string() << '\n';
+        std::cout << "output: " << path_to_cli_utf8(*result.output_path)
+                  << '\n';
     }
 }
 
-void repair_table_style_look(
-    const table_style_look_repair_cli_result &result, bool json_output) {
+void repair_table_style_look(const table_style_look_repair_cli_result &result,
+                             bool json_output) {
     if (json_output) {
         write_json_repair_table_style_look_result(std::cout, result);
         std::cout << '\n';
@@ -242,7 +244,8 @@ void repair_table_style_look(
     }
     std::cout << '\n';
     if (result.output_path.has_value()) {
-        std::cout << "output: " << result.output_path->string() << '\n';
+        std::cout << "output: " << path_to_cli_utf8(*result.output_path)
+                  << '\n';
     }
 }
 

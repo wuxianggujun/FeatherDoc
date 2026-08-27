@@ -16,14 +16,14 @@
         }
 
         exported_template_schema_result left;
-        if (!read_template_schema_file(path_type(std::string(arguments[1])), left,
+        if (!read_template_schema_file(path_from_cli_utf8(arguments[1]), left,
                                        error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
         }
 
         exported_template_schema_result right;
-        if (!read_template_schema_file(path_type(std::string(arguments[2])), right,
+        if (!read_template_schema_file(path_from_cli_utf8(arguments[2]), right,
                                        error_message)) {
             print_parse_error(command, error_message, options.json_output);
             return 2;
@@ -64,7 +64,7 @@
         }
         normalize_template_schema_result(baseline);
 
-        if (!open_document(path_type(std::string(arguments[1])), doc, command,
+        if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                            options.json_output)) {
             return 1;
         }

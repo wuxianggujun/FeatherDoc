@@ -269,6 +269,19 @@ Assert-Equal -Actual $registeredNoticeCorpus.Count -Expected 1 `
     -Message "Repository manifest should keep exactly one registered notice corpus anchor."
 Assert-Equal -Actual ([string]$registeredNoticeCorpus[0].source_entry) -Expected "part-template-validation-smoke" `
     -Message "Registered notice corpus should point at the part-template validation manifest entry."
+Assert-CollectionContains -Items @($registeredNoticeCorpus[0].smoke_contract) `
+    -ExpectedText "template_validations" `
+    -Message "Registered notice corpus should require template validation coverage."
+Assert-CollectionContains -Items @($registeredNoticeCorpus[0].smoke_contract) `
+    -ExpectedText "schema_validation" `
+    -Message "Registered notice corpus should require schema validation coverage."
+Assert-True -Condition (-not (@($registeredNoticeCorpus[0].smoke_contract) -contains "visual_smoke")) `
+    -Message "Registered notice corpus should remain a strict subset of its source entry checks."
+$registeredNoticeSourceEntry = @($repoManifest.entries | Where-Object {
+        [string]$_.name -eq [string]$registeredNoticeCorpus[0].source_entry
+    })[0]
+Assert-Equal -Actual ([bool]$registeredNoticeSourceEntry.visual_smoke.enabled) -Expected $true `
+    -Message "Registered notice source entry should retain the extra visual smoke check."
 $registeredPolicyCorpus = @($repoManifest.business_template_corpus | Where-Object {
         [string]$_.document_type -eq "policy" -and [string]$_.status -eq "registered"
     })
@@ -403,6 +416,36 @@ Assert-ReportContainsIssue -Report $invalidBusinessCorpusReport `
     -ExpectedPath "business_template_corpus[1].next_action" `
     -ExpectedMessage "is required when status is planned" `
     -Message "Planned business corpus entries should expose the next registration action."
+
+$uncoveredBusinessContractManifestPath = Join-Path $fixtureRoot "uncovered-business-contract.manifest.json"
+Write-JsonFile -Path $uncoveredBusinessContractManifestPath -Value ([ordered]@{
+    business_template_corpus = @(
+        [ordered]@{
+            id = "uncovered-business-contract"
+            project_id = "project-test"
+            template_name = "invoice-template"
+            document_type = "invoice"
+            status = "registered"
+            source_entry = "invoice-template"
+            smoke_contract = @("schema_baseline")
+            coverage_goal = "This fixture should fail because the source entry does not enable schema baseline checks."
+        }
+    )
+    entries = @(
+        (New-ValidEntry -Name "invoice-template" -InputDocx $inputDocxPath)
+    )
+})
+$uncoveredBusinessContractResult = Invoke-ManifestCheck -Arguments @(
+    "-ManifestPath", $uncoveredBusinessContractManifestPath,
+    "-Json"
+)
+Assert-Equal -Actual $uncoveredBusinessContractResult.ExitCode -Expected 1 `
+    -Message "Registered corpus contracts not enabled by the source entry should fail. Output: $($uncoveredBusinessContractResult.Text)"
+$uncoveredBusinessContractReport = $uncoveredBusinessContractResult.Text | ConvertFrom-Json
+Assert-ReportContainsIssue -Report $uncoveredBusinessContractReport `
+    -ExpectedPath "business_template_corpus[0].smoke_contract[0]" `
+    -ExpectedMessage "must be enabled by source_entry 'invoice-template'" `
+    -Message "Uncovered registered corpus contracts should point at the exact smoke contract item."
 
 $invalidSelectionManifestPath = Join-Path $fixtureRoot "invalid-selection.manifest.json"
 Write-JsonFile -Path $invalidSelectionManifestPath -Value ([ordered]@{

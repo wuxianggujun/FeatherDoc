@@ -18,27 +18,24 @@ struct bookmark_block_placeholder final {
 
 void collect_named_bookmark_starts(pugi::xml_node node, std::string_view bookmark_name,
                                    std::vector<pugi::xml_node> &bookmark_starts) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:bookmarkStart" &&
-            std::string_view{child.attribute("w:name").value()} == bookmark_name) {
-            bookmark_starts.push_back(child);
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (std::string_view{current.name()} == "w:bookmarkStart" &&
+            std::string_view{current.attribute("w:name").value()} ==
+                bookmark_name) {
+            bookmark_starts.push_back(current);
         }
-
-        collect_named_bookmark_starts(child, bookmark_name, bookmark_starts);
     }
 }
 
 void collect_bookmark_starts_in_order(pugi::xml_node node,
                                       std::vector<pugi::xml_node> &bookmark_starts) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:bookmarkStart" &&
-            child.attribute("w:name").value()[0] != '\0') {
-            bookmark_starts.push_back(child);
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (std::string_view{current.name()} == "w:bookmarkStart" &&
+            current.attribute("w:name").value()[0] != '\0') {
+            bookmark_starts.push_back(current);
         }
-
-        collect_bookmark_starts_in_order(child, bookmark_starts);
     }
 }
 
@@ -254,19 +251,29 @@ auto table_row_cell_texts(pugi::xml_node container, pugi::xml_node table_node,
         return std::nullopt;
     }
 
-    auto table = featherdoc::Table{container, table_node};
-    auto row = table.rows();
-    for (std::size_t current_row_index = 0U; row.has_next();
-         ++current_row_index, row.next()) {
+    auto row = table_node.child("w:tr");
+    for (std::size_t current_row_index = 0U; row != pugi::xml_node{};
+         ++current_row_index,
+             row = featherdoc::detail::next_named_sibling(row, "w:tr")) {
         if (current_row_index != row_index) {
             continue;
         }
 
         auto cell_texts = std::vector<std::string>{};
-        auto cell = row.cells();
-        while (cell.has_next()) {
-            cell_texts.push_back(cell.get_text());
-            cell.next();
+        for (auto cell = row.child("w:tc"); cell != pugi::xml_node{};
+             cell = featherdoc::detail::next_named_sibling(cell, "w:tc")) {
+            auto cell_text = std::string{};
+            for (auto paragraph = cell.child("w:p");
+                 paragraph != pugi::xml_node{};
+                 paragraph = featherdoc::detail::next_named_sibling(
+                     paragraph, "w:p")) {
+                if (!cell_text.empty()) {
+                    cell_text.push_back('\n');
+                }
+                cell_text +=
+                    featherdoc::detail::collect_plain_text_from_xml(paragraph);
+            }
+            cell_texts.push_back(std::move(cell_text));
         }
         return cell_texts;
     }
@@ -421,34 +428,242 @@ auto find_matching_bookmark_end_in_document_order(pugi::xml_node bookmark_start)
     return {};
 }
 
-auto replace_bookmark_range(pugi::xml_node bookmark_start, std::string_view replacement)
-    -> bool {
-    auto parent = bookmark_start.parent();
-    if (bookmark_start == pugi::xml_node{} || parent == pugi::xml_node{}) {
-        return false;
+auto retire_bookmark_subtrees(
+    featherdoc::document_error_info &last_error_info,
+    featherdoc::detail::xml_handle_lifetime &handle_lifetime,
+    std::span<const pugi::xml_node> roots, std::string_view entry_name,
+    std::string_view operation) -> bool {
+    try {
+        handle_lifetime.retire_subtrees(roots);
+        return true;
+    } catch (const std::bad_alloc &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            last_error_info,
+            "bookmark XML handle retirement ran out of memory", entry_name);
+    } catch (const std::system_error &error) {
+        set_last_error(last_error_info, error.code(),
+                       "failed to synchronize XML handle retirement before " +
+                           std::string{operation},
+                       std::string{entry_name});
+    } catch (...) {
+        set_last_error(last_error_info, std::make_error_code(std::errc::io_error),
+                       "failed to retire XML handles before " +
+                           std::string{operation},
+                       std::string{entry_name});
     }
+    return false;
+}
 
-    const auto bookmark_end = find_matching_bookmark_end(bookmark_start);
-    if (bookmark_end == pugi::xml_node{}) {
-        return false;
-    }
-
-    for (auto node = bookmark_start.next_sibling();
-         node != pugi::xml_node{} && node != bookmark_end;) {
-        const auto next = node.next_sibling();
-        parent.remove_child(node);
-        node = next;
-    }
-
-    if (!replacement.empty()) {
-        auto replacement_run = parent.insert_child_before("w:r", bookmark_end);
-        if (replacement_run == pugi::xml_node{}) {
-            return false;
+auto xml_node_is_descendant_of(pugi::xml_node node,
+                               pugi::xml_node ancestor) noexcept -> bool {
+    for (auto parent = node.parent(); parent != pugi::xml_node{};
+         parent = parent.parent()) {
+        if (parent == ancestor) {
+            return true;
         }
-        return featherdoc::detail::set_plain_text_run_content(replacement_run, replacement);
+    }
+    return false;
+}
+
+void append_outermost_removal_root(std::vector<pugi::xml_node> &roots,
+                                   pugi::xml_node node) {
+    if (node == pugi::xml_node{}) {
+        return;
+    }
+    for (const auto root : roots) {
+        if (root == node || xml_node_is_descendant_of(node, root)) {
+            return;
+        }
+    }
+    roots.erase(std::remove_if(roots.begin(), roots.end(), [&](pugi::xml_node root) {
+                    return xml_node_is_descendant_of(root, node);
+                }),
+                roots.end());
+    roots.push_back(node);
+}
+
+struct bookmark_text_replacement_range final {
+    pugi::xml_node parent;
+    pugi::xml_node bookmark_start;
+    pugi::xml_node bookmark_end;
+    std::string_view replacement;
+};
+
+struct bookmark_text_replacement_target final {
+    pugi::xml_node bookmark_start;
+    std::string_view replacement;
+};
+
+auto replace_bookmark_ranges(
+    featherdoc::document_error_info &last_error_info,
+    featherdoc::detail::xml_handle_lifetime &handle_lifetime,
+    std::string_view entry_name,
+    std::span<const bookmark_text_replacement_target> targets)
+    -> std::optional<std::size_t> {
+    auto ranges = std::vector<bookmark_text_replacement_range>{};
+    auto retired_nodes = std::vector<pugi::xml_node>{};
+    try {
+        ranges.reserve(targets.size());
+        for (const auto &target : targets) {
+            const auto bookmark_start = target.bookmark_start;
+            auto parent = bookmark_start.parent();
+            if (bookmark_start == pugi::xml_node{} ||
+                parent == pugi::xml_node{}) {
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::invalid_argument),
+                    "bookmark text replacement requires a valid bookmark start "
+                    "parent",
+                    std::string{entry_name});
+                return std::nullopt;
+            }
+
+            const auto bookmark_end = find_matching_bookmark_end(bookmark_start);
+            if (bookmark_end == pugi::xml_node{} ||
+                bookmark_end.parent() != parent) {
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::invalid_argument),
+                    "bookmark text replacement requires matching bookmark markers "
+                    "inside the same parent",
+                    std::string{entry_name});
+                return std::nullopt;
+            }
+
+            ranges.push_back(
+                {parent, bookmark_start, bookmark_end, target.replacement});
+            for (auto node = bookmark_start.next_sibling();
+                 node != pugi::xml_node{} && node != bookmark_end;
+                 node = node.next_sibling()) {
+                append_outermost_removal_root(retired_nodes, node);
+            }
+        }
+    } catch (const std::bad_alloc &) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to prepare bookmark replacement handle retirement",
+                       std::string{entry_name});
+        return std::nullopt;
+    } catch (const std::length_error &) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::value_too_large),
+                       "bookmark replacement target count is too large",
+                       std::string{entry_name});
+        return std::nullopt;
     }
 
-    return true;
+    for (const auto &range : ranges) {
+        for (const auto root : retired_nodes) {
+            if (range.bookmark_start == root || range.bookmark_end == root ||
+                xml_node_is_descendant_of(range.bookmark_start, root) ||
+                xml_node_is_descendant_of(range.bookmark_end, root)) {
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::invalid_argument),
+                               "overlapping bookmark text replacement ranges are not "
+                               "supported",
+                               std::string{entry_name});
+                return std::nullopt;
+            }
+        }
+    }
+
+    auto prepared_runs = std::vector<pugi::xml_node>{};
+    try {
+        prepared_runs.reserve(ranges.size());
+    } catch (const std::bad_alloc &) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::not_enough_memory),
+                       "failed to prepare bookmark replacement run tracking",
+                       std::string{entry_name});
+        return std::nullopt;
+    } catch (const std::length_error &) {
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::value_too_large),
+                       "bookmark replacement run count is too large",
+                       std::string{entry_name});
+        return std::nullopt;
+    }
+
+    const auto rollback_prepared_runs = [&]() noexcept {
+        for (const auto run : prepared_runs) {
+            auto parent = run.parent();
+            if (parent != pugi::xml_node{}) {
+                (void)parent.remove_child(run);
+            }
+        }
+    };
+
+    for (auto &range : ranges) {
+        if (!range.replacement.empty()) {
+            const auto replacement_run =
+                range.parent.insert_child_before("w:r", range.bookmark_end);
+            if (replacement_run != pugi::xml_node{}) {
+                prepared_runs.push_back(replacement_run);
+            }
+            if (replacement_run == pugi::xml_node{}) {
+                rollback_prepared_runs();
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to prepare bookmark replacement text",
+                               std::string{entry_name});
+                return std::nullopt;
+            }
+            if (!featherdoc::detail::set_plain_text_run_content(replacement_run,
+                                                                range.replacement)) {
+                rollback_prepared_runs();
+                set_last_error(last_error_info,
+                               std::make_error_code(std::errc::not_enough_memory),
+                               "failed to prepare bookmark replacement text",
+                               std::string{entry_name});
+                return std::nullopt;
+            }
+        }
+    }
+
+    if (!retire_bookmark_subtrees(last_error_info, handle_lifetime,
+                                  retired_nodes, entry_name,
+                                  "bookmark text replacement")) {
+        rollback_prepared_runs();
+        return std::nullopt;
+    }
+
+    for (const auto node : retired_nodes) {
+        auto parent = node.parent();
+        if (parent != pugi::xml_node{}) {
+            (void)parent.remove_child(node);
+        }
+    }
+    return ranges.size();
+}
+
+auto replace_bookmark_ranges(
+    featherdoc::document_error_info &last_error_info,
+    featherdoc::detail::xml_handle_lifetime &handle_lifetime,
+    std::string_view entry_name,
+    std::span<const pugi::xml_node> bookmark_starts,
+    std::string_view replacement) -> std::optional<std::size_t> {
+    auto targets = std::vector<bookmark_text_replacement_target>{};
+    try {
+        targets.reserve(bookmark_starts.size());
+        for (const auto bookmark_start : bookmark_starts) {
+            targets.push_back({bookmark_start, replacement});
+        }
+    } catch (const std::bad_alloc &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            last_error_info,
+            "bookmark text replacement ran out of memory while preparing "
+            "targets",
+            entry_name);
+        return std::nullopt;
+    } catch (const std::length_error &) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            last_error_info,
+            "bookmark text replacement target count is too large", entry_name);
+        return std::nullopt;
+    }
+
+    return replace_bookmark_ranges(last_error_info, handle_lifetime, entry_name,
+                                   targets);
 }
 
 auto is_ignorable_block_placeholder_node(pugi::xml_node node) -> bool {

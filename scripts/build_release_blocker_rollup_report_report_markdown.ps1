@@ -14,6 +14,38 @@ function Add-RepairActionClassMarkdownLines {
     }
 }
 
+function Add-SchemaCorpusMetadataMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [object]$Item
+    )
+
+    foreach ($fieldName in @(
+            "business_document_type",
+            "source_business_document_type",
+            "corpus_role",
+            "source_corpus_role",
+            "business_document_type_mismatch",
+            "corpus_role_mismatch",
+            "mismatched_corpus_metadata_count",
+            "mismatched_business_document_type_count",
+            "mismatched_corpus_role_count",
+            "candidate_name",
+            "schema_update_candidate"
+        )) {
+        $fieldValue = Get-JsonProperty -Object $Item -Name $fieldName
+        if ($null -eq $fieldValue) { continue }
+        $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+            @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+        } else {
+            [string]$fieldValue
+        }
+        if (-not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+            $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+        }
+    }
+}
+
 function New-ReportMarkdown {
     param($Summary)
 
@@ -187,6 +219,12 @@ function New-ReportMarkdown {
                     "pdf_visual_gate_attempt_visual_baseline_render_status",
                     "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count",
                     "pdf_visual_gate_attempt_expected_visual_render_count",
+                    "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count",
+                    "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes",
+                    "pdf_visual_gate_attempt_visual_baseline_png_page_count",
+                    "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count",
+                    "pdf_visual_gate_attempt_visual_baseline_png_total_bytes",
+                    "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count",
                     "pdf_visual_gate_attempt_aggregate_contact_sheet_status",
                     "pdf_visual_gate_attempt_aggregate_contact_sheet_display",
                     "pdf_visual_segmented_gate_status",
@@ -284,10 +322,12 @@ function New-ReportMarkdown {
         foreach ($blocker in @($Summary.release_blockers)) {
             $lines.Add("- ``$($blocker.composite_id)``: project=``$($blocker.project_id)`` template=``$($blocker.template_name)`` candidate=``$($blocker.candidate_type)`` action=``$($blocker.action)`` schema=``$($blocker.source_schema)`` source_report_display=``$($blocker.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $blocker
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $blocker
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.message)) {
                 $lines.Add("  - $($blocker.message)") | Out-Null
             }
@@ -321,6 +361,7 @@ function New-ReportMarkdown {
         foreach ($item in @($Summary.action_items)) {
             $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -328,6 +369,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }
@@ -359,6 +401,7 @@ function New-ReportMarkdown {
         foreach ($item in @($Summary.informational_action_items)) {
             $lines.Add("- ``$($item.composite_id)``: project=``$($item.project_id)`` template=``$($item.template_name)`` candidate=``$($item.candidate_type)`` action=``$($item.action)`` category=``$($item.category)`` release_blocking=``$($item.release_blocking)`` optional=``$($item.optional)`` schema=``$($item.source_schema)`` source_report_display=``$($item.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.open_command)) {
                 $lines.Add("  - open_command: ``$($item.open_command)``") | Out-Null
             }
@@ -366,6 +409,7 @@ function New-ReportMarkdown {
                 $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             if (-not [string]::IsNullOrWhiteSpace([string]$item.repair_strategy)) {
                 $lines.Add("  - repair_strategy: ``$($item.repair_strategy)``") | Out-Null
             }
@@ -397,11 +441,35 @@ function New-ReportMarkdown {
         foreach ($warning in @($Summary.warnings)) {
             $lines.Add("- ``$($warning.id)``: project=``$($warning.project_id)`` template=``$($warning.template_name)`` candidate=``$($warning.candidate_type)`` action=``$($warning.action)`` schema=``$($warning.source_schema)`` source_report_display=``$($warning.source_report_display)``") | Out-Null
             Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $warning
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.source_json_display)) {
                 $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
             }
             if (-not [string]::IsNullOrWhiteSpace([string]$warning.message)) {
                 $lines.Add("  - $($warning.message)") | Out-Null
+            }
+            $styleMergeSuggestionCount = Get-JsonString -Object $warning -Name "style_merge_suggestion_count"
+            $styleMergeSuggestionPendingCount = Get-JsonString -Object $warning -Name "style_merge_suggestion_pending_count"
+            $styleMergeManualReviewReasonCount = Get-JsonString -Object $warning -Name "style_merge_manual_review_reason_count"
+            $manualReviewReasonCount = Get-JsonString -Object $warning -Name "manual_review_reason_count"
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeSuggestionCount)) {
+                $lines.Add("  - style_merge_suggestion_count: ``$styleMergeSuggestionCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeSuggestionPendingCount)) {
+                $lines.Add("  - style_merge_suggestion_pending_count: ``$styleMergeSuggestionPendingCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($styleMergeManualReviewReasonCount)) {
+                $lines.Add("  - style_merge_manual_review_reason_count: ``$styleMergeManualReviewReasonCount``") | Out-Null
+            }
+            if (-not [string]::IsNullOrWhiteSpace($manualReviewReasonCount)) {
+                $lines.Add("  - manual_review_reason_count: ``$manualReviewReasonCount``") | Out-Null
+            }
+            foreach ($reason in @(Get-JsonArray -Object $warning -Name "manual_review_reasons")) {
+                $sourceStyleId = Get-JsonString -Object $reason -Name "source_style_id"
+                $targetStyleId = Get-JsonString -Object $reason -Name "target_style_id"
+                $reasonCode = Get-JsonString -Object $reason -Name "reason_code"
+                $recommendedAction = Get-JsonString -Object $reason -Name "recommended_action"
+                $lines.Add("  - manual_review_reason: source=``$sourceStyleId`` target=``$targetStyleId`` reason_code=``$reasonCode`` recommended_action=``$recommendedAction``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $warning
             $repairStrategy = Get-JsonString -Object $warning -Name "repair_strategy"

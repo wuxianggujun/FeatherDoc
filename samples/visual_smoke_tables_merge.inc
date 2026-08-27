@@ -292,8 +292,13 @@ auto create_column_insertion_tables(featherdoc::Document &doc) -> bool {
     }
 
     cell.next();
-    if (!cell.has_next() ||
-        !add_cell_lines(cell, {"Completed", "Green result column stays rightmost"})) {
+    if (!cell.has_next()) {
+        return false;
+    }
+
+    auto result_paragraph = cell.paragraphs();
+    if (!result_paragraph.has_next() ||
+        !result_paragraph.insert_paragraph_after("Green result column stays rightmost").has_next()) {
         return false;
     }
 

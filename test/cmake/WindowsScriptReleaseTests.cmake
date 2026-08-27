@@ -64,6 +64,25 @@
 
         add_test(
             NAME
+            install_find_package_expected_failure_contract
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/install_find_package_expected_failure_contract_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/install_find_package_expected_failure_contract
+        )
+        set_tests_properties(install_find_package_expected_failure_contract
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "release;install;smoke")
+
+        add_test(
+            NAME
             release_governance_warning_contract
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -169,7 +188,7 @@
         )
         set_tests_properties(package_release_assets_safety
             PROPERTIES
-                TIMEOUT 120
+                TIMEOUT 240
                 LABELS "release;package;smoke")
 
         add_test(

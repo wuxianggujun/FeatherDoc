@@ -2,17 +2,15 @@
 
 #include "featherdoc_cli_command_support.hpp"
 #include "featherdoc_cli_errors.hpp"
-#include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
 #include "featherdoc_cli_pdf_export_output.hpp"
 #include "featherdoc_cli_pdf_parse.hpp"
 
-#if defined(FEATHERDOC_CLI_ENABLE_PDF)
+#include <featherdoc/detail/path.hpp>
+
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_writer.hpp>
-#endif
 
-#include <iostream>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -37,16 +35,16 @@ auto run_export_pdf_command(std::string_view command,
         return 2;
     }
 
-#if defined(FEATHERDOC_CLI_ENABLE_PDF)
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = featherdoc::detail::path_from_utf8(arguments[1]);
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
     }
 
     featherdoc::pdf::PdfDocumentAdapterOptions adapter_options;
     adapter_options.metadata.title = options.title.value_or(
-        input_path.filename().empty() ? std::string{"FeatherDoc PDF export"}
-                                      : input_path.filename().string());
+        input_path.filename().empty()
+            ? std::string{"FeatherDoc PDF export"}
+            : featherdoc::detail::path_to_utf8(input_path.filename()));
     adapter_options.metadata.creator =
         options.creator.value_or(std::string{"FeatherDoc"});
     adapter_options.render_headers_and_footers =
@@ -106,21 +104,6 @@ auto run_export_pdf_command(std::string_view command,
     print_pdf_export_result(command, *options.output_path, options, result,
                             options.json_output);
     return 0;
-#else
-    featherdoc::document_error_info error_info{};
-    error_info.detail =
-        "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON";
-    if (options.json_output) {
-        write_json_command_error(std::cerr, command, "export",
-                                 "Operation not supported", &error_info);
-        return 1;
-    }
-    error_info.code = std::make_error_code(std::errc::not_supported);
-    report_operation_failure(command, "export",
-                             "PDF export is not enabled in this build",
-                             error_info, options.json_output);
-    return 1;
-#endif
 }
 
 } // namespace featherdoc_cli

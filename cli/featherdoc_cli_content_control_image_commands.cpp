@@ -69,7 +69,7 @@ auto run_replace_content_control_image_command(
         return 2;
     }
 
-    const auto image_path = path_type(std::string(arguments[2]));
+    const auto image_path = path_from_cli_utf8(arguments[2]);
     replace_content_control_image_options options;
     std::string error_message;
     if (!parse_replace_content_control_image_options(arguments, 3U, options,
@@ -78,7 +78,7 @@ auto run_replace_content_control_image_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }

@@ -28,7 +28,7 @@ auto parse_style_merge_restore_options(
                 return false;
             }
 
-            options.rollback_plan_path = path_type(std::string(arguments[index + 1U]));
+            options.rollback_plan_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -106,7 +106,7 @@ auto parse_style_merge_restore_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

@@ -92,6 +92,20 @@ $warningWithStyleMergeCount = [pscustomobject]@{
     source_schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     style_merge_suggestion_count = 2
     style_merge_suggestion_pending_count = 2
+    style_merge_manual_review_required = $true
+    style_merge_manual_review_reason_count = 1
+    manual_review_required = $true
+    manual_review_reason_count = 1
+    manual_review_reasons = @(
+        [pscustomobject]@{
+            source_style_id = "DuplicateBodyB"
+            target_style_id = "DuplicateBodyA"
+            confidence = 82
+            recommended_min_confidence = 90
+            reason_code = "confidence_below_recommended_minimum"
+            recommended_action = "manual_review_before_apply"
+        }
+    )
 }
 
 $warningWithoutStyleMergeCount = [pscustomobject]@{
@@ -332,6 +346,14 @@ function Assert-ReleaseGovernanceWarningNormalizationContracts {
         -Message "Normalized warning should preserve style merge counts when provided."
     Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count") `
         -Message "Normalized warning should preserve pending style merge counts when provided."
+    Assert-True -Condition ($normalizedWarnings[0].PSObject.Properties.Name -contains "style_merge_manual_review_reason_count") `
+        -Message "Normalized warning should preserve style merge manual review reason counts when provided."
+    Assert-Equal -Actual ([int]$normalizedWarnings[0].style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Normalized warning should preserve style merge manual review reason count."
+    Assert-Equal -Actual ([bool]$normalizedWarnings[0].manual_review_required) -Expected $true `
+        -Message "Normalized warning should preserve manual review requirement."
+    Assert-Equal -Actual ([string]$normalizedWarnings[0].manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Normalized warning should preserve manual review reason details."
     Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -contains "style_merge_suggestion_count")) `
         -Message "Normalized warning should omit style merge counts when absent."
     Assert-True -Condition (-not ($normalizedWarnings[1].PSObject.Properties.Name -contains "style_merge_suggestion_pending_count")) `
@@ -443,6 +465,10 @@ function Assert-ReleaseGovernanceWarningNormalizationContracts {
         -Message "Summary text should include the optional style merge count when present."
     Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
         -Message "Summary text should include the optional pending style merge count when present."
+    Assert-ContainsText -Text $richSummaryText -ExpectedText 'style_merge_manual_review_reason_count: `1`' `
+        -Message "Summary text should include the optional manual review reason count when present."
+    Assert-ContainsText -Text $richSummaryText -ExpectedText 'manual_review_reasons: `DuplicateBodyB->DuplicateBodyA action=manual_review_before_apply reason=confidence_below_recommended_minimum confidence=82/90`' `
+        -Message "Summary text should include manual review reason details when present."
 
     $plainSummaryText = Get-ReleaseGovernanceWarningSummaryText -Warning $warningWithoutStyleMergeCount
     Assert-True -Condition ($plainSummaryText -notmatch 'style_merge_suggestion_count') `
@@ -545,6 +571,10 @@ function Assert-ReleaseGovernanceWarningNormalizationContracts {
         -Message "Markdown subsection should include the optional style merge count."
     Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_suggestion_pending_count: `2`' `
         -Message "Markdown subsection should include the optional pending style merge count."
+    Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'style_merge_manual_review_reason_count: `1`' `
+        -Message "Markdown subsection should include the optional manual review reason count."
+    Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'manual_review_before_apply' `
+        -Message "Markdown subsection should include manual review recommended action."
     Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'project_id: `project-finance`' `
         -Message "Warning Markdown subsection should include project id."
     Assert-ContainsText -Text $subsectionMarkdown -ExpectedText 'template_name: `invoice-template`' `

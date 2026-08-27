@@ -220,25 +220,22 @@ bool set_content_control_form_state_by_tag_or_alias_in_node(
     std::string_view entry_name, std::string_view value,
     const featherdoc::content_control_form_state_options &options,
     bool match_tag, std::size_t &updated) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};) {
-        const auto next = child.next_sibling();
-        if (std::string_view{child.name()} == "w:sdt" &&
-            content_control_matches_tag_or_alias(child, value, match_tag)) {
-            if (!apply_content_control_form_state(last_error_info, child,
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        if (std::string_view{current.name()} == "w:sdt" &&
+            content_control_matches_tag_or_alias(current, value, match_tag)) {
+            const auto next = featherdoc::detail::next_xml_node_preorder(
+                node, current, false);
+            if (!apply_content_control_form_state(last_error_info, current,
                                                   entry_name, options)) {
                 return false;
             }
             ++updated;
-            child = next;
+            current = next;
             continue;
         }
 
-        if (!set_content_control_form_state_by_tag_or_alias_in_node(
-                last_error_info, child, entry_name, value, options, match_tag,
-                updated)) {
-            return false;
-        }
-        child = next;
+        current =
+            featherdoc::detail::next_xml_node_preorder(node, current);
     }
 
     return true;

@@ -313,6 +313,50 @@ Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "
 Assert-ContainsText -Text $schemaCalibrationDocumentTypeGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
     -Message "Schema patch confidence calibration document type runbook should point at the calibration writer."
 
+$schemaCalibrationCorpusRoleWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "add_business_template_corpus_role_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationCorpusRoleGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationCorpusRoleWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "add_business_template_corpus_role_metadata" `
+    -Message "Schema patch confidence calibration corpus role warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "corpus_role metadata" `
+    -Message "Schema patch confidence calibration corpus role runbook should explain missing corpus role remediation."
+Assert-ContainsText -Text $schemaCalibrationCorpusRoleGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration corpus role runbook should point at the calibration writer."
+
+$schemaCalibrationCorpusMismatchWarning = [pscustomobject]@{
+    id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+    source = "schema_patch_confidence_calibration"
+    severity = "warning"
+    status = "ready"
+    action = "align_business_template_corpus_metadata"
+    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+    source_report_display = ".\output\schema-patch-confidence-calibration\schema_patch_confidence_calibration.md"
+    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+    open_command = "powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+}
+$schemaCalibrationCorpusMismatchGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $schemaCalibrationCorpusMismatchWarning `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "align_business_template_corpus_metadata" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch warning should render its fixed action runbook."
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "source corpus entry" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch runbook should explain source entry alignment."
+Assert-ContainsText -Text $schemaCalibrationCorpusMismatchGuidance -ExpectedText "write_schema_patch_confidence_calibration_report.ps1" `
+    -Message "Schema patch confidence calibration corpus metadata mismatch runbook should point at the calibration writer."
+
 $contentControlBlocker = [pscustomobject]@{
     id = "content_control_data_binding.bound_placeholder"
     source = "content_control_data_binding_governance"
@@ -516,6 +560,55 @@ Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "matched_doc
     -Message "Numbering catalog checklist guidance should keep real-corpus metrics."
 Assert-ContainsText -Text $numberingChecklistGuidance -ExpectedText "build_document_skeleton_governance_rollup_report.ps1" `
     -Message "Numbering catalog checklist guidance should mention skeleton rollup refresh."
+
+$numberingConflictBlocker = [pscustomobject]@{
+    id = "numbering_catalog_governance.exemplar_catalog_conflict"
+    source = "numbering_catalog_governance"
+    severity = "error"
+    status = "exemplar_catalog_conflict"
+    action = "review_numbering_catalog_exemplar_conflict"
+    message = "Multiple exemplar numbering catalogs require an authoritative source selection."
+    source_schema = "featherdoc.numbering_catalog_governance_report.v1"
+    source_report_display = ".\output\numbering-catalog-governance\summary.json"
+    source_json_display = ".\output\numbering-catalog-governance\summary.json"
+    scope = "invoice"
+    open_command = "featherdoc_cli diff-numbering-catalog <left-catalog.json> <right-catalog.json> --json"
+    catalog_patch_plan = [pscustomobject]@{
+        id = "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan"
+        schema = "featherdoc.numbering_catalog_governance_patch_plan.v1"
+        status = "awaiting_authoritative_catalog"
+        safe_to_apply = $false
+        automatic_patch_available = $false
+        manual_review_required = $true
+        requires_authoritative_catalog_selection = $true
+        candidate_catalog_displays = @(".\output\invoice\left.json", ".\output\invoice\right.json")
+        supported_patch_operations = @("upsert_levels", "upsert_overrides", "remove_overrides")
+        unsupported_automatic_changes = @(
+            [pscustomobject]@{ change_kind = "definition_topology_changes" }
+            [pscustomobject]@{ change_kind = "instance_topology_changes" }
+        )
+        review_command = "featherdoc_cli diff-numbering-catalog <left-catalog.json> <right-catalog.json> --json"
+        patch_command_template = "featherdoc_cli patch-numbering-catalog <authoritative-catalog.json> --patch-file <reviewed-patch.json> --output <patched-catalog.json> --json"
+        lint_command_template = "featherdoc_cli lint-numbering-catalog <patched-catalog.json> --json"
+        verification_command_template = "featherdoc_cli diff-numbering-catalog <patched-catalog.json> <reviewed-expected-catalog.json> --fail-on-diff --json"
+    }
+}
+$numberingConflictGuidance = @(Get-ReleaseBlockerActionGuidanceLines `
+        -Blocker $numberingConflictBlocker `
+        -RepoRoot $resolvedRepoRoot `
+        -ReleaseSummaryJson (Join-Path $resolvedWorkingDir "release-summary.json")) -join "`n"
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "review_numbering_catalog_exemplar_conflict" `
+    -Message "Numbering catalog conflict should render its fixed patch-plan action runbook."
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "awaiting_authoritative_catalog" `
+    -Message "Numbering catalog conflict runbook should expose patch-plan status."
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "safe_to_apply=false" `
+    -Message "Numbering catalog conflict runbook should preserve patch-plan safety."
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "patch-numbering-catalog" `
+    -Message "Numbering catalog conflict runbook should expose the reviewed patch command."
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "lint-numbering-catalog" `
+    -Message "Numbering catalog conflict runbook should expose the lint command."
+Assert-ContainsText -Text $numberingConflictGuidance -ExpectedText "--fail-on-diff" `
+    -Message "Numbering catalog conflict runbook should expose the verification gate."
 
 $tableLayoutGovernanceBlocker = [pscustomobject]@{
     id = "table_layout_delivery.safe_tblLook_fixes_pending"

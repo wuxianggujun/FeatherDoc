@@ -325,4 +325,19 @@ foreach ($marker in @(
         -Message "CMake test registration should keep content-control data-binding route contract wired."
 }
 
+foreach ($testName in @(
+        "build_content_control_data_binding_governance_report_aggregate",
+        "build_content_control_data_binding_governance_report_fail_on_blocker",
+        "build_content_control_data_binding_governance_report_fail_on_warning"
+    )) {
+    $propertiesPattern = '(?s)set_tests_properties\(\s*' + [regex]::Escape($testName) + '\s+PROPERTIES(?<properties>.*?)\)'
+    $propertiesMatch = [regex]::Match($cmakeLists, $propertiesPattern)
+    if (-not $propertiesMatch.Success) {
+        throw "CMake should preserve the test properties for '$testName'."
+    }
+    if ($propertiesMatch.Groups["properties"].Value -notmatch '(?m)^\s*TIMEOUT\s+120\s*$') {
+        throw "CMake should give '$testName' the measured 120-second Windows timeout."
+    }
+}
+
 Write-Host "Content-control data-binding route docs contract passed."

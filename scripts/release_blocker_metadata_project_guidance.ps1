@@ -31,6 +31,14 @@ function Add-SchemaPatchConfidenceCalibrationGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `add_business_template_document_type_metadata`{0}: add business_document_type metadata for schema patch candidate(s), then rerun schema patch confidence calibration.' -f $contextSuffix)
             break
         }
+        "add_business_template_corpus_role_metadata" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `add_business_template_corpus_role_metadata`{0}: add corpus_role metadata for schema patch candidate(s), then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
+        "align_business_template_corpus_metadata" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `align_business_template_corpus_metadata`{0}: align schema patch candidate business_document_type and corpus_role with the source corpus entry, then rerun schema patch confidence calibration.' -f $contextSuffix)
+            break
+        }
         default {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_schema_patch_confidence_calibration_evidence`{0}: review schema patch confidence calibration evidence, then rerun the calibration report.' -f $contextSuffix)
         }
@@ -437,6 +445,10 @@ function Add-NumberingCatalogGovernanceGuidanceLines {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_numbering_catalog_governance_sources`{0}: inspect numbering governance input JSON kind and rebuild the owning source report when evidence is skipped or unreadable.' -f $contextSuffix)
             break
         }
+        "review_numbering_catalog_exemplar_conflict" {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_numbering_catalog_exemplar_conflict`{0}: choose one authoritative exemplar catalog, review every `diff-numbering-catalog` result, author only supported level/override patch operations, then lint and verify the reviewed output before promotion.' -f $contextSuffix)
+            break
+        }
         "review_style_numbering_audit" {
             Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ('Use action `review_style_numbering_audit`{0}: review style numbering audit issues, then decide whether to repair style numbering or update the numbering catalog baseline.' -f $contextSuffix)
             break
@@ -523,6 +535,57 @@ function Add-NumberingCatalogGovernanceGuidanceLines {
         Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Numbering governance metrics: {0}" -f ($metricParts.ToArray() -join ", "))
     }
 
+    $catalogPatchPlan = Get-ReleaseBlockerPropertyObject -Object $Item -Name "catalog_patch_plan"
+    if ($null -ne $catalogPatchPlan) {
+        $patchPlanParts = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($fieldName in @("id", "status")) {
+            $value = Get-ReleaseBlockerPropertyValue -Object $catalogPatchPlan -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                [void]$patchPlanParts.Add("$fieldName=$value")
+            }
+        }
+        foreach ($fieldName in @(
+                "safe_to_apply",
+                "automatic_patch_available",
+                "manual_review_required",
+                "requires_authoritative_catalog_selection"
+            )) {
+            $value = Get-ReleaseBlockerBoolPropertyDisplayValue -Object $catalogPatchPlan -Name $fieldName
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                [void]$patchPlanParts.Add("$fieldName=$value")
+            }
+        }
+        if ($patchPlanParts.Count -gt 0) {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Catalog patch plan: {0}" -f ($patchPlanParts.ToArray() -join ", "))
+        }
+
+        foreach ($arrayInfo in @(
+                [ordered]@{ Name = "candidate_catalog_displays"; Label = "candidate catalogs" },
+                [ordered]@{ Name = "supported_patch_operations"; Label = "supported patch operations" }
+            )) {
+            $values = @(Get-ReleaseBlockerArrayProperty -Object $catalogPatchPlan -Name $arrayInfo.Name |
+                ForEach-Object { [string]$_ } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($values.Count -gt 0) {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Catalog patch plan {0}: {1}" -f $arrayInfo.Label, ($values -join ", "))
+            }
+        }
+
+        $unsupportedChanges = @(Get-ReleaseBlockerArrayProperty -Object $catalogPatchPlan -Name "unsupported_automatic_changes" |
+            ForEach-Object { Get-ReleaseBlockerPropertyValue -Object $_ -Name "change_kind" } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($unsupportedChanges.Count -gt 0) {
+            Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Catalog patch plan unsupported automatic changes: {0}" -f ($unsupportedChanges -join ", "))
+        }
+
+        foreach ($commandName in @("review_command", "patch_command_template", "lint_command_template", "verification_command_template")) {
+            $commandValue = Get-ReleaseBlockerPropertyValue -Object $catalogPatchPlan -Name $commandName
+            if (-not [string]::IsNullOrWhiteSpace($commandValue)) {
+                Add-ReleaseBlockerActionGuidanceLine -Lines $Lines -Text ("Catalog patch plan {0}: ``{1}``" -f $commandName, $commandValue)
+            }
+        }
+    }
+
     foreach ($arrayInfo in @(
             [ordered]@{ Name = "catalog_document_keys"; Label = "catalog document keys" },
             [ordered]@{ Name = "baseline_document_keys"; Label = "baseline document keys" },
@@ -549,9 +612,14 @@ function Add-NumberingCatalogGovernanceGuidanceLines {
                     "fix_numbering_catalog_baseline_lint",
                     "refresh_numbering_catalog_baseline_or_repair_docx",
                     "review_numbering_catalog_check_issues",
-                    "register_numbering_catalog_baseline"
+                    "register_numbering_catalog_baseline",
+                    "review_numbering_catalog_exemplar_conflict"
                 ) } {
-                $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx <input.docx> -CatalogFile <catalog.json> -BuildDir <build-dir> -SkipBuild'
+                if ($action -eq "review_numbering_catalog_exemplar_conflict") {
+                    $commandTemplate = 'featherdoc_cli diff-numbering-catalog <left-catalog.json> <right-catalog.json> --json'
+                } else {
+                    $commandTemplate = 'powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check_numbering_catalog_baseline.ps1 -InputDocx <input.docx> -CatalogFile <catalog.json> -BuildDir <build-dir> -SkipBuild'
+                }
                 break
             }
             "rebuild_document_skeleton_governance_rollup" {

@@ -13,6 +13,57 @@ $malformedPath = Join-Path $fixtureRoot "malformed\summary.json"
 $failedSourcePath = Join-Path $fixtureRoot "failed-source\summary.json"
 $dedupePath = Join-Path $fixtureRoot "dedupe\summary.json"
 
+$catalogPatchPlanFixture = [ordered]@{
+    schema = "featherdoc.numbering_catalog_governance_patch_plan.v1"
+    id = "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan"
+    document_key = "contract.docx"
+    status = "awaiting_authoritative_catalog"
+    safe_to_apply = $false
+    automatic_patch_available = $false
+    patch_apply_supported = $false
+    manual_review_required = $true
+    requires_authoritative_catalog_selection = $true
+    candidate_catalog_count = 2
+    candidate_catalog_paths = @("output/catalog-a.json", "output/catalog-b.json")
+    candidate_catalog_displays = @(".\output\catalog-a.json", ".\output\catalog-b.json")
+    reviewer_inputs = @("authoritative_catalog_path", "reviewed_patch_path", "reviewed_expected_catalog_path")
+    supported_patch_operations = @("upsert_levels", "upsert_overrides", "remove_overrides")
+    unsupported_automatic_changes = @(
+        [ordered]@{
+            change_kind = "definition_topology_changes"
+            automatic_action = "manual_review_required"
+            reason = "The catalog patch CLI does not add or remove numbering definitions."
+        }
+    )
+    unsupported_change_count = 1
+    patch_counts = [ordered]@{
+        upsert_levels = 0
+        upsert_overrides = 0
+        remove_overrides = 0
+    }
+    diff_commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+    review_command = "featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json"
+    patch_command_template = "featherdoc_cli patch-numbering-catalog <authoritative-catalog.json> --patch-file <reviewed-patch.json> --output <patched-catalog.json> --json"
+    lint_command_template = "featherdoc_cli lint-numbering-catalog <patched-catalog.json> --json"
+    verification_command_template = "featherdoc_cli diff-numbering-catalog <patched-catalog.json> <reviewed-expected-catalog.json> --fail-on-diff --json"
+    required_steps = @(
+        [ordered]@{
+            sequence = 1
+            action = "select_authoritative_catalog"
+            required = $true
+            command_template = ""
+            description = "Choose exactly one candidate catalog as the authoritative source."
+        },
+        [ordered]@{
+            sequence = 2
+            action = "review_candidate_diffs"
+            required = $true
+            commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+            description = "Compare the selected source with every other candidate before editing."
+        }
+    )
+}
+
 Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
     schema = "featherdoc.document_skeleton_governance_rollup_report.v1"
     release_blocker_count = 1
@@ -27,6 +78,8 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance/contract/style-numbering-audit.json"
             source_json_display = ".\output\document-skeleton-governance\contract\style-numbering-audit.json"
+            catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+            catalog_patch_plan = $catalogPatchPlanFixture
         }
     )
     action_items = @(
@@ -34,9 +87,11 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             id = "preview_style_numbering_repair"
             title = "Preview style numbering repair"
             command = "featherdoc_cli repair-style-numbering input.docx --plan-only --json"
+            catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+            catalog_patch_plan = $catalogPatchPlanFixture
         }
     )
-    warning_count = 1
+    warning_count = 2
     warnings = @(
         [ordered]@{
             id = "document_skeleton.exemplar_catalog_missing"
@@ -46,6 +101,31 @@ Write-JsonFile -Path $documentSkeletonPath -Value ([ordered]@{
             source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
             source_json = "output/document-skeleton-governance-rollup/summary.json"
             source_json_display = ".\output\document-skeleton-governance-rollup\summary.json"
+        },
+        [ordered]@{
+            id = "document_skeleton.style_merge_suggestions_pending"
+            action = "review_style_merge_suggestions"
+            message = "Document skeleton governance reports duplicate style merge suggestion(s) awaiting review."
+            source_report = "output/document-skeleton-governance-rollup/summary.json"
+            source_report_display = ".\output\document-skeleton-governance-rollup\summary.json"
+            source_json = "output/document-skeleton-governance/contract/style-merge-suggestion-review.json"
+            source_json_display = ".\output\document-skeleton-governance\contract\style-merge-suggestion-review.json"
+            style_merge_suggestion_count = 2
+            style_merge_suggestion_pending_count = 2
+            style_merge_manual_review_required = $true
+            style_merge_manual_review_reason_count = 1
+            manual_review_required = $true
+            manual_review_reason_count = 1
+            manual_review_reasons = @(
+                [ordered]@{
+                    source_style_id = "DuplicateBodyB"
+                    target_style_id = "DuplicateBodyA"
+                    confidence = 82
+                    recommended_min_confidence = 90
+                    reason_code = "confidence_below_recommended_minimum"
+                    recommended_action = "manual_review_before_apply"
+                }
+            )
         }
     )
 })
@@ -308,7 +388,7 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
         }
     )
-    action_item_count = 1
+    action_item_count = 2
     action_items = @(
         [ordered]@{
             id = "resolve_pending_schema_approvals"
@@ -322,9 +402,26 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             source_report = "output/schema-patch-confidence-calibration/summary.json"
             source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
             source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        },
+        [ordered]@{
+            id = "align_business_template_corpus_metadata"
+            action = "align_business_template_corpus_metadata"
+            title = "Align schema patch candidate corpus metadata"
+            open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            business_document_type = "invoice"
+            source_business_document_type = "notice"
+            corpus_role = "experimental-business-template"
+            source_corpus_role = "registered-business-template"
+            candidate_type = "add"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_report = "output/schema-patch-confidence-calibration/summary.json"
+            source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
         }
     )
-    warning_count = 1
+    warning_count = 2
     warnings = @(
         [ordered]@{
             id = "schema_patch_confidence_calibration.unscored_candidates"
@@ -333,6 +430,25 @@ Write-JsonFile -Path $schemaCalibrationPath -Value ([ordered]@{
             project_id = "project-finance"
             template_name = "invoice-template"
             candidate_type = "rename"
+            source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+            source_report = "output/schema-patch-confidence-calibration/summary.json"
+            source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+            source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+        },
+        [ordered]@{
+            id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+            action = "align_business_template_corpus_metadata"
+            message = "Some schema patch candidates disagree with their source business template corpus metadata."
+            mismatched_corpus_metadata_count = 1
+            business_document_type = "invoice"
+            source_business_document_type = "notice"
+            corpus_role = "experimental-business-template"
+            source_corpus_role = "registered-business-template"
+            business_document_type_mismatch = $true
+            corpus_role_mismatch = $true
+            project_id = "project-office"
+            template_name = "office-notice-template"
+            candidate_type = "add"
             source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
             source_report = "output/schema-patch-confidence-calibration/summary.json"
             source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
@@ -531,6 +647,12 @@ Write-JsonFile -Path $releaseCandidatePath -Value ([ordered]@{
             visual_baseline_render_status = "partial"
             visual_baseline_fresh_rendered_count = 22
             expected_visual_render_count = 44
+            visual_baseline_missing_pdf_count = 0
+            visual_baseline_pdf_total_bytes = 7340032
+            visual_baseline_png_page_count = 44
+            visual_baseline_missing_png_page_count = 0
+            visual_baseline_png_total_bytes = 2097152
+            visual_baseline_unreadable_png_dimension_count = 0
             aggregate_contact_sheet_status = "stale"
             aggregate_contact_sheet = "output/pdf-visual-release-gate-current/report/aggregate-contact-sheet.png"
         }

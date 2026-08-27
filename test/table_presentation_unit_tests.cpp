@@ -124,7 +124,9 @@ TEST_CASE("tables can set and clear floating position") {
 
     auto table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
     REQUIRE(table_node != pugi::xml_node{});
-    auto position_node = table_node.child("w:tblPr").child("w:tblpPr");
+    auto table_properties = table_node.child("w:tblPr");
+    REQUIRE(table_properties != pugi::xml_node{});
+    auto position_node = table_properties.child("w:tblpPr");
     REQUIRE(position_node != pugi::xml_node{});
     CHECK_EQ(std::string_view{position_node.attribute("w:horzAnchor").value()}, "page");
     CHECK_EQ(std::string_view{position_node.attribute("w:tblpX").value()}, "720");
@@ -136,7 +138,16 @@ TEST_CASE("tables can set and clear floating position") {
     CHECK_EQ(std::string_view{position_node.attribute("w:rightFromText").value()}, "288");
     CHECK_EQ(std::string_view{position_node.attribute("w:topFromText").value()}, "72");
     CHECK_EQ(std::string_view{position_node.attribute("w:bottomFromText").value()}, "216");
-    CHECK_EQ(std::string_view{position_node.attribute("w:tblOverlap").value()}, "never");
+    CHECK_EQ(position_node.attribute("w:tblOverlap"), pugi::xml_attribute{});
+    const auto overlap_node = table_properties.child("w:tblOverlap");
+    REQUIRE(overlap_node != pugi::xml_node{});
+    CHECK_EQ(std::string_view{overlap_node.attribute("w:val").value()}, "never");
+    CHECK_EQ(position_node.next_sibling(), overlap_node);
+    const auto previous_property = position_node.previous_sibling();
+    const auto has_schema_valid_predecessor =
+        previous_property == pugi::xml_node{} ||
+        std::string_view{previous_property.name()} == "w:tblStyle";
+    CHECK(has_schema_valid_predecessor);
 
     featherdoc::Document reopened(target);
     CHECK_FALSE(reopened.open());
@@ -175,6 +186,8 @@ TEST_CASE("tables can set and clear floating position") {
     table_node = xml_document.child("w:document").child("w:body").child("w:tbl");
     REQUIRE(table_node != pugi::xml_node{});
     CHECK_EQ(table_node.child("w:tblPr").child("w:tblpPr"), pugi::xml_node{});
+    CHECK_EQ(table_node.child("w:tblPr").child("w:tblOverlap"),
+             pugi::xml_node{});
 
     fs::remove(target);
 }

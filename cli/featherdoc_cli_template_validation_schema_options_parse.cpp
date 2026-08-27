@@ -42,7 +42,8 @@ auto parse_validate_template_schema_options(
                 return false;
             }
 
-            options.schema_files.emplace_back(std::string(arguments[index + 1U]));
+            options.schema_files.push_back(
+                path_from_cli_utf8(arguments[index + 1U]));
             ++index;
             continue;
         }

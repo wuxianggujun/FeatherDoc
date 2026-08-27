@@ -1,18 +1,42 @@
-function(featherdoc_add_cpp_test target_name test_name)
-    add_executable(${target_name} ${ARGN})
+function(featherdoc_add_cpp_test_executable target_name)
+    set(featherdoc_test_sources ${ARGN})
+    set(featherdoc_test_uses_cli_core OFF)
+    foreach(featherdoc_cli_core_source IN LISTS FEATHERDOC_CLI_CORE_SOURCES)
+        list(FIND featherdoc_test_sources
+            "${featherdoc_cli_core_source}" featherdoc_cli_core_source_index)
+        if(NOT featherdoc_cli_core_source_index EQUAL -1)
+            list(REMOVE_ITEM featherdoc_test_sources
+                "${featherdoc_cli_core_source}")
+            set(featherdoc_test_uses_cli_core ON)
+        endif()
+    endforeach()
+
+    add_executable(${target_name} ${featherdoc_test_sources})
 
     target_link_libraries(
         ${target_name}
         PRIVATE FeatherDoc::FeatherDoc
     )
+    if(featherdoc_test_uses_cli_core)
+        target_link_libraries(${target_name} PRIVATE FeatherDocCliCore)
+    endif()
     featherdoc_copy_runtime_dlls(${target_name})
+endfunction()
 
-    add_test(
-        NAME
-        ${test_name}
-        COMMAND
-        ${target_name}
-    )
+function(featherdoc_add_cpp_test target_name test_name)
+    featherdoc_add_cpp_test_executable(${target_name} ${ARGN})
+
+    if(WIN32)
+        add_test(
+            NAME ${test_name}
+            COMMAND ${target_name} --no-breaks=true
+        )
+    else()
+        add_test(
+            NAME ${test_name}
+            COMMAND ${target_name}
+        )
+    endif()
 endfunction()
 
 function(featherdoc_set_test_labels test_name)

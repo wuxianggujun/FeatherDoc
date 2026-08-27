@@ -49,8 +49,12 @@ function(featherdoc_copy_runtime_dlls target_name)
                 "list(APPEND FEATHERDOC_COPY_RUNTIME_DLLS_DLLS \"${runtime_dll}\")\n")
         endforeach()
 
+        # TARGET_RUNTIME_DLLS and TARGET_FILE_DIR are configuration-dependent
+        # with multi-config generators.  Generate one script per configuration
+        # so Debug, Release, and the other configurations never compete for the
+        # same output path with different content.
         set(copy_runtime_dlls_script
-            "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_copy_runtime_dlls.cmake")
+            "${CMAKE_CURRENT_BINARY_DIR}/${target_name}_copy_runtime_dlls_$<CONFIG>.cmake")
         set(copy_runtime_dlls_content [=[
 set(FEATHERDOC_COPY_RUNTIME_DLLS_DEST "$<TARGET_FILE_DIR:@TARGET_NAME@>")
 set(FEATHERDOC_COPY_RUNTIME_DLLS_DLLS "$<TARGET_RUNTIME_DLLS:@TARGET_NAME@>")

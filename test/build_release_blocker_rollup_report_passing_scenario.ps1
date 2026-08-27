@@ -27,9 +27,9 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should be blocked when blockers exist."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 8 `
         -Message "Rollup should aggregate all blockers."
-    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 6 `
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 7 `
         -Message "Rollup should aggregate action items."
-    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 3 `
+    Assert-Equal -Actual ([int]$summary.warning_count) -Expected 5 `
         -Message "Rollup should aggregate warning items."
     Assert-Equal -Actual ([int]$summary.source_report_count) -Expected 9 `
         -Message "Rollup should keep source report count."
@@ -64,7 +64,7 @@ if (Test-Scenario -Name "passing") {
     Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
-        -ExpectedCount 1 `
+        -ExpectedCount 2 `
         -Message "Rollup should summarize action items by source schema for reviewer filtering."
     Assert-SummaryGroupCount -Groups @($summary.action_item_source_schema_summary) `
         -PropertyName "source_schema" `
@@ -74,13 +74,18 @@ if (Test-Scenario -Name "passing") {
     Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.schema_patch_confidence_calibration_report.v1" `
-        -ExpectedCount 1 `
+        -ExpectedCount 2 `
         -Message "Rollup should summarize warnings by source schema for reviewer filtering."
     Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
         -PropertyName "source_schema" `
         -Name "featherdoc.pdf_visual_release_gate_preflight_governance_report.v1" `
         -ExpectedCount 1 `
         -Message "Rollup should summarize PDF preflight warnings by source schema."
+    Assert-SummaryGroupCount -Groups @($summary.warning_source_schema_summary) `
+        -PropertyName "source_schema" `
+        -Name "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -ExpectedCount 2 `
+        -Message "Rollup should summarize document skeleton warnings by source schema."
     Assert-Equal -Actual (@($summary.informational_action_item_source_schema_summary).Count) -Expected 0 `
         -Message "Rollup should expose an empty informational action source-schema summary when no informational actions are present."
     $metricText = ($summary.governance_metrics | ForEach-Object { "$($_.metric):$($_.level):$($_.score)" }) -join "`n"
@@ -187,6 +192,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve blocker source JSON display."
     Assert-ContainsText -Text ([string]$skeletonBlocker.origin_source_report_display) -ExpectedText "document-skeleton-governance-rollup\summary.json" `
         -Message "Rollup should preserve blocker origin source report display."
+    Assert-Equal -Actual ([string]$skeletonBlocker.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlanFixture.id) `
+        -Message "Rollup should preserve the catalog patch plan id on blockers."
+    Assert-Equal -Actual ($skeletonBlocker.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+        -Expected ($catalogPatchPlanFixture | ConvertTo-Json -Depth 20 -Compress) `
+        -Message "Rollup should preserve the nested catalog patch plan on blockers without reshaping it."
     $skeletonAction = ($summary.action_items |
         Where-Object { [string]$_.id -eq "preview_style_numbering_repair" } |
         Select-Object -First 1)
@@ -194,6 +205,12 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should expose action item open command."
     Assert-Equal -Actual ([string]$skeletonAction.action) -Expected "preview_style_numbering_repair" `
         -Message "Rollup should fall back to action item id when action is absent."
+    Assert-Equal -Actual ([string]$skeletonAction.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlanFixture.id) `
+        -Message "Rollup should preserve the catalog patch plan id on action items."
+    Assert-Equal -Actual ($skeletonAction.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+        -Expected ($catalogPatchPlanFixture | ConvertTo-Json -Depth 20 -Compress) `
+        -Message "Rollup should preserve the nested catalog patch plan on action items without reshaping it."
     $contentControlBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "content_control_data_binding.bound_placeholder" } |
         Select-Object -First 1)
@@ -452,6 +469,18 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve PDF visual gate attempt fresh render count."
     Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_expected_visual_render_count) -Expected 44 `
         -Message "Rollup should preserve PDF visual gate attempt expected render count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_missing_pdf_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt missing PDF count."
+    Assert-Equal -Actual ([int64]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes) -Expected 7340032 `
+        -Message "Rollup should preserve PDF visual gate attempt PDF byte total."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_png_page_count) -Expected 44 `
+        -Message "Rollup should preserve PDF visual gate attempt PNG page count."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_missing_png_page_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt missing PNG page count."
+    Assert-Equal -Actual ([int64]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_png_total_bytes) -Expected 2097152 `
+        -Message "Rollup should preserve PDF visual gate attempt PNG byte total."
+    Assert-Equal -Actual ([int]$releaseCandidateSourceReport.pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count) -Expected 0 `
+        -Message "Rollup should preserve PDF visual gate attempt unreadable PNG dimension count."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_gate_attempt_aggregate_contact_sheet_status) -Expected "stale" `
         -Message "Rollup should preserve PDF visual gate attempt contact sheet status."
     Assert-Equal -Actual ([string]$releaseCandidateSourceReport.pdf_visual_segmented_gate_status) -Expected "pass" `
@@ -618,6 +647,17 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve warning action."
     Assert-ContainsText -Text ([string]$skeletonWarning.message) -ExpectedText "exemplar catalog" `
         -Message "Rollup should preserve warning message."
+    $skeletonStyleMergeWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "document_skeleton.style_merge_suggestions_pending" } |
+        Select-Object -First 1)
+    Assert-True -Condition ($null -ne $skeletonStyleMergeWarning) `
+        -Message "Rollup should include document skeleton style merge warnings."
+    Assert-Equal -Actual ([int]$skeletonStyleMergeWarning.style_merge_suggestion_count) -Expected 2 `
+        -Message "Rollup should preserve style merge suggestion counts on warnings."
+    Assert-Equal -Actual ([int]$skeletonStyleMergeWarning.style_merge_manual_review_reason_count) -Expected 1 `
+        -Message "Rollup should preserve style merge manual review reason counts on warnings."
+    Assert-Equal -Actual ([string]$skeletonStyleMergeWarning.manual_review_reasons[0].recommended_action) -Expected "manual_review_before_apply" `
+        -Message "Rollup should preserve style merge manual review reason details on warnings."
     $calibrationBlocker = ($summary.release_blockers |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.pending_schema_approvals" } |
         Select-Object -First 1)
@@ -644,6 +684,25 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration action raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationAction.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration action origin source report display."
+    $calibrationMetadataAction = ($summary.action_items |
+        Where-Object { [string]$_.id -eq "align_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.project_id) -Expected "project-office" `
+        -Message "Rollup should preserve calibration corpus metadata action project id."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.template_name) -Expected "office-notice-template" `
+        -Message "Rollup should preserve calibration corpus metadata action template name."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.business_document_type) -Expected "invoice" `
+        -Message "Rollup should preserve calibration corpus metadata action business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_business_document_type) -Expected "notice" `
+        -Message "Rollup should preserve calibration corpus metadata action source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.corpus_role) -Expected "experimental-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata action corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata action source corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataAction.candidate_type) -Expected "add" `
+        -Message "Rollup should preserve calibration corpus metadata action candidate type."
+    Assert-ContainsText -Text ([string]$calibrationMetadataAction.source_json) -ExpectedText "schema-patch-confidence-calibration/summary.json" `
+        -Message "Rollup should preserve calibration corpus metadata action raw source JSON."
     $calibrationWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.unscored_candidates" } |
         Select-Object -First 1)
@@ -657,6 +716,27 @@ if (Test-Scenario -Name "passing") {
         -Message "Rollup should preserve calibration warning raw source JSON."
     Assert-ContainsText -Text ([string]$calibrationWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
         -Message "Rollup should preserve calibration warning origin source report display."
+    $calibrationMetadataWarning = ($summary.warnings |
+        Where-Object { [string]$_.id -eq "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata" } |
+        Select-Object -First 1)
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.action) -Expected "align_business_template_corpus_metadata" `
+        -Message "Rollup should preserve calibration corpus metadata warning action."
+    Assert-Equal -Actual ([int]$calibrationMetadataWarning.mismatched_corpus_metadata_count) -Expected 1 `
+        -Message "Rollup should preserve calibration corpus metadata mismatch count."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.business_document_type) -Expected "invoice" `
+        -Message "Rollup should preserve calibration corpus metadata warning business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_business_document_type) -Expected "notice" `
+        -Message "Rollup should preserve calibration corpus metadata warning source business document type."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.corpus_role) -Expected "experimental-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata warning corpus role."
+    Assert-Equal -Actual ([string]$calibrationMetadataWarning.source_corpus_role) -Expected "registered-business-template" `
+        -Message "Rollup should preserve calibration corpus metadata warning source corpus role."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.business_document_type_mismatch) -Expected $true `
+        -Message "Rollup should preserve calibration business document type mismatch flag."
+    Assert-Equal -Actual ([bool]$calibrationMetadataWarning.corpus_role_mismatch) -Expected $true `
+        -Message "Rollup should preserve calibration corpus role mismatch flag."
+    Assert-ContainsText -Text ([string]$calibrationMetadataWarning.origin_source_report_display) -ExpectedText "schema-patch-confidence-calibration\summary.json" `
+        -Message "Rollup should preserve calibration corpus metadata warning origin source report display."
     $pdfPreflightWarning = ($summary.warnings |
         Where-Object { [string]$_.id -eq "pdf_controlled_visual_smoke.unavailable_or_failed" } |
         Select-Object -First 1)
@@ -703,10 +783,37 @@ if (Test-Scenario -Name "passing") {
         'reviewer_action_reason:',
         'reviewer_actions:'
     ) -Message "Markdown should keep reviewer action fields together for project-template readiness."
+    Assert-MarkdownListBlockContainsAll -Text $markdown -Anchor 'catalog_patch_plan_id: `numbering_catalog_governance.exemplar_catalog_conflict_patch_plan`' -ExpectedFragments @(
+        'schema: `featherdoc.numbering_catalog_governance_patch_plan.v1`',
+        'status: `awaiting_authoritative_catalog`',
+        'safe_to_apply: `False`',
+        'automatic_patch_available: `False`',
+        'patch_apply_supported: `False`',
+        'manual_review_required: `True`',
+        'requires_authoritative_catalog_selection: `True`',
+        'candidate_catalogs: `.\output\catalog-a.json`, `.\output\catalog-b.json`',
+        'supported_patch_operations: `upsert_levels`, `upsert_overrides`, `remove_overrides`',
+        'unsupported_automatic_changes: `definition_topology_changes`',
+        'review_command: `featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json`',
+        'patch_command_template:',
+        'lint_command_template:',
+        'verification_command_template:',
+        'required_steps:',
+        'sequence=`1` action=`select_authoritative_catalog`',
+        'sequence=`2` action=`review_candidate_diffs`'
+    ) -Message "Markdown should expose the structured catalog patch plan on rollup items."
+    $rollupStepOneIndex = $markdown.IndexOf('sequence=`1` action=`select_authoritative_catalog`', [System.StringComparison]::Ordinal)
+    $rollupStepTwoIndex = $markdown.IndexOf('sequence=`2` action=`review_candidate_diffs`', [System.StringComparison]::Ordinal)
+    Assert-True -Condition ($rollupStepOneIndex -ge 0 -and $rollupStepTwoIndex -gt $rollupStepOneIndex) `
+        -Message "Rollup Markdown should preserve required catalog patch step order."
     Assert-ContainsText -Text $markdown -ExpectedText "not_run_by_preflight_governance" `
         -Message "Markdown should make clear that PDF preflight did not run the full visual gate."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_controlled_visual_smoke.unavailable_or_failed" `
         -Message "Markdown should include PDF preflight warning ids."
+    Assert-ContainsText -Text $markdown -ExpectedText "style_merge_manual_review_reason_count: ``1``" `
+        -Message "Markdown should include style merge manual review reason counts."
+    Assert-ContainsText -Text $markdown -ExpectedText "manual_review_before_apply" `
+        -Message "Markdown should include style merge manual review recommended action."
     Assert-ContainsText -Text $markdown -ExpectedText "controlled-visual-smoke-failed.json" `
         -Message "Markdown should include PDF preflight warning source JSON display paths."
     Assert-ContainsText -Text $markdown -ExpectedText "pdf_visual_gate_verdict" `
@@ -812,6 +919,12 @@ if (Test-Scenario -Name "passing") {
         "pdf_visual_gate_attempt_visual_baseline_render_status: ``partial``",
         "pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``22``",
         "pdf_visual_gate_attempt_expected_visual_render_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``7340032``",
+        "pdf_visual_gate_attempt_visual_baseline_png_page_count: ``44``",
+        "pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``0``",
+        "pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``2097152``",
+        "pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``0``",
         "pdf_visual_segmented_gate_status: ``pass``",
         "pdf_visual_segmented_gate_verdict: ``pass``",
         "pdf_visual_segmented_gate_full_visual_gate_status: ``not_complete``",

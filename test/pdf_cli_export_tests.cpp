@@ -266,7 +266,7 @@ void expect_pdf_export_success_json(
     expect_json_field(text, R"("ok":true)");
     expect_json_field(text,
                       std::string(R"("output":)") +
-                          json_quote(output_path.string()));
+                          json_quote_path(output_path));
     expect_json_field(text,
                       std::string(R"("bytes_written":)") +
                           std::to_string(static_cast<unsigned long long>(
@@ -339,6 +339,60 @@ TEST_CASE("cli export-pdf writes a PDF file and json summary") {
     expect_pdf_export_success_json(read_text_file(summary_json),
                                    output,
                                    true,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
+}
+
+TEST_CASE("cli export-pdf supports Unicode input output and summary paths") {
+    const fs::path work_dir =
+        test_binary_directory() /
+        featherdoc::detail::path_from_utf8(
+            utf8_from_u8(u8"pdf-cli-中文-日本語-🙂"));
+    std::error_code error;
+    fs::remove_all(work_dir, error);
+    error.clear();
+    fs::create_directories(work_dir, error);
+    REQUIRE_FALSE(error);
+
+    const fs::path source =
+        work_dir / featherdoc::detail::path_from_utf8(
+                       utf8_from_u8(u8"输入-文档-🙂.docx"));
+    const fs::path output =
+        work_dir / featherdoc::detail::path_from_utf8(
+                       utf8_from_u8(u8"输出-文档-🙂.pdf"));
+    const fs::path json_output =
+        work_dir / featherdoc::detail::path_from_utf8(
+                       utf8_from_u8(u8"命令结果-🙂.json"));
+    const fs::path summary_json =
+        work_dir / featherdoc::detail::path_from_utf8(
+                       utf8_from_u8(u8"摘要-🙂.json"));
+
+    create_cli_fixture(source);
+
+    CHECK_EQ(run_cli({"export-pdf",
+                      cli_path_text(source),
+                      "--output",
+                      cli_path_text(output),
+                      "--summary-json",
+                      cli_path_text(summary_json),
+                      "--json"},
+                     json_output),
+             0);
+
+    REQUIRE(fs::exists(output));
+    CHECK_EQ(read_pdf_magic(output), "%PDF-");
+    expect_pdf_export_success_json(read_text_file(json_output),
+                                   output,
+                                   false,
+                                   false,
+                                   false,
+                                   true,
+                                   true);
+    expect_pdf_export_success_json(read_text_file(summary_json),
+                                   output,
+                                   false,
                                    false,
                                    false,
                                    true,

@@ -1,0 +1,317 @@
+# Table Mutation Atomicity
+
+This document records the transaction contract and validation boundary for
+direct WordprocessingML table-property and structural table mutations.
+
+## Current Milestone
+
+The table-property atomicity batch completed on 2026-08-16 at `ca9d3041`.
+The batch covers these public mutations:
+
+| Owner | APIs completed in this batch |
+| --- | --- |
+| `Table` | `clear_width`, `clear_layout_mode`, `clear_alignment`, `clear_indent`, `clear_cell_spacing`, `clear_position`, `clear_cell_margin`, `clear_style_id`, `clear_style_look`, `clear_border` |
+| `TableRow` | `set_height_twips`, `clear_height`, `set_cant_split`, `clear_cant_split`, `set_repeats_header`, `clear_repeats_header` |
+| `TableCell` | `set_vertical_alignment`, `clear_vertical_alignment`, `set_text_direction`, `clear_text_direction`, `set_margin_twips`, `clear_margin`, `clear_width`, `clear_fill_color`, `clear_border` |
+
+This milestone does not declare all structural table operations complete.
+Row/column insertion and removal, merge/unmerge, grid-span mutation, and
+vertical-merge mutation have separate multi-node transaction rules and must be
+reviewed independently.
+
+## Structural Mutation Checkpoint
+
+The Windows-validated structural checkpoint advanced through `f3cc1a11` on
+2026-08-21. The unmerge transaction commits are `970b6ae6`, `23b27d63`,
+`38559de6`, and `8e8265a5`; row-removal hardening is `81c17777`, row insertion
+hardening is `caaff31d`, column insertion hardening is `d919a7ad`, and column
+removal hardening is `333ba3fa`, horizontal-merge hardening is `6042090c`, and
+vertical-merge hardening is `49e0421a`. Cell-append hardening is `f3cc1a11`.
+It covers:
+
+| Owner | APIs completed in this checkpoint |
+| --- | --- |
+| `TableCell` | `unmerge_right`, `unmerge_down`, `insert_cell_before`, `insert_cell_after`, `remove`, `merge_right`, `merge_down` |
+| `TableRow` | `remove`, `insert_row_before`, `insert_row_after`, `append_cell` |
+
+`unmerge_right` now stages inserted sibling cells, the anchor `w:tcPr`, and
+fixed-layout table/grid/cell-width updates before retiring any published
+subtree. `unmerge_down` stages every `w:tcPr` in the planned vertical merge
+chain and removes empty staged property containers before commit. A failure
+before publication rolls back all staged replacements and inserted cells.
+Structural mutations retain the existing exception behavior: a
+`std::bad_alloc` is rolled back and rethrown, while ordinary checked XML
+failures return `false`.
+
+`TableCell::remove` rejects malformed or oversized table geometry before
+mutation. Before batch retirement it validates current-cell ownership, unique
+row/cell removal targets, the surviving wrapper target, every staged `w:tcPr`,
+and the replacement `w:tblPr` / `w:tblGrid` parent relationships. Publication
+then commits the staged layout and removes the retired cells without further
+allocation. Rejection preserves the original XML and existing cell, paragraph,
+run, row, and table handles.
+
+`TableCell::merge_right` preserves a zero-count no-op, but validates actual
+merges before publication. It rejects malformed, oversized, or duplicate
+`w:tcPr` / `w:gridSpan` geometry; verifies anchor and removed-sibling ownership;
+stages the anchor span, fixed-layout cell widths, `w:tblPr`, and `w:tblGrid`;
+and validates every staged parent relationship and exclusion before batch
+retirement. Commit and sibling removal then use only the validated,
+allocation-free publication path. Rejection preserves serialized XML and all
+anchor, removed-cell, paragraph, run, row, and table handles.
+
+`TableCell::merge_down` preserves a zero-row no-op and validates actual merges
+before staging. It rejects malformed or duplicate `w:tcPr`, `w:gridSpan`, and
+`w:vMerge` nodes across the anchor, existing continuation chain, and new target
+cells; verifies every row/cell owner and unique target; and proves that staged
+properties cover exactly the anchor plus new targets with one expected
+`w:vMerge` value each. All staging remains inside the rollback boundary. Target
+body replacement then batch-retires old contents and original properties before
+an allocation-free property commit. Rejection preserves serialized XML plus all
+existing cell, paragraph, run, row, and table handles.
+
+`TableRow::remove` now rejects malformed or oversized table geometry before
+staging. Vertical-merge promotions validate their source and target rows,
+unique target ownership, staged `w:tcPr` parent relationships, and exactly one
+replacement `w:vMerge` before the removed row or old cell contents are retired.
+
+`TableRow::insert_row_before` and `insert_row_after` validate complete table and
+source-row geometry plus vertical-merge guards before mutation. Their checked
+deep clone propagates thrown exceptions, and any failure while cloning or
+clearing cloned cell bodies removes the unpublished row before returning or
+rethrowing. The caller wrapper moves to the inserted row only after the clone is
+complete.
+
+`TableCell::insert_cell_before` and `insert_cell_after` now share one column
+insertion transaction. It inserts and clears cloned cells across every target
+row, stages fixed-layout cell widths plus replacement `w:tblPr` and `w:tblGrid`
+subtrees, validates every staged parent relationship, and batch-retires all old
+property/grid roots immediately before allocation-free publication. Checked XML
+failures remove all unpublished cells and staged nodes; thrown allocation
+failures perform the same rollback and propagate. Invalid or oversized column
+geometry is rejected before mutation.
+
+`TableRow::append_cell` validates the complete table geometry and rejects
+duplicate `w:tblPr`, `w:tblGrid`, `w:tcPr`, or `w:gridSpan` nodes before
+mutation. Existing-row append and exhausted-row-iterator append use one
+rollback boundary for the unpublished cell or row and staged `w:tblPr` /
+`w:tblGrid`. The staged layout's cardinality, parents, and grid-column count are
+validated before original layout retirement; commit is allocation-free.
+Success preserves existing row, cell, paragraph, run, and table handles.
+
+`Table::append_row` now uses the same transaction boundary for an existing table
+and for an exhausted table iterator that creates a new table. It validates the
+complete table geometry before mutation, inserts the unpublished row and cells,
+stages `w:tblPr` and `w:tblGrid` when the requested row widens the table, and
+validates cardinality, parents, and the final grid-column count before retiring
+the old layout. Checked XML failures roll back and return an invalid row handle;
+structural `std::bad_alloc` failures roll back and rethrow. Existing table, row,
+cell, paragraph, run, and text handles remain valid on success or rejection.
+
+The table-level `insert_table_*`, `insert_table_like_*`, `remove`,
+`Document::append_table`, and `TemplatePart::append_table` entry points were
+reviewed at this checkpoint. They already remove unpublished nodes on ordinary
+failure and preserve their established public contracts; no broader DOM
+transaction rewrite is part of this milestone.
+
+This closes the planned Word table-structure milestone. New structural features
+are frozen; future changes are maintenance-only unless a new scope decision is
+recorded with a reproducer, compatibility boundary, and focused validation.
+
+The public API has no independent grid-span or vertical-merge setter. Those
+nodes are mutated through the completed merge/unmerge APIs above. The structural
+review queue is closed at this checkpoint; future work is regression-driven
+maintenance rather than another API sweep.
+
+## Transaction Contract
+
+Property setters and clear operations must follow this order:
+
+1. Reject an invalid owner handle before mutation.
+2. Return success without writing XML when the requested clear is already a
+   no-op.
+3. Stage a checked clone of the owning property subtree.
+4. Mutate only the staged replacement.
+5. Validate the replacement node name, parent, cardinality, attributes, and
+   every removal result that the operation depends on.
+6. Remove an empty nested container only when it has neither children nor
+   attributes and the previous API behavior removed that container.
+7. Retire the original subtree only after the replacement is complete.
+8. Commit the staged replacement exactly once.
+
+Rollback must remove every staged replacement. `std::bad_alloc` returns
+`false` after rollback; other exceptions roll back and propagate. A failed
+operation must leave the published XML and unrelated content unchanged.
+
+The paragraph above is the contract for table-property setters and clear
+operations. Structural table mutations have a separate compatibility rule:
+they must roll back all staged/publication work and rethrow `std::bad_alloc`
+unless an API-specific contract is deliberately changed and documented.
+
+Use the existing helpers instead of introducing an independent transaction
+framework:
+
+- `stage_table_child`, `rollback_staged_table_child`, and
+  `commit_staged_table_child` for `w:tblPr` and `w:trPr`;
+- `stage_cell_properties`, `rollback_staged_cell_properties`, and
+  `commit_staged_cell_properties` for `w:tcPr`;
+- checked XML creation, cloning, attribute, and insertion helpers from the
+  table XML helper modules.
+
+## Container Deletion
+
+Clearing the last nested margin or border removes the now-empty
+`w:tblCellMar`, `w:tblBorders`, `w:tcMar`, or `w:tcBorders` container when it
+has no attributes.
+
+Row clears require an additional deletion transaction. If removing
+`w:trHeight`, `w:cantSplit`, or `w:tblHeader` leaves the staged `w:trPr`
+completely empty:
+
+1. remove the staged replacement from the row;
+2. reset the staged replacement handle;
+3. retire the original `w:trPr`;
+4. commit removal of the original node.
+
+Keep the local row node mutable (`auto row`, not `const auto row`) because the
+empty-container path calls `remove_child()`.
+
+## Source Ownership
+
+- `src/table_properties.cpp` owns `Table` property behavior.
+- `src/table_row.cpp` owns `TableRow` property behavior.
+- `src/table_cell.cpp` owns `TableCell` property behavior.
+- `src/table_column_edit_helpers.*` owns the shared staging primitives.
+
+When several agents work on this area, assign at most one agent to each source
+file. Agents should not commit or run builds; integrate and review one API per
+commit from the coordinating task.
+
+## Validation Boundary
+
+During a planned batch, use `git diff --check` after each API and defer
+compilation until the batch closes. At the batch boundary, run the affected
+Windows/MSVC targets once with build concurrency limited to one:
+
+```powershell
+cmake --build <windows-build-dir> --target `
+  table_properties_unit_tests `
+  table_layout_unit_tests `
+  table_style_unit_tests `
+  table_presentation_unit_tests `
+  table_structure_unit_tests `
+  xml_handle_retirement_tests `
+  --parallel 1
+
+ctest --test-dir <windows-build-dir> `
+  -R "^(table_properties_unit|table_layout_unit|table_style_unit|table_presentation_unit|table_structure_unit|xml_handle_retirement)$" `
+  --output-on-failure -j 1
+```
+
+The 2026-08-16 Windows/MSVC run passed all six tests. No local WSL/Linux test
+was required. Linux, sanitizer, allocation-failure, and fuzz validation remain
+CI or explicit release/integration work as defined in `CONTRIBUTING.md`.
+
+The 2026-08-18 row-insertion checkpoint at `caaff31d` used an isolated
+Release/NMake MSVC build with concurrency one. Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
+
+The 2026-08-18 column-insertion checkpoint at `d919a7ad` used the same focused
+Windows boundary in the isolated `.codex-temp/column-insertion-windows-msvc`
+Release/NMake build. Both focused tests passed again:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The ordinary Windows build type-checked but did not register the CI-only global
+allocation-failure sweep. No local WSL/Linux, sanitizer, fuzz, or
+allocation-failure suite was run.
+
+The 2026-08-18 column-removal checkpoint at `333ba3fa` used the isolated
+`.codex-temp/column-removal-windows-msvc` Release/NMake build with concurrency
+one. Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The regression covers invalid and oversized `w:gridSpan` geometry plus handle
+and serialized-XML preservation. No local WSL/Linux, sanitizer, fuzz, or
+allocation-failure suite was run.
+
+The 2026-08-18 horizontal-merge checkpoint at `6042090c` used the isolated
+`.codex-temp/merge-right-windows-msvc` Release/NMake build with concurrency one.
+Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The ordinary Windows regression covers invalid, oversized, duplicate, and
+missing span/property geometry plus handle and serialized-XML preservation. No
+local WSL/Linux, sanitizer, fuzz, or allocation-failure suite was run.
+
+The 2026-08-18 vertical-merge checkpoint at `49e0421a` used the isolated
+`.codex-temp/merge-down-windows-msvc` Release/NMake build with concurrency one.
+Both focused tests passed:
+
+- `table_structure_unit`
+- `xml_handle_retirement`
+
+The structure regression covers extending an existing vertical merge chain and
+atomically rejecting invalid, oversized, duplicate, and missing
+span/property/merge geometry while preserving serialized XML and handles. The
+ordinary Windows build type-checked but did not register the CI-only allocation
+failure sweeps. No local WSL/Linux, sanitizer, fuzz, or allocation-failure suite
+was run.
+
+The 2026-08-21 cell-append checkpoint at `f3cc1a11` used the isolated
+`.codex-temp/append-cell-windows-msvc` Release/NMake MSVC build with concurrency
+one. The ordinary `xml_handle_retirement_tests` target type-checked the adjusted
+CI-only fixture, and the two exact `table append cell*` structure cases passed
+with 331 assertions. They cover existing-row append, exhausted-iterator row
+creation, handle preservation, grid extension, and atomic rejection of invalid,
+oversized, missing, or duplicate table/cell span geometry. No local WSL/Linux,
+sanitizer, fuzz, allocation-failure, or full CTest suite was run. The Clang
+allocation-failure fixture correction is validated by the hosted security
+workflow after push.
+
+The 2026-08-26 `Table::append_row` checkpoint used the isolated
+`.codex-temp/final-word-only-wsl-20260826` Release/Ninja WSL build because an
+MSVC toolchain was not available in the local shell. PDF writer/import,
+sanitizers, fuzzers, and allocation-failure injection were disabled. The full
+build passed 1259/1259 steps, the exact `table append row*` filter passed 4/4
+cases with 215 assertions, and `table_structure_unit` plus
+`xml_handle_retirement` passed 2/2. A direct syntax-only check of the affected
+table sources also passed.
+
+The first full CTest attempt exposed one test-fixture portability defect:
+`body_image_unit` tried to create a FIFO in the DrvFS build directory, where
+`mkfifo` returned `EOPNOTSUPP`. The product behavior passed when the same binary
+ran from native `/tmp`. The fixture now creates that POSIX-only FIFO under the
+native temporary directory, preserving the non-regular-file assertion without
+skipping it. The focused retry passed 1/1 and the final full CTest passed 143/143.
+The WSL build remains supplemental evidence; current Windows/MSVC validation
+still requires the next hosted or local MSVC run. No sanitizer, fuzz, or
+allocation-failure suite was run locally.
+
+Use the following focused commands when a future structural regression requires
+the same maintenance boundary:
+
+```powershell
+cmake --build <windows-build-dir> --target `
+  table_structure_unit_tests `
+  xml_handle_retirement_tests `
+  --parallel 1
+
+ctest --test-dir <windows-build-dir> `
+  -R "^(table_structure_unit|xml_handle_retirement)$" `
+  --output-on-failure -j 1
+```
+
+Use an isolated directory under `.codex-temp` when no reusable Windows build
+exists. After validation, confirm that no compiler, build, or test process still
+references it, remove only that isolated directory, and verify the Git worktree
+is clean.

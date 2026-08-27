@@ -11,10 +11,13 @@ auto resolve_hyperlink_relationship(
         return resolution;
     }
 
-    const auto relationships = relationships_document->child("Relationships");
-    for (auto relationship = relationships.child("Relationship");
+    const auto relationships =
+        featherdoc::detail::package_relationships_root(*relationships_document);
+    for (auto relationship =
+             featherdoc::detail::first_package_relationship(relationships);
          relationship != pugi::xml_node{};
-         relationship = relationship.next_sibling("Relationship")) {
+         relationship =
+             featherdoc::detail::next_package_relationship(relationship)) {
         if (std::string_view{relationship.attribute("Id").value()} !=
             relationship_id) {
             continue;
@@ -39,12 +42,11 @@ auto resolve_hyperlink_relationship(
 
 void collect_hyperlinks_in_order(pugi::xml_node node,
                                  std::vector<pugi::xml_node> &hyperlinks) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:hyperlink") {
-            hyperlinks.push_back(child);
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (std::string_view{current.name()} == "w:hyperlink") {
+            hyperlinks.push_back(current);
         }
-        collect_hyperlinks_in_order(child, hyperlinks);
     }
 }
 

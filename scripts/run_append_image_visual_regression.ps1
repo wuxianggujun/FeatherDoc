@@ -83,14 +83,7 @@ function Find-BuildExecutable {
     return ($candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
 }
 
-function Get-BasePython {
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($python) {
-        return $python.Source
-    }
-
-    throw "Python was not found in PATH."
-}
+. (Join-Path $PSScriptRoot "python_runtime.ps1")
 
 function Test-PythonImport {
     param(
@@ -105,7 +98,7 @@ function Test-PythonImport {
 function Ensure-RenderPython {
     param([string]$RepoRoot)
 
-    $basePython = Get-BasePython
+    $basePython = Resolve-FeatherDocPythonExecutable
     if (Test-PythonImport -PythonCommand $basePython -ModuleName "PIL") {
         return $basePython
     }
@@ -381,9 +374,9 @@ $cases = @(
             "--width", "168",
             "--height", "72",
             "--horizontal-reference", "page",
-            "--horizontal-offset", "300",
-            "--vertical-reference", "margin",
-            "--vertical-offset", "0",
+            "--horizontal-offset", "600",
+            "--vertical-reference", "page",
+            "--vertical-offset", "30",
             "--behind-text", "false",
             "--allow-overlap", "false",
             "--wrap-mode", "square",
@@ -415,9 +408,9 @@ $cases = @(
             '"width_px":168',
             '"height_px":72',
             '"horizontal_reference":"page"',
-            '"horizontal_offset_px":300',
-            '"vertical_reference":"margin"',
-            '"vertical_offset_px":0',
+            '"horizontal_offset_px":600',
+            '"vertical_reference":"page"',
+            '"vertical_offset_px":30',
             '"behind_text":false',
             '"allow_overlap":false',
             '"wrap_mode":"square"'
@@ -430,9 +423,9 @@ $cases = @(
             '"width_px":168',
             '"height_px":72',
             '"floating_options":{"horizontal_reference":"page"',
-            '"horizontal_offset_px":300',
-            '"vertical_reference":"margin"',
-            '"vertical_offset_px":0',
+            '"horizontal_offset_px":600',
+            '"vertical_reference":"page"',
+            '"vertical_offset_px":30',
             '"behind_text":false',
             '"allow_overlap":false',
             '"wrap_mode":"square"',
@@ -454,9 +447,9 @@ $cases = @(
             "text=Review note: appended image mutations should not reorder the existing body paragraphs."
         )
         expected_visual_cues = @(
-            "The baseline page header is materialized and shows an orange floating badge near the top-right margin.",
+            "The baseline page header is materialized and shows an orange floating badge in the page's top-right area.",
             "The body text remains unchanged while the new header image appears above it.",
-            "The header floating image preserves the configured anchored layout options."
+            "The header floating image preserves the configured page-relative anchored layout options."
         )
     }
 )

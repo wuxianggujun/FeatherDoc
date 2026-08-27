@@ -7,6 +7,7 @@
 #include "featherdoc_cli_style_refactor_options_parse.hpp"
 #include "featherdoc_cli_style_refactor_restore_output.hpp"
 #include "featherdoc_cli_style_refactor_rollback_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <ostream>
 #include <string>
@@ -35,23 +36,22 @@ auto run_restore_style_merge_command(
 
     auto rollback_entries =
         std::vector<featherdoc::style_refactor_rollback_entry>{};
-    if (!read_style_refactor_rollback_file(*options.rollback_plan_path,
-                                           options.entry_indexes,
-                                           options.source_style_ids,
-                                           options.target_style_ids,
-                                           rollback_entries, error_message)) {
+    if (!read_style_refactor_rollback_file(
+            *options.rollback_plan_path, options.entry_indexes,
+            options.source_style_ids, options.target_style_ids,
+            rollback_entries, error_message)) {
         print_parse_error(command, error_message, options.json_output);
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
 
     const auto result = options.dry_run
-        ? doc.plan_style_refactor_restore(rollback_entries)
-        : doc.restore_style_refactor(rollback_entries);
+                            ? doc.plan_style_refactor_restore(rollback_entries)
+                            : doc.restore_style_refactor(rollback_entries);
     if (!result.has_value()) {
         report_document_error(command, "mutate", doc.last_error(),
                               options.json_output);
@@ -70,7 +70,8 @@ auto run_restore_style_merge_command(
         return 0;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
@@ -78,9 +79,11 @@ auto run_restore_style_merge_command(
         write_json_mutation_result(
             command, doc, options.output_path,
             [&result, &options](std::ostream &stream) {
-                write_json_style_refactor_restore_result_fields(stream, *result);
+                write_json_style_refactor_restore_result_fields(stream,
+                                                                *result);
                 stream << ",\"rollback_plan_file\":";
-                write_json_string(stream, options.rollback_plan_path->string());
+                write_json_string(
+                    stream, path_to_cli_utf8(*options.rollback_plan_path));
                 write_json_style_refactor_restore_selection(stream, options);
             });
         return 0;

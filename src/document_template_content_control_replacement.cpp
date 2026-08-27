@@ -1,7 +1,14 @@
 #include "document_template_content_control_replacement.hpp"
 
+#include "document_archive_limit_helpers.hpp"
 #include "featherdoc.hpp"
+#include "package_path_helpers.hpp"
+#include "package_relationships_mce_helpers.hpp"
+#include "xml_document_clone_helpers.hpp"
 #include "xml_helpers.hpp"
+#include "xml_parse_error_helpers.hpp"
+
+#include <featherdoc/detail/path.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -70,8 +77,8 @@ auto count_named_children(pugi::xml_node parent, std::string_view child_name)
     return count;
 }
 
-auto rewrite_paragraph_plain_text(pugi::xml_node paragraph, std::string_view text)
-    -> bool {
+auto rewrite_paragraph_plain_text(pugi::xml_node paragraph,
+                                  std::string_view text) -> bool {
     if (paragraph == pugi::xml_node{}) {
         return false;
     }
@@ -188,10 +195,11 @@ auto validate_plain_text_table_rows(
 
     for (const auto &row : rows) {
         if (row.empty()) {
-            set_last_error(last_error_info,
-                           std::make_error_code(std::errc::invalid_argument),
-                           "replacement table rows must contain at least one cell",
-                           std::string{entry_name});
+            set_last_error(
+                last_error_info,
+                std::make_error_code(std::errc::invalid_argument),
+                "replacement table rows must contain at least one cell",
+                std::string{entry_name});
             return false;
         }
     }
@@ -215,7 +223,8 @@ auto rewrite_content_control_with_paragraphs(
     if (content == pugi::xml_node{}) {
         set_last_error(last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to resolve content control content for paragraph replacement",
+                       "failed to resolve content control content for "
+                       "paragraph replacement",
                        std::string{entry_name});
         return false;
     }
@@ -224,7 +233,8 @@ auto rewrite_content_control_with_paragraphs(
     if (kind == featherdoc::content_control_kind::run) {
         set_content_control_replacement_error(
             last_error_info, entry_name,
-            "paragraph replacement requires a block or table-cell content control");
+            "paragraph replacement requires a block or table-cell content "
+            "control");
         return false;
     }
     if (kind == featherdoc::content_control_kind::table_row) {
@@ -239,19 +249,21 @@ auto rewrite_content_control_with_paragraphs(
     if (kind == featherdoc::content_control_kind::table_cell) {
         auto cell = content.append_child("w:tc");
         if (cell == pugi::xml_node{}) {
-            set_last_error(last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to append a replacement content control cell",
-                           std::string{entry_name});
+            set_last_error(
+                last_error_info,
+                std::make_error_code(std::errc::not_enough_memory),
+                "failed to append a replacement content control cell",
+                std::string{entry_name});
             return false;
         }
 
         if (paragraphs.empty()) {
             if (!featherdoc::detail::append_plain_text_paragraph(cell, {})) {
-                set_last_error(last_error_info,
-                               std::make_error_code(std::errc::not_enough_memory),
-                               "failed to append an empty replacement paragraph",
-                               std::string{entry_name});
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to append an empty replacement paragraph",
+                    std::string{entry_name});
                 return false;
             }
         }
@@ -259,10 +271,11 @@ auto rewrite_content_control_with_paragraphs(
         for (const auto &paragraph_text : paragraphs) {
             if (!featherdoc::detail::append_plain_text_paragraph(
                     cell, paragraph_text)) {
-                set_last_error(last_error_info,
-                               std::make_error_code(std::errc::not_enough_memory),
-                               "failed to append a replacement paragraph",
-                               std::string{entry_name});
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to append a replacement paragraph",
+                    std::string{entry_name});
                 return false;
             }
         }
@@ -272,8 +285,8 @@ auto rewrite_content_control_with_paragraphs(
     }
 
     for (const auto &paragraph_text : paragraphs) {
-        if (!featherdoc::detail::append_plain_text_paragraph(
-                content, paragraph_text)) {
+        if (!featherdoc::detail::append_plain_text_paragraph(content,
+                                                             paragraph_text)) {
             set_last_error(last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
                            "failed to append a replacement paragraph",
@@ -302,7 +315,8 @@ auto rewrite_content_control_with_table_rows(
     if (content == pugi::xml_node{}) {
         set_last_error(last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
-                       "failed to resolve content control content for table row replacement",
+                       "failed to resolve content control content for table "
+                       "row replacement",
                        std::string{entry_name});
         return false;
     }
@@ -317,7 +331,8 @@ auto rewrite_content_control_with_table_rows(
 
         set_content_control_replacement_error(
             last_error_info, entry_name,
-            "table row replacement requires the content control to contain a template row");
+            "table row replacement requires the content control to contain a "
+            "template row");
         return false;
     }
 
@@ -325,7 +340,8 @@ auto rewrite_content_control_with_table_rows(
     if (cell_count == 0U && !rows.empty()) {
         set_content_control_replacement_error(
             last_error_info, entry_name,
-            "table row replacement requires the template row to contain at least one cell");
+            "table row replacement requires the template row to contain at "
+            "least one cell");
         return false;
     }
 
@@ -333,13 +349,15 @@ auto rewrite_content_control_with_table_rows(
         if (row_values.size() != cell_count) {
             set_content_control_replacement_error(
                 last_error_info, entry_name,
-                "replacement table row cell count must exactly match the template row cell count");
+                "replacement table row cell count must exactly match the "
+                "template row cell count");
             return false;
         }
     }
 
     pugi::xml_document template_row_document;
-    const auto template_row_copy = template_row_document.append_copy(template_row);
+    const auto template_row_copy =
+        template_row_document.append_copy(template_row);
     if (template_row_copy == pugi::xml_node{}) {
         set_last_error(last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -362,12 +380,13 @@ auto rewrite_content_control_with_table_rows(
         std::size_t cell_index = 0U;
         for (auto cell = row_copy.child("w:tc"); cell != pugi::xml_node{};
              cell = featherdoc::detail::next_named_sibling(cell, "w:tc"),
-             ++cell_index) {
+                  ++cell_index) {
             if (!rewrite_table_cell_plain_text(cell, row_values[cell_index])) {
-                set_last_error(last_error_info,
-                               std::make_error_code(std::errc::not_enough_memory),
-                               "failed to rewrite a replacement content control row cell",
-                               std::string{entry_name});
+                set_last_error(
+                    last_error_info,
+                    std::make_error_code(std::errc::not_enough_memory),
+                    "failed to rewrite a replacement content control row cell",
+                    std::string{entry_name});
                 return false;
             }
         }
@@ -383,10 +402,10 @@ auto rewrite_content_control_with_table(
     const std::vector<std::vector<std::string>> &rows) -> bool {
     auto content = ensure_content_control_content_node(content_control);
     if (content == pugi::xml_node{}) {
-        set_last_error(last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to resolve content control content for table replacement",
-                       std::string{entry_name});
+        set_last_error(
+            last_error_info, std::make_error_code(std::errc::not_enough_memory),
+            "failed to resolve content control content for table replacement",
+            std::string{entry_name});
         return false;
     }
 
@@ -411,16 +430,18 @@ auto rewrite_content_control_with_table(
         if (cell == pugi::xml_node{} || !append_plain_text_table(cell, rows)) {
             set_last_error(last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
-                           "failed to append a replacement table inside a content control cell",
+                           "failed to append a replacement table inside a "
+                           "content control cell",
                            std::string{entry_name});
             return false;
         }
 
         if (!featherdoc::detail::append_plain_text_paragraph(cell, {})) {
-            set_last_error(last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to append a trailing replacement table paragraph",
-                           std::string{entry_name});
+            set_last_error(
+                last_error_info,
+                std::make_error_code(std::errc::not_enough_memory),
+                "failed to append a trailing replacement table paragraph",
+                std::string{entry_name});
             return false;
         }
 
@@ -445,24 +466,21 @@ bool replace_content_control_by_tag_or_alias_in_node(
     featherdoc::document_error_info &last_error_info, pugi::xml_node node,
     std::string_view entry_name, std::string_view value, bool match_tag,
     std::size_t &replaced, RewriteContentControl rewrite_content_control) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};) {
-        const auto next = child.next_sibling();
-        if (std::string_view{child.name()} == "w:sdt" &&
-            content_control_matches_tag_or_alias(child, value, match_tag)) {
-            if (!rewrite_content_control(last_error_info, entry_name, child)) {
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        if (std::string_view{current.name()} == "w:sdt" &&
+            content_control_matches_tag_or_alias(current, value, match_tag)) {
+            const auto next = featherdoc::detail::next_xml_node_preorder(
+                node, current, false);
+            if (!rewrite_content_control(last_error_info, entry_name,
+                                         current)) {
                 return false;
             }
             ++replaced;
-            child = next;
+            current = next;
             continue;
         }
 
-        if (!replace_content_control_by_tag_or_alias_in_node(
-                last_error_info, child, entry_name, value, match_tag, replaced,
-                rewrite_content_control)) {
-            return false;
-        }
-        child = next;
+        current = featherdoc::detail::next_xml_node_preorder(node, current);
     }
 
     return true;
@@ -478,22 +496,23 @@ auto replace_content_control_with_paragraphs_by_tag_or_alias_in_part(
     std::string_view value, const std::vector<std::string> &paragraphs,
     bool match_tag) -> std::size_t {
     if (value.empty()) {
-        set_last_error(
-            last_error_info, std::make_error_code(std::errc::invalid_argument),
-            match_tag ? "content control tag must not be empty"
-                      : "content control alias must not be empty",
-            std::string{entry_name});
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       match_tag ? "content control tag must not be empty"
+                                 : "content control alias must not be empty",
+                       std::string{entry_name});
         return 0U;
     }
 
     std::size_t replaced = 0U;
-    const auto rewrite = [&paragraphs](
-                             featherdoc::document_error_info &current_last_error,
-                             std::string_view current_entry_name,
-                             pugi::xml_node content_control) {
-        return rewrite_content_control_with_paragraphs(
-            current_last_error, current_entry_name, content_control, paragraphs);
-    };
+    const auto rewrite =
+        [&paragraphs](featherdoc::document_error_info &current_last_error,
+                      std::string_view current_entry_name,
+                      pugi::xml_node content_control) {
+            return rewrite_content_control_with_paragraphs(
+                current_last_error, current_entry_name, content_control,
+                paragraphs);
+        };
     if (!replace_content_control_by_tag_or_alias_in_node(
             last_error_info, document, entry_name, value, match_tag, replaced,
             rewrite)) {
@@ -510,22 +529,22 @@ auto replace_content_control_with_table_rows_by_tag_or_alias_in_part(
     std::string_view value, const std::vector<std::vector<std::string>> &rows,
     bool match_tag) -> std::size_t {
     if (value.empty()) {
-        set_last_error(
-            last_error_info, std::make_error_code(std::errc::invalid_argument),
-            match_tag ? "content control tag must not be empty"
-                      : "content control alias must not be empty",
-            std::string{entry_name});
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       match_tag ? "content control tag must not be empty"
+                                 : "content control alias must not be empty",
+                       std::string{entry_name});
         return 0U;
     }
 
     std::size_t replaced = 0U;
-    const auto rewrite = [&rows](
-                             featherdoc::document_error_info &current_last_error,
-                             std::string_view current_entry_name,
-                             pugi::xml_node content_control) {
-        return rewrite_content_control_with_table_rows(
-            current_last_error, current_entry_name, content_control, rows);
-    };
+    const auto rewrite =
+        [&rows](featherdoc::document_error_info &current_last_error,
+                std::string_view current_entry_name,
+                pugi::xml_node content_control) {
+            return rewrite_content_control_with_table_rows(
+                current_last_error, current_entry_name, content_control, rows);
+        };
     if (!replace_content_control_by_tag_or_alias_in_node(
             last_error_info, document, entry_name, value, match_tag, replaced,
             rewrite)) {
@@ -542,11 +561,11 @@ auto replace_content_control_with_table_by_tag_or_alias_in_part(
     std::string_view value, const std::vector<std::vector<std::string>> &rows,
     bool match_tag) -> std::size_t {
     if (value.empty()) {
-        set_last_error(
-            last_error_info, std::make_error_code(std::errc::invalid_argument),
-            match_tag ? "content control tag must not be empty"
-                      : "content control alias must not be empty",
-            std::string{entry_name});
+        set_last_error(last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       match_tag ? "content control tag must not be empty"
+                                 : "content control alias must not be empty",
+                       std::string{entry_name});
         return 0U;
     }
 
@@ -555,13 +574,13 @@ auto replace_content_control_with_table_by_tag_or_alias_in_part(
     }
 
     std::size_t replaced = 0U;
-    const auto rewrite = [&rows](
-                             featherdoc::document_error_info &current_last_error,
-                             std::string_view current_entry_name,
-                             pugi::xml_node content_control) {
-        return rewrite_content_control_with_table(
-            current_last_error, current_entry_name, content_control, rows);
-    };
+    const auto rewrite =
+        [&rows](featherdoc::document_error_info &current_last_error,
+                std::string_view current_entry_name,
+                pugi::xml_node content_control) {
+            return rewrite_content_control_with_table(
+                current_last_error, current_entry_name, content_control, rows);
+        };
     if (!replace_content_control_by_tag_or_alias_in_node(
             last_error_info, document, entry_name, value, match_tag, replaced,
             rewrite)) {

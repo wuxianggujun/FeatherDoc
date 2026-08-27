@@ -144,4 +144,12 @@ TEST_CASE("cli image options parse validates selector and scaling requirements")
         2U, append_crop, error));
     CHECK(error ==
           "append-image requires --crop-left/--crop-top/--crop-right/--crop-bottom together");
+
+    featherdoc_cli::inspect_images_options invalid_entry_name;
+    error.clear();
+    CHECK_FALSE(featherdoc_cli::parse_inspect_images_options(
+        {"inspect-images", "input.docx", "--image-entry-name",
+         "word//media/image1.png"},
+        2U, invalid_entry_name, error));
+    CHECK(error == "--image-entry-name must be a valid OPC package PartName");
 }

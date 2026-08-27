@@ -1,6 +1,7 @@
 #pragma once
 
 #include <featherdoc/document_core.hpp>
+#include <featherdoc/detail/xml_handle.hpp>
 #include <featherdoc/reviews_fields.hpp>
 #include <featherdoc/tables.hpp>
 #include <featherdoc/templates.hpp>
@@ -25,9 +26,9 @@ class Document;
 class TemplatePart {
   private:
     friend class Document;
-    Document *owner{nullptr};
-    pugi::xml_document *xml_document{nullptr};
-    document_error_info *last_error_info{nullptr};
+    detail::tracked_document_ptr<Document> owner;
+    detail::tracked_document_ptr<pugi::xml_document> xml_document;
+    detail::tracked_document_ptr<document_error_info> last_error_info;
     std::string entry_name_storage;
 
     TemplatePart(Document *owner, pugi::xml_document *xml_document,
@@ -142,8 +143,15 @@ class TemplatePart {
                                       std::size_t grid_column);
     [[nodiscard]] std::vector<featherdoc::paragraph_inspection_summary>
     inspect_paragraphs();
+    [[nodiscard]] std::vector<featherdoc::paragraph_inspection_summary>
+    inspect_paragraphs_with_options(
+        const featherdoc::paragraph_inspection_options &options);
     [[nodiscard]] std::optional<featherdoc::paragraph_inspection_summary>
     inspect_paragraph(std::size_t paragraph_index);
+    [[nodiscard]] std::optional<featherdoc::paragraph_inspection_summary>
+    inspect_paragraph_with_options(
+        std::size_t paragraph_index,
+        const featherdoc::paragraph_inspection_options &options);
     [[nodiscard]] std::vector<featherdoc::run_inspection_summary>
     inspect_paragraph_runs(std::size_t paragraph_index);
     [[nodiscard]] std::optional<featherdoc::run_inspection_summary>

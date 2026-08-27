@@ -206,10 +206,47 @@ function Test-ProjectTemplateSmokeSlotSpec {
     }
 }
 
+function Get-ProjectTemplateSmokeConfiguredChecks {
+    param(
+        $Entry
+    )
+
+    $configuredChecks = New-Object 'System.Collections.Generic.List[string]'
+
+    if (@(Get-ProjectTemplateSmokeArrayProperty -Object $Entry -Name "template_validations").Count -gt 0) {
+        $configuredChecks.Add("template_validations") | Out-Null
+    }
+    if ($null -ne (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Entry -Name "schema_validation")) {
+        $configuredChecks.Add("schema_validation") | Out-Null
+    }
+    if ($null -ne (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Entry -Name "schema_baseline")) {
+        $configuredChecks.Add("schema_baseline") | Out-Null
+    }
+    if ($null -ne (Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Entry -Name "render_data_smoke")) {
+        $configuredChecks.Add("render_data") | Out-Null
+    }
+
+    $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $Entry -Name "visual_smoke"
+    if ($null -ne $visualSmoke) {
+        if ($visualSmoke -is [bool]) {
+            if ($visualSmoke) {
+                $configuredChecks.Add("visual_smoke") | Out-Null
+            }
+        } else {
+            $enabledValue = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $visualSmoke -Name "enabled"
+            if ($null -eq $enabledValue -or [bool]$enabledValue) {
+                $configuredChecks.Add("visual_smoke") | Out-Null
+            }
+        }
+    }
+
+    return @($configuredChecks.ToArray())
+}
+
 function Test-ProjectTemplateSmokeBusinessCorpus {
     param(
         [object[]]$CorpusItems,
-        [hashtable]$EntryNames,
+        [hashtable]$EntriesByName,
         [System.Collections.Generic.List[object]]$Issues
     )
 
@@ -259,8 +296,19 @@ function Test-ProjectTemplateSmokeBusinessCorpus {
         if ($status -eq "registered") {
             if ([string]::IsNullOrWhiteSpace($sourceEntry)) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "is required when status is registered"
-            } elseif (-not $EntryNames.ContainsKey($sourceEntry)) {
+            } elseif (-not $EntriesByName.ContainsKey($sourceEntry)) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry"
+            } else {
+                $configuredChecks = @(Get-ProjectTemplateSmokeConfiguredChecks -Entry $EntriesByName[$sourceEntry])
+                for ($contractIndex = 0; $contractIndex -lt $contracts.Count; $contractIndex++) {
+                    $contract = [string]$contracts[$contractIndex]
+                    if ($contract -in $allowedContracts -and $contract -notin $configuredChecks) {
+                        Add-ProjectTemplateSmokeValidationIssue `
+                            -Issues $Issues `
+                            -Path "$itemPath.smoke_contract[$contractIndex]" `
+                            -Message "must be enabled by source_entry '$sourceEntry'"
+                    }
+                }
             }
         } elseif ($status -eq "planned") {
             if ([string]::IsNullOrWhiteSpace($registrationBlocker)) {
@@ -269,7 +317,7 @@ function Test-ProjectTemplateSmokeBusinessCorpus {
             if ([string]::IsNullOrWhiteSpace($nextAction)) {
                 Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.next_action" -Message "is required when status is planned"
             }
-        } elseif (-not [string]::IsNullOrWhiteSpace($sourceEntry) -and -not $EntryNames.ContainsKey($sourceEntry)) {
+        } elseif (-not [string]::IsNullOrWhiteSpace($sourceEntry) -and -not $EntriesByName.ContainsKey($sourceEntry)) {
             Add-ProjectTemplateSmokeValidationIssue -Issues $Issues -Path "$itemPath.source_entry" -Message "must reference an existing manifest entry when provided"
         }
     }
@@ -439,15 +487,18 @@ function Test-ProjectTemplateSmokeManifest {
         Add-ProjectTemplateSmokeValidationIssue -Issues $issues -Path "entries" -Message "must contain at least one entry"
     }
 
-    $entryNames = @{}
+    $entriesByName = @{}
     foreach ($entry in $entries) {
         $entryName = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "name"
-        if (-not [string]::IsNullOrWhiteSpace($entryName) -and -not $entryNames.ContainsKey($entryName)) {
-            $entryNames[$entryName] = $true
+        if (-not [string]::IsNullOrWhiteSpace($entryName) -and -not $entriesByName.ContainsKey($entryName)) {
+            $entriesByName[$entryName] = $entry
         }
     }
 
-    Test-ProjectTemplateSmokeBusinessCorpus -CorpusItems $businessTemplateCorpus -EntryNames $entryNames -Issues $issues
+    Test-ProjectTemplateSmokeBusinessCorpus `
+        -CorpusItems $businessTemplateCorpus `
+        -EntriesByName $entriesByName `
+        -Issues $issues
     $plannedBusinessTemplateRegistrationActions = @(Get-ProjectTemplateSmokePlannedBusinessCorpusRegistrationActions -CorpusItems $businessTemplateCorpus)
 
     $seenNames = @{}
@@ -456,7 +507,7 @@ function Test-ProjectTemplateSmokeManifest {
         $entry = $entries[$entryIndex]
         $entryPath = "entries[$entryIndex]"
         $entryIssues = New-Object 'System.Collections.Generic.List[object]'
-        $configuredChecks = New-Object 'System.Collections.Generic.List[string]'
+        $configuredChecks = @(Get-ProjectTemplateSmokeConfiguredChecks -Entry $entry)
 
         $name = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $entry -Name "name"
         if ([string]::IsNullOrWhiteSpace($name)) {
@@ -505,7 +556,6 @@ function Test-ProjectTemplateSmokeManifest {
 
         $templateValidations = @(Get-ProjectTemplateSmokeArrayProperty -Object $entry -Name "template_validations")
         if ($templateValidations.Count -gt 0) {
-            $configuredChecks.Add("template_validations") | Out-Null
             for ($validationIndex = 0; $validationIndex -lt $templateValidations.Count; $validationIndex++) {
                 Test-ProjectTemplateSmokeSelection `
                     -Selection $templateValidations[$validationIndex] `
@@ -517,7 +567,6 @@ function Test-ProjectTemplateSmokeManifest {
 
         $schemaValidation = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "schema_validation"
         if ($null -ne $schemaValidation) {
-            $configuredChecks.Add("schema_validation") | Out-Null
             $schemaFile = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaValidation -Name "schema_file"
             $targets = @(Get-ProjectTemplateSmokeArrayProperty -Object $schemaValidation -Name "targets")
 
@@ -542,7 +591,6 @@ function Test-ProjectTemplateSmokeManifest {
 
         $schemaBaseline = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "schema_baseline"
         if ($null -ne $schemaBaseline) {
-            $configuredChecks.Add("schema_baseline") | Out-Null
             $schemaFile = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "schema_file"
             $targetMode = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "target_mode"
             $repairedOutput = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $schemaBaseline -Name "repaired_output"
@@ -567,8 +615,6 @@ function Test-ProjectTemplateSmokeManifest {
 
         $renderDataSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "render_data_smoke"
         if ($null -ne $renderDataSmoke) {
-            $configuredChecks.Add("render_data") | Out-Null
-
             $dataPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "data_path"
             $mappingPath = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "mapping_path"
             $exportTargetMode = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $renderDataSmoke -Name "export_target_mode"
@@ -605,24 +651,15 @@ function Test-ProjectTemplateSmokeManifest {
         }
 
         $visualSmoke = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $entry -Name "visual_smoke"
-        if ($null -ne $visualSmoke) {
-            if ($visualSmoke -is [bool]) {
-                if ($visualSmoke) {
-                    $configuredChecks.Add("visual_smoke") | Out-Null
-                }
-            } else {
-                $enabledValue = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $visualSmoke -Name "enabled"
-                if ($null -ne $enabledValue -and $enabledValue -isnot [bool]) {
-                    Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.visual_smoke.enabled" -Message "must be a boolean"
-                }
-                if ($null -eq $enabledValue -or [bool]$enabledValue) {
-                    $configuredChecks.Add("visual_smoke") | Out-Null
-                }
-                $inputValue = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "input"
-                if (-not [string]::IsNullOrWhiteSpace($inputValue) -and
-                    $inputValue -notin @("template", "rendered_docx")) {
-                    Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.visual_smoke.input" -Message "must be one of: template, rendered_docx"
-                }
+        if ($null -ne $visualSmoke -and $visualSmoke -isnot [bool]) {
+            $enabledValue = Get-ProjectTemplateSmokeOptionalPropertyObject -Object $visualSmoke -Name "enabled"
+            if ($null -ne $enabledValue -and $enabledValue -isnot [bool]) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.visual_smoke.enabled" -Message "must be a boolean"
+            }
+            $inputValue = Get-ProjectTemplateSmokeOptionalPropertyValue -Object $visualSmoke -Name "input"
+            if (-not [string]::IsNullOrWhiteSpace($inputValue) -and
+                $inputValue -notin @("template", "rendered_docx")) {
+                Add-ProjectTemplateSmokeValidationIssue -Issues $entryIssues -Path "$entryPath.visual_smoke.input" -Message "must be one of: template, rendered_docx"
             }
         }
 
@@ -636,7 +673,7 @@ function Test-ProjectTemplateSmokeManifest {
 
         $entryReports.Add([pscustomobject]@{
             name = $name
-            configured_checks = $configuredChecks.ToArray()
+            configured_checks = @($configuredChecks)
             error_count = $entryIssues.Count
             errors = $entryIssues.ToArray()
         }) | Out-Null

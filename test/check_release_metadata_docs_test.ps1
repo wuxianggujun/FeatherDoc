@@ -398,14 +398,16 @@ $defaultPolicyText = @(
 ) -join "`n"
 
 $defaultIndexText = @(
-    'FeatherDoc',
-    '==========',
+    'FeatherDoc Documentation',
+    '========================',
+    '',
+    '.. FDOC_DOCS_ROOT_ENGLISH_DOCUMENTATION_LABEL',
+    '.. FDOC_DOCS_ROOT_ZH_CN_DOCUMENTATION_LABEL',
     '',
     '.. toctree::',
     '',
-    '   release_metadata_pipeline_zh',
-    '   release_metadata_maintenance_checklist_zh',
-    '   pdf_release_readiness_checklist_zh',
+    '   en/index',
+    '   zh-CN/index',
     ''
 ) -join "`n"
 
@@ -489,8 +491,8 @@ Assert-SummaryFailure `
     -ExpectedFailureRelativePath 'docs/release_policy_zh.rst'
 
 $missingIndexEntrypointText = $defaultIndexText.Replace(
-    "release_metadata_maintenance_checklist_zh",
-    "release_metadata_maintenance_checklist_removed"
+    "zh-CN/index",
+    "zh-CN/removed"
 )
 $missingIndexEntrypointCaseRoot = New-DocsCase `
     -Name "missing-index-entrypoint" `
@@ -499,14 +501,14 @@ $missingIndexEntrypointSummaryJsonPath = Join-Path $missingIndexEntrypointCaseRo
 Invoke-DocsCheck `
     -CaseRoot $missingIndexEntrypointCaseRoot `
     -ShouldFail `
-    -ExpectedMessage "Sphinx index doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -ExpectedMessage "Sphinx index doc is missing expected text: zh-CN/index" `
     -SummaryJson $missingIndexEntrypointSummaryJsonPath
 Assert-SummaryFailure `
     -Path $missingIndexEntrypointSummaryJsonPath `
-    -ExpectedMessage "Sphinx index doc is missing expected text: release_metadata_maintenance_checklist_zh" `
+    -ExpectedMessage "Sphinx index doc is missing expected text: zh-CN/index" `
     -ExpectedFailureKind "missing_text" `
     -ExpectedFailureRelativePath 'docs/index.rst' `
-    -ExpectedFailureExpectedText "release_metadata_maintenance_checklist_zh"
+    -ExpectedFailureExpectedText "zh-CN/index"
 
 $missingDocumentationMaintenanceEntrypointText = $defaultDocumentationMaintenanceText.Replace(
     "release_metadata_pipeline_zh",

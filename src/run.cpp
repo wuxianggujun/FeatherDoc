@@ -1,7 +1,7 @@
 #include "featherdoc.hpp"
+#include "numeric_helpers.hpp"
+#include "xml_document_clone_helpers.hpp"
 #include "xml_helpers.hpp"
-
-#include <cstdlib>
 
 namespace featherdoc {
 namespace {
@@ -77,17 +77,7 @@ auto read_vertical_align_value(pugi::xml_node node, std::string_view expected)
 }
 
 auto parse_half_point_size(const char *text) -> std::optional<double> {
-    if (text == nullptr || *text == '\0') {
-        return std::nullopt;
-    }
-
-    char *end = nullptr;
-    const auto value = std::strtod(text, &end);
-    if (end == text || *end != '\0' || value <= 0.0) {
-        return std::nullopt;
-    }
-
-    return value / 2.0;
+    return detail::parse_half_point_size_points(text);
 }
 
 void set_xml_attribute(pugi::xml_node node, const char *attribute_name,
@@ -263,66 +253,11 @@ auto insert_run_node(pugi::xml_node parent, pugi::xml_node insert_before) -> pug
         if (insert_before.parent() != parent) {
             return {};
         }
-        return parent.insert_child_before("w:r", insert_before);
+        return detail::checked_insert_xml_element_before(parent, "w:r",
+                                                         insert_before);
     }
 
-    return parent.append_child("w:r");
-}
-
-auto insert_formatted_run(pugi::xml_node parent, pugi::xml_node insert_before,
-                          const char *text, featherdoc::formatting_flag formatting)
-    -> pugi::xml_node {
-    if (text == nullptr) {
-        return {};
-    }
-
-    auto run = insert_run_node(parent, insert_before);
-    if (run == pugi::xml_node{}) {
-        return {};
-    }
-
-    auto run_properties = run.append_child("w:rPr");
-    if (run_properties == pugi::xml_node{}) {
-        return {};
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::bold)) {
-        run_properties.append_child("w:b");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::italic)) {
-        run_properties.append_child("w:i");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::underline)) {
-        run_properties.append_child("w:u").append_attribute("w:val").set_value("single");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::strikethrough)) {
-        run_properties.append_child("w:strike").append_attribute("w:val").set_value("true");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::superscript)) {
-        run_properties.append_child("w:vertAlign").append_attribute("w:val").set_value(
-            "superscript");
-    } else if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::subscript)) {
-        run_properties.append_child("w:vertAlign").append_attribute("w:val").set_value(
-            "subscript");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::smallcaps)) {
-        run_properties.append_child("w:smallCaps").append_attribute("w:val").set_value("true");
-    }
-
-    if (featherdoc::has_flag(formatting, featherdoc::formatting_flag::shadow)) {
-        run_properties.append_child("w:shadow").append_attribute("w:val").set_value("true");
-    }
-
-    if (!detail::set_plain_text_run_content(run, text)) {
-        return {};
-    }
-
-    return run;
+    return detail::checked_append_xml_element(parent, "w:r");
 }
 
 auto copy_run_properties(pugi::xml_node source_run, pugi::xml_node target_run) -> bool {
@@ -335,7 +270,8 @@ auto copy_run_properties(pugi::xml_node source_run, pugi::xml_node target_run) -
         return true;
     }
 
-    return target_run.append_copy(source_properties) != pugi::xml_node{};
+    return detail::checked_append_copy_xml_node(source_properties, target_run) ==
+           detail::xml_document_clone_status::success;
 }
 
 auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
@@ -345,8 +281,10 @@ auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
         return {};
     }
 
-    const auto insert_before =
-        insert_after ? detail::next_named_sibling(anchor, "w:r") : anchor;
+    // "After" means immediately after the current XML sibling. Skipping to
+    // the next w:r would cross bookmark, field, proofing, or revision markers
+    // and could silently move the inserted text outside their range.
+    const auto insert_before = insert_after ? anchor.next_sibling() : anchor;
     auto inserted_run = insert_run_node(parent, insert_before);
     if (inserted_run == pugi::xml_node{}) {
         return {};
@@ -357,7 +295,8 @@ auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
         return {};
     }
 
-    if (inserted_run.append_child("w:t") == pugi::xml_node{}) {
+    if (detail::checked_append_xml_element(inserted_run, "w:t") ==
+        pugi::xml_node{}) {
         parent.remove_child(inserted_run);
         return {};
     }
@@ -369,17 +308,19 @@ auto insert_empty_run_like_node(pugi::xml_node parent, pugi::xml_node anchor,
 
 Run::Run() = default;
 
-Run::Run(pugi::xml_node parent, pugi::xml_node current) {
-    this->set_parent(parent);
+Run::Run(detail::tracked_xml_node parent, pugi::xml_node current) {
+    this->set_parent(std::move(parent));
     this->set_current(current);
 }
 
-void Run::set_parent(pugi::xml_node node) {
-    this->parent = node;
+void Run::set_parent(detail::tracked_xml_node node) {
+    this->parent = std::move(node);
     this->current = this->parent.child("w:r");
 }
 
 void Run::set_current(pugi::xml_node node) { this->current = node; }
+
+bool Run::valid() const noexcept { return this->current.has_node(); }
 
 std::string Run::get_text() const { return detail::collect_plain_text_from_xml(this->current); }
 
@@ -721,17 +662,17 @@ bool Run::remove() {
 }
 
 Run Run::insert_run_before(const std::string &text, featherdoc::formatting_flag formatting) {
-    const auto inserted_run = insert_formatted_run(this->parent, this->current, text.c_str(),
-                                                   formatting);
+    const auto inserted_run = detail::insert_formatted_text_run(
+        this->parent, this->current, text.c_str(), formatting);
     return Run(this->parent, inserted_run);
 }
 
 Run Run::insert_run_after(const std::string &text, featherdoc::formatting_flag formatting) {
-    const auto next_run = this->current == pugi::xml_node{}
-                              ? pugi::xml_node{}
-                              : detail::next_named_sibling(this->current, "w:r");
-    const auto inserted_run = insert_formatted_run(this->parent, next_run, text.c_str(),
-                                                   formatting);
+    const auto next_sibling = this->current == pugi::xml_node{}
+                                  ? pugi::xml_node{}
+                                  : this->current.node().next_sibling();
+    const auto inserted_run = detail::insert_formatted_text_run(
+        this->parent, next_sibling, text.c_str(), formatting);
     return Run(this->parent, inserted_run);
 }
 

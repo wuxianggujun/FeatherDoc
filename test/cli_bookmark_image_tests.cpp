@@ -42,7 +42,7 @@ TEST_CASE("cli replace-bookmark-image replaces a body bookmark with a scaled inl
     CHECK_NE(json.find("\"part\":\"body\""), std::string::npos);
     CHECK_NE(json.find("\"bookmark\":{\"bookmark_name\":\"body_logo\""),
              std::string::npos);
-    CHECK_NE(json.find("\"image_path\":" + json_quote(image.string())),
+    CHECK_NE(json.find("\"image_path\":" + json_quote_path(image)),
              std::string::npos);
     CHECK_NE(json.find("\"replaced\":1"), std::string::npos);
     CHECK_NE(json.find("\"placement\":\"inline\""), std::string::npos);

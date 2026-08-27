@@ -22,10 +22,12 @@
      - 参数
      - 返回语义
    * - ``bool append_section(bool inherit_header_footer = true)``
-     - ``inherit_header_footer``：是否复制上一分节的页眉页脚引用。
+     - ``inherit_header_footer``：为 true 时复制上一分节的显式引用；为 false 时不写本地
+       引用，在 OOXML 中表示“链接到前一节”，并不表示显式空白页眉/页脚。
      - 分节追加成功时返回 ``true``。
    * - ``bool insert_section(std::size_t section_index, bool inherit_header_footer = true)``
-     - ``section_index``：插入位置。``inherit_header_footer``：是否复制相邻引用。
+     - ``section_index``：插入位置。``inherit_header_footer`` 遵循同样的“复制显式引用”
+       与“链接到前一节”规则。
      - 分节插入成功时返回 ``true``。
    * - ``bool move_section(std::size_t source_section_index, std::size_t target_section_index)``
      - ``source_section_index``：要移动的分节。``target_section_index``：移除后的目标位置。
@@ -84,10 +86,10 @@
      - 用途
    * - ``append_section(inherit_header_footer = true)``
      - ``bool``
-     - 追加分节符，可选择继承页眉页脚引用。
+     - 追加分节符；为 false 时清除新节的本地引用，因此解析为链接到前一节的有效布局。
    * - ``insert_section(section_index, inherit_header_footer = true)``
      - ``bool``
-     - 在目标分节索引前插入分节。
+     - 在目标分节索引前插入分节，并采用相同的引用链接规则。
    * - ``remove_section(section_index)``
      - ``bool``
      - 删除一个分节。

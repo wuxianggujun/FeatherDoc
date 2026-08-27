@@ -4,7 +4,7 @@ std::optional<featherdoc::style_refactor_plan> Document::plan_style_refactor(
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before planning style refactors",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 
@@ -59,7 +59,7 @@ std::optional<featherdoc::style_refactor_plan> Document::plan_style_refactor(
             if (source_iterator == styles_by_id.end()) {
                 append_issue(operation, "missing_source_style",
                              "source style id '" + operation.source_style_id +
-                                 "' was not found in word/styles.xml");
+                                 "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'");
             } else {
                 operation.source_style = source_iterator->second;
                 if (source_iterator->second.is_default) {
@@ -90,14 +90,14 @@ std::optional<featherdoc::style_refactor_plan> Document::plan_style_refactor(
             if (operation.target_style.has_value()) {
                 append_issue(operation, "target_style_exists",
                              "target style id '" + operation.target_style_id +
-                                 "' already exists in word/styles.xml");
+                                 "' already exists in '" + this->extension_state().singleton_part_entries.styles + "'");
             }
         } else {
             if (!operation.target_style.has_value() &&
                 !operation.target_style_id.empty()) {
                 append_issue(operation, "missing_target_style",
                              "target style id '" + operation.target_style_id +
-                                 "' was not found in word/styles.xml");
+                                 "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'");
             }
             if (operation.source_style.has_value() &&
                 operation.target_style.has_value() &&
@@ -132,7 +132,7 @@ Document::suggest_style_merges() {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before suggesting style merges",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 
@@ -145,8 +145,8 @@ Document::suggest_style_merges() {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return std::nullopt;
     }
 

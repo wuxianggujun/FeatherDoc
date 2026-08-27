@@ -215,6 +215,26 @@ TemplatePart
      - ``std::size_t``
      - 设置复选框、日期、下拉框、组合框、锁定或数据绑定状态。
 
+Custom XML 同步
+---------------
+
+``Document::sync_content_controls_from_custom_xml()`` 会重新打开当前路径对应的源包，
+并根据 Custom XML 数据解析内容控件绑定。它使用 ``open(options)`` 保留的限制（调用
+``create_empty()`` 后使用默认限制），先复验当前完整包；item、properties 和
+relationships 即使关系目标使用二进制扩展名，也按语义 XML 应用限制。
+
+包枚举、资源限制、entry 读取和 reader 关闭失败会返回 ``std::nullopt``，并在
+``last_error()`` / ``entry_name`` 中保留精确上下文；这些失败都在修改任何内容控件
+之前发现。可以安全跳过的缺失、未绑定或格式错误 Custom XML 仍保持兼容行为，并由
+同步结果报告，不会被误写成 archive I/O 成功。
+
+正文、页眉和页脚的同步采用同一个内存事务：解析、结果构建、XML 克隆或任一文本
+重写发生分配失败时返回 ``std::errc::not_enough_memory``，并保持调用前的 DOM、
+尚未保存的编辑、dirty 状态和现有 XML 句柄代次不变。成功且实际同步了至少一个
+内容控件时会原子发布重建后的 WML DOM；此前取得的 ``Paragraph``、``Run``、
+``Table`` 和 ``TemplatePart`` 句柄随即失效，调用方必须重新获取。没有匹配同步项的
+成功调用不会重建 DOM，也不会使句柄失效。
+
 模板校验
 --------
 

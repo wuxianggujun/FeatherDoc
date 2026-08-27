@@ -40,9 +40,22 @@ inline constexpr bool supports_featherdoc_adl_begin_end<
 
 static_assert(supports_featherdoc_adl_begin_end<featherdoc::Paragraph>);
 static_assert(!supports_featherdoc_adl_begin_end<featherdoc::template_schema>);
+static_assert(!std::is_constructible_v<featherdoc::Run, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::Paragraph, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::Table, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::TableRow, pugi::xml_node,
+                                       pugi::xml_node>);
+static_assert(!std::is_constructible_v<featherdoc::TableCell, pugi::xml_node,
+                                       pugi::xml_node>);
 
 std::unordered_set<void *> tracked_pugi_allocations;
 bool saw_unexpected_pugi_deallocation = false;
+pugi::allocation_function delegated_pugi_allocate = nullptr;
+std::size_t controlled_pugi_allocation_calls = 0U;
+std::size_t controlled_pugi_failure_call = 0U;
 
 auto tracked_pugi_allocate(std::size_t size) -> void * {
     void *ptr = std::malloc(size);
@@ -64,6 +77,16 @@ auto tracked_pugi_deallocate(void *ptr) -> void {
     std::free(ptr);
 }
 
+auto controlled_pugi_allocate(std::size_t size) -> void * {
+    ++controlled_pugi_allocation_calls;
+    if (controlled_pugi_failure_call != 0U &&
+        controlled_pugi_allocation_calls == controlled_pugi_failure_call) {
+        return nullptr;
+    }
+    return delegated_pugi_allocate != nullptr ? delegated_pugi_allocate(size)
+                                              : nullptr;
+}
+
 struct pugi_memory_management_guard final {
     pugi::allocation_function allocation{};
     pugi::deallocation_function deallocation{};
@@ -76,6 +99,9 @@ struct pugi_memory_management_guard final {
         pugi::set_memory_management_functions(this->allocation, this->deallocation);
         tracked_pugi_allocations.clear();
         saw_unexpected_pugi_deallocation = false;
+        delegated_pugi_allocate = nullptr;
+        controlled_pugi_allocation_calls = 0U;
+        controlled_pugi_failure_call = 0U;
     }
 };
 

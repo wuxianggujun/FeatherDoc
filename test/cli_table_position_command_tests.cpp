@@ -130,8 +130,14 @@ TEST_CASE("cli table position commands set inspect and clear body table position
              "72");
     CHECK_EQ(std::string_view{table_position.attribute("w:bottomFromText").value()},
              "216");
-    CHECK_EQ(std::string_view{table_position.attribute("w:tblOverlap").value()},
-             "never");
+    CHECK_EQ(table_position.attribute("w:tblOverlap"), pugi::xml_attribute{});
+    const auto positioned_table_overlap =
+        positioned_table_properties.child("w:tblOverlap");
+    REQUIRE(positioned_table_overlap != pugi::xml_node{});
+    CHECK_EQ(
+        std::string_view{positioned_table_overlap.attribute("w:val").value()},
+        "never");
+    CHECK_EQ(table_position.next_sibling(), positioned_table_overlap);
 
     featherdoc::Document reopened(positioned);
     REQUIRE_FALSE(reopened.open());
@@ -228,9 +234,15 @@ TEST_CASE("cli table position commands set inspect and clear body table position
     CHECK_EQ(
         std::string_view{preset_table_position.attribute("w:bottomFromText").value()},
         "288");
+    CHECK_EQ(preset_table_position.attribute("w:tblOverlap"),
+             pugi::xml_attribute{});
+    const auto preset_table_overlap =
+        preset_table_position.parent().child("w:tblOverlap");
+    REQUIRE(preset_table_overlap != pugi::xml_node{});
     CHECK_EQ(
-        std::string_view{preset_table_position.attribute("w:tblOverlap").value()},
+        std::string_view{preset_table_overlap.attribute("w:val").value()},
         "never");
+    CHECK_EQ(preset_table_position.next_sibling(), preset_table_overlap);
 
     CHECK_EQ(run_cli({"set-table-position",
                       source.string(),
@@ -274,8 +286,15 @@ TEST_CASE("cli table position commands set inspect and clear body table position
                  "text");
         CHECK_EQ(std::string_view{table_position.attribute("w:vertAnchor").value()},
                  "text");
-        CHECK_EQ(std::string_view{table_position.attribute("w:tblOverlap").value()},
-                 "never");
+        CHECK_EQ(table_position.attribute("w:tblOverlap"),
+                 pugi::xml_attribute{});
+        const auto all_table_overlap =
+            table_position.parent().child("w:tblOverlap");
+        REQUIRE(all_table_overlap != pugi::xml_node{});
+        CHECK_EQ(
+            std::string_view{all_table_overlap.attribute("w:val").value()},
+            "never");
+        CHECK_EQ(table_position.next_sibling(), all_table_overlap);
         ++all_positioned_table_count;
     }
     CHECK_EQ(all_positioned_table_count, 2U);

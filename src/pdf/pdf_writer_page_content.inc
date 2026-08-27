@@ -50,7 +50,8 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
                 image.bounds.y_points, image.bounds.width_points,
                 image.bounds.height_points)) {
             error_message =
-                "Unable to draw PDF image: " + image.source_path.string();
+                "Unable to draw PDF image: " +
+                detail::path_for_diagnostic(image.source_path);
             return false;
         }
         return true;
@@ -58,7 +59,8 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
 
     if (!image_crop_is_valid(image)) {
         error_message =
-            "Invalid PDF image crop: " + image.source_path.string();
+            "Invalid PDF image crop: " +
+            detail::path_for_diagnostic(image.source_path);
         return false;
     }
 
@@ -87,7 +89,8 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         !pdfioContentClip(stream, false) ||
         !pdfioStreamPuts(stream, "n\n")) {
         error_message =
-            "Unable to set PDF image crop: " + image.source_path.string();
+            "Unable to set PDF image crop: " +
+            detail::path_for_diagnostic(image.source_path);
         pdfioContentRestore(stream);
         return false;
     }
@@ -95,14 +98,16 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
     if (!pdfioContentDrawImage(stream, resource_name.c_str(), draw_x, draw_y,
                                draw_width, draw_height)) {
         error_message =
-            "Unable to draw cropped PDF image: " + image.source_path.string();
+            "Unable to draw cropped PDF image: " +
+            detail::path_for_diagnostic(image.source_path);
         pdfioContentRestore(stream);
         return false;
     }
 
     if (!pdfioContentRestore(stream)) {
         error_message =
-            "Unable to restore PDF image crop: " + image.source_path.string();
+            "Unable to restore PDF image crop: " +
+            detail::path_for_diagnostic(image.source_path);
         return false;
     }
 
@@ -123,7 +128,8 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         const auto image_resource = image_resources.find(image_key);
         if (image_resource == image_resources.end()) {
             error_message =
-                "Missing PDF image resource: " + image.source_path.string();
+                "Missing PDF image resource: " +
+                detail::path_for_diagnostic(image.source_path);
             return false;
         }
 
@@ -255,12 +261,13 @@ page_bounds_rect(const PdfPageSize &page_size) noexcept {
         if (pdf_resource_name == nullptr) {
             return false;
         }
-        const auto image_path = image.source_path.string();
-        pdfio_obj_t *image_object = pdfioFileCreateImageObjFromFile(
-            pdf, image_path.c_str(), image.interpolate);
+        pdfio_obj_t *image_object = create_pdfio_image_from_path(
+            pdf, image.source_path, image.interpolate, error_message);
         if (image_object == nullptr) {
-            error_message =
-                "Unable to create PDF image: " + image_label(image_key);
+            if (error_message.empty()) {
+                error_message =
+                    "Unable to create PDF image: " + image_label(image_key);
+            }
             return false;
         }
 

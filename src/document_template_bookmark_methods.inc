@@ -6,7 +6,8 @@ std::size_t Document::replace_bookmark_text(const std::string &bookmark_name,
         return 0U;
     }
 
-    return replace_bookmark_text_in_part(this->last_error_info, this->document,
+    return replace_bookmark_text_in_part(this->last_error_info,
+                                         *this->xml_handle_lifetime, this->document,
                                          document_xml_entry, bookmark_name,
                                          replacement);
 }
@@ -36,7 +37,8 @@ bookmark_fill_result Document::fill_bookmarks(
         return result;
     }
 
-    return fill_bookmarks_in_part(this->last_error_info, this->document,
+    return fill_bookmarks_in_part(this->last_error_info,
+                                  *this->xml_handle_lifetime, this->document,
                                   document_xml_entry, bindings);
 }
 

@@ -1,11 +1,6 @@
-    [[nodiscard]] std::error_code ensure_even_and_odd_headers_enabled();
     [[nodiscard]] std::optional<bool> inspect_even_and_odd_headers_enabled();
     [[nodiscard]] pugi::xml_node
     section_properties(std::size_t section_index) const;
-    [[nodiscard]] pugi::xml_node
-    ensure_section_properties(std::size_t section_index);
-    [[nodiscard]] bool
-    ensure_title_page_enabled(pugi::xml_node section_properties);
     Paragraph &related_part_paragraphs_by_relationship_id(
         std::string_view relationship_id,
         std::vector<std::unique_ptr<xml_part_state>> &parts,
@@ -20,6 +15,9 @@
         featherdoc::section_reference_kind reference_kind,
         std::vector<std::unique_ptr<xml_part_state>> &parts,
         const char *reference_name);
+    [[nodiscard]] bool replace_section_related_part_text(
+        xml_part_state &part, const char *part_root_name,
+        std::string_view replacement_text);
     Paragraph &ensure_section_related_part_paragraphs(
         std::size_t section_index,
         featherdoc::section_reference_kind reference_kind,
@@ -36,8 +34,6 @@
         featherdoc::section_reference_kind reference_kind,
         const char *reference_name);
     [[nodiscard]] std::error_code ensure_removal_prerequisites_loaded();
-    void cleanup_first_page_section_markers();
-    [[nodiscard]] std::error_code cleanup_even_and_odd_headers_setting();
     [[nodiscard]] bool
     remove_related_part(std::size_t part_index,
                         std::vector<std::unique_ptr<xml_part_state>> &parts,
@@ -58,3 +54,7 @@
     find_related_part_state(std::string_view entry_name);
     [[nodiscard]] const xml_part_state *
     find_related_part_state(std::string_view entry_name) const;
+    [[nodiscard]] std::vector<featherdoc::related_part_inspection_summary>
+    inspect_related_parts(
+        const std::vector<std::unique_ptr<xml_part_state>> &parts,
+        const char *reference_name);

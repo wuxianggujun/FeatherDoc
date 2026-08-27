@@ -12,7 +12,7 @@ auto open_document_for_command(std::string_view command,
                                const std::vector<std::string_view> &arguments,
                                featherdoc::Document &doc,
                                bool json_output) -> bool {
-    return open_document(path_type(std::string(arguments[1])), doc, command,
+    return open_document(path_from_cli_utf8(arguments[1]), doc, command,
                          json_output);
 }
 

@@ -1,3 +1,4 @@
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -210,4 +211,141 @@ TEST_CASE("table cell remove rejects columns that intersect horizontal merges") 
     CHECK_EQ(count_named_children(table_node.child("w:tblGrid"), "w:gridCol"), 3U);
 
     fs::remove(target);
+}
+
+TEST_CASE("table column removal rejects invalid geometry atomically") {
+    namespace fs = std::filesystem;
+
+    struct geometry_case {
+        std::string_view name;
+        std::string_view cells_xml;
+    };
+    constexpr auto geometry_cases = std::array{
+        geometry_case{
+            "single_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "summed_span_64",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>left</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:gridSpan w:val="32"/></w:tcPr><w:p><w:r><w:t>right</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "zero_span",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="0"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "missing_span_value",
+            R"(<w:tc><w:tcPr><w:gridSpan/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+        geometry_case{
+            "invalid_span_value",
+            R"(<w:tc><w:tcPr><w:gridSpan w:val="invalid"/></w:tcPr><w:p><w:r><w:t>original</w:t></w:r></w:p></w:tc>)"},
+    };
+
+    for (const auto &geometry : geometry_cases) {
+        const auto target = fs::current_path() /
+                            ("table_column_remove_invalid_" +
+                             std::string{geometry.name} + ".docx");
+        fs::remove(target);
+        write_test_docx(
+            target,
+            std::string{
+                R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:tbl><w:tr>)"} +
+                std::string{geometry.cells_xml} +
+                R"(</w:tr></w:tbl></w:body></w:document>)");
+
+        featherdoc::Document document(target);
+        REQUIRE_FALSE(document.open());
+        REQUIRE_FALSE(document.save());
+        const auto xml_before =
+            read_test_docx_entry(target, test_document_xml_entry);
+
+        auto table = document.tables();
+        REQUIRE(table.valid());
+        auto row = table.rows();
+        REQUIRE(row.valid());
+        auto cell = row.cells();
+        REQUIRE(cell.valid());
+        auto old_cell = cell;
+        auto paragraph = cell.paragraphs();
+        auto run = paragraph.runs();
+        REQUIRE(paragraph.valid());
+        REQUIRE(run.valid());
+
+        CHECK_FALSE(cell.remove());
+        CHECK(cell.valid());
+        CHECK(old_cell.valid());
+        CHECK(paragraph.valid());
+        CHECK(run.valid());
+        CHECK(row.valid());
+        CHECK(table.valid());
+
+        REQUIRE_FALSE(document.save());
+        CHECK_EQ(read_test_docx_entry(target, test_document_xml_entry),
+                 xml_before);
+
+        fs::remove(target);
+    }
+}
+
+TEST_CASE("table column removal retires every removed cell subtree only") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto table = document.append_table(3U, 3U);
+    REQUIRE(table.valid());
+    auto first_row = table.rows();
+    auto second_row = first_row;
+    second_row.next();
+    auto third_row = second_row;
+    third_row.next();
+    REQUIRE(first_row.valid());
+    REQUIRE(second_row.valid());
+    REQUIRE(third_row.valid());
+
+    auto first_unchanged = first_row.cells();
+    REQUIRE(first_unchanged.set_text("first unchanged"));
+    auto first_removed = first_unchanged;
+    first_removed.next();
+    REQUIRE(first_removed.set_text("first removed"));
+    auto first_removed_paragraph = first_removed.paragraphs();
+    auto first_removed_run = first_removed_paragraph.runs();
+    auto removal_cursor = first_removed;
+
+    auto second_unchanged = second_row.cells();
+    REQUIRE(second_unchanged.set_text("second unchanged"));
+    auto second_removed = second_unchanged;
+    second_removed.next();
+    REQUIRE(second_removed.set_text("second removed"));
+    auto second_removed_paragraph = second_removed.paragraphs();
+    auto second_removed_run = second_removed_paragraph.runs();
+
+    auto third_unchanged = third_row.cells();
+    REQUIRE(third_unchanged.set_text("third unchanged"));
+    auto third_removed = third_unchanged;
+    third_removed.next();
+    REQUIRE(third_removed.set_text("third removed"));
+    auto third_removed_paragraph = third_removed.paragraphs();
+    auto third_removed_run = third_removed_paragraph.runs();
+
+    REQUIRE(removal_cursor.remove());
+
+    CHECK(removal_cursor.valid());
+    CHECK_EQ(removal_cursor.get_text(), "");
+    CHECK_FALSE(first_removed.valid());
+    CHECK_FALSE(first_removed_paragraph.valid());
+    CHECK_FALSE(first_removed_run.valid());
+    CHECK_FALSE(second_removed.valid());
+    CHECK_FALSE(second_removed_paragraph.valid());
+    CHECK_FALSE(second_removed_run.valid());
+    CHECK_FALSE(third_removed.valid());
+    CHECK_FALSE(third_removed_paragraph.valid());
+    CHECK_FALSE(third_removed_run.valid());
+    CHECK(first_unchanged.valid());
+    CHECK_EQ(first_unchanged.get_text(), "first unchanged");
+    CHECK(second_unchanged.valid());
+    CHECK_EQ(second_unchanged.get_text(), "second unchanged");
+    CHECK(third_unchanged.valid());
+    CHECK_EQ(third_unchanged.get_text(), "third unchanged");
+    CHECK(first_row.valid());
+    CHECK(second_row.valid());
+    CHECK(third_row.valid());
+    CHECK(table.valid());
 }

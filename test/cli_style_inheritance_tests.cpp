@@ -152,7 +152,7 @@ TEST_CASE("cli inspect-style-inheritance reports parse and inspect errors") {
     CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(inspect_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);
@@ -383,7 +383,7 @@ TEST_CASE("cli materialize-style-run-properties reports parse and inspect errors
     CHECK_NE(inspect_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(inspect_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(inspect_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);
@@ -595,7 +595,7 @@ TEST_CASE("cli rebase-paragraph-style-based-on reports parse and mutate errors")
     CHECK_NE(mutate_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(mutate_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(mutate_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);
@@ -806,7 +806,7 @@ TEST_CASE("cli rebase-character-style-based-on reports parse and mutate errors")
     CHECK_NE(mutate_json.find("\"stage\":\"inspect\""), std::string::npos);
     CHECK_NE(mutate_json.find(
                  "\"detail\":\"style id 'MissingStyle' was not found in "
-                 "word/styles.xml\""),
+                 "'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(mutate_json.find("\"entry\":\"word/styles.xml\""),
              std::string::npos);

@@ -37,7 +37,7 @@
         return 1;
     }
 
-    const auto replacement_path = path_type(std::string(arguments[2]));
+    const auto replacement_path = path_from_cli_utf8(arguments[2]);
     if (!selected.part.replace_drawing_image(target_image.index, replacement_path)) {
         report_document_error(command, "mutate", doc.last_error(),
                               options.json_output);
@@ -80,7 +80,9 @@
              &options](std::ostream &stream) {
                 write_json_selected_image_part(stream, selected);
                 stream << ",\"replacement_path\":";
-                write_json_string(stream, replacement_path.string());
+                write_json_string(
+                    stream,
+                    featherdoc::detail::path_to_utf8(replacement_path));
                 write_json_inspect_image_filters(stream, options);
                 stream << ",\"image\":";
                 write_json_drawing_image_summary(stream, *updated_image_it);

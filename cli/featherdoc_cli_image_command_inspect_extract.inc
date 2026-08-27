@@ -99,7 +99,7 @@
         return 1;
     }
 
-    const auto output_path = path_type(std::string(arguments[2]));
+    const auto output_path = path_from_cli_utf8(arguments[2]);
     if (!selected.part.extract_drawing_image(target_image.index, output_path)) {
         report_document_error(command, "extract", doc.last_error(),
                               options.json_output);
@@ -112,7 +112,8 @@
         std::cout << ",\"ok\":true";
         write_json_selected_image_part(std::cout, selected);
         std::cout << ",\"output_path\":";
-        write_json_string(std::cout, output_path.string());
+        write_json_string(std::cout,
+                          featherdoc::detail::path_to_utf8(output_path));
         write_json_inspect_image_filters(std::cout, options);
         std::cout << ",\"image\":";
         write_json_drawing_image_summary(std::cout, target_image);

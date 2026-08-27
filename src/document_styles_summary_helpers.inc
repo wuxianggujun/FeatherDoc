@@ -218,12 +218,12 @@ auto summarize_paragraph_node(pugi::xml_node paragraph_node,
         read_paragraph_indent_twips(paragraph_properties, "w:hanging");
     summary.numbering = summarize_paragraph_numbering(paragraph_properties);
 
-    auto paragraph_handle =
-        featherdoc::Paragraph{paragraph_node.parent(), paragraph_node};
-    for (auto run = paragraph_handle.runs(); run.has_next(); run.next()) {
+    for (auto run = paragraph_node.child("w:r"); run != pugi::xml_node{};
+         run = featherdoc::detail::next_named_sibling(run, "w:r")) {
         ++summary.run_count;
-        summary.text += run.get_text();
     }
+    summary.text =
+        featherdoc::detail::collect_plain_text_from_xml(paragraph_node);
 
     return summary;
 }

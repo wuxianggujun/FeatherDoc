@@ -1,6 +1,7 @@
 #include "featherdoc_cli_review_mutation_plan_build_request_parse_support.hpp"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 #include "featherdoc_cli_parse.hpp"
 
 #include <fstream>
@@ -12,16 +13,9 @@ namespace featherdoc_cli {
 auto read_review_mutation_plan_build_request_content(
     const std::filesystem::path &request_path, std::string &content,
     std::string &error_message) -> bool {
-    std::ifstream stream(request_path, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read review mutation plan build request file: " +
-                        request_path.string();
-        return false;
-    }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
-    return true;
+    return read_bounded_utf8_file(
+        request_path, "review mutation plan build request file", content,
+        error_message);
 }
 
 auto consume_review_mutation_plan_build_request_separator(

@@ -1,7 +1,7 @@
 长期任务推进台账（中文）
 ========================
 
-状态日期：2026-06-22
+状态日期：2026-08-27
 
 本页是当前长任务的执行台账，用来回答三个问题：
 
@@ -17,10 +17,11 @@
 
 当前 active goal：
 
-``持续推进 FeatherDoc 后续开发任务：维护后续任务文档，按优先级在 dev 分支实现、验证、提交、推送，并保持 CI 绿色。``
+``完成 FeatherDoc 的 DOCX 表格结构收尾，更新维护边界，验证并回收本轮资源。``
 
-Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第二个 goal，
-只围绕本台账和 ``docs/next_tasks_zh.rst`` 逐轮推进。
+Goal 状态：``DONE``。本轮代码、文档和统一验证已经完成，隔离构建资源已按本轮
+收尾流程回收；后续不再创建功能扩张 goal，只保留 bug、安全、兼容性、构建、测试
+和文档维护任务。
 
 执行边界：
 
@@ -29,6 +30,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 3. 新增能力必须同时考虑源码、脚本、文档、测试和 release governance。
 4. 中文文档、PowerShell 输出和测试样例默认保持 UTF-8。
 5. 不整分支合并旧参考分支；只摘当前 ``dev`` 缺失且可验证的小能力。
+6. setter 等小功能只做 Windows/MSVC 单 target 和精确 case 验证；只有维护者宣布模块
+   里程碑、跨模块集成或发布 gate 时才运行完整 Windows/跨平台验证。
+7. 构建默认 ``--parallel 1``；每轮结束回收当前任务启动的构建进程，并清理
+   ``.codex-temp`` 下不再复用的临时构建目录，不动正式 build/cache 或外部进程。
 
 
 状态说明
@@ -78,6 +83,64 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    git push origin dev
 
 
+已完成专项：Word/DOCX 安全修复
+------------------------------
+
+``P0-WORD-SAFETY-01`` 当前状态为 ``DONE``，发布基线是 ``v1.13.3``；当前进入
+``v1.13.4`` 发布收口，既有版本已完成 tag、GitHub Release 与资产复核，后续只处理
+可复现的 Word/DOCX 维护问题：
+
+1. 保存事务：POSIX 临时文件权限、目标 mode/``umask``、文件与父目录同步已实现，
+   两类同步失败有独立错误码和故障注入测试。
+2. ZIP 安全：已修复 PKWARE 算术 UB 和写入失败后的 entry 资源泄漏。
+3. 动态分析：Clang ASan/UBSan、DOCX/JSON libFuzzer target 和定时 CI workflow
+   已建立；本地短 fuzz 已通过。
+4. 兼容性：``v1.13.2`` source consumer fixture 已通过，shared ABI 按
+   ``major.minor`` 版本化，跨 minor 要求重编译；本地 Word-only 构建
+   ``518/518``、CTest ``83/83`` 已通过。
+5. install consumer 已通过并验证 Unicode 路径和 ``FeatherDoc_ABI_VERSION=1.13``；
+   Windows MSVC、Linux GCC/Clang、macOS 和 sanitizer/fuzz CI 均已通过，Darwin
+   父目录同步与 Windows Unicode 安装 consumer 已由对应原生平台验证。
+6. 本次 ``v1.13.4`` 修复已覆盖 ZIP entry 非法 UTF-8/歧义/路径穿越、lazy reopen、
+   图片提取与保存源复制的全包复验、reader close、XML 深度/语义资源、Custom XML、
+   图片/字号边界、恶意表格跨度和列数、编号/review/tracked-change ID、可预期失败
+   原子性，以及 ``Document`` move/分节重建的旧句柄失效；后续仅接受可复现问题的
+   回归维护。
+7. 保存管线以及已迁移的 singleton、分节、样式等关键 mutation 已完成隔离事务和
+   fail-Nth 故障注入验证；``save_as()`` 当前观测到的全部标准 ``new`` 分配点也已验证
+   原目标不变、无临时文件残留且可重试。尚未逐项迁移的任意 DOM mutation 仍缺少统一的
+   generation-aware transaction，继续作为独立架构任务推进；当前不能宣称整个 API
+   已具备通用 OOM 原子性。
+8. 表格属性原子化已完成当前公开 setter/clear 批次；结构事务已完成 cell/row
+   插入删除、merge/unmerge、列插入删除和 ``TableRow::append_cell()``。后者统一覆盖
+   现有行追加与迭代器末尾新建行，拒绝重复/非法表格几何，并在退休旧表布局后无分配
+   提交。``gridSpan`` / ``vMerge`` 没有独立公开 setter，不再作为虚假待办。
+   ``Table::append_row()`` 已完成最后一轮原子化收尾，表级公开入口完成定向审查，
+   本专项转为 ``DONE``，后续只做回归维护。
+9. 当前小功能验证固定为 Windows/MSVC 的 ``xml_handle_retirement_tests`` 单 target 和
+   一个精确 doctest case；PugiXML/global allocation-failure 回归只在专用 CI 配置注册。
+   不在每个 setter 后运行 WSL、完整 CTest 或等待全部 GitHub Actions。
+10. 本轮结束时必须确认当前任务启动的 ``cmake`` / ``ninja`` / ``cl`` / ``link`` /
+    ``ctest`` 已退出，并清理 ``.codex-temp`` 下不再复用的临时构建目录；完整验证留到
+    维护者明确宣布的模块里程碑、跨模块集成或发布 gate。
+11. 2026-08-13 定向证据：Windows/MSVC Release 的 ``xml_handle_retirement_tests`` 单
+    target 构建成功，fill 精确 case 通过 ``1/1``、``48/48``；相关文档契约测试通过，
+    未运行 WSL/全量测试，本轮临时构建目录与构建进程已回收。
+12. 同日 width setter 的同一单 target 构建成功，width 精确 case 通过 ``1/1``、
+    ``44/44``；中间发现的 helper 声明可见性编译问题已在当前 setter 内收敛修复并复编
+    通过，未扩大依赖边界。临时构建目录和本轮构建进程已回收。
+13. 2026-08-21 ``TableRow::append_cell()`` 已完成结构事务迁移；Windows/MSVC
+    Release/NMake 并发 1 构建相关 targets 成功，精确 ``table append cell*`` 通过
+    ``2/2``、``331/331``。同批修复 Clang 下 3 个 PugiXML fail-Nth fixture 的零分配
+    基线误报，实际 allocation-failure 结果由推送后的 security workflow 验证。
+14. 2026-08-26 ``Table::append_row()`` 完成最终结构事务收尾。隔离 WSL
+    Release/Ninja Word-only 构建通过 ``1259/1259``，精确回归通过 ``4/4``、
+    ``215/215``，相关结构/句柄测试通过 ``2/2``。首轮完整 CTest 暴露 DrvFS
+    ``mkfifo`` 夹具缺陷；改用原生临时目录且保留 FIFO 拒绝覆盖后，聚焦重试通过，
+    最终完整 CTest ``143/143``。本地未运行 sanitizer、fuzz 或 allocation-failure；
+    Windows/MSVC 仍由下一次本地或托管运行验证当前改动。
+
+
 近期执行队列
 ------------
 
@@ -86,10 +149,11 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
    * 状态：``GUARDED``。
    * 目标：确认最新 ``dev`` 的 Linux、Windows、macOS 和 Docs Pages 均绿色。
    * 验收：``gh run list --branch dev`` 无失败；若失败，优先抓日志并修复。
-   * 当前结果：截至本次台账刷新，最新 ``dev`` head
-     ``84b4fd0978f2a8c5ad4d4c8529f245ac6d393334`` 的 Docs Pages、
-     Linux CMake CI、macOS CMake CI 与 Windows MSVC CI 均已通过。当前 live
-     状态请以 ``gh run list --branch dev`` 为准。
+   * 当前结果：``v1.13.3`` 已于北京时间 2026-07-15 正式发布，发布提交为
+     ``f6d97cd7d28010942d479651cc6c27619543da38``，tag、Release 与三份正式资产已
+     复核。本次 ``v1.13.4`` 版本元数据提交后仍须确认 Linux、macOS、Windows、Docs
+     Pages 与 sanitizer CI 全绿，再创建 tag。live 状态以 ``gh run list --branch dev``
+     为准。
    * 已修复：上一轮 Windows MSVC 在 ``release_candidate_visual_verdict`` 和
      ``release_candidate_visual_verdict_reports`` 中暴露的 release entry material
      safety 误判已解除。修复点包括让 material-safety helper 在同一 anchor 的
@@ -114,7 +178,34 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
      ``add_business_template_source_metadata`` 已进入脚本与测试；缺失
      ``business_document_type`` 现在也会以
      ``schema_patch_confidence_calibration.missing_business_document_type_metadata`` warning
-     和 ``add_business_template_document_type_metadata`` action item 暴露。
+     和 ``add_business_template_document_type_metadata`` action item 暴露；缺失
+     ``corpus_role`` 现在也会以
+     ``schema_patch_confidence_calibration.missing_business_template_corpus_role_metadata`` warning
+     和 ``add_business_template_corpus_role_metadata`` action item 暴露；候选
+     ``business_document_type`` / ``corpus_role`` 与来源语料条目不一致时也会以
+     ``schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata`` warning
+     和 ``align_business_template_corpus_metadata`` action item 暴露；该 mismatch
+     warning / action 现在也被 release blocker rollup 与 release governance handoff
+     fixture 锁住，确保候选字段和来源语料字段能继续传到发布治理出口。
+     本轮又把 ``add_business_template_document_type_metadata``、
+     ``add_business_template_corpus_role_metadata`` 和
+     ``align_business_template_corpus_metadata`` 三类 warning / action 继续接入 release
+     candidate 的 ``release_handoff.md`` 与 ``final_review.md`` 断言，确保
+     ``missing_business_document_type_count``、``missing_corpus_role_count``、
+     ``business_document_type``、``source_business_document_type``、``corpus_role``、
+     ``source_corpus_role``、mismatch count / flag、``candidate_name`` 和
+     ``schema_update_candidate`` 不会只停留在 JSON handoff 中。
+     release note bundle fixture 也已覆盖同一批 schema calibration blocker / action /
+     warning，要求 ``release_handoff.md``、``ARTIFACT_GUIDE.md``、
+     ``REVIEWER_CHECKLIST.md`` 与 ``START_HERE.md`` 的 Markdown list block
+     同时保留来源语料字段、missing / mismatch count、候选名和
+     ``schema_update_candidate``。
+     release material safety 也已增加入口材料负例护栏，若 schema calibration
+     blocker / action / warning 丢失 ``source_business_document_type``、
+     ``source_corpus_role``、missing / mismatch count 或候选字段，会在发布材料审计阶段失败。
+     final review 侧也已纳入同一 material-safety 负例护栏；missing
+     ``business_document_type`` / ``corpus_role`` 的 action / warning 会从生成器开始透传
+     ``source_business_document_type`` 与 ``source_corpus_role``，防止最终复核材料失去来源语料上下文。
    * 验收：``test/write_schema_patch_confidence_calibration_report_test.ps1`` 通过；
      文档契约测试仍能通过。
 
@@ -283,10 +374,10 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
      ``reviewer_action_summary`` 代表整组 reviewer action 字段。最新修复还把
      ``upload.remote_assets`` 的 ``size_bytes`` / ``download_count`` 收紧为严格
      整数校验，并补了对应的 decimal 负例，避免 PowerShell 数值转换误放行。
-     当前这轮继续收口 strict integer contract：release material safety 的 core、
-     json、manifest contract 统一改用严格整数解析 helper，测试样例也补齐了
-     小数、字符串整数、布尔值和空值负例，下一步直接跑
-     ``test/assert_release_material_safety_test.ps1`` 复核这组 contract。
+     strict integer contract 已收口：release material safety 的 core、json、manifest
+     contract 统一改用严格整数解析 helper，测试样例补齐小数、字符串整数、布尔值和
+     空值负例；``test/assert_release_material_safety_test.ps1`` 已通过，负例夹具中的
+     forbidden 诊断为预期输出。
      package release assets 的 ``START_HERE.md``、``ARTIFACT_GUIDE.md`` 和
      ``REVIEWER_CHECKLIST.md`` 已补 ``reviewer_action_*`` 值级断言，确保
      readiness / onboarding no-action 语义不会只剩字段名。
@@ -355,20 +446,63 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 
 8. ``P2-STYLE-01``：样式建议置信度校准
 
-   * 状态：``TODO``。
+   * 状态：``GUARDED``。
    * 目标：基于真实文档继续校准 style merge / rename suggestion。
+   * 当前产物：``write_style_merge_suggestion_review.ps1`` 已把低于
+     ``recommended_min_confidence`` 的 style merge 建议派生为
+     ``manual_review_reasons``，并在 review JSON 中固定输出
+     ``manual_review_required``、``manual_review_reason_count`` 和
+     ``manual_review_before_apply``；document skeleton governance 已通过
+     ``-StyleMergeReviewJson`` 把这些字段透传到单文档 summary、Markdown、action item
+     和 skeleton rollup 聚合；release blocker rollup / release note bundle 入口材料也已
+     展示人工复核 count、reason、recommended action 与 confidence。对应单测和 route
+     文档契约已覆盖。
    * 验收：低置信度建议输出人工复核原因，不能直接进入自动修复。
 
 9. ``P2-NUMBERING-01``：样式、编号和 document skeleton 治理
 
-   * 状态：``TODO``。
+   * 状态：``GUARDED``。
    * 目标：让 heading、list、theme、numbering catalog 和 style numbering 更稳定地联动。
-   * 验收：document skeleton governance rollup 保留 per-document source 与 action。
+   * 当前产物：``build_numbering_catalog_governance_report.ps1`` 已补
+     per-document ``real_corpus_alignment``，能区分 ``matched``、
+     ``missing_baseline`` 与 ``missing_exemplar``；缺口会生成
+     ``numbering_catalog_governance.missing_baseline`` /
+     ``numbering_catalog_governance.missing_exemplar`` action item，并携带
+     ``source_schema``、``source_report_display``、``source_json_display`` 和
+     可复跑 ``open_command``。同一 ``document_key`` 的多个不同
+     ``exemplar_catalog_path`` 现在还会进入 ``exemplar_conflicts``，生成
+     ``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 与
+     ``review_numbering_catalog_exemplar_conflict`` action，并提供
+     ``diff-numbering-catalog`` 复核命令。catalog patch 衔接本轮已落地为
+     ``featherdoc.numbering_catalog_governance_patch_plan.v1`` 结构化审阅计划：summary
+     顶层输出 ``catalog_patch_plan_count`` / ``catalog_patch_plans``，冲突、blocker 与
+     action 通过 ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 关联同一计划。
+     计划固定为 ``awaiting_authoritative_catalog``，并明确
+     ``safe_to_apply=false``、``automatic_patch_available=false``、
+     ``patch_apply_supported=false``、``manual_review_required=true`` 与
+     ``requires_authoritative_catalog_selection=true``。
+     ``supported_patch_operations`` 仅包含 ``upsert_levels``、``upsert_overrides`` 与
+     ``remove_overrides``；``definition_topology_changes`` / ``instance_topology_changes``
+     进入 ``unsupported_automatic_changes``，不会被自动 apply。计划同时保留
+     ``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+     ``candidate_catalog_displays``、``reviewer_inputs``、``patch_counts``、
+     ``diff_commands`` / ``review_command``、``patch_command_template``、
+     ``lint_command_template``、``verification_command_template`` 与有序
+     ``required_steps``。release blocker rollup 和 release governance handoff 会原样
+     透传 ``catalog_patch_plan_id`` / ``catalog_patch_plan``。
+   * 验收：document skeleton governance rollup 保留 per-document source 与 action；
+     exemplar catalog 来源冲突不能继续以 release-ready 通过；reviewer 必须先选择
+     authoritative catalog、编写只包含受支持 operation 的 reviewed patch，再完成
+     apply、lint 与 ``--fail-on-diff`` 验证。
 
 10. ``P2-TABLE-01``：表格与版式交付质量
 
-    * 状态：``TODO``。
+    * 状态：``GUARDED``。
     * 目标：继续推进 table layout delivery、floating table 和 PDF-sensitive 布局证据。
+    * 当前产物：table layout delivery rollup / governance 已保留 delivery quality、
+      floating table reviewer focus、固定/自适应/未指定布局计数，并修正
+      ``preset_summary``、``status_summary``、``blocker_id_summary`` 与
+      ``action_item_summary``，确保 release-facing summary 使用真实分组 key。
     * 验收：表格位置、``tblLook``、固定布局差异、``fixed_layout_table_count`` /
       ``autofit_layout_table_count`` / ``unspecified_layout_table_count`` 和 unresolved
       item 能进入 release-facing 指标，并由 release material safety 锁住入口材料。
@@ -390,33 +524,24 @@ Goal 状态：本线程已创建并保持 ``active``；后续不重复创建第�
 
     * 状态：``GUARDED``。
     * 目标：新增脚本、发布字段或路线任务时，同步维护对应文档和测试。
+    * 当前产物：本轮已清理活跃文档中的旧状态描述，把项目评分、PDF 执行计划和
+      PDF import 计划对齐到当前真实结构：CLI 已拆到 ``cli/featherdoc_cli_*``，
+      PDF parse/export/import 测试已拆到 ``test/pdf_*``，Linux / macOS / Windows CI
+      基线也已进入常规 GitHub Actions；旧 CLI、旧测试文件和旧 CI 基线文案搜索已无命中。
     * 验收：``current_direction_docs_contract_test.ps1``、
       ``script_task_index_docs_contract_test.ps1`` 和相关 release metadata 测试保持绿色。
 
 
-下一轮最小动作
---------------
+维护模式下的最小动作
+--------------------
 
-下一轮按这个顺序执行：
-
-1. 开始下一轮前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
+1. 开始维护前复查 ``git status --short --branch``、本地/远端 ``codex/*`` 分支和
    最新 ``dev`` CI；若新 CI 失败，先回到 ``P0-CI-01`` 抓日志修失败。
-2. 继续守护本轮 ``upload.remote_assets`` 静态 contract、远端 URL release
-   download path / 文件名（zip 后缀）/ tag / exact path / userinfo / query-fragment / scheme / host / release path prefix 绑定、
-   ``upload.release_url`` release tag path、warning-only reviewer action 回归和
-   content-control 同块断言；
-   若失败，优先修复对应 fixture 或生成脚本。
-3. ``P1-RELEASE-01`` 发布材料收口已完成：release body / summary、GitHub Release
-   同步路径、release blocker rollup、governance handoff、final review、bundle /
-   checklist、packaged ``release_assets_manifest.json`` 与 release material safety
-   负例已由值级回归锁定。
-4. ``P1-SCHEMA-01`` 本轮已补 ``business_document_type`` 缺失治理信号与固定
-   reviewer action；``P1-TEMPLATE-01`` 已把 notice、policy、report、contract、tender
-   从 planned 推进为 registered。下一轮优先守护 release governance 证据链，确认
-   project-template smoke、schema approval history、schema patch confidence、dashboard、
-   handoff 与 final review 仍能完整传递来源路径、下一步命令和 blocker/action 明细；若继续
-   扩展业务语料，再按同样的注册薄片补脚本、测试和文档后提交到 ``dev``。
-5. 回到本台账，把 ``DOING`` 项的状态、证据和下一步更新清楚。
+2. 新 bug 先补最小复现、精确回归和根因说明，再只构建受影响 target。
+3. 常规维护保持并发 1；不运行完整 CTest、PDF visual gate、sanitizer/fuzz 或跨平台
+   矩阵，除非有明确的发布、集成或 CI 复现理由。
+4. 文档、脚本索引和契约测试随修复同步更新；验证稳定后再评估 patch 发布，
+   不修改既有 ``v1.13.3`` tag 或 Release。
 
 
 不做清单

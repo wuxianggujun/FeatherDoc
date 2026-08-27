@@ -85,14 +85,7 @@ function Invoke-MsvcCommand {
     }
 }
 
-function Get-BasePython {
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($python) {
-        return $python.Source
-    }
-
-    throw "Python was not found in PATH."
-}
+. (Join-Path $PSScriptRoot "python_runtime.ps1")
 
 function Test-PythonImport {
     param(
@@ -148,10 +141,10 @@ function Assert-WordVisualPrerequisites {
     $issues = New-Object System.Collections.Generic.List[string]
 
     try {
-        $basePython = Get-BasePython
+        $basePython = Resolve-FeatherDocPythonExecutable
         Write-Step "Python found: $basePython"
     } catch {
-        $issues.Add("Python was not found in PATH.")
+        $issues.Add($_.Exception.Message)
     }
 
     if ($NeedsBuild) {
@@ -183,7 +176,7 @@ function Assert-WordVisualPrerequisites {
 function Ensure-RenderPython {
     param([string]$RepoRoot)
 
-    $basePython = Get-BasePython
+    $basePython = Resolve-FeatherDocPythonExecutable
     if ((Test-PythonImport -PythonCommand $basePython -ModuleName "fitz") -and
         (Test-PythonImport -PythonCommand $basePython -ModuleName "PIL")) {
         return $basePython

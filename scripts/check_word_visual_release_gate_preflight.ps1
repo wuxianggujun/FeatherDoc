@@ -190,6 +190,7 @@ $requiredScripts = @(
     "scripts\run_word_visual_release_gate_descriptors.ps1",
     "scripts\run_word_visual_release_gate_standard_flows.ps1",
     "scripts\run_word_visual_release_gate_curated_report.ps1",
+    "scripts\sync_visual_review_verdict.ps1",
     "scripts\run_word_visual_smoke.ps1",
     "scripts\run_fixed_grid_merge_unmerge_regression.ps1",
     "scripts\run_section_page_setup_visual_regression.ps1",
@@ -253,6 +254,7 @@ $requiredGateMarkers = @(
     '[switch]$SkipBookmarkFloatingImage',
     '[switch]$SkipFloatingImageZOrder',
     '$gateSummary.review_task_summary = Get-ReviewTaskSummary -ReviewTasks $gateSummary.review_tasks',
+    'Invoke-ChildPowerShell -ScriptPath $syncVisualReviewVerdictScript',
     'visual_verdict = if ($SkipReviewTasks)',
     'Gate summary: $gateSummaryPath',
     'Gate final review: $gateFinalReviewPath'

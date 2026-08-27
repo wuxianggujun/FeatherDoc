@@ -37,7 +37,7 @@ void print_bookmark_block_visibility_result(
     std::size_t changed) {
     print_bookmark_identity(selected, bookmark);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -47,7 +47,8 @@ void print_bookmark_block_visibility_result(
 
 void write_json_bookmark_block_visibility_bindings(
     std::ostream &stream,
-    const std::vector<featherdoc::bookmark_block_visibility_binding> &bindings) {
+    const std::vector<featherdoc::bookmark_block_visibility_binding>
+        &bindings) {
     stream << '[';
     for (std::size_t index = 0; index < bindings.size(); ++index) {
         if (index != 0U) {
@@ -67,10 +68,8 @@ void write_json_applied_bookmark_block_visibility_result(
     write_json_selected_bookmark_part(stream, selected);
     stream << ",\"complete\":" << json_bool(static_cast<bool>(result))
            << ",\"requested\":" << result.requested
-           << ",\"matched\":" << result.matched
-           << ",\"kept\":" << result.kept
-           << ",\"removed\":" << result.removed
-           << ",\"bindings\":";
+           << ",\"matched\":" << result.matched << ",\"kept\":" << result.kept
+           << ",\"removed\":" << result.removed << ",\"bindings\":";
     write_json_bookmark_block_visibility_bindings(stream, bindings);
     stream << ",\"missing_bookmarks\":";
     write_json_strings(stream, result.missing_bookmarks);
@@ -83,7 +82,7 @@ void print_applied_bookmark_block_visibility_result(
     const featherdoc::bookmark_block_visibility_result &result) {
     print_selected_bookmark_part(selected);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -93,8 +92,8 @@ void print_applied_bookmark_block_visibility_result(
     std::cout << "kept: " << result.kept << '\n';
     std::cout << "removed: " << result.removed << '\n';
     for (std::size_t index = 0; index < bindings.size(); ++index) {
-        std::cout << "binding[" << index << "]: "
-                  << bindings[index].bookmark_name << " => "
+        std::cout << "binding[" << index
+                  << "]: " << bindings[index].bookmark_name << " => "
                   << (bindings[index].visible ? "visible" : "hidden") << '\n';
     }
     std::cout << "missing_bookmarks: ";
@@ -117,10 +116,10 @@ auto run_set_bookmark_block_visibility_command(
     featherdoc::Document &doc) -> int {
     const auto json_output = has_json_flag(arguments);
     if (arguments.size() < 3U) {
-        print_parse_error(
-            command,
-            "set-bookmark-block-visibility expects an input path and bookmark name",
-            json_output);
+        print_parse_error(command,
+                          "set-bookmark-block-visibility expects an input path "
+                          "and bookmark name",
+                          json_output);
         return 2;
     }
 
@@ -139,7 +138,7 @@ auto run_set_bookmark_block_visibility_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -159,15 +158,16 @@ auto run_set_bookmark_block_visibility_command(
     }
     const auto bookmark_summary = *bookmark;
 
-    const auto changed =
-        selected.part.set_bookmark_block_visibility(bookmark_name, options.visible);
+    const auto changed = selected.part.set_bookmark_block_visibility(
+        bookmark_name, options.visible);
     if (changed == 0U) {
         report_document_error(command, "mutate", doc.last_error(),
                               options.json_output);
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
@@ -177,12 +177,13 @@ auto run_set_bookmark_block_visibility_command(
             [&selected, &bookmark_summary, &options,
              changed](std::ostream &stream) {
                 write_json_bookmark_block_visibility_result(
-                    stream, selected, bookmark_summary, options.visible, changed);
+                    stream, selected, bookmark_summary, options.visible,
+                    changed);
             });
     } else {
-        print_bookmark_block_visibility_result(
-            selected, bookmark_summary, options.output_path, options.visible,
-            changed);
+        print_bookmark_block_visibility_result(selected, bookmark_summary,
+                                               options.output_path,
+                                               options.visible, changed);
     }
 
     return 0;
@@ -193,10 +194,10 @@ auto run_apply_bookmark_block_visibility_command(
     featherdoc::Document &doc) -> int {
     const auto json_output = has_json_flag(arguments);
     if (arguments.size() < 4U) {
-        print_parse_error(
-            command,
-            "apply-bookmark-block-visibility expects an input path and at least one visibility binding",
-            json_output);
+        print_parse_error(command,
+                          "apply-bookmark-block-visibility expects an input "
+                          "path and at least one visibility binding",
+                          json_output);
         return 2;
     }
 
@@ -208,7 +209,7 @@ auto run_apply_bookmark_block_visibility_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -228,7 +229,8 @@ auto run_apply_bookmark_block_visibility_command(
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
@@ -258,11 +260,12 @@ auto run_bookmark_visibility_command(
     std::string_view command, const std::vector<std::string_view> &arguments,
     featherdoc::Document &doc) -> int {
     if (command == "set-bookmark-block-visibility") {
-        return run_set_bookmark_block_visibility_command(command, arguments, doc);
+        return run_set_bookmark_block_visibility_command(command, arguments,
+                                                         doc);
     }
     if (command == "apply-bookmark-block-visibility") {
         return run_apply_bookmark_block_visibility_command(command, arguments,
-                                                            doc);
+                                                           doc);
     }
 
     print_parse_error(command, "unsupported bookmark visibility command",

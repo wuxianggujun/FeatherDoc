@@ -2,6 +2,8 @@
 
 #include "featherdoc_cli_parse.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 namespace featherdoc_cli {
 
 auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
@@ -19,8 +21,8 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
                 error_message = "missing path after --output";
                 return false;
             }
-            options.output_path =
-                std::filesystem::path(std::string(arguments[index + 1U]));
+            options.output_path = featherdoc::detail::path_from_utf8(
+                arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -34,8 +36,8 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
                 error_message = "missing path after --font-file";
                 return false;
             }
-            options.font_file_path =
-                std::filesystem::path(std::string(arguments[index + 1U]));
+            options.font_file_path = featherdoc::detail::path_from_utf8(
+                arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -49,8 +51,8 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
                 error_message = "missing path after --cjk-font-file";
                 return false;
             }
-            options.cjk_font_file_path =
-                std::filesystem::path(std::string(arguments[index + 1U]));
+            options.cjk_font_file_path = featherdoc::detail::path_from_utf8(
+                arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -70,8 +72,8 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
             }
             options.font_mappings.emplace_back(
                 std::string(mapping.substr(0U, separator)),
-                std::filesystem::path(
-                    std::string(mapping.substr(separator + 1U))));
+                featherdoc::detail::path_from_utf8(
+                    mapping.substr(separator + 1U)));
             ++index;
             continue;
         }
@@ -138,8 +140,8 @@ auto parse_export_pdf_options(const std::vector<std::string_view> &arguments,
                 error_message = "missing path after --summary-json";
                 return false;
             }
-            options.summary_json_path =
-                std::filesystem::path(std::string(arguments[index + 1U]));
+            options.summary_json_path = featherdoc::detail::path_from_utf8(
+                arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -176,8 +178,8 @@ auto parse_import_pdf_options(const std::vector<std::string_view> &arguments,
                 error_message = "missing path after --output";
                 return false;
             }
-            options.output_path =
-                std::filesystem::path(std::string(arguments[index + 1U]));
+            options.output_path = featherdoc::detail::path_from_utf8(
+                arguments[index + 1U]);
             ++index;
             continue;
         }

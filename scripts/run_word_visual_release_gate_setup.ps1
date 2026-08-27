@@ -271,6 +271,7 @@ $templateTableCliSelectorScript = Join-Path $repoRoot "scripts\run_template_tabl
 $replaceRemoveImageScript = Join-Path $repoRoot "scripts\run_replace_remove_image_visual_regression.ps1"
 $prepareTaskScript = Join-Path $repoRoot "scripts\prepare_word_review_task.ps1"
 $refreshReadmeAssetsScript = Join-Path $repoRoot "scripts\refresh_readme_visual_assets.ps1"
+$syncVisualReviewVerdictScript = Join-Path $repoRoot "scripts\sync_visual_review_verdict.ps1"
 
 $gateSummary = [ordered]@{
     generated_at = (Get-Date).ToString("s")

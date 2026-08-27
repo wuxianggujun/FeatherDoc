@@ -59,7 +59,7 @@ TEST_CASE("cli inspect-styles supports single-style json output and errors") {
     const auto missing_json = read_text_file(missing_output);
     CHECK_NE(missing_json.find("\"command\":\"inspect-styles\""), std::string::npos);
     CHECK_NE(missing_json.find("\"stage\":\"inspect\""), std::string::npos);
-    CHECK_NE(missing_json.find("\"detail\":\"style id 'MissingStyle' was not found in word/styles.xml\""),
+    CHECK_NE(missing_json.find("\"detail\":\"style id 'MissingStyle' was not found in 'word/styles.xml'\""),
              std::string::npos);
     CHECK_NE(missing_json.find("\"entry\":\"word/styles.xml\""), std::string::npos);
 
@@ -402,7 +402,7 @@ TEST_CASE("cli rename-style rewrites paragraph style ids and references") {
              std::string::npos);
     CHECK_NE(conflict_json.find(R"("stage":"mutate")"), std::string::npos);
     CHECK_NE(conflict_json.find(
-                 R"("detail":"target style id 'Strong' already exists in word/styles.xml")"),
+                 R"("detail":"target style id 'Strong' already exists in 'word/styles.xml'")"),
              std::string::npos);
 
     remove_if_exists(source);
@@ -572,7 +572,7 @@ TEST_CASE("cli merge-style rewrites paragraph references and removes source styl
     CHECK_NE(missing_json.find(R"("command":"inspect-styles")"),
              std::string::npos);
     CHECK_NE(missing_json.find(
-                 R"("detail":"style id 'CustomBody' was not found in word/styles.xml")"),
+                 R"("detail":"style id 'CustomBody' was not found in 'word/styles.xml'")"),
              std::string::npos);
 
     CHECK_EQ(run_cli({"inspect-styles", merged.string(), "--style", "Normal",

@@ -1,6 +1,7 @@
 std::size_t TemplatePart::replace_bookmark_text(const std::string &bookmark_name,
                                                 const std::string &replacement) {
-    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
@@ -10,7 +11,9 @@ std::size_t TemplatePart::replace_bookmark_text(const std::string &bookmark_name
         return 0U;
     }
 
-    return replace_bookmark_text_in_part(*this->last_error_info, *this->xml_document,
+    return replace_bookmark_text_in_part(*this->last_error_info,
+                                         *this->owner->xml_handle_lifetime,
+                                         *this->xml_document,
                                          this->entry_name_storage, bookmark_name,
                                          replacement);
 }
@@ -36,7 +39,8 @@ bookmark_fill_result TemplatePart::fill_bookmarks(
     bookmark_fill_result result;
     result.requested = bindings.size();
 
-    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
@@ -46,7 +50,9 @@ bookmark_fill_result TemplatePart::fill_bookmarks(
         return result;
     }
 
-    return fill_bookmarks_in_part(*this->last_error_info, *this->xml_document,
+    return fill_bookmarks_in_part(*this->last_error_info,
+                                  *this->owner->xml_handle_lifetime,
+                                  *this->xml_document,
                                   this->entry_name_storage, bindings);
 }
 

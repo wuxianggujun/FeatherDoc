@@ -173,7 +173,7 @@ void inspect_related_parts(const std::vector<inspected_part_entry> &parts,
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -201,14 +201,13 @@ void inspect_related_parts(const std::vector<inspected_part_entry> &parts,
     }
 
     const auto family = part_family_for_command(command);
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = path_from_cli_utf8(arguments[1]);
     if (!open_document(input_path, doc, command, options.json_output)) {
         return 1;
     }
 
     std::vector<inspected_part_entry> parts;
-    if (!load_inspected_part_entries(input_path, doc, family, parts,
-                                     error_message)) {
+    if (!load_inspected_part_entries(doc, family, parts, error_message)) {
         if (options.json_output) {
             write_json_command_error(std::cerr, command, "inspect", error_message);
         } else {

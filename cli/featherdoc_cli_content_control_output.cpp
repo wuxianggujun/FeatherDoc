@@ -1,6 +1,7 @@
 #include "featherdoc_cli_content_control_output.hpp"
 
 #include "featherdoc_cli_json.hpp"
+#include "featherdoc_cli_text.hpp"
 #include "featherdoc_cli_validation_part.hpp"
 
 #include <featherdoc.hpp>
@@ -39,8 +40,8 @@ void write_json_content_control_part_result(
     }
     if (selected.reference_kind.has_value()) {
         stream << ",\"kind\":";
-        write_json_string(stream,
-                          featherdoc::to_xml_reference_type(*selected.reference_kind));
+        write_json_string(stream, featherdoc::to_xml_reference_type(
+                                      *selected.reference_kind));
     }
     stream << ",\"entry_name\":";
     write_json_string(stream, std::string(selected.part.entry_name()));
@@ -48,7 +49,8 @@ void write_json_content_control_part_result(
 }
 
 void print_content_control_common_result(
-    const selected_template_part &selected, const std::optional<std::string> &tag,
+    const selected_template_part &selected,
+    const std::optional<std::string> &tag,
     const std::optional<std::string> &alias,
     const std::optional<path_type> &output_path, std::size_t replaced) {
     const auto entry_name = std::string(selected.part.entry_name());
@@ -70,7 +72,7 @@ void print_content_control_common_result(
     std::cout << "selector_value: " << (tag.has_value() ? *tag : *alias)
               << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }

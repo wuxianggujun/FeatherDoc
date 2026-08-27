@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <zip.h>
+#include <featherdoc/detail/path.hpp>
 
 namespace {
 
@@ -67,7 +68,8 @@ auto write_test_docx(const std::filesystem::path &path,
     };
 
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(),
                                    ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
                                    &zip_error);
     REQUIRE(zip != nullptr);
@@ -192,7 +194,8 @@ auto write_test_archive_entries(
     const std::filesystem::path &path,
     const std::vector<std::pair<std::string, std::string>> &entries) -> void {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(),
                                    ZIP_DEFAULT_COMPRESSION_LEVEL, 'w',
                                    &zip_error);
     REQUIRE(zip != nullptr);
@@ -209,7 +212,8 @@ auto write_test_archive_entries(
 auto read_test_docx_entry(const std::filesystem::path &path,
                           const char *entry_name) -> std::string {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(),
                                    ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                    &zip_error);
     CHECK(zip != nullptr);
@@ -238,7 +242,8 @@ auto read_test_docx_entry(const std::filesystem::path &path,
 auto read_test_archive_entries(const std::filesystem::path &path)
     -> std::vector<std::pair<std::string, std::string>> {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(),
                                    ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                    &zip_error);
     REQUIRE(zip != nullptr);
@@ -293,7 +298,8 @@ auto rewrite_test_docx_entry(const std::filesystem::path &path,
 auto test_docx_entry_exists(const std::filesystem::path &path,
                             const char *entry_name) -> bool {
     int zip_error = 0;
-    zip_t *zip = zip_openwitherror(path.string().c_str(),
+    const auto archive_path = featherdoc::detail::path_to_native_utf8(path);
+    zip_t *zip = zip_openwitherror(archive_path.c_str(),
                                    ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
                                    &zip_error);
     CHECK(zip != nullptr);

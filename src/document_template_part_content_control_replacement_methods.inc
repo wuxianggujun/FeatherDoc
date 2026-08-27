@@ -1,6 +1,7 @@
 std::size_t TemplatePart::replace_content_control_text_by_tag(
     std::string_view tag, std::string_view replacement) {
-    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
@@ -11,13 +12,14 @@ std::size_t TemplatePart::replace_content_control_text_by_tag(
     }
 
     return replace_content_control_text_by_tag_or_alias_in_part(
-        *this->last_error_info, *this->xml_document, this->entry_name_storage,
-        tag, replacement, true);
+        *this->last_error_info, *this->owner->xml_handle_lifetime,
+        *this->xml_document, this->entry_name_storage, tag, replacement, true);
 }
 
 std::size_t TemplatePart::replace_content_control_text_by_alias(
     std::string_view alias, std::string_view replacement) {
-    if (this->xml_document == nullptr || this->last_error_info == nullptr) {
+    if (this->xml_document == nullptr || this->last_error_info == nullptr ||
+        this->owner == nullptr) {
         if (this->last_error_info != nullptr) {
             set_last_error(*this->last_error_info,
                            std::make_error_code(std::errc::invalid_argument),
@@ -28,8 +30,9 @@ std::size_t TemplatePart::replace_content_control_text_by_alias(
     }
 
     return replace_content_control_text_by_tag_or_alias_in_part(
-        *this->last_error_info, *this->xml_document, this->entry_name_storage,
-        alias, replacement, false);
+        *this->last_error_info, *this->owner->xml_handle_lifetime,
+        *this->xml_document, this->entry_name_storage, alias, replacement,
+        false);
 }
 
 std::size_t TemplatePart::set_content_control_form_state_by_tag(

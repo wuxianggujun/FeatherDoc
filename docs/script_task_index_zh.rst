@@ -205,14 +205,16 @@
 - ``scripts/build_numbering_catalog_governance_report.ps1``：生成 numbering
   catalog governance 报告。
 - ``scripts/build_document_skeleton_governance_report.ps1``：生成单文档骨架治理
-  报告。
+  报告，可通过 ``-StyleMergeReviewJson`` 接入 style merge review JSON，并透传
+  ``style_merge_manual_review_reason_count`` 与 ``manual_review_reasons``。
 - ``scripts/build_document_skeleton_governance_rollup_report.ps1``：汇总多份骨架
-  治理报告。
+  治理报告，并聚合 ``total_style_merge_manual_review_reason_count``。
 - ``scripts/write_schema_patch_confidence_calibration_report.ps1``：生成 schema
   patch 置信度校准报告，并把 reviewer 分流固定为 ``source_report_display``、
   ``source_json_display`` 和 ``open_command`` 三段入口。
 - ``scripts/write_style_merge_suggestion_review.ps1``：生成 style merge 建议复核
-  材料。
+  材料，并为低于 ``recommended_min_confidence`` 的建议写出
+  ``manual_review_reasons``。
 - ``scripts/apply_reviewed_style_merge_suggestions.ps1``：应用已复核的 style merge
   建议。
 - ``scripts/audit_style_merge_restore_plan.ps1``：只读审计 style merge restore plan，
@@ -293,6 +295,9 @@ Word 视觉验证与人工复核
 这组脚本需要真实 ``Microsoft Word``，默认不属于低资源阶段的自动验证。
 
 - ``scripts/run_word_visual_smoke.ps1``：生成基础 Word 渲染截图。
+- ``scripts/python_runtime.ps1``：统一解析并验证 Word 视觉脚本使用的 Python
+  解释器，支持 ``python``、``python3``、Windows ``py`` launcher 和显式
+  ``FEATHERDOC_PYTHON_EXECUTABLE`` 配置。
 - ``scripts/run_word_visual_release_gate.ps1``：运行完整 Word visual release gate。
 - ``scripts/check_word_visual_release_gate_preflight.ps1``：只读检查 release gate
   前置条件，不启动 Word。
@@ -360,6 +365,8 @@ Release governance 与发布材料
   reviewer-facing 入口。
 - ``scripts/release_blocker_metadata_helpers.ps1``：提供 release blocker 元数据、
   action 指引和质量检查 helper。
+- ``scripts/catalog_patch_plan_markdown_helpers.ps1``：为 release blocker rollup、
+  pipeline 和 handoff 报告统一渲染 catalog patch plan Markdown。
 - ``scripts/release_visual_metadata_helpers.ps1``：提供 release 视觉复核 metadata
   汇总、路径解析和任务 verdict helper。
 - ``scripts/assert_release_material_safety.ps1``：检查 staged release materials 的

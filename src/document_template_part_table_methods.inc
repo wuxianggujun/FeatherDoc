@@ -9,7 +9,7 @@ Table TemplatePart::tables() {
         return {};
     }
 
-    const auto container = template_part_block_container(*this->xml_document);
+    auto container = template_part_block_container(*this->xml_document);
     if (container == pugi::xml_node{}) {
         set_last_error(*this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -19,8 +19,9 @@ Table TemplatePart::tables() {
     }
 
     this->last_error_info->clear();
-    auto table = Table(container, container.child("w:tbl"));
-    table.set_owner(this->owner);
+    auto table =
+        Table(this->owner->tracked_node(container), container.child("w:tbl"));
+    table.set_owner(this->owner.get());
     return table;
 }
 
@@ -35,7 +36,7 @@ Table TemplatePart::append_table(std::size_t row_count, std::size_t column_count
         return {};
     }
 
-    const auto container = template_part_block_container(*this->xml_document);
+    auto container = template_part_block_container(*this->xml_document);
     if (container == pugi::xml_node{}) {
         set_last_error(*this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
@@ -44,14 +45,57 @@ Table TemplatePart::append_table(std::size_t row_count, std::size_t column_count
         return {};
     }
 
-    const auto table_node = detail::append_table_node(container);
-    auto created_table = Table(container, table_node);
-    created_table.set_owner(this->owner);
-
-    for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
-        created_table.append_row(column_count);
+    if (row_count == 0U || column_count == 0U) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table row and column counts must be greater "
+                       "than zero",
+                       this->entry_name_storage);
+        return {};
     }
 
+    if (column_count > detail::max_table_grid_columns) {
+        set_last_error(*this->last_error_info,
+                       std::make_error_code(std::errc::invalid_argument),
+                       "template table column count exceeds supported limit",
+                       this->entry_name_storage);
+        return {};
+    }
+
+    const auto table_node = detail::append_table_node(container);
+    if (table_node == pugi::xml_node{}) {
+        (void)detail::set_xml_document_allocation_failure(
+            *this->last_error_info,
+            "failed to append table to template part",
+            this->entry_name_storage);
+        return {};
+    }
+
+    try {
+        for (std::size_t row_index = 0; row_index < row_count; ++row_index) {
+            if (detail::append_row_node(table_node, column_count) ==
+                pugi::xml_node{}) {
+                (void)container.remove_child(table_node);
+                (void)detail::set_xml_document_allocation_failure(
+                    *this->last_error_info,
+                    "failed to append table row to template part",
+                    this->entry_name_storage);
+                return {};
+            }
+        }
+    } catch (const std::bad_alloc &) {
+        (void)container.remove_child(table_node);
+        (void)detail::set_xml_document_mutation_allocation_failure(
+            *this->last_error_info, this->entry_name_storage);
+        return {};
+    } catch (...) {
+        (void)container.remove_child(table_node);
+        throw;
+    }
+
+    auto created_table =
+        Table(this->owner->tracked_node(container), table_node);
+    created_table.set_owner(this->owner.get());
     this->last_error_info->clear();
     return created_table;
 }

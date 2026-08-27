@@ -31,7 +31,7 @@ auto parse_template_table_json_patch_options(
                 return false;
             }
 
-            options.patch_file = path_type(std::string(arguments[index + 1U]));
+            options.patch_file = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -46,7 +46,7 @@ auto parse_template_table_json_patch_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -115,7 +115,7 @@ auto parse_template_table_json_batch_options(
                 return false;
             }
 
-            options.patch_file = path_type(std::string(arguments[index + 1U]));
+            options.patch_file = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }
@@ -130,7 +130,7 @@ auto parse_template_table_json_batch_options(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

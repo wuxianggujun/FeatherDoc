@@ -29,6 +29,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_pdf_evidence.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_release_entry_evidence.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_markdown_helpers.ps1")
+. (Join-Path $PSScriptRoot "catalog_patch_plan_markdown_helpers.ps1")
 . (Join-Path $PSScriptRoot "build_release_blocker_rollup_report_report_markdown.ps1")
 
 $repoRoot = Resolve-RepoRoot
@@ -170,6 +171,14 @@ foreach ($path in @($inputPaths)) {
                 command_template = Get-JsonString -Object $blocker -Name "command_template"
                 repair_action_classes = @(Get-JsonArray -Object $blocker -Name "repair_action_classes")
             }
+            $catalogPatchPlanId = Get-JsonString -Object $blocker -Name "catalog_patch_plan_id"
+            $catalogPatchPlan = Get-JsonProperty -Object $blocker -Name "catalog_patch_plan"
+            if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+                $rollupBlocker["catalog_patch_plan_id"] = $catalogPatchPlanId
+            }
+            if ($null -ne $catalogPatchPlan) {
+                $rollupBlocker["catalog_patch_plan"] = $catalogPatchPlan
+            }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
                     $rollupBlocker["readiness_status"] = $sourceReportStatus
@@ -204,6 +213,19 @@ foreach ($path in @($inputPaths)) {
                     "reviewer_action_summary",
                     "reviewer_action_reason",
                     "reviewer_actions",
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "missing_business_document_type_count",
+                    "missing_corpus_role_count",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate",
                     "matched_document_count",
                     "unmatched_catalog_document_count",
                     "unmatched_baseline_document_count",
@@ -294,6 +316,14 @@ foreach ($path in @($inputPaths)) {
                 command_template = Get-JsonString -Object $item -Name "command_template"
                 repair_action_classes = @(Get-JsonArray -Object $item -Name "repair_action_classes")
             }
+            $catalogPatchPlanId = Get-JsonString -Object $item -Name "catalog_patch_plan_id"
+            $catalogPatchPlan = Get-JsonProperty -Object $item -Name "catalog_patch_plan"
+            if (-not [string]::IsNullOrWhiteSpace($catalogPatchPlanId)) {
+                $rollupActionItem["catalog_patch_plan_id"] = $catalogPatchPlanId
+            }
+            if ($null -ne $catalogPatchPlan) {
+                $rollupActionItem["catalog_patch_plan"] = $catalogPatchPlan
+            }
             if ([string]::Equals($kind, "featherdoc.project_template_delivery_readiness_report.v1", [System.StringComparison]::OrdinalIgnoreCase)) {
                 if (-not [string]::IsNullOrWhiteSpace($sourceReportStatus)) {
                     $rollupActionItem["readiness_status"] = $sourceReportStatus
@@ -327,7 +357,27 @@ foreach ($path in @($inputPaths)) {
                     "requires_reviewer_action",
                     "reviewer_action_summary",
                     "reviewer_action_reason",
-                    "reviewer_actions"
+                    "reviewer_actions",
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "missing_business_document_type_count",
+                    "missing_corpus_role_count",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate",
+                    "style_merge_suggestion_count",
+                    "style_merge_suggestion_pending_count",
+                    "style_merge_manual_review_required",
+                    "style_merge_manual_review_reason_count",
+                    "manual_review_required",
+                    "manual_review_reason_count",
+                    "manual_review_reasons"
                 )
             Normalize-ReadinessActionEvidence `
                 -Items (Get-JsonArray -Object $rollupActionItem -Name "readiness_action_evidence") `
@@ -352,7 +402,7 @@ foreach ($path in @($inputPaths)) {
             $sourceJsonDisplay = Get-JsonString -Object $warning -Name "source_json_display"
             $originSourceReport = Get-JsonString -Object $warning -Name "source_report"
             $originSourceReportDisplay = Get-JsonString -Object $warning -Name "source_report_display"
-            $warnings.Add([ordered]@{
+            $rollupWarning = [ordered]@{
                 composite_id = ("source{0}.warning{1}.{2}" -f $sourceIndex, $warningIndex, $id)
                 id = $id
                 project_id = Get-JsonString -Object $warning -Name "project_id"
@@ -391,7 +441,33 @@ foreach ($path in @($inputPaths)) {
                 schema_target = Get-JsonString -Object $warning -Name "schema_target"
                 target_mode = Get-JsonString -Object $warning -Name "target_mode"
                 message = Get-JsonString -Object $warning -Name "message"
-            }) | Out-Null
+            }
+            Copy-OptionalJsonProperties `
+                -Target $rollupWarning `
+                -Source $warning `
+                -Names @(
+                    "business_document_type",
+                    "source_business_document_type",
+                    "corpus_role",
+                    "source_corpus_role",
+                    "business_document_type_mismatch",
+                    "corpus_role_mismatch",
+                    "missing_business_document_type_count",
+                    "missing_corpus_role_count",
+                    "mismatched_corpus_metadata_count",
+                    "mismatched_business_document_type_count",
+                    "mismatched_corpus_role_count",
+                    "candidate_name",
+                    "schema_update_candidate",
+                    "style_merge_suggestion_count",
+                    "style_merge_suggestion_pending_count",
+                    "style_merge_manual_review_required",
+                    "style_merge_manual_review_reason_count",
+                    "manual_review_required",
+                    "manual_review_reason_count",
+                    "manual_review_reasons"
+                )
+            $warnings.Add($rollupWarning) | Out-Null
         }
     } catch {
         $status = "failed"

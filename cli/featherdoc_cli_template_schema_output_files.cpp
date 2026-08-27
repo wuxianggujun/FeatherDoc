@@ -3,6 +3,7 @@
 #include "featherdoc_cli_template_schema_patch_output.hpp"
 
 #include <featherdoc.hpp>
+#include <featherdoc/detail/path.hpp>
 
 #include <fstream>
 #include <string>
@@ -14,13 +15,15 @@ auto write_exported_template_schema_file(
     std::string &error_message) -> bool {
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
-        error_message = "failed to open schema output path: " + output_path.string();
+        error_message = "failed to open schema output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
     write_json_exported_template_schema(stream, result);
     if (!stream.good()) {
-        error_message = "failed to write schema output path: " + output_path.string();
+        error_message = "failed to write schema output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -32,13 +35,15 @@ auto write_template_schema_patch_file(const path_type &output_path,
                                       std::string &error_message) -> bool {
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
-        error_message = "failed to open patch output path: " + output_path.string();
+        error_message = "failed to open patch output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
     write_json_template_schema_patch_document(stream, patch);
     if (!stream.good()) {
-        error_message = "failed to write patch output path: " + output_path.string();
+        error_message = "failed to write patch output path: " +
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -52,7 +57,8 @@ auto write_template_schema_patch_review_file(
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
         error_message =
-            "failed to open schema patch review output path: " + output_path.string();
+            "failed to open schema patch review output path: " +
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
@@ -60,7 +66,8 @@ auto write_template_schema_patch_review_file(
     stream << '\n';
     if (!stream.good()) {
         error_message =
-            "failed to write schema patch review output path: " + output_path.string();
+            "failed to write schema patch review output path: " +
+            featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 

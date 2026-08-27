@@ -26,11 +26,12 @@ function(featherdoc_add_pdfio_object_library target_name)
             featherdoc_pdfio
             GIT_REPOSITORY https://github.com/michaelrsweet/pdfio.git
             GIT_TAG ${FEATHERDOC_PDFIO_VERSION}
+            # FeatherDoc owns the PDFio object-library definition below.  A
+            # deliberately absent subdirectory lets MakeAvailable perform
+            # only download/update/populate without adding PDFio's targets.
+            SOURCE_SUBDIR featherdoc-fetch-only
         )
-        FetchContent_GetProperties(featherdoc_pdfio)
-        if(NOT featherdoc_pdfio_POPULATED)
-            FetchContent_Populate(featherdoc_pdfio)
-        endif()
+        FetchContent_MakeAvailable(featherdoc_pdfio)
         set(pdfio_source_dir "${featherdoc_pdfio_SOURCE_DIR}")
     endif()
 

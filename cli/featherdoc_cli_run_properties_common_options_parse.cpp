@@ -1,4 +1,5 @@
 #include "featherdoc_cli_run_properties_common_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <filesystem>
 #include <string>
@@ -42,7 +43,7 @@ auto parse_output_json_options_impl(
                 return false;
             }
 
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

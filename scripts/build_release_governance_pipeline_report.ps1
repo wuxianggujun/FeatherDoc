@@ -137,6 +137,8 @@ function Get-JsonArray {
     return @($value)
 }
 
+. (Join-Path $PSScriptRoot "catalog_patch_plan_markdown_helpers.ps1")
+
 function Select-ExistingInputJson {
     param([string[]]$Paths)
 
@@ -225,6 +227,8 @@ function New-StageBlockerItems {
                 repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
+                catalog_patch_plan_id = Get-JsonString -Object $item -Name "catalog_patch_plan_id"
+                catalog_patch_plan = Get-JsonProperty -Object $item -Name "catalog_patch_plan"
             }
         }
     )
@@ -286,6 +290,8 @@ function New-StageActionItems {
                 repair_strategy = Get-JsonString -Object $item -Name "repair_strategy"
                 repair_hint = Get-JsonString -Object $item -Name "repair_hint"
                 command_template = Get-JsonString -Object $item -Name "command_template"
+                catalog_patch_plan_id = Get-JsonString -Object $item -Name "catalog_patch_plan_id"
+                catalog_patch_plan = Get-JsonProperty -Object $item -Name "catalog_patch_plan"
             }
         }
     )
@@ -594,6 +600,7 @@ function Add-StageGovernanceMarkdown {
                 }
             }
         }
+        Add-CatalogPatchPlanMarkdownLines -Lines $Lines -Item $item -Indent "    "
     }
 }
 

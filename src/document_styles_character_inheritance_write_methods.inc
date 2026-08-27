@@ -4,7 +4,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before rebasing character styles",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -13,7 +13,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when rebasing character styles",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -21,7 +21,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "character style basedOn must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -30,7 +30,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "character style basedOn must not reference the same style id",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -42,8 +42,8 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -52,8 +52,8 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -63,7 +63,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
                            "' is not a character style",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -72,8 +72,8 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "basedOn style id '" + std::string{based_on} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -84,7 +84,7 @@ bool Document::rebase_character_style_based_on(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "basedOn style id '" + std::string{based_on} +
                            "' is not a character style",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -114,7 +114,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing character style metadata",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -122,7 +122,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "character style basedOn must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -131,7 +131,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "character style basedOn must not reference the same style id",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -143,8 +143,8 @@ bool Document::set_character_style_based_on(std::string_view style_id,
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -153,8 +153,8 @@ bool Document::set_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -164,7 +164,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
                            "' is not a character style",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -173,8 +173,8 @@ bool Document::set_character_style_based_on(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "basedOn style id '" + std::string{based_on} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -185,7 +185,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "basedOn style id '" + std::string{based_on} +
                            "' is not a character style",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -202,7 +202,7 @@ bool Document::set_character_style_based_on(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to update basedOn for character style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -224,7 +224,7 @@ bool Document::clear_character_style_based_on(std::string_view style_id) {
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing character style metadata",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -236,8 +236,8 @@ bool Document::clear_character_style_based_on(std::string_view style_id) {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -246,8 +246,8 @@ bool Document::clear_character_style_based_on(std::string_view style_id) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -257,7 +257,7 @@ bool Document::clear_character_style_based_on(std::string_view style_id) {
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
                            "' is not a character style",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -266,7 +266,7 @@ bool Document::clear_character_style_based_on(std::string_view style_id) {
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to clear basedOn for character style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 

@@ -3,7 +3,7 @@
     const inspect_images_options &options, featherdoc::Document &doc,
     selected_template_part &selected, std::string &error_message,
     std::string_view operation) -> bool {
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return false;
     }
@@ -23,7 +23,7 @@
     std::string_view command, const std::vector<std::string_view> &arguments,
     const append_image_options &options, featherdoc::Document &doc,
     selected_template_part &selected, std::string &error_message) -> bool {
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return false;
     }

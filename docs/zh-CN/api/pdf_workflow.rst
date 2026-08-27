@@ -23,9 +23,35 @@ PDF 支持仍是实验性、显式开启的能力。本页是 ``export-pdf`` 和
 
 使用 CLI 入口前，需要先构建 PDF 能力：
 
+PDF 导出必须使用 ``-DFEATHERDOC_BUILD_PDF=ON`` 配置；PDF 导入还必须启用
+``-DFEATHERDOC_BUILD_PDF_IMPORT=ON``。
+
 .. code-block:: sh
 
    cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON
+
+模块与发布边界
+--------------
+
+PDF 目前保留在 FeatherDoc 同一仓库中，但已通过独立的 ``FeatherDoc::Pdf``、
+``FeatherDoc::PdfImport`` target、条件编译的 CLI 源码和独立依赖提供器与 Word/Core
+隔离。默认构建不会下载或编译 PDFio、FreeType、HarfBuzz、PNG 或 PDFium，也不会
+注册 PDF CLI 命令。
+
+当 PDF writer 的 FreeType、ZLIB、PNG 与启用的 HarfBuzz 都是可发现的 CMake package
+target 时，安装包会导出 ``Pdf`` 组件；消费方显式请求并链接它：
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+依赖查找只在请求 ``Pdf`` 时发生，只消费 ``Core`` / ``Word`` 不会引入 PDF 依赖。
+如果 writer 使用仓库内 fallback 依赖构建，它仍只在构建树可用，安装包不会伪装成
+已发布组件，外部消费方请求 ``Pdf`` 时会明确失败。``PdfImport`` 也只有在 PDFium
+来自可发现 package 时才允许安装。这个边界允许继续在同仓库复用文档模型和端到端
+测试；未来若 PDF 的发布节奏、ABI 或依赖治理需要独立，可以再迁出 target，无需现在
+拆分仓库。
 
 PDF 导出
 --------
@@ -90,9 +116,12 @@ LICENSE / NOTICE、Reserved Font Name 义务和打包审计证据。
      "command": "export-pdf",
      "ok": false,
      "stage": "export",
-     "message": "Operation not supported",
-     "detail": "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"
+     "message": "failed to write PDF output",
+     "detail": "Unable to create PDF file: output.pdf"
    }
+
+未启用 PDF writer 时，``export-pdf`` 不会注册，也不会出现在 CLI 帮助中。
+配置构建时启用 ``FEATHERDOC_BUILD_PDF`` 才会加入该命令。
 
 当前导出失败阶段包括 ``"stage": "parse"``、``"stage": "open"``、
 ``"stage": "export"`` 和 ``"stage": "summary"``。

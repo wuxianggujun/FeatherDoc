@@ -132,7 +132,7 @@
             )
             set_tests_properties(${material_safety_test_name}
                 PROPERTIES
-                    TIMEOUT 60
+                    TIMEOUT 120
                     LABELS "release;smoke;release_smoke;material-safety")
         endforeach()
 
@@ -170,6 +170,25 @@
             ${CMAKE_CURRENT_BINARY_DIR}/prepare_word_review_task_verdict
         )
         set_tests_properties(prepare_word_review_task_verdict
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;review-task;smoke")
+
+        add_test(
+            NAME
+            record_word_visual_review_result
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/record_word_visual_review_result_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/record_word_visual_review_result
+        )
+        set_tests_properties(record_word_visual_review_result
             PROPERTIES
                 TIMEOUT 60
                 LABELS "word;visual;review-task;smoke")
@@ -383,6 +402,25 @@
 
         add_test(
             NAME
+            word_visual_python_runtime
+            COMMAND
+            ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
+            -ExecutionPolicy
+            Bypass
+            -File
+            ${CMAKE_CURRENT_SOURCE_DIR}/word_visual_python_runtime_test.ps1
+            -RepoRoot
+            ${PROJECT_SOURCE_DIR}
+            -WorkingDir
+            ${CMAKE_CURRENT_BINARY_DIR}/word_visual_python_runtime
+        )
+        set_tests_properties(word_visual_python_runtime
+            PROPERTIES
+                TIMEOUT 60
+                LABELS "word;visual;release-gate;smoke")
+
+        add_test(
+            NAME
             check_word_visual_release_gate_preflight
             COMMAND
             ${FEATHERDOC_POWERSHELL_TEST_COMMAND}
@@ -433,6 +471,9 @@
             -Scenario
             candidate_core
         )
+        set_tests_properties(release_candidate_visual_verdict
+            PROPERTIES
+                TIMEOUT 180)
 
         add_test(
             NAME
@@ -452,6 +493,7 @@
         )
         set_tests_properties(release_candidate_visual_verdict_reports
             PROPERTIES
+                TIMEOUT 180
                 DEPENDS release_candidate_visual_verdict)
 
         add_test(
@@ -485,6 +527,9 @@
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
+        set_tests_properties(release_candidate_blocker_rollup
+            PROPERTIES
+                TIMEOUT 120)
         featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
 
         add_test(

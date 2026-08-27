@@ -1,4 +1,5 @@
 #include <featherdoc.hpp>
+#include <featherdoc/detail/path.hpp>
 
 #include <filesystem>
 #include <iostream>
@@ -46,11 +47,8 @@ void print_document_error(const char *operation, const featherdoc::Document &doc
 
 } // namespace
 
-int main(int argc, char **argv) {
+int run_install_smoke(const std::filesystem::path &output_path) {
     namespace fs = std::filesystem;
-
-    const fs::path output_path =
-        argc > 1 ? fs::path(argv[1]) : fs::path("featherdoc-install-smoke.docx");
     const std::string expected_text = "Installed FeatherDoc package smoke";
 
     std::error_code filesystem_error;
@@ -97,6 +95,23 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    std::cout << "Generated install smoke document at " << output_path.string() << '\n';
+    std::cout << "Generated install smoke document at "
+              << featherdoc::detail::path_to_utf8(output_path) << '\n';
     return 0;
 }
+
+#if defined(_WIN32)
+int wmain(int argc, wchar_t **argv) {
+    const std::filesystem::path output_path =
+        argc > 1 ? std::filesystem::path(argv[1])
+                 : std::filesystem::path(L"featherdoc-install-smoke.docx");
+    return run_install_smoke(output_path);
+}
+#else
+int main(int argc, char **argv) {
+    const std::filesystem::path output_path =
+        argc > 1 ? std::filesystem::path(argv[1])
+                 : std::filesystem::path("featherdoc-install-smoke.docx");
+    return run_install_smoke(output_path);
+}
+#endif

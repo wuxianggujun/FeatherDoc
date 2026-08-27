@@ -186,12 +186,11 @@ void summarize_content_control_list_items(
 
 void collect_content_controls_in_order(
     pugi::xml_node node, std::vector<pugi::xml_node> &content_controls) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:sdt") {
-            content_controls.push_back(child);
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (std::string_view{current.name()} == "w:sdt") {
+            content_controls.push_back(current);
         }
-        collect_content_controls_in_order(child, content_controls);
     }
 }
 

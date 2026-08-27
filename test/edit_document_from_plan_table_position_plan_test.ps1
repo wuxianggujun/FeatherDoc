@@ -151,7 +151,7 @@ Assert-Equal -Actual $planFileSummary.operations[0].command -Expected "apply-tab
 Assert-DocxXPath `
     -Document $planFileDocument `
     -NamespaceManager $planFileNamespaceManager `
-    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='text' and @w:tblpX='0' and @w:vertAnchor='text' and @w:tblpY='0' and @w:tblOverlap='never']" `
+    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='text' and @w:tblpX='0' and @w:vertAnchor='text' and @w:tblpY='0']/following-sibling::*[1][self::w:tblOverlap and @w:val='never']" `
     -Message "Apply-table-position-plan output should contain the replayed floating table position."
 
 $inlinePlan = Get-Content -Raw -Encoding UTF8 -LiteralPath $generatedPlanPath | ConvertFrom-Json
@@ -193,7 +193,7 @@ Assert-Equal -Actual $inlineSummary.operations[0].command -Expected "apply-table
 Assert-DocxXPath `
     -Document $inlineDocument `
     -NamespaceManager $inlineNamespaceManager `
-    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='margin' and @w:tblpX='0' and @w:vertAnchor='text' and @w:tblpY='0' and @w:tblOverlap='never']" `
+    -XPath "//w:tbl[1]/w:tblPr/w:tblpPr[@w:horzAnchor='margin' and @w:tblpX='0' and @w:vertAnchor='text' and @w:tblpY='0']/following-sibling::*[1][self::w:tblOverlap and @w:val='never']" `
     -Message "Inline apply-table-position-plan output should honor the inline preset."
 
 Write-Host "Edit-plan table position plan bridge passed."

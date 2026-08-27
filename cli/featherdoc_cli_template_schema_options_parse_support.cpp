@@ -1,4 +1,5 @@
 #include "featherdoc_cli_template_schema_options_parse_support.hpp"
+#include "featherdoc_cli_text.hpp"
 
 namespace featherdoc_cli {
 namespace {
@@ -22,7 +23,7 @@ auto parse_template_schema_path_option(
         return false;
     }
 
-    target = path_type(std::string(arguments[index + 1U]));
+    target = path_from_cli_utf8(arguments[index + 1U]);
     ++index;
     return true;
 }

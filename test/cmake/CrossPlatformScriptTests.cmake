@@ -21,6 +21,9 @@ if(NOT WIN32)
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/release_candidate_blocker_rollup
         )
+        set_tests_properties(release_candidate_blocker_rollup
+            PROPERTIES
+                TIMEOUT 120)
         featherdoc_set_test_labels(release_candidate_blocker_rollup release smoke release_smoke)
 
         add_test(

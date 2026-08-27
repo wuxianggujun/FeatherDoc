@@ -1,4 +1,5 @@
 #include "featherdoc_cli_inspect_style_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <filesystem>
 #include <string>
@@ -50,7 +51,7 @@ auto parse_apply_table_style_quality_fixes_options(
                 error_message = "missing path after --output";
                 return false;
             }
-            options.output_path = path_type(std::string(arguments[index + 1U]));
+            options.output_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

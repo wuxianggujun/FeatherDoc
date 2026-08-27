@@ -97,7 +97,7 @@ auto parse_common_append_field_option(
         }
 
         options.output_path =
-            std::filesystem::path(std::string(arguments[index + 1U]));
+            path_from_cli_utf8(arguments[index + 1U]);
         ++index;
         return field_option_parse_result::handled;
     }

@@ -1,6 +1,7 @@
 #include "featherdoc_cli_table_position_plan_parse.hpp"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 #include "featherdoc_cli_parse.hpp"
 
 #include <algorithm>

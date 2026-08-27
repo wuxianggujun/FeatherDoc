@@ -270,6 +270,7 @@ auto set_style_outline_level(pugi::xml_node style,
 
 auto validate_optional_style_value(
     featherdoc::document_error_info &last_error_info,
+    std::string_view styles_entry_name,
     const std::optional<std::string> &value, std::string_view detail) -> bool {
     if (!value.has_value() || !value->empty()) {
         return true;
@@ -277,7 +278,7 @@ auto validate_optional_style_value(
 
     set_last_error(last_error_info,
                    std::make_error_code(std::errc::invalid_argument),
-                   std::string{detail}, std::string{styles_xml_entry});
+                   std::string{detail}, std::string{styles_entry_name});
     return false;
 }
 

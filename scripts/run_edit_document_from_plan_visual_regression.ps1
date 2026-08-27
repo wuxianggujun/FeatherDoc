@@ -54,14 +54,7 @@ function Convert-JsonEscapedText {
     return ConvertFrom-Json -InputObject ('"' + $EscapedText + '"')
 }
 
-function Get-BasePython {
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($python) {
-        return $python.Source
-    }
-
-    throw "Python was not found in PATH."
-}
+. (Join-Path $PSScriptRoot "python_runtime.ps1")
 
 function Test-PythonImport {
     param(
@@ -84,7 +77,7 @@ function Test-PythonImport {
 function Ensure-RenderPython {
     param([string]$RepoRoot)
 
-    $basePython = Get-BasePython
+    $basePython = Resolve-FeatherDocPythonExecutable
     if (Test-PythonImport -PythonCommand $basePython -ModuleName "PIL") {
         return $basePython
     }

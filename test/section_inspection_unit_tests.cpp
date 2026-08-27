@@ -84,7 +84,9 @@ TEST_CASE("inspect sections returns header footer layout flags and entry names")
     CHECK_EQ(sections.sections[1].index, 1U);
     REQUIRE(sections.sections[1].even_and_odd_headers_enabled.has_value());
     CHECK(*sections.sections[1].even_and_odd_headers_enabled);
-    CHECK_FALSE(sections.sections[1].different_first_page_enabled);
+    // The first-page footer is inherited from section 0.  Keep w:titlePg
+    // enabled so that the inherited first-page part remains effective.
+    CHECK(sections.sections[1].different_first_page_enabled);
     CHECK(sections.sections[1].header.has_default);
     CHECK_FALSE(sections.sections[1].header.has_first);
     CHECK_FALSE(sections.sections[1].header.has_even);
@@ -119,7 +121,7 @@ TEST_CASE("inspect sections returns header footer layout flags and entry names")
     CHECK_EQ(sections.sections[2].index, 2U);
     REQUIRE(sections.sections[2].even_and_odd_headers_enabled.has_value());
     CHECK(*sections.sections[2].even_and_odd_headers_enabled);
-    CHECK_FALSE(sections.sections[2].different_first_page_enabled);
+    CHECK(sections.sections[2].different_first_page_enabled);
     CHECK_FALSE(sections.sections[2].header.has_default);
     CHECK_FALSE(sections.sections[2].header.has_first);
     CHECK_FALSE(sections.sections[2].header.has_even);
@@ -158,7 +160,7 @@ TEST_CASE("inspect sections returns header footer layout flags and entry names")
     CHECK_EQ(inspected_section->index, 1U);
     REQUIRE(inspected_section->even_and_odd_headers_enabled.has_value());
     CHECK(*inspected_section->even_and_odd_headers_enabled);
-    CHECK_FALSE(inspected_section->different_first_page_enabled);
+    CHECK(inspected_section->different_first_page_enabled);
     CHECK(inspected_section->header.has_default);
     CHECK(inspected_section->footer.has_default);
     REQUIRE(inspected_section->header.resolved_even_entry_name.has_value());
@@ -182,6 +184,8 @@ TEST_CASE("inspect sections returns header footer layout flags and entry names")
     REQUIRE(reopened_sections.sections[0].even_and_odd_headers_enabled.has_value());
     CHECK(*reopened_sections.sections[0].even_and_odd_headers_enabled);
     CHECK(reopened_sections.sections[0].different_first_page_enabled);
+    CHECK(reopened_sections.sections[1].different_first_page_enabled);
+    CHECK(reopened_sections.sections[2].different_first_page_enabled);
     REQUIRE(reopened_sections.sections[0].header.default_entry_name.has_value());
     CHECK_EQ(*reopened_sections.sections[0].header.default_entry_name, "word/header1.xml");
     REQUIRE(reopened_sections.sections[0].header.even_entry_name.has_value());
@@ -255,4 +259,56 @@ TEST_CASE("inspect sections reports even-and-odd header setting without settings
     CHECK_FALSE(*reopened_sections.sections[0].even_and_odd_headers_enabled);
 
     fs::remove(target);
+}
+
+TEST_CASE("related part inspection uses the loaded document snapshot") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "inspect_related_parts_no_reopen.docx";
+    fs::remove(target);
+
+    featherdoc::Document source(target);
+    REQUIRE_FALSE(source.create_empty());
+    auto &default_header = source.ensure_section_header_paragraphs(0U);
+    REQUIRE(default_header.has_next());
+    CHECK(default_header.set_text("默认页眉"));
+    auto &even_header = source.ensure_section_header_paragraphs(
+        0U, featherdoc::section_reference_kind::even_page);
+    REQUIRE(even_header.has_next());
+    CHECK(even_header.set_text("偶数页页眉"));
+    auto &first_footer = source.ensure_section_footer_paragraphs(
+        0U, featherdoc::section_reference_kind::first_page);
+    REQUIRE(first_footer.has_next());
+    CHECK(first_footer.set_text("首页页脚"));
+    REQUIRE_FALSE(source.save());
+
+    featherdoc::Document reopened(target);
+    REQUIRE_FALSE(reopened.open());
+    REQUIRE(fs::remove(target));
+
+    const auto headers = reopened.inspect_header_parts();
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE_EQ(headers.size(), 2U);
+    CHECK_EQ(headers[0].index, 0U);
+    CHECK_FALSE(headers[0].relationship_id.empty());
+    CHECK_EQ(headers[0].entry_name, "word/header1.xml");
+    REQUIRE_EQ(headers[0].references.size(), 1U);
+    CHECK_EQ(headers[0].references[0].section_index, 0U);
+    CHECK_EQ(headers[0].references[0].reference_kind,
+             featherdoc::section_reference_kind::default_reference);
+    CHECK_EQ(headers[1].entry_name, "word/header2.xml");
+    REQUIRE_EQ(headers[1].references.size(), 1U);
+    CHECK_EQ(headers[1].references[0].reference_kind,
+             featherdoc::section_reference_kind::even_page);
+
+    const auto footers = reopened.inspect_footer_parts();
+    CHECK_FALSE(reopened.last_error());
+    REQUIRE_EQ(footers.size(), 1U);
+    CHECK_FALSE(footers[0].relationship_id.empty());
+    CHECK_EQ(footers[0].entry_name, "word/footer1.xml");
+    REQUIRE_EQ(footers[0].references.size(), 1U);
+    CHECK_EQ(footers[0].references[0].section_index, 0U);
+    CHECK_EQ(footers[0].references[0].reference_kind,
+             featherdoc::section_reference_kind::first_page);
 }

@@ -166,7 +166,8 @@ void print_extract_image_result(const selected_template_part &selected,
                                 const featherdoc::drawing_image_info &image,
                                 const path_type &output_path) {
     print_selected_image_part(selected);
-    std::cout << "output_path: " << output_path.string() << '\n';
+    std::cout << "output_path: "
+              << featherdoc::detail::path_to_utf8(output_path) << '\n';
     std::cout << "image: ";
     print_drawing_image_summary(std::cout, image);
     std::cout << '\n';
@@ -177,9 +178,10 @@ void print_replace_image_result(const selected_template_part &selected,
                                 const path_type &replacement_path,
                                 const std::optional<path_type> &output_path) {
     print_selected_image_part(selected);
-    std::cout << "replacement_path: " << replacement_path.string() << '\n';
+    std::cout << "replacement_path: "
+              << featherdoc::detail::path_to_utf8(replacement_path) << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -193,7 +195,7 @@ void print_remove_image_result(const selected_template_part &selected,
                                const std::optional<path_type> &output_path) {
     print_selected_image_part(selected);
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -207,10 +209,11 @@ void print_append_image_result(const selected_template_part &selected,
                                const path_type &image_path,
                                const std::optional<path_type> &output_path) {
     print_selected_image_part(selected);
-    std::cout << "image_path: " << image_path.string() << '\n';
+    std::cout << "image_path: "
+              << featherdoc::detail::path_to_utf8(image_path) << '\n';
     std::cout << "floating: " << yes_no(image.floating_options.has_value()) << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }

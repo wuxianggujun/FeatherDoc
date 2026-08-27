@@ -24,9 +24,39 @@ Build Flags
 
 Build PDF support before using the CLI entry points:
 
+PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON. PDF import
+additionally requires ``-DFEATHERDOC_BUILD_PDF_IMPORT=ON``.
+
 .. code-block:: sh
 
    cmake -S . -B build-pdf -DFEATHERDOC_BUILD_PDF=ON -DFEATHERDOC_BUILD_PDF_IMPORT=ON -DBUILD_CLI=ON
+
+Module And Release Boundary
+---------------------------
+
+PDF remains in the FeatherDoc repository but is isolated from Word/Core by
+the separate ``FeatherDoc::Pdf`` and ``FeatherDoc::PdfImport`` targets,
+conditional CLI sources, and dedicated dependency providers. A default build
+does not download or compile PDFio, FreeType, HarfBuzz, PNG, or PDFium and does
+not register PDF CLI commands.
+
+The install exports the ``Pdf`` component when the writer's FreeType, ZLIB,
+PNG, and enabled HarfBuzz dependencies are discoverable CMake package targets.
+Consumers request and link it explicitly:
+
+.. code-block:: cmake
+
+   find_package(FeatherDoc CONFIG REQUIRED COMPONENTS Core Pdf)
+   target_link_libraries(my_app PRIVATE FeatherDoc::Pdf)
+
+Dependency discovery runs only when ``Pdf`` is requested; ``Core`` / ``Word``
+consumers do not acquire PDF dependencies. A writer built with repository
+fallback dependencies remains build-tree-only and is not presented as an
+installed component. ``PdfImport`` is likewise installable only when PDFium
+comes from a discoverable package. This boundary keeps document-model reuse
+and end-to-end tests in one repository while leaving target extraction
+possible if PDF needs an independent release cadence, ABI, or dependency
+policy later.
 
 PDF Export
 ----------
@@ -95,14 +125,18 @@ include ``detail``, ``entry`` and ``xml_offset`` when context is available:
      "command": "export-pdf",
      "ok": false,
      "stage": "export",
-     "message": "Operation not supported",
-     "detail": "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"
+     "message": "failed to write PDF output",
+     "detail": "Unable to create PDF file: output.pdf"
    }
+
+When PDF writer support is disabled, ``export-pdf`` is not registered and is
+not shown in CLI usage. Enable ``FEATHERDOC_BUILD_PDF`` when configuring the
+build to add the command.
 
 Current export failure stages are ``"stage": "parse"``,
 ``"stage": "open"``, ``"stage": "export"`` and ``"stage": "summary"``.
 ``parse`` covers invalid command-line options, ``open`` covers input package
-open failures, ``export`` covers disabled or failed PDF writing, and
+open failures, ``export`` covers failed PDF writing, and
 ``summary`` covers ``--summary-json`` write failures.
 
 Supported scope and limits for export include paragraph text, basic tables,

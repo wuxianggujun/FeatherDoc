@@ -3,7 +3,7 @@ bool Document::materialize_style_run_properties(std::string_view style_id) {
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before materializing "
                        "style run properties",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -12,7 +12,7 @@ bool Document::materialize_style_run_properties(std::string_view style_id) {
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when materializing style "
                        "run properties",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -29,7 +29,7 @@ bool Document::materialize_style_run_properties(std::string_view style_id) {
             "style id '" + std::string{style_id} + "' with type '" +
                 resolved->type_name +
                 "' does not support style run property materialization",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -134,7 +134,7 @@ bool Document::set_style_run_text_color(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run color",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -142,7 +142,7 @@ bool Document::set_style_run_text_color(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id and run text color must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -156,8 +156,8 @@ bool Document::set_style_run_text_color(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -168,7 +168,7 @@ bool Document::set_style_run_text_color(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:color for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -183,14 +183,14 @@ bool Document::set_style_run_bold(std::string_view style_id, bool enabled) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run bold",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when editing style run bold",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -201,8 +201,8 @@ bool Document::set_style_run_bold(std::string_view style_id, bool enabled) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto bold =
@@ -212,7 +212,7 @@ bool Document::set_style_run_bold(std::string_view style_id, bool enabled) {
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:b for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     set_on_off_value(bold, enabled);
@@ -226,7 +226,7 @@ bool Document::set_style_run_italic(std::string_view style_id, bool enabled) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run italic",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
@@ -234,7 +234,7 @@ bool Document::set_style_run_italic(std::string_view style_id, bool enabled) {
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run italic",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -245,8 +245,8 @@ bool Document::set_style_run_italic(std::string_view style_id, bool enabled) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto italic =
@@ -256,7 +256,7 @@ bool Document::set_style_run_italic(std::string_view style_id, bool enabled) {
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:i for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     set_on_off_value(italic, enabled);
@@ -271,7 +271,7 @@ bool Document::set_style_run_strikethrough(std::string_view style_id,
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before editing style "
                        "run strikethrough",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
@@ -279,7 +279,7 @@ bool Document::set_style_run_strikethrough(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when editing style run "
                        "strikethrough",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -290,8 +290,8 @@ bool Document::set_style_run_strikethrough(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto strike =
@@ -301,7 +301,7 @@ bool Document::set_style_run_strikethrough(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:strike for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     set_on_off_value(strike, enabled);
@@ -316,7 +316,7 @@ bool Document::set_style_run_underline(std::string_view style_id,
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run underline",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
@@ -324,7 +324,7 @@ bool Document::set_style_run_underline(std::string_view style_id,
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when editing style run underline",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -335,8 +335,8 @@ bool Document::set_style_run_underline(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto underline =
@@ -346,7 +346,7 @@ bool Document::set_style_run_underline(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:u for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     ensure_attribute_value(underline, "w:val", enabled ? "single" : "none");
@@ -362,7 +362,7 @@ bool Document::set_style_run_superscript(std::string_view style_id,
             this->last_error_info, document_errc::document_not_open,
             "call open() or create_empty() before editing style run "
             "superscript",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
@@ -370,7 +370,7 @@ bool Document::set_style_run_superscript(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when editing style run "
                        "superscript",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -381,8 +381,8 @@ bool Document::set_style_run_superscript(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto vertical_align =
@@ -392,7 +392,7 @@ bool Document::set_style_run_superscript(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:vertAlign for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     ensure_attribute_value(vertical_align, "w:val",
@@ -408,7 +408,7 @@ bool Document::set_style_run_subscript(std::string_view style_id,
         set_last_error(this->last_error_info, document_errc::document_not_open,
                        "call open() or create_empty() before editing style "
                        "run subscript",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (style_id.empty()) {
@@ -416,7 +416,7 @@ bool Document::set_style_run_subscript(std::string_view style_id,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when editing style run "
                        "subscript",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (const auto error = this->ensure_styles_part_attached()) {
@@ -427,8 +427,8 @@ bool Document::set_style_run_subscript(std::string_view style_id,
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id '" + std::string{style_id} +
-                           "' was not found in word/styles.xml",
-                       std::string{styles_xml_entry});
+                           "' was not found in '" + this->extension_state().singleton_part_entries.styles + "'",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     const auto vertical_align =
@@ -438,7 +438,7 @@ bool Document::set_style_run_subscript(std::string_view style_id,
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create w:vertAlign for style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     ensure_attribute_value(vertical_align, "w:val",

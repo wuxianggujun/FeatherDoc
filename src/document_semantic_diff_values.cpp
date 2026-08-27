@@ -1,5 +1,7 @@
 #include "document_semantic_diff_values.hpp"
 
+#include "document_archive_limit_helpers.hpp"
+
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -10,13 +12,30 @@
 
 namespace featherdoc {
 
+namespace {
+
+auto semantic_package_part_name(std::string_view part_name) -> std::string {
+    const auto identity =
+        featherdoc::detail::package_part_name_identity(part_name);
+    return identity.has_value() ? *identity : std::string{part_name};
+}
+
+auto semantic_optional_package_part_name(
+    const std::optional<std::string> &part_name) -> std::string {
+    return part_name.has_value() ? semantic_package_part_name(*part_name)
+                                 : std::string{};
+}
+
+} // namespace
+
 auto semantic_optional_string(const std::optional<std::string> &value)
     -> std::string {
     return value.has_value() ? *value : std::string{};
 }
 
 template <typename Value>
-auto semantic_optional_numeric(const std::optional<Value> &value) -> std::string {
+auto semantic_optional_numeric(const std::optional<Value> &value)
+    -> std::string {
     return value.has_value() ? std::to_string(*value) : std::string{};
 }
 
@@ -129,10 +148,14 @@ auto semantic_table_position_value(
     if (position->vertical_spec.has_value()) {
         stream << static_cast<int>(*position->vertical_spec);
     }
-    stream << ";left=" << semantic_optional_numeric(position->left_from_text_twips)
-           << ";right=" << semantic_optional_numeric(position->right_from_text_twips)
-           << ";top=" << semantic_optional_numeric(position->top_from_text_twips)
-           << ";bottom=" << semantic_optional_numeric(position->bottom_from_text_twips)
+    stream << ";left="
+           << semantic_optional_numeric(position->left_from_text_twips)
+           << ";right="
+           << semantic_optional_numeric(position->right_from_text_twips)
+           << ";top="
+           << semantic_optional_numeric(position->top_from_text_twips)
+           << ";bottom="
+           << semantic_optional_numeric(position->bottom_from_text_twips)
            << ";overlap=";
     if (position->overlap.has_value()) {
         stream << static_cast<int>(*position->overlap);
@@ -174,9 +197,9 @@ auto semantic_table_layout_mode(
 auto semantic_paragraph_value(
     const featherdoc::paragraph_inspection_summary &paragraph) -> std::string {
     std::ostringstream stream;
-    stream << "text=" << paragraph.text << "\nstyle="
-           << semantic_optional_string(paragraph.style_id) << "\nbidi="
-           << semantic_bool(paragraph.bidi) << "\nalignment="
+    stream << "text=" << paragraph.text
+           << "\nstyle=" << semantic_optional_string(paragraph.style_id)
+           << "\nbidi=" << semantic_bool(paragraph.bidi) << "\nalignment="
            << semantic_paragraph_alignment(paragraph.alignment)
            << "\nindent_left="
            << semantic_optional_numeric(paragraph.indent_left_twips)
@@ -191,18 +214,20 @@ auto semantic_paragraph_value(
         stream << "\nnumbering="
                << semantic_optional_numeric(paragraph.numbering->num_id) << ':'
                << semantic_optional_numeric(paragraph.numbering->level) << ':'
-               << semantic_optional_numeric(paragraph.numbering->definition_id) << ':'
-               << semantic_optional_string(paragraph.numbering->definition_name);
+               << semantic_optional_numeric(paragraph.numbering->definition_id)
+               << ':'
+               << semantic_optional_string(
+                      paragraph.numbering->definition_name);
     }
     return stream.str();
 }
 
-auto semantic_table_value(
-    const featherdoc::table_inspection_summary &table) -> std::string {
+auto semantic_table_value(const featherdoc::table_inspection_summary &table)
+    -> std::string {
     std::ostringstream stream;
-    stream << "text=" << table.text << "\nstyle="
-           << semantic_optional_string(table.style_id) << "\nrows="
-           << table.row_count << "\ncolumns=" << table.column_count
+    stream << "text=" << table.text
+           << "\nstyle=" << semantic_optional_string(table.style_id)
+           << "\nrows=" << table.row_count << "\ncolumns=" << table.column_count
            << "\nwidth=" << semantic_optional_numeric(table.width_twips)
            << "\nlayout_mode=" << semantic_table_layout_mode(table.layout_mode)
            << "\ncolumn_widths="
@@ -220,14 +245,14 @@ auto semantic_floating_options_value(
 
     std::ostringstream stream;
     stream << "offset=" << options->horizontal_offset_px << ','
-           << options->vertical_offset_px << ";behind="
-           << (options->behind_text ? "true" : "false") << ";overlap="
-           << (options->allow_overlap ? "true" : "false") << ";z="
-           << options->z_order << ";wrap_left="
-           << options->wrap_distance_left_px << ";wrap_right="
-           << options->wrap_distance_right_px << ";wrap_top="
-           << options->wrap_distance_top_px << ";wrap_bottom="
-           << options->wrap_distance_bottom_px;
+           << options->vertical_offset_px
+           << ";behind=" << (options->behind_text ? "true" : "false")
+           << ";overlap=" << (options->allow_overlap ? "true" : "false")
+           << ";z=" << options->z_order
+           << ";wrap_left=" << options->wrap_distance_left_px
+           << ";wrap_right=" << options->wrap_distance_right_px
+           << ";wrap_top=" << options->wrap_distance_top_px
+           << ";wrap_bottom=" << options->wrap_distance_bottom_px;
     if (options->crop.has_value()) {
         stream << ";crop=" << options->crop->left_per_mille << ','
                << options->crop->top_per_mille << ','
@@ -237,15 +262,18 @@ auto semantic_floating_options_value(
     return stream.str();
 }
 
-auto semantic_image_value(const featherdoc::drawing_image_info &image,
-                          const featherdoc::document_semantic_diff_options &options)
-    -> std::string {
+auto semantic_image_value(
+    const featherdoc::drawing_image_info &image,
+    const featherdoc::document_semantic_diff_options &options) -> std::string {
     std::ostringstream stream;
-    stream << "placement=" << semantic_drawing_image_placement_name(image.placement)
-           << "\nentry=" << image.entry_name << "\ndisplay="
-           << image.display_name << "\ncontent_type=" << image.content_type
+    stream << "placement="
+           << semantic_drawing_image_placement_name(image.placement)
+           << "\nentry=" << semantic_package_part_name(image.entry_name)
+           << "\ndisplay=" << image.display_name
+           << "\ncontent_type=" << image.content_type
            << "\nwidth=" << image.width_px << "\nheight=" << image.height_px
-           << "\nfloating=" << semantic_floating_options_value(image.floating_options);
+           << "\nfloating="
+           << semantic_floating_options_value(image.floating_options);
     if (options.compare_image_relationship_ids) {
         stream << "\nrelationship_id=" << image.relationship_id;
     }
@@ -269,36 +297,36 @@ auto semantic_content_control_value(
     const featherdoc::content_control_summary &content_control,
     const featherdoc::document_semantic_diff_options &options) -> std::string {
     std::ostringstream stream;
-    stream << "kind=" << semantic_content_control_kind_name(content_control.kind)
-           << "\nform="
-           << semantic_content_control_form_kind_name(content_control.form_kind)
-           << "\ntag=" << semantic_optional_string(content_control.tag)
-           << "\nalias=" << semantic_optional_string(content_control.alias)
-           << "\nlock=" << semantic_optional_string(content_control.lock)
-           << "\nbinding_store="
-           << semantic_optional_string(content_control.data_binding_store_item_id)
-           << "\nbinding_xpath="
-           << semantic_optional_string(content_control.data_binding_xpath)
-           << "\nbinding_prefix="
-           << semantic_optional_string(content_control.data_binding_prefix_mappings)
-           << "\nchecked=" << semantic_bool(content_control.checked)
-           << "\ndate_format="
-           << semantic_optional_string(content_control.date_format)
-           << "\ndate_locale="
-           << semantic_optional_string(content_control.date_locale)
-           << "\nselected="
-           << semantic_optional_numeric(content_control.selected_list_item)
-           << "\nitems="
-           << semantic_list_items_value(content_control.list_items)
-           << "\nplaceholder="
-           << (content_control.showing_placeholder ? "true" : "false")
-           << "\ntext=" << content_control.text;
+    stream
+        << "kind=" << semantic_content_control_kind_name(content_control.kind)
+        << "\nform="
+        << semantic_content_control_form_kind_name(content_control.form_kind)
+        << "\ntag=" << semantic_optional_string(content_control.tag)
+        << "\nalias=" << semantic_optional_string(content_control.alias)
+        << "\nlock=" << semantic_optional_string(content_control.lock)
+        << "\nbinding_store="
+        << semantic_optional_string(content_control.data_binding_store_item_id)
+        << "\nbinding_xpath="
+        << semantic_optional_string(content_control.data_binding_xpath)
+        << "\nbinding_prefix="
+        << semantic_optional_string(
+               content_control.data_binding_prefix_mappings)
+        << "\nchecked=" << semantic_bool(content_control.checked)
+        << "\ndate_format="
+        << semantic_optional_string(content_control.date_format)
+        << "\ndate_locale="
+        << semantic_optional_string(content_control.date_locale)
+        << "\nselected="
+        << semantic_optional_numeric(content_control.selected_list_item)
+        << "\nitems=" << semantic_list_items_value(content_control.list_items)
+        << "\nplaceholder="
+        << (content_control.showing_placeholder ? "true" : "false")
+        << "\ntext=" << content_control.text;
     if (options.compare_content_control_ids) {
         stream << "\nid=" << semantic_optional_string(content_control.id);
     }
     return stream.str();
 }
-
 
 auto semantic_field_kind_name(featherdoc::field_kind kind) -> std::string_view {
     switch (kind) {
@@ -346,7 +374,6 @@ auto semantic_field_summary_value(const featherdoc::field_summary &field)
     return stream.str();
 }
 
-
 auto semantic_style_kind_name(featherdoc::style_kind kind) -> std::string_view {
     switch (kind) {
     case featherdoc::style_kind::paragraph:
@@ -378,8 +405,9 @@ auto semantic_list_kind_name(featherdoc::list_kind kind) -> std::string_view {
 auto semantic_numbering_level_value(
     const featherdoc::numbering_level_definition &level) -> std::string {
     std::ostringstream stream;
-    stream << "level=" << level.level << ";kind="
-           << semantic_list_kind_name(level.kind) << ";start=" << level.start
+    stream << "level=" << level.level
+           << ";kind=" << semantic_list_kind_name(level.kind)
+           << ";start=" << level.start
            << ";text_pattern=" << level.text_pattern;
     return stream.str();
 }
@@ -388,7 +416,8 @@ auto semantic_numbering_instance_value(
     const featherdoc::numbering_instance_summary &instance) -> std::string {
     std::ostringstream stream;
     stream << "id=" << instance.instance_id << ";overrides=";
-    for (std::size_t index = 0U; index < instance.level_overrides.size(); ++index) {
+    for (std::size_t index = 0U; index < instance.level_overrides.size();
+         ++index) {
         const auto &override = instance.level_overrides[index];
         if (index != 0U) {
             stream << '|';
@@ -396,15 +425,16 @@ auto semantic_numbering_instance_value(
         stream << override.level << ':'
                << semantic_optional_numeric(override.start_override) << ':';
         if (override.level_definition.has_value()) {
-            stream << semantic_numbering_level_value(*override.level_definition);
+            stream << semantic_numbering_level_value(
+                *override.level_definition);
         }
     }
     return stream.str();
 }
 
 auto semantic_style_numbering_value(
-    const std::optional<featherdoc::style_summary::numbering_summary> &numbering)
-    -> std::string {
+    const std::optional<featherdoc::style_summary::numbering_summary>
+        &numbering) -> std::string {
     if (!numbering.has_value()) {
         return {};
     }
@@ -433,8 +463,7 @@ auto semantic_style_summary_value(const featherdoc::style_summary &style)
            << "\nnumbering=" << semantic_style_numbering_value(style.numbering)
            << "\ndefault=" << (style.is_default ? "true" : "false")
            << "\ncustom=" << (style.is_custom ? "true" : "false")
-           << "\nsemi_hidden="
-           << (style.is_semi_hidden ? "true" : "false")
+           << "\nsemi_hidden=" << (style.is_semi_hidden ? "true" : "false")
            << "\nunhide_when_used="
            << (style.is_unhide_when_used ? "true" : "false")
            << "\nquick_format=" << (style.is_quick_format ? "true" : "false");
@@ -444,8 +473,8 @@ auto semantic_style_summary_value(const featherdoc::style_summary &style)
 auto semantic_numbering_definition_summary_value(
     const featherdoc::numbering_definition_summary &definition) -> std::string {
     std::ostringstream stream;
-    stream << "definition_id=" << definition.definition_id << "\nname="
-           << definition.name << "\nlevels=";
+    stream << "definition_id=" << definition.definition_id
+           << "\nname=" << definition.name << "\nlevels=";
     for (std::size_t index = 0U; index < definition.levels.size(); ++index) {
         if (index != 0U) {
             stream << '|';
@@ -453,7 +482,8 @@ auto semantic_numbering_definition_summary_value(
         stream << semantic_numbering_level_value(definition.levels[index]);
     }
     stream << "\ninstance_ids=";
-    for (std::size_t index = 0U; index < definition.instance_ids.size(); ++index) {
+    for (std::size_t index = 0U; index < definition.instance_ids.size();
+         ++index) {
         if (index != 0U) {
             stream << ',';
         }
@@ -464,11 +494,11 @@ auto semantic_numbering_definition_summary_value(
         if (index != 0U) {
             stream << '|';
         }
-        stream << semantic_numbering_instance_value(definition.instances[index]);
+        stream << semantic_numbering_instance_value(
+            definition.instances[index]);
     }
     return stream.str();
 }
-
 
 auto semantic_review_note_kind_name(featherdoc::review_note_kind kind)
     -> std::string_view {
@@ -484,7 +514,8 @@ auto semantic_review_note_kind_name(featherdoc::review_note_kind kind)
     return "footnote";
 }
 
-auto semantic_revision_kind_name(featherdoc::revision_kind kind) -> std::string_view {
+auto semantic_revision_kind_name(featherdoc::revision_kind kind)
+    -> std::string_view {
     switch (kind) {
     case featherdoc::revision_kind::insertion:
         return "insertion";
@@ -521,18 +552,17 @@ auto semantic_review_note_summary_value(
     return stream.str();
 }
 
-auto semantic_revision_summary_value(const featherdoc::revision_summary &revision)
-    -> std::string {
+auto semantic_revision_summary_value(
+    const featherdoc::revision_summary &revision) -> std::string {
     std::ostringstream stream;
     stream << "kind=" << semantic_revision_kind_name(revision.kind)
            << "\nid=" << revision.id
            << "\nauthor=" << semantic_optional_string(revision.author)
            << "\ndate=" << semantic_optional_string(revision.date)
-           << "\npart=" << revision.part_entry_name
+           << "\npart=" << semantic_package_part_name(revision.part_entry_name)
            << "\ntext=" << revision.text;
     return stream.str();
 }
-
 
 auto semantic_page_orientation_value(featherdoc::page_orientation orientation)
     -> std::string_view {
@@ -549,39 +579,44 @@ auto semantic_page_orientation_value(featherdoc::page_orientation orientation)
 auto semantic_section_part_value(
     const featherdoc::section_part_inspection_summary &part) -> std::string {
     std::ostringstream stream;
-    stream << "has_default=" << semantic_bool(part.has_default)
-           << ";has_first=" << semantic_bool(part.has_first)
-           << ";has_even=" << semantic_bool(part.has_even)
-           << ";default_linked="
-           << semantic_bool(part.default_linked_to_previous)
-           << ";first_linked=" << semantic_bool(part.first_linked_to_previous)
-           << ";even_linked=" << semantic_bool(part.even_linked_to_previous)
-           << ";default_entry=" << semantic_optional_string(part.default_entry_name)
-           << ";first_entry=" << semantic_optional_string(part.first_entry_name)
-           << ";even_entry=" << semantic_optional_string(part.even_entry_name)
-           << ";resolved_default="
-           << semantic_optional_string(part.resolved_default_entry_name)
-           << ";resolved_first="
-           << semantic_optional_string(part.resolved_first_entry_name)
-           << ";resolved_even="
-           << semantic_optional_string(part.resolved_even_entry_name)
-           << ";resolved_default_section="
-           << semantic_optional_numeric(part.resolved_default_section_index)
-           << ";resolved_first_section="
-           << semantic_optional_numeric(part.resolved_first_section_index)
-           << ";resolved_even_section="
-           << semantic_optional_numeric(part.resolved_even_section_index);
+    stream
+        << "has_default=" << semantic_bool(part.has_default)
+        << ";has_first=" << semantic_bool(part.has_first)
+        << ";has_even=" << semantic_bool(part.has_even)
+        << ";default_linked=" << semantic_bool(part.default_linked_to_previous)
+        << ";first_linked=" << semantic_bool(part.first_linked_to_previous)
+        << ";even_linked=" << semantic_bool(part.even_linked_to_previous)
+        << ";default_entry="
+        << semantic_optional_package_part_name(part.default_entry_name)
+        << ";first_entry="
+        << semantic_optional_package_part_name(part.first_entry_name)
+        << ";even_entry="
+        << semantic_optional_package_part_name(part.even_entry_name)
+        << ";resolved_default="
+        << semantic_optional_package_part_name(part.resolved_default_entry_name)
+        << ";resolved_first="
+        << semantic_optional_package_part_name(part.resolved_first_entry_name)
+        << ";resolved_even="
+        << semantic_optional_package_part_name(part.resolved_even_entry_name)
+        << ";resolved_default_section="
+        << semantic_optional_numeric(part.resolved_default_section_index)
+        << ";resolved_first_section="
+        << semantic_optional_numeric(part.resolved_first_section_index)
+        << ";resolved_even_section="
+        << semantic_optional_numeric(part.resolved_even_section_index);
     return stream.str();
 }
 
 auto semantic_section_page_setup_value(
-    const std::optional<featherdoc::section_page_setup> &page_setup) -> std::string {
+    const std::optional<featherdoc::section_page_setup> &page_setup)
+    -> std::string {
     if (!page_setup.has_value()) {
         return "implicit";
     }
 
     std::ostringstream stream;
-    stream << "orientation=" << semantic_page_orientation_value(page_setup->orientation)
+    stream << "orientation="
+           << semantic_page_orientation_value(page_setup->orientation)
            << ";width=" << page_setup->width_twips
            << ";height=" << page_setup->height_twips
            << ";margin_top=" << page_setup->margins.top_twips

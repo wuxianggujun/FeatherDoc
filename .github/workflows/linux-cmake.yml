@@ -12,6 +12,73 @@ on:
   workflow_dispatch:
 
 jobs:
+  shared-library-abi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure shared library ABI gate
+        env:
+          CC: gcc
+          CXX: g++
+        run: >
+          cmake -S . -B build-linux-shared
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_SHARED_LIBS=ON
+          -DBUILD_TESTING=ON
+          -DBUILD_CLI=OFF
+          -DBUILD_SAMPLES=OFF
+
+      - name: Build shared library compatibility targets
+        run: >
+          cmake --build build-linux-shared --parallel 4 --target
+          FeatherDoc
+          source_compat_v1_13_2_tests
+          abi_compat_v1_13_3_runtime_tests
+
+      - name: Run shared library compatibility tests
+        run: >
+          ctest --test-dir build-linux-shared --output-on-failure --timeout 60
+          -R "^(source_compat_v1_13_2|abi_compat_v1_13_3_runtime)$"
+
+      - name: Verify Linux shared library SONAME
+        shell: bash
+        run: |
+          set -euo pipefail
+          library_path="$(readlink -f build-linux-shared/libFeatherDoc.so)"
+          test -f "${library_path}"
+          soname="$(
+            readelf -d "${library_path}" |
+              sed -n 's/.*Library soname: \[\(.*\)\]/\1/p'
+          )"
+          test "${soname}" = "libFeatherDoc.so.1.13"
+
+      - name: Install and run UTF-8 find_package consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_prefix="${GITHUB_WORKSPACE}/build-linux-shared/install-中文-日本語-🙂"
+          consumer_build="${GITHUB_WORKSPACE}/build-linux-shared/consumer-中文-日本語-🙂"
+          output_docx="${consumer_build}/输出 文档-中文-日本語-🙂.docx"
+
+          cmake --install build-linux-shared --prefix "${install_prefix}"
+          grep -F 'set(FeatherDoc_ABI_VERSION "1.13")' \
+            "${install_prefix}/lib/cmake/FeatherDoc/FeatherDocConfig.cmake"
+          cmake -S test/install_find_package -B "${consumer_build}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${install_prefix}"
+          cmake --build "${consumer_build}" --parallel 2
+          LD_LIBRARY_PATH="${install_prefix}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
+            "${consumer_build}/featherdoc_install_smoke" "${output_docx}"
+          test -s "${output_docx}"
+
   minimal-build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -47,7 +114,24 @@ jobs:
 
       - name: Build
         timeout-minutes: 30
-        run: cmake --build build-linux-${{ matrix.compiler }} --parallel 4 --verbose
+        run: |
+          set -euo pipefail
+          build_command="cmake --build build-linux-${{ matrix.compiler }} --parallel 4 --verbose"
+          echo "Starting ${build_command}"
+          ${build_command} &
+          build_pid=$!
+          while kill -0 "${build_pid}" 2>/dev/null; do
+            echo "Build heartbeat: ${build_command} is still running"
+            sleep 60
+          done &
+          heartbeat_pid=$!
+          set +e
+          wait "${build_pid}"
+          build_status=$?
+          set -e
+          kill "${heartbeat_pid}" 2>/dev/null || true
+          wait "${heartbeat_pid}" 2>/dev/null || true
+          exit "${build_status}"
 
       - name: Run tests
         run: ctest --test-dir build-linux-${{ matrix.compiler }} --parallel 2 --output-on-failure --timeout 60

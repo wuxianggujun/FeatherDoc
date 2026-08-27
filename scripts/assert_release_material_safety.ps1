@@ -75,6 +75,7 @@ foreach ($file in $scanFiles) {
     if ([System.IO.Path]::GetExtension($file).ToLowerInvariant() -eq ".md") {
         $content = Get-Content -Raw -LiteralPath $file
         Add-ReleaseEntryDocumentGovernanceTraceViolations -File $file -Content $content -Violations $violations
+        Add-ReleaseEntrySchemaCalibrationCorpusMetadataTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistEntrypointsEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateReadinessChecklistMaterialSafetyAuditEvidenceTraceViolations -File $file -Content $content -Violations $violations
         Add-ReleaseEntryProjectTemplateWorkflowDashboardTraceViolations -File $file -Content $content -Violations $violations
@@ -103,6 +104,7 @@ foreach ($file in $scanFiles) {
         Add-ReleaseGovernanceHandoffProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistEntrypointsTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateReadinessChecklistMaterialSafetyAuditTraceViolations -File $file -Content $content -Violations $violations
+        Add-FinalReviewSchemaCalibrationCorpusMetadataTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewProjectTemplateGovernanceTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateTraceViolations -File $file -Content $content -Violations $violations
         Add-FinalReviewPdfVisualGateAttemptTraceViolations -File $file -Content $content -Violations $violations

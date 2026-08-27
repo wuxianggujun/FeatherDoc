@@ -21,6 +21,21 @@
 ``FeatherDoc`` 的目标不是覆盖 ``WordprocessingML`` 的全部表面，
 而是成为一个面向正式文档场景的 ``.docx`` 处理、编辑、修改、生成引擎。
 
+当前收口决策（2026-08-26）
+--------------------------
+
+DOCX/Word 主线已经完成正式文档处理所需的核心闭环。本轮完成
+``Table::append_row()`` 的结构事务收尾后，项目进入 **Word-only maintenance mode**：
+
+- 冻结新的大功能和低频 WordprocessingML API 扩张；
+- 只接受可复现的 bug、安全、兼容性、构建、测试和文档修复；
+- 继续维护 DOCX reopen-save、模板、表格结构和句柄生命周期回归；
+- PDF 保持实验性 opt-in，只做必要维护，不再作为近期功能主线；
+- 新需求若要重新开启功能开发，必须先给出真实业务场景、兼容性边界和可执行验证证据。
+
+下文的能力线和 backlog 主要用于说明现有能力、维护入口和历史决策，
+不再自动构成新的功能承诺。
+
 这里说的“正式文档场景”，主要指：
 
 - 报告、合同、制度文件、发票、标书、通知、函件
@@ -83,16 +98,17 @@
 ``正式文档处理链路里的核心引擎层``。
 
 
-未来一段时间只推三条能力线
---------------------------
+已完成主线与维护入口
+--------------------
 
-如果一个新功能不属于下面三条能力线之一，它默认不应排到前面。
+下面三条能力线描述当前产品边界。进入维护模式后，只维护它们已有的稳定入口，
+不再以扩展覆盖面为目标。
 
 
 一、模板契约与项目模板工作流
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-这是最该继续加强的一条线。
+这是历史上最值得加强、当前进入维护的能力线。
 
 原因很简单：正式文档生成的核心不是“把字写进去”，而是把模板约束、
 生成输入、输出结果和回归检查连成闭环。
@@ -120,10 +136,13 @@
   recommendation 现在会作为 release blocker / warning / action item 进入
   ``schema-patch-confidence-calibration/summary.json``，并被默认发布面板消费；
   报告同时保留 ``business_template_corpus_summary``，让 reviewer 能看到候选项来自
-  哪些项目、模板和 source JSON，并对缺少 project/template/source summary 或
-  ``business_document_type`` 的语料分别输出
+  哪些项目、模板和 source JSON，并对缺少 project/template/source summary、
+  ``business_document_type`` 或 ``corpus_role`` 的语料分别输出
   ``add_business_template_source_metadata`` /
-  ``add_business_template_document_type_metadata`` 动作；
+  ``add_business_template_document_type_metadata`` /
+  ``add_business_template_corpus_role_metadata`` 动作；若候选上的
+  ``business_document_type`` / ``corpus_role`` 与来源语料条目不一致，则输出
+  ``align_business_template_corpus_metadata`` 动作；
   reviewer 分流约定为先用 ``source_report_display`` 打开 Markdown 报告，再用
   ``source_json_display`` 核对机器证据，最后复制 ``open_command`` 重新生成或复核校准材料
 - release blocker rollup 统一发布阻断汇总
@@ -144,7 +163,7 @@
   ``REVIEWER_CHECKLIST.md`` 也会展示 dashboard status、release_ready、blocker /
   warning 计数、证据路径和下一步动作，避免 reviewer 只从 handoff 计数反推项目模板状态
 
-接下来更值得补的是：
+历史优先项（维护模式前）：
 
 1. 扩大真实业务模板语料样本，继续校准 rename / update 建议的置信度
 2. 多项目 schema approval、release gate 和审批历史的维护体验
@@ -165,7 +184,7 @@
 二、样式与编号治理
 ^^^^^^^^^^^^^^^^^^
 
-这是第二优先级主线。
+这是历史上的第二优先级能力线，当前进入维护。
 
 正式文档能不能稳定生成，很大程度上不取决于文本写入本身，
 而取决于标题层级、目录来源、列表体系、语言字体继承是否可控。
@@ -191,6 +210,23 @@
 - numbering catalog JSON definition level upsert 与 override 批量 upsert/remove
 - numbering catalog JSON lint 结构校验
 - numbering catalog JSON check / diff 准入与单文件 / manifest baseline gate
+- exemplar catalog 来源冲突的结构化 patch plan：
+  ``featherdoc.numbering_catalog_governance_patch_plan.v1`` 通过顶层
+  ``catalog_patch_plan_count`` / ``catalog_patch_plans`` 与冲突项的
+  ``catalog_patch_plan_id`` / ``catalog_patch_plan`` 暴露。计划固定为
+  ``awaiting_authoritative_catalog``，并明确 ``safe_to_apply=false``、
+  ``automatic_patch_available=false``、``patch_apply_supported=false``、
+  ``manual_review_required=true`` 与
+  ``requires_authoritative_catalog_selection=true``。
+- patch plan 的 ``supported_patch_operations`` 只支持 ``upsert_levels`` / ``upsert_overrides`` /
+  ``remove_overrides``；``definition_topology_changes`` /
+  ``instance_topology_changes`` 保留在 ``unsupported_automatic_changes``，不做自动合并。候选
+  catalog 通过 ``candidate_catalog_count`` / ``candidate_catalog_paths`` /
+  ``candidate_catalog_displays`` 暴露，
+  ``reviewer_inputs``、``patch_counts``、``diff_commands`` / ``review_command``、
+  ``patch_command_template``、``lint_command_template``、
+  ``verification_command_template`` 与有序 ``required_steps`` 会随
+  ``catalog_patch_plan`` 进入下游 rollup 和 release governance handoff。
 - 多份 document skeleton governance summary 的 rollup 汇总入口，可把
   exemplar catalog、样式编号 issue、release blocker 和 action item 先聚合成
   ``featherdoc.document_skeleton_governance_rollup_report.v1``，再进入统一发布阻断视图。
@@ -214,7 +250,10 @@
 1. merge restore 的更完整冲突处理与基于真实语料的样式建议置信度校准
 2. 面向 heading / list / theme 的稳定重构入口
 3. 样式与编号之间更明确的批量治理 mutation API
-4. 在已有骨架治理报告和多文档 rollup 基础上继续强化 exemplar 冲突审计和 catalog patch 衔接
+4. exemplar catalog 来源冲突审计及结构化 catalog patch plan 已接入 numbering
+   governance；下一步仍由 reviewer 选择唯一 authoritative catalog，人工编写只包含
+   受支持 operation 的 reviewed patch，再按 ``required_steps`` 完成 apply、lint 与
+   ``--fail-on-diff`` 验证
 
 这条线的目标是：
 
@@ -224,7 +263,7 @@
 三、表格与版式交付能力
 ^^^^^^^^^^^^^^^^^^^^^^
 
-这是第三优先级主线。
+这是历史上的第三优先级能力线，当前进入维护。
 
 表格、页边距、图片布局、section 结构，决定了这个库能不能真正支撑
 报告、发票、制度文件和业务单据这类交付物。
@@ -238,7 +277,7 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 ``pdf_floating_table_support_coverage``，但 ``metadata-only tblpPr``、完整 Word 环绕、
 重叠避让和 inside/outside page-side 语义必须继续进入 reviewer 视觉复核。
 
-接下来更值得补的是：
+历史优先项（维护模式前）：
 
 1. 更完整的 custom table style property editing 覆盖面
 2. 浮动表格环绕距离、重叠控制和更多 ``w:tblpPr`` 细节
@@ -289,16 +328,16 @@ table style quality、安全 ``tblLook`` 修复、floating table preset plan 和
 维护节奏建议
 ------------
 
-本节作为 ``current_maintenance_cadence`` 契约锚点，约束后续推进顺序继续先文档主线、
-再治理深度、最后收口版式交付。
+本节作为 ``current_maintenance_cadence`` 契约锚点，约束后续以问题修复为主，
+不再自动恢复功能扩张。
 
 当前更合理的节奏不是“想到什么补什么”，而是：
 
-1. 先把模板契约链路继续做实
-2. 再把样式 / 编号治理做深
-3. 最后把表格 / 版式交付能力收口
+1. 优先修复影响 DOCX 正确性、安全性和兼容性的可复现问题
+2. 维护模板契约、样式 / 编号治理和表格 / 版式交付的现有验证入口
+3. 只在明确的发布或用户场景需要时运行较重的 Word visual / release gate
 
-只有当这三条主线已经明显稳定之后，再考虑更重、更宽的能力面。
+不再以继续扩大功能面作为项目完成条件；任何扩展提案都必须先经过新的范围评审。
 
 
 路线维护守护点

@@ -9,6 +9,7 @@
 #include "doctest.h"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 
 namespace {
 
@@ -174,4 +175,105 @@ TEST_CASE("cli JSON parse reads files and skips UTF-8 BOM") {
     CHECK_EQ(content.substr(index), "{\"ok\":true}");
 
     std::filesystem::remove(path);
+}
+
+TEST_CASE("cli input accepts the 16 MiB boundary and rejects the next byte") {
+    const auto exact_path = temp_json_path("_exact_limit.json");
+    const auto oversized_path = temp_json_path("_over_limit.json");
+    const std::string exact(featherdoc_cli::max_cli_input_bytes, 'a');
+    write_binary_file(exact_path, exact);
+    write_binary_file(oversized_path, exact + "b");
+
+    std::string content;
+    std::string error_message;
+    CHECK(featherdoc_cli::read_bounded_utf8_file(
+        exact_path, "test input", content, error_message));
+    CHECK_EQ(content.size(), featherdoc_cli::max_cli_input_bytes);
+
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        oversized_path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK(error_message.find("input limit") != std::string::npos);
+
+    std::filesystem::remove(exact_path);
+    std::filesystem::remove(oversized_path);
+}
+
+TEST_CASE("cli input rejects malformed raw UTF-8") {
+    const auto path = temp_json_path("_invalid_utf8.json");
+    write_binary_file(path, std::string{"\xF0\x28\x8C\x28", 4U});
+
+    std::string content;
+    std::string error_message;
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK(error_message.find("valid UTF-8") != std::string::npos);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("cli input resets reused output and error state") {
+    const auto valid_path = temp_json_path("_state_reset.json");
+    const auto missing_path = temp_json_path("_state_reset_missing.json");
+    write_binary_file(valid_path, "valid");
+    std::filesystem::remove(missing_path);
+
+    std::string content{"stale content"};
+    std::string error_message{"stale error"};
+    CHECK_FALSE(featherdoc_cli::read_bounded_utf8_file(
+        missing_path, "test input", content, error_message));
+    CHECK(content.empty());
+    CHECK_FALSE(error_message.empty());
+
+    std::size_t index = 99U;
+    content = "stale content";
+    error_message = "stale error";
+    CHECK_FALSE(featherdoc_cli::read_template_table_json_content(
+        missing_path, content, index, error_message));
+    CHECK_EQ(index, 0U);
+    CHECK(content.empty());
+    CHECK_FALSE(error_message.empty());
+
+    content = "stale content";
+    error_message = "stale error";
+    CHECK(featherdoc_cli::read_bounded_utf8_file(
+        valid_path, "test input", content, error_message));
+    CHECK_EQ(content, "valid");
+    CHECK(error_message.empty());
+
+    std::filesystem::remove(valid_path);
+}
+
+TEST_CASE("cli JSON whitespace follows the RFC 8259 four-byte set") {
+    std::size_t index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace(" \t\n\rvalue", index);
+    CHECK_EQ(index, 4U);
+
+    index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace("\vvalue", index);
+    CHECK_EQ(index, 0U);
+
+    index = 0U;
+    featherdoc_cli::skip_json_patch_whitespace("\fvalue", index);
+    CHECK_EQ(index, 0U);
+}
+
+TEST_CASE("cli JSON skip enforces a maximum nesting depth of 128") {
+    const auto nested_array = [](std::size_t depth) {
+        return std::string(depth, '[') + "0" + std::string(depth, ']');
+    };
+
+    auto text = nested_array(featherdoc_cli::max_json_nesting_depth);
+    std::size_t index = 0U;
+    std::string error_message;
+    CHECK(featherdoc_cli::skip_json_patch_value(text, index, error_message));
+    CHECK_EQ(index, text.size());
+
+    text = nested_array(featherdoc_cli::max_json_nesting_depth + 1U);
+    index = 0U;
+    error_message.clear();
+    CHECK_FALSE(
+        featherdoc_cli::skip_json_patch_value(text, index, error_message));
+    CHECK(error_message.find("nesting depth") != std::string::npos);
 }

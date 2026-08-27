@@ -139,7 +139,7 @@ auto write_review_mutation_plan_file(
     std::ofstream stream(plan_path, std::ios::binary);
     if (!stream.good()) {
         error_message = "failed to write review mutation plan file: " +
-                        plan_path.string();
+                        featherdoc::detail::path_to_utf8(plan_path);
         return false;
     }
 
@@ -147,7 +147,7 @@ auto write_review_mutation_plan_file(
     stream << '\n';
     if (!stream.good()) {
         error_message = "failed to write review mutation plan file: " +
-                        plan_path.string();
+                        featherdoc::detail::path_to_utf8(plan_path);
         return false;
     }
     return true;

@@ -154,6 +154,59 @@ TEST_CASE("set_section_page_setup creates a final section setup and round-trips"
     fs::remove(target);
 }
 
+TEST_CASE("set_section_page_setup preserves public document and related-part handles") {
+    featherdoc::Document document;
+    REQUIRE_FALSE(document.create_empty());
+
+    auto body_paragraph = document.paragraphs();
+    REQUIRE(body_paragraph.valid());
+    auto body_run = body_paragraph.add_run("body text");
+    REQUIRE(body_run.valid());
+    auto body_table = document.append_table(1U, 1U);
+    REQUIRE(body_table.valid());
+    auto body_row = body_table.rows();
+    REQUIRE(body_row.valid());
+    auto body_cell = body_row.cells();
+    REQUIRE(body_cell.valid());
+    auto body_template = document.body_template();
+    REQUIRE(body_template);
+
+    auto header_paragraph = document.ensure_section_header_paragraphs(0U);
+    REQUIRE(header_paragraph.valid());
+    auto header_run = header_paragraph.add_run("header text");
+    REQUIRE(header_run.valid());
+
+    featherdoc::section_page_setup setup{};
+    setup.orientation = featherdoc::page_orientation::landscape;
+    setup.width_twips = 15840U;
+    setup.height_twips = 12240U;
+    setup.margins.top_twips = 720U;
+    setup.margins.bottom_twips = 1080U;
+    setup.margins.left_twips = 1440U;
+    setup.margins.right_twips = 1440U;
+    setup.margins.header_twips = 360U;
+    setup.margins.footer_twips = 540U;
+    setup.page_number_start = 9U;
+
+    REQUIRE(document.set_section_page_setup(0U, setup));
+    CHECK(body_paragraph.valid());
+    CHECK(body_run.valid());
+    CHECK_EQ(body_run.get_text(), "body text");
+    CHECK(body_table.valid());
+    CHECK(body_row.valid());
+    CHECK(body_cell.valid());
+    CHECK(body_template);
+    CHECK(header_paragraph.valid());
+    CHECK(header_run.valid());
+    CHECK_EQ(header_run.get_text(), "header text");
+
+    const auto applied = document.get_section_page_setup(0U);
+    REQUIRE(applied.has_value());
+    CHECK_EQ(applied->orientation, featherdoc::page_orientation::landscape);
+    REQUIRE(applied->page_number_start.has_value());
+    CHECK_EQ(*applied->page_number_start, 9U);
+}
+
 TEST_CASE("set_section_page_setup updates paragraph and body section properties") {
     namespace fs = std::filesystem;
 

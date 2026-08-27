@@ -27,13 +27,13 @@ auto run_semantic_diff_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
 
     featherdoc::Document right_doc;
-    if (!open_document(path_type(std::string(arguments[2])), right_doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[2]), right_doc, command,
                        options.json_output)) {
         return 1;
     }

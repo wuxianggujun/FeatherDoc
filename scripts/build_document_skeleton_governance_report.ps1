@@ -15,6 +15,7 @@ param(
     [string]$BuildDir = "",
     [string]$Generator = "NMake Makefiles",
     [string]$CliPath = "",
+    [string]$StyleMergeReviewJson = "",
     [string]$SummaryJson = "",
     [string]$ReportMarkdown = "",
     [switch]$SkipBuild,
@@ -265,6 +266,7 @@ function New-ReportMarkdown {
     $lines.Add(("- style_numbering_issue_count: ``{0}``" -f $Summary.style_numbering_issue_count)) | Out-Null
     $lines.Add(("- style_numbering_suggestion_count: ``{0}``" -f $Summary.style_numbering_suggestion_count)) | Out-Null
     $lines.Add(("- style_merge_suggestion_count: ``{0}``" -f $Summary.style_merge_suggestion_count)) | Out-Null
+    $lines.Add(("- style_merge_manual_review_reason_count: ``{0}``" -f $Summary.style_merge_manual_review_reason_count)) | Out-Null
     $lines.Add(("- release_blocker_count: ``{0}``" -f $Summary.release_blocker_count)) | Out-Null
     $lines.Add("") | Out-Null
     $lines.Add("## Issue Summary") | Out-Null
@@ -274,6 +276,28 @@ function New-ReportMarkdown {
     } else {
         foreach ($issue in @($Summary.issue_summary)) {
             $lines.Add(("- ``{0}``: {1}" -f $issue.issue, $issue.count)) | Out-Null
+        }
+    }
+    $lines.Add("") | Out-Null
+    $lines.Add("## Style Merge Manual Review") | Out-Null
+    $lines.Add("") | Out-Null
+    if (@($Summary.style_merge_manual_review_reasons).Count -eq 0) {
+        $lines.Add("- none") | Out-Null
+    } else {
+        foreach ($reason in @($Summary.style_merge_manual_review_reasons)) {
+            $sourceStyleId = Get-JsonPropertyValue -Object $reason -Names @("source_style_id") -DefaultValue ""
+            $targetStyleId = Get-JsonPropertyValue -Object $reason -Names @("target_style_id") -DefaultValue ""
+            $confidence = Get-JsonPropertyValue -Object $reason -Names @("confidence") -DefaultValue ""
+            $recommendedMinConfidence = Get-JsonPropertyValue -Object $reason -Names @("recommended_min_confidence") -DefaultValue ""
+            $reasonCode = Get-JsonPropertyValue -Object $reason -Names @("reason_code") -DefaultValue ""
+            $recommendedAction = Get-JsonPropertyValue -Object $reason -Names @("recommended_action") -DefaultValue ""
+            $lines.Add(("- source=``{0}`` target=``{1}`` confidence=``{2}`` recommended_min_confidence=``{3}`` reason_code=``{4}`` recommended_action=``{5}``" -f
+                    $sourceStyleId,
+                    $targetStyleId,
+                    $confidence,
+                    $recommendedMinConfidence,
+                    $reasonCode,
+                    $recommendedAction)) | Out-Null
         }
     }
     $lines.Add("") | Out-Null
@@ -329,6 +353,11 @@ $markdownPath = if ([string]::IsNullOrWhiteSpace($ReportMarkdown)) {
 }
 $catalogPath = Join-Path $resolvedOutputDir "exemplar.numbering-catalog.json"
 $styleMergePlanPath = Join-Path $resolvedOutputDir "style-merge-suggestions.json"
+$styleMergeReviewPath = if ([string]::IsNullOrWhiteSpace($StyleMergeReviewJson)) {
+    ""
+} else {
+    Resolve-TemplateSchemaPath -RepoRoot $repoRoot -InputPath $StyleMergeReviewJson -AllowMissing
+}
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($summaryPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($markdownPath))
 Ensure-Directory -Path ([System.IO.Path]::GetDirectoryName($catalogPath))
@@ -382,6 +411,16 @@ $styleUsage = $styleUsageResult.json
 $styleUsageEntries = @(Get-JsonArrayValue -Object $styleUsage -Names @("entries", "styles"))
 $styleMergeSuggestions = $styleMergeSuggestionResult.json
 $styleMergeSuggestionOperations = @(Get-JsonArrayValue -Object $styleMergeSuggestions -Names @("operations"))
+$styleMergeReview = Read-JsonFileOrNull -Path $styleMergeReviewPath
+$styleMergeManualReviewReasons = @(Get-JsonArrayValue -Object $styleMergeReview -Names @("manual_review_reasons"))
+$styleMergeManualReviewReasonCount = Get-JsonIntValue `
+    -Object $styleMergeReview `
+    -Names @("manual_review_reason_count") `
+    -DefaultValue $styleMergeManualReviewReasons.Count
+$styleMergeManualReviewRequired = Get-JsonBoolValue `
+    -Object $styleMergeReview `
+    -Names @("manual_review_required") `
+    -DefaultValue ($styleMergeManualReviewReasonCount -gt 0)
 $styleMergeSuggestionConfidenceSummary = Get-JsonPropertyValue `
     -Object $styleMergeSuggestions `
     -Names @("suggestion_confidence_summary") `
@@ -445,6 +484,7 @@ if ($issueCount -gt 0) {
 $inputForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $resolvedInputDocx
 $catalogForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $catalogPath
 $styleMergePlanForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $styleMergePlanPath
+$styleMergeReviewForCommand = Convert-ToReportPath -RepoRoot $repoRoot -Path $styleMergeReviewPath
 $actionItems = @()
 if ($issueCount -gt 0) {
     $actionItems += New-ActionItem `
@@ -459,10 +499,20 @@ if ($suggestionCount -gt 0) {
         -Command ("featherdoc_cli repair-style-numbering " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --catalog-file " + (ConvertTo-CommandLine -Arguments @($catalogForCommand)) + " --plan-only --json")
 }
 if ($styleMergeSuggestionCount -gt 0) {
-    $actionItems += New-ActionItem `
+    $styleMergeActionItem = New-ActionItem `
         -Id "review_style_merge_suggestions" `
         -Title "Review duplicate style merge suggestions before applying refactors" `
         -Command ("featherdoc_cli suggest-style-merges " + (ConvertTo-CommandLine -Arguments @($inputForCommand)) + " --confidence-profile recommended --output-plan " + (ConvertTo-CommandLine -Arguments @($styleMergePlanForCommand)) + " --json")
+    if ($null -ne $styleMergeReview -and -not [string]::IsNullOrWhiteSpace($styleMergeReviewForCommand)) {
+        $styleMergeActionItem["source_json"] = $styleMergeReviewForCommand
+        $styleMergeActionItem["source_json_display"] = $styleMergeReviewForCommand
+    }
+    if ($styleMergeManualReviewRequired -or $styleMergeManualReviewReasonCount -gt 0) {
+        $styleMergeActionItem["manual_review_required"] = $styleMergeManualReviewRequired
+        $styleMergeActionItem["manual_review_reason_count"] = $styleMergeManualReviewReasonCount
+        $styleMergeActionItem["manual_review_reasons"] = @($styleMergeManualReviewReasons)
+    }
+    $actionItems += $styleMergeActionItem
 }
 $actionItems += New-ActionItem `
     -Id "promote_numbering_catalog_exemplar" `
@@ -505,6 +555,8 @@ $summary = [ordered]@{
     exemplar_catalog_relative_path = $catalogForCommand
     style_merge_suggestion_plan_path = $styleMergePlanPath
     style_merge_suggestion_plan_relative_path = $styleMergePlanForCommand
+    style_merge_review_json_path = $styleMergeReviewPath
+    style_merge_review_json_relative_path = $styleMergeReviewForCommand
     numbering_catalog_path = $catalogPath
     numbering_catalog = [ordered]@{
         definition_count = $numberingDefinitionCount
@@ -514,8 +566,12 @@ $summary = [ordered]@{
     style_numbering_audit = $styleNumbering
     style_usage_report = $styleUsage
     style_merge_suggestions = $styleMergeSuggestions
+    style_merge_review = $styleMergeReview
     style_merge_suggestion_count = $styleMergeSuggestionCount
     style_merge_suggestion_confidence_summary = $styleMergeSuggestionConfidenceSummary
+    style_merge_manual_review_required = $styleMergeManualReviewRequired
+    style_merge_manual_review_reason_count = $styleMergeManualReviewReasonCount
+    style_merge_manual_review_reasons = @($styleMergeManualReviewReasons)
     style_numbering_clean = Get-JsonBoolValue -Object $styleNumbering -Names @("clean") -DefaultValue $true
     style_numbering_issue_count = $issueCount
     style_numbering_suggestion_count = $suggestionCount

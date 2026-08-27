@@ -1,16 +1,9 @@
 auto read_style_refactor_rollback_content(const path_type &rollback_path,
                                           std::string &content,
                                           std::string &error_message) -> bool {
-    std::ifstream stream(rollback_path, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read style refactor rollback file: " +
-                        rollback_path.string();
-        return false;
-    }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
-    return true;
+    return read_bounded_utf8_file(rollback_path,
+                                  "style refactor rollback file", content,
+                                  error_message);
 }
 
 auto read_style_refactor_rollback_file(

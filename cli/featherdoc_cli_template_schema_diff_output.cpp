@@ -22,26 +22,30 @@ void write_json_template_schema_diff_result(
         if (index != 0U) {
             stream << ',';
         }
-        write_json_exported_template_schema_target(stream, result.added_targets[index]);
+        write_json_exported_template_schema_target(stream,
+                                                   result.added_targets[index]);
     }
     stream << "],\"removed_targets\":[";
-    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.removed_targets.size();
+         ++index) {
         if (index != 0U) {
             stream << ',';
         }
-        write_json_exported_template_schema_target(stream, result.removed_targets[index]);
+        write_json_exported_template_schema_target(
+            stream, result.removed_targets[index]);
     }
     stream << "],\"changed_targets\":[";
-    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.changed_targets.size();
+         ++index) {
         if (index != 0U) {
             stream << ',';
         }
         stream << "{\"left\":";
-        write_json_exported_template_schema_target(stream,
-                                                   result.changed_targets[index].left);
+        write_json_exported_template_schema_target(
+            stream, result.changed_targets[index].left);
         stream << ",\"right\":";
-        write_json_exported_template_schema_target(stream,
-                                                   result.changed_targets[index].right);
+        write_json_exported_template_schema_target(
+            stream, result.changed_targets[index].right);
         stream << '}';
     }
     stream << "]}\n";
@@ -49,8 +53,8 @@ void write_json_template_schema_diff_result(
 
 } // namespace
 
-void print_template_schema_diff_result(const template_schema_diff_result &result,
-                                       bool json_output) {
+void print_template_schema_diff_result(
+    const template_schema_diff_result &result, bool json_output) {
     if (json_output) {
         write_json_template_schema_diff_result(std::cout, result);
         return;
@@ -58,24 +62,30 @@ void print_template_schema_diff_result(const template_schema_diff_result &result
 
     std::cout << "equal: " << yes_no(result.equal()) << '\n'
               << "added_target_count: " << result.added_targets.size() << '\n'
-              << "removed_target_count: " << result.removed_targets.size() << '\n'
-              << "changed_target_count: " << result.changed_targets.size() << '\n';
+              << "removed_target_count: " << result.removed_targets.size()
+              << '\n'
+              << "changed_target_count: " << result.changed_targets.size()
+              << '\n';
 
     for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
         std::cout << '\n' << "added_target[" << index << "]\n";
-        print_exported_template_schema_target(std::cout, result.added_targets[index]);
+        print_exported_template_schema_target(std::cout,
+                                              result.added_targets[index]);
     }
-    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.removed_targets.size();
+         ++index) {
         std::cout << '\n' << "removed_target[" << index << "]\n";
-        print_exported_template_schema_target(std::cout, result.removed_targets[index]);
+        print_exported_template_schema_target(std::cout,
+                                              result.removed_targets[index]);
     }
-    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.changed_targets.size();
+         ++index) {
         std::cout << '\n' << "changed_target[" << index << "].left\n";
-        print_exported_template_schema_target(std::cout,
-                                              result.changed_targets[index].left);
+        print_exported_template_schema_target(
+            std::cout, result.changed_targets[index].left);
         std::cout << '\n' << "changed_target[" << index << "].right\n";
-        print_exported_template_schema_target(std::cout,
-                                              result.changed_targets[index].right);
+        print_exported_template_schema_target(
+            std::cout, result.changed_targets[index].right);
     }
 }
 
@@ -85,24 +95,28 @@ void print_checked_template_schema_result(
     if (json_output) {
         std::cout << "{\"command\":\"check-template-schema\",\"matches\":"
                   << json_bool(result.equal()) << ",\"schema_file\":";
-        write_json_string(std::cout, schema_path.string());
+        write_json_string(std::cout,
+                          featherdoc::detail::path_to_utf8(schema_path));
         if (output_path.has_value()) {
             std::cout << ",\"generated_output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"added_target_count\":" << result.added_targets.size()
-                  << ",\"removed_target_count\":" << result.removed_targets.size()
-                  << ",\"changed_target_count\":" << result.changed_targets.size()
-                  << ",\"added_targets\":[";
-        for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
+                  << ",\"removed_target_count\":"
+                  << result.removed_targets.size()
+                  << ",\"changed_target_count\":"
+                  << result.changed_targets.size() << ",\"added_targets\":[";
+        for (std::size_t index = 0U; index < result.added_targets.size();
+             ++index) {
             if (index != 0U) {
                 std::cout << ',';
             }
-            write_json_exported_template_schema_target(std::cout,
-                                                       result.added_targets[index]);
+            write_json_exported_template_schema_target(
+                std::cout, result.added_targets[index]);
         }
         std::cout << "],\"removed_targets\":[";
-        for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+        for (std::size_t index = 0U; index < result.removed_targets.size();
+             ++index) {
             if (index != 0U) {
                 std::cout << ',';
             }
@@ -110,7 +124,8 @@ void print_checked_template_schema_result(
                 std::cout, result.removed_targets[index]);
         }
         std::cout << "],\"changed_targets\":[";
-        for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+        for (std::size_t index = 0U; index < result.changed_targets.size();
+             ++index) {
             if (index != 0U) {
                 std::cout << ',';
             }
@@ -126,30 +141,38 @@ void print_checked_template_schema_result(
         return;
     }
 
-    std::cout << "schema_file: " << schema_path.string() << '\n';
+    std::cout << "schema_file: "
+              << featherdoc::detail::path_to_utf8(schema_path) << '\n';
     if (output_path.has_value()) {
-        std::cout << "generated_output_path: " << output_path->string() << '\n';
+        std::cout << "generated_output_path: " << path_to_cli_utf8(*output_path)
+                  << '\n';
     }
     std::cout << "matches: " << yes_no(result.equal()) << '\n'
               << "added_target_count: " << result.added_targets.size() << '\n'
-              << "removed_target_count: " << result.removed_targets.size() << '\n'
-              << "changed_target_count: " << result.changed_targets.size() << '\n';
+              << "removed_target_count: " << result.removed_targets.size()
+              << '\n'
+              << "changed_target_count: " << result.changed_targets.size()
+              << '\n';
 
     for (std::size_t index = 0U; index < result.added_targets.size(); ++index) {
         std::cout << '\n' << "added_target[" << index << "]\n";
-        print_exported_template_schema_target(std::cout, result.added_targets[index]);
+        print_exported_template_schema_target(std::cout,
+                                              result.added_targets[index]);
     }
-    for (std::size_t index = 0U; index < result.removed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.removed_targets.size();
+         ++index) {
         std::cout << '\n' << "removed_target[" << index << "]\n";
-        print_exported_template_schema_target(std::cout, result.removed_targets[index]);
+        print_exported_template_schema_target(std::cout,
+                                              result.removed_targets[index]);
     }
-    for (std::size_t index = 0U; index < result.changed_targets.size(); ++index) {
+    for (std::size_t index = 0U; index < result.changed_targets.size();
+         ++index) {
         std::cout << '\n' << "changed_target[" << index << "].baseline\n";
-        print_exported_template_schema_target(std::cout,
-                                              result.changed_targets[index].left);
+        print_exported_template_schema_target(
+            std::cout, result.changed_targets[index].left);
         std::cout << '\n' << "changed_target[" << index << "].generated\n";
-        print_exported_template_schema_target(std::cout,
-                                              result.changed_targets[index].right);
+        print_exported_template_schema_target(
+            std::cout, result.changed_targets[index].right);
     }
 }
 

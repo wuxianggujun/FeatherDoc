@@ -177,7 +177,7 @@ Assert-Equal -Actual ([int]$summary.completed_stage_count) -Expected 8 `
     -Message "Pipeline should complete every stage."
 Assert-Equal -Actual ([int]$summary.failed_stage_count) -Expected 0 `
     -Message "Pipeline should not record stage failures."
-Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 12 `
+Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 13 `
     -Message "Pipeline should mirror final rollup blocker count."
 Assert-True -Condition ([int]$summary.action_item_count -ge 4) `
     -Message "Pipeline should mirror final rollup action count."
@@ -240,6 +240,40 @@ Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [str
 Assert-ContainsText -Text (($numberingStage.action_items | ForEach-Object { [string]$_.open_command }) -join "`n") `
     -ExpectedText "build_numbering_catalog_governance_report.ps1" `
     -Message "Pipeline numbering stage should provide stage rerun command when source actions omit open commands."
+$numberingSourceSummary = Get-Content -Raw -Encoding UTF8 -LiteralPath ([string]$numberingStage.summary_json) | ConvertFrom-Json
+$catalogConflictId = "numbering_catalog_governance.exemplar_catalog_conflict"
+$numberingSourceBlockers = @($numberingSourceSummary.release_blockers |
+    Where-Object { [string]$_.id -eq $catalogConflictId })
+$numberingStageBlockers = @($numberingStage.release_blockers |
+    Where-Object { [string]$_.id -eq $catalogConflictId })
+Assert-Equal -Actual $numberingSourceBlockers.Count -Expected 1 `
+    -Message "Numbering source summary should include one exemplar catalog conflict blocker."
+Assert-Equal -Actual $numberingStageBlockers.Count -Expected 1 `
+    -Message "Pipeline numbering stage should include one exemplar catalog conflict blocker."
+$numberingSourceBlocker = $numberingSourceBlockers[0]
+$numberingStageBlocker = $numberingStageBlockers[0]
+Assert-Equal -Actual ([string]$numberingStageBlocker.catalog_patch_plan_id) `
+    -Expected ([string]$numberingSourceBlocker.catalog_patch_plan_id) `
+    -Message "Pipeline numbering stage should preserve the catalog patch plan id on blockers."
+Assert-Equal -Actual ($numberingStageBlocker.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+    -Expected ($numberingSourceBlocker.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+    -Message "Pipeline numbering stage should preserve the nested catalog patch plan on blockers without reshaping it."
+$numberingSourceActions = @($numberingSourceSummary.action_items |
+    Where-Object { [string]$_.id -eq $catalogConflictId })
+$numberingStageActions = @($numberingStage.action_items |
+    Where-Object { [string]$_.id -eq $catalogConflictId })
+Assert-Equal -Actual $numberingSourceActions.Count -Expected 1 `
+    -Message "Numbering source summary should include one exemplar catalog conflict action item."
+Assert-Equal -Actual $numberingStageActions.Count -Expected 1 `
+    -Message "Pipeline numbering stage should include one exemplar catalog conflict action item."
+$numberingSourceAction = $numberingSourceActions[0]
+$numberingStageAction = $numberingStageActions[0]
+Assert-Equal -Actual ([string]$numberingStageAction.catalog_patch_plan_id) `
+    -Expected ([string]$numberingSourceAction.catalog_patch_plan_id) `
+    -Message "Pipeline numbering stage should preserve the catalog patch plan id on action items."
+Assert-Equal -Actual ($numberingStageAction.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+    -Expected ($numberingSourceAction.catalog_patch_plan | ConvertTo-Json -Depth 20 -Compress) `
+    -Message "Pipeline numbering stage should preserve the nested catalog patch plan on action items without reshaping it."
 $numberingInformationalActions = @($numberingStage.informational_action_items | Where-Object {
         [string]$_.id -in @("promote_numbering_catalog_exemplar", "register_numbering_catalog_baseline")
     })
@@ -489,6 +523,45 @@ Assert-ContainsText -Text $markdown -ExpectedText "audit_command:" `
     -Message "Pipeline Markdown should include stage audit commands."
 Assert-ContainsText -Text $markdown -ExpectedText "review_command:" `
     -Message "Pipeline Markdown should include stage review commands."
+Assert-ContainsText -Text $markdown -ExpectedText 'catalog_patch_plan_id: `numbering_catalog_governance.exemplar_catalog_conflict_patch_plan`' `
+    -Message "Pipeline Markdown should expose catalog patch plan ids."
+Assert-ContainsText -Text $markdown -ExpectedText 'schema: `featherdoc.numbering_catalog_governance_patch_plan.v1`' `
+    -Message "Pipeline Markdown should expose catalog patch plan schema."
+Assert-ContainsText -Text $markdown -ExpectedText 'status: `awaiting_authoritative_catalog`' `
+    -Message "Pipeline Markdown should expose catalog patch plan status."
+Assert-ContainsText -Text $markdown -ExpectedText 'safe_to_apply: `False`' `
+    -Message "Pipeline Markdown should expose catalog patch plan safety flags."
+Assert-ContainsText -Text $markdown -ExpectedText 'candidate_catalogs:' `
+    -Message "Pipeline Markdown should expose catalog patch plan candidate catalogs."
+Assert-ContainsText -Text $markdown -ExpectedText 'supported_patch_operations: `upsert_levels`, `upsert_overrides`, `remove_overrides`' `
+    -Message "Pipeline Markdown should expose supported catalog patch operations."
+Assert-ContainsText -Text $markdown -ExpectedText 'unsupported_automatic_changes:' `
+    -Message "Pipeline Markdown should expose unsupported catalog patch operation categories."
+Assert-ContainsText -Text $markdown -ExpectedText 'review_command:' `
+    -Message "Pipeline Markdown should expose catalog patch review commands."
+Assert-ContainsText -Text $markdown -ExpectedText 'patch_command_template:' `
+    -Message "Pipeline Markdown should expose catalog patch apply command templates."
+Assert-ContainsText -Text $markdown -ExpectedText 'lint_command_template:' `
+    -Message "Pipeline Markdown should expose catalog patch lint command templates."
+Assert-ContainsText -Text $markdown -ExpectedText 'verification_command_template:' `
+    -Message "Pipeline Markdown should expose catalog patch verification command templates."
+Assert-ContainsText -Text $markdown -ExpectedText 'required_steps:' `
+    -Message "Pipeline Markdown should expose ordered catalog patch required steps."
+$pipelineStepMarkers = @(
+    'sequence=`1` action=`select_authoritative_catalog`',
+    'sequence=`2` action=`review_candidate_diffs`',
+    'sequence=`3` action=`author_reviewed_patch`',
+    'sequence=`4` action=`apply_reviewed_patch`',
+    'sequence=`5` action=`lint_patched_catalog`',
+    'sequence=`6` action=`verify_patched_catalog`'
+)
+$pipelinePreviousStepIndex = -1
+foreach ($pipelineStepMarker in $pipelineStepMarkers) {
+    $pipelineStepIndex = $markdown.IndexOf($pipelineStepMarker, [System.StringComparison]::Ordinal)
+    Assert-True -Condition ($pipelineStepIndex -gt $pipelinePreviousStepIndex) `
+        -Message "Pipeline Markdown should preserve catalog patch required step order for '$pipelineStepMarker'."
+    $pipelinePreviousStepIndex = $pipelineStepIndex
+}
 Assert-ContainsText -Text $markdown -ExpectedText "repair_strategy:" `
     -Message "Pipeline Markdown should include stage repair strategies."
 Assert-ContainsText -Text $markdown -ExpectedText "command_template:" `

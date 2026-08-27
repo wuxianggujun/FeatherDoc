@@ -75,8 +75,9 @@ bool Document::replace_paragraph_text_revision(
                        std::string{document_xml_entry});
         return false;
     }
-    if (!split_paragraph_revision_text_at(paragraph_node, text_offset + text_length) ||
-        !split_paragraph_revision_text_at(paragraph_node, text_offset)) {
+    const std::vector<paragraph_revision_range_segment> range_segments{
+        {paragraph_node, paragraph_index, text_offset, text_length}};
+    if (!paragraph_revision_range_segments_supported(range_segments)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::operation_not_supported),
                        "paragraph text revision range requires plain text runs",
@@ -84,66 +85,100 @@ bool Document::replace_paragraph_text_revision(
         return false;
     }
 
-    const auto selected =
-        paragraph_revision_spans_in_range(paragraph_node, text_offset, text_length);
-    if (selected.empty()) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "text range is out of range",
-                       std::string{document_xml_entry});
+    const auto revision_id = this->reserve_review_revision_identifiers(2U);
+    if (!revision_id.has_value()) {
         return false;
     }
 
-    long revision_id = 1L;
-    collect_revision_ids(this->document, revision_id);
-    for (const auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, revision_id);
-        }
-    }
-    for (const auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_ids(part->xml, revision_id);
-        }
-    }
-
-    auto deletion = paragraph_node.insert_child_before("w:del", selected.front().run);
-    auto insertion = deletion == pugi::xml_node{}
-                         ? pugi::xml_node{}
-                         : paragraph_node.insert_child_before("w:ins", selected.front().run);
-    if (deletion == pugi::xml_node{} || insertion == pugi::xml_node{} ||
-        !append_revision_runs_from_spans(deletion, selected, "w:delText") ||
-        append_revision_run(insertion, selected.front().run, "w:t", text) ==
-            pugi::xml_node{}) {
-        if (deletion != pugi::xml_node{}) {
-            paragraph_node.remove_child(deletion);
-        }
-        if (insertion != pugi::xml_node{}) {
-            paragraph_node.remove_child(insertion);
-        }
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::not_enough_memory),
-                       "failed to replace paragraph text revision",
-                       std::string{document_xml_entry});
+    pugi::xml_document revision_document;
+    if (featherdoc::detail::checked_clone_xml_document(
+            this->document, revision_document) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            this->last_error_info, document_xml_entry);
         return false;
     }
 
-    for (const auto &span : selected) {
-        if (!paragraph_node.remove_child(span.run)) {
-            paragraph_node.remove_child(deletion);
-            paragraph_node.remove_child(insertion);
+    try {
+        auto work_paragraphs =
+            collect_revision_document_paragraphs(revision_document);
+        if (paragraph_index >= work_paragraphs.size()) {
             set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::not_enough_memory),
-                           "failed to replace paragraph text revision",
+                           document_errc::invalid_package_structure,
+                           "cloned document.xml paragraph list changed unexpectedly",
                            std::string{document_xml_entry});
             return false;
         }
+        auto work_paragraph = work_paragraphs[paragraph_index];
+
+        if (!checked_split_paragraph_revision_text_at(
+                work_paragraph, text_offset + text_length) ||
+            !checked_split_paragraph_revision_text_at(work_paragraph,
+                                                      text_offset)) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(
+                    this->last_error_info, document_xml_entry);
+            return false;
+        }
+
+        const auto selected = paragraph_revision_spans_in_range(
+            work_paragraph, text_offset, text_length);
+        if (selected.empty()) {
+            set_last_error(this->last_error_info,
+                           document_errc::invalid_package_structure,
+                           "cloned document.xml text range changed unexpectedly",
+                           std::string{document_xml_entry});
+            return false;
+        }
+
+        auto deletion = featherdoc::detail::checked_insert_xml_element_before(
+            work_paragraph, "w:del", selected.front().run);
+        auto insertion =
+            deletion == pugi::xml_node{}
+                ? pugi::xml_node{}
+                : featherdoc::detail::checked_insert_xml_element_before(
+                      work_paragraph, "w:ins", selected.front().run);
+        if (deletion == pugi::xml_node{} ||
+            insertion == pugi::xml_node{} ||
+            !append_revision_runs_from_spans(deletion, selected,
+                                             "w:delText") ||
+            append_revision_run(insertion, selected.front().run, "w:t",
+                                text) == pugi::xml_node{} ||
+            !set_revision_identity_metadata(deletion, *revision_id,
+                                            options.author, options.date) ||
+            !set_revision_identity_metadata(insertion, *revision_id + 1,
+                                            options.author, options.date)) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(
+                    this->last_error_info, document_xml_entry);
+            return false;
+        }
+
+        for (const auto &span : selected) {
+            if (!work_paragraph.remove_child(span.run)) {
+                set_last_error(this->last_error_info,
+                               document_errc::invalid_package_structure,
+                               "cloned document.xml run list changed unexpectedly",
+                               std::string{document_xml_entry});
+                return false;
+            }
+        }
+
+        const auto published_body =
+            this->document.child("w:document").child("w:body");
+        static_assert(noexcept(std::declval<pugi::xml_document &>() =
+                               std::declval<pugi::xml_document &&>()));
+        this->xml_handle_lifetime->retire_subtree(published_body);
+        this->document = std::move(revision_document);
+        this->rebind_internal_xml_handles();
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "paragraph text replacement revision ran out of memory before it could be published",
+            document_xml_entry);
+        return false;
     }
 
-    set_revision_identity_metadata(deletion, revision_id, options.author,
-                                   options.date);
-    set_revision_identity_metadata(insertion, revision_id + 1L, options.author,
-                                   options.date);
     this->last_error_info.clear();
     return true;
 }

@@ -229,7 +229,7 @@ auto run_set_table_cell_text_command(
     }
 
     featherdoc::Document doc;
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -338,7 +338,7 @@ auto run_insert_paragraph_after_table_command(
     }
 
     featherdoc::Document doc;
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }

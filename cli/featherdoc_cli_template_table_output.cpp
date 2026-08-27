@@ -2,6 +2,7 @@
 
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_template_inspect_options_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <iostream>
 #include <ostream>
@@ -51,7 +52,8 @@ void write_json_template_table_row_texts_result(
 
 void print_template_table_row_texts_result(
     const selected_template_part &selected, std::size_t table_index,
-    std::size_t start_row_index, const std::vector<std::vector<std::string>> &rows,
+    std::size_t start_row_index,
+    const std::vector<std::vector<std::string>> &rows,
     const std::optional<std::string> &bookmark_name,
     const std::optional<path_type> &output_path) {
     print_selected_template_part(std::cout, selected);
@@ -62,7 +64,7 @@ void print_template_table_row_texts_result(
               << "start_row_index: " << start_row_index << '\n'
               << "row_count: " << rows.size() << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -82,7 +84,8 @@ void print_template_table_row_texts_result(
 void write_json_template_table_cell_block_texts_result(
     std::ostream &stream, const selected_template_part &selected,
     std::size_t table_index, std::size_t start_row_index,
-    std::size_t start_cell_index, const std::vector<std::vector<std::string>> &rows,
+    std::size_t start_cell_index,
+    const std::vector<std::vector<std::string>> &rows,
     const std::optional<std::string> &bookmark_name) {
     stream << ',';
     write_json_selected_template_part(stream, selected);
@@ -112,13 +115,13 @@ void print_template_table_cell_block_texts_result(
               << "start_cell_index: " << start_cell_index << '\n'
               << "row_count: " << rows.size() << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
     for (std::size_t offset = 0U; offset < rows.size(); ++offset) {
-        std::cout << "row[" << (start_row_index + offset)
-                  << "] from cell[" << start_cell_index << "]: ";
+        std::cout << "row[" << (start_row_index + offset) << "] from cell["
+                  << start_cell_index << "]: ";
         for (std::size_t cell_offset = 0U; cell_offset < rows[offset].size();
              ++cell_offset) {
             if (cell_offset != 0U) {
@@ -222,7 +225,7 @@ void print_template_table_from_json_result(
     }
     std::cout << "row_count: " << patch.rows.size() << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -234,8 +237,8 @@ void print_template_table_from_json_result(
         } else {
             std::cout << "row[" << (patch.start_row_index + offset) << "]: ";
         }
-        for (std::size_t cell_index = 0U; cell_index < patch.rows[offset].size();
-             ++cell_index) {
+        for (std::size_t cell_index = 0U;
+             cell_index < patch.rows[offset].size(); ++cell_index) {
             if (cell_index != 0U) {
                 std::cout << '\t';
             }
@@ -247,8 +250,10 @@ void print_template_table_from_json_result(
 
 void write_json_template_tables_from_json_result(
     std::ostream &stream,
-    const std::vector<applied_template_table_json_batch_operation> &operations) {
-    stream << ",\"operation_count\":" << operations.size() << ",\"operations\":[";
+    const std::vector<applied_template_table_json_batch_operation>
+        &operations) {
+    stream << ",\"operation_count\":" << operations.size()
+           << ",\"operations\":[";
     for (std::size_t index = 0U; index < operations.size(); ++index) {
         if (index != 0U) {
             stream << ',';
@@ -269,7 +274,7 @@ void print_template_tables_from_json_result(
     const std::optional<path_type> &output_path) {
     std::cout << "operation_count: " << operations.size() << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -283,8 +288,7 @@ void print_template_tables_from_json_result(
                   << '\n';
         print_template_table_from_json_result(
             operations[index].selected, operations[index].table_index,
-            operations[index].patch, operations[index].selector,
-            std::nullopt);
+            operations[index].patch, operations[index].selector, std::nullopt);
     }
 }
 

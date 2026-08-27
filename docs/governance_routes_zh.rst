@@ -114,6 +114,10 @@ Style Merge Confidence
 * ``--min-confidence <0-100>``
 * ``--fail-on-suggestion``
 * ``recommended_min_confidence``
+* ``manual_review_required``
+* ``manual_review_reason_count``
+* ``manual_review_reasons``
+* ``manual_review_before_apply``
 
 Document Skeleton Governance
 ----------------------------
@@ -132,6 +136,9 @@ Document Skeleton Governance
 * ``style-merge-suggestions.json``
 * ``style_numbering_issue_count``
 * ``style_merge_suggestion_count``
+* ``style_merge_manual_review_reason_count``
+* ``manual_review_reasons``
+* ``manual_review_before_apply``
 * ``document skeleton governance``
 * ``exemplar catalog``
 * ``release blockers``
@@ -153,7 +160,46 @@ Numbering Catalog Governance
 * ``numbering catalog governance``
 * ``numbering_catalog_governance.real_corpus_confidence``
 * ``real_corpus_confidence``
+* ``real_corpus_alignment``
+* ``missing_baseline``
+* ``missing_exemplar``
+* ``numbering_catalog_governance.missing_baseline``
+* ``numbering_catalog_governance.missing_exemplar``
 * ``numbering_catalog_governance.real_corpus_alignment_gap``
+* ``exemplar_conflict_count``
+* ``exemplar_conflicts``
+* ``numbering_catalog_governance.exemplar_catalog_conflict``
+* ``review_numbering_catalog_exemplar_conflict``
+* ``featherdoc.numbering_catalog_governance_patch_plan.v1``
+* ``catalog_patch_plan_count``
+* ``catalog_patch_plans``
+* ``catalog_patch_plan_id``
+* ``catalog_patch_plan``
+* ``awaiting_authoritative_catalog``
+* ``safe_to_apply``
+* ``automatic_patch_available``
+* ``patch_apply_supported``
+* ``manual_review_required``
+* ``requires_authoritative_catalog_selection``
+* ``candidate_catalog_count``
+* ``candidate_catalog_paths``
+* ``candidate_catalog_displays``
+* ``reviewer_inputs``
+* ``supported_patch_operations``
+* ``upsert_levels``
+* ``upsert_overrides``
+* ``remove_overrides``
+* ``unsupported_automatic_changes``
+* ``definition_topology_changes``
+* ``instance_topology_changes``
+* ``unsupported_change_count``
+* ``patch_counts``
+* ``diff_commands``
+* ``review_command``
+* ``patch_command_template``
+* ``lint_command_template``
+* ``verification_command_template``
+* ``required_steps``
 * ``source_schema``
 * ``source_report_display``
 * ``source_json_display``

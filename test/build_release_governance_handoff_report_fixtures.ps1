@@ -45,6 +45,57 @@ $wordVisualStandardReviewMetadata = @(
     }
 )
 
+$catalogPatchPlanFixture = [ordered]@{
+    schema = "featherdoc.numbering_catalog_governance_patch_plan.v1"
+    id = "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan"
+    document_key = "contract.docx"
+    status = "awaiting_authoritative_catalog"
+    safe_to_apply = $false
+    automatic_patch_available = $false
+    patch_apply_supported = $false
+    manual_review_required = $true
+    requires_authoritative_catalog_selection = $true
+    candidate_catalog_count = 2
+    candidate_catalog_paths = @("output/catalog-a.json", "output/catalog-b.json")
+    candidate_catalog_displays = @(".\output\catalog-a.json", ".\output\catalog-b.json")
+    reviewer_inputs = @("authoritative_catalog_path", "reviewed_patch_path", "reviewed_expected_catalog_path")
+    supported_patch_operations = @("upsert_levels", "upsert_overrides", "remove_overrides")
+    unsupported_automatic_changes = @(
+        [ordered]@{
+            change_kind = "definition_topology_changes"
+            automatic_action = "manual_review_required"
+            reason = "The catalog patch CLI does not add or remove numbering definitions."
+        }
+    )
+    unsupported_change_count = 1
+    patch_counts = [ordered]@{
+        upsert_levels = 0
+        upsert_overrides = 0
+        remove_overrides = 0
+    }
+    diff_commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+    review_command = "featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json"
+    patch_command_template = "featherdoc_cli patch-numbering-catalog <authoritative-catalog.json> --patch-file <reviewed-patch.json> --output <patched-catalog.json> --json"
+    lint_command_template = "featherdoc_cli lint-numbering-catalog <patched-catalog.json> --json"
+    verification_command_template = "featherdoc_cli diff-numbering-catalog <patched-catalog.json> <reviewed-expected-catalog.json> --fail-on-diff --json"
+    required_steps = @(
+        [ordered]@{
+            sequence = 1
+            action = "select_authoritative_catalog"
+            required = $true
+            command_template = ""
+            description = "Choose exactly one candidate catalog as the authoritative source."
+        },
+        [ordered]@{
+            sequence = 2
+            action = "review_candidate_diffs"
+            required = $true
+            commands = @("featherdoc_cli diff-numbering-catalog output/catalog-a.json output/catalog-b.json --json")
+            description = "Compare the selected source with every other candidate before editing."
+        }
+    )
+}
+
 function Write-GovernanceFixtures {
     param(
         [string]$Root,
@@ -84,6 +135,8 @@ function Write-GovernanceFixtures {
                 status = "blocked"
                 action = "review_style_numbering_audit"
                 message = "Style numbering audit reported issues."
+                catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+                catalog_patch_plan = $catalogPatchPlanFixture
             }
         )
         action_item_count = 1
@@ -91,6 +144,8 @@ function Write-GovernanceFixtures {
             [ordered]@{
                 id = "preview_style_numbering_repair"
                 title = "Preview style numbering repair"
+                catalog_patch_plan_id = [string]$catalogPatchPlanFixture.id
+                catalog_patch_plan = $catalogPatchPlanFixture
             }
         )
         warnings = @(
@@ -338,7 +393,7 @@ function Write-GovernanceFixtures {
             status = "pending_review"
             release_ready = $false
             release_blocker_count = 1
-            warning_count = 1
+            warning_count = 2
             release_blockers = @(
                 [ordered]@{
                     id = "schema_patch_confidence_calibration.pending_schema_approvals"
@@ -356,7 +411,7 @@ function Write-GovernanceFixtures {
                     source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
                 }
             )
-            action_item_count = 1
+            action_item_count = 2
             action_items = @(
                 [ordered]@{
                     id = "resolve_pending_schema_approvals"
@@ -366,6 +421,24 @@ function Write-GovernanceFixtures {
                     project_id = "project-finance"
                     template_name = "invoice-template"
                     candidate_type = "rename"
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                },
+                [ordered]@{
+                    id = "align_business_template_corpus_metadata"
+                    action = "align_business_template_corpus_metadata"
+                    title = "Align schema patch candidate corpus metadata"
+                    open_command = "pwsh -ExecutionPolicy Bypass -File .\scripts\write_schema_patch_confidence_calibration_report.ps1"
+                    project_id = "project-office"
+                    template_name = "office-notice-template"
+                    business_document_type = "invoice"
+                    source_business_document_type = "notice"
+                    corpus_role = "experimental-business-template"
+                    source_corpus_role = "registered-business-template"
+                    candidate_type = "add"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_report = "output/schema-patch-confidence-calibration/summary.json"
                     source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
@@ -381,6 +454,26 @@ function Write-GovernanceFixtures {
                     project_id = "project-finance"
                     template_name = "invoice-template"
                     candidate_type = "rename"
+                    source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
+                    source_report = "output/schema-patch-confidence-calibration/summary.json"
+                    source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                    source_json = "output/schema-patch-confidence-calibration/summary.json"
+                    source_json_display = ".\output\schema-patch-confidence-calibration\summary.json"
+                },
+                [ordered]@{
+                    id = "schema_patch_confidence_calibration.mismatched_business_template_corpus_metadata"
+                    action = "align_business_template_corpus_metadata"
+                    message = "Some schema patch candidates disagree with their source business template corpus metadata."
+                    mismatched_corpus_metadata_count = 1
+                    business_document_type = "invoice"
+                    source_business_document_type = "notice"
+                    corpus_role = "experimental-business-template"
+                    source_corpus_role = "registered-business-template"
+                    business_document_type_mismatch = $true
+                    corpus_role_mismatch = $true
+                    project_id = "project-office"
+                    template_name = "office-notice-template"
+                    candidate_type = "add"
                     source_schema = "featherdoc.schema_patch_confidence_calibration_report.v1"
                     source_report = "output/schema-patch-confidence-calibration/summary.json"
                     source_report_display = ".\output\schema-patch-confidence-calibration\summary.json"

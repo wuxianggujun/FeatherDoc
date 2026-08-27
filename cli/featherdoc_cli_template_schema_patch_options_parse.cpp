@@ -1,6 +1,7 @@
 #include "featherdoc_cli_template_schema_options_parse.hpp"
 
 #include "featherdoc_cli_template_schema_options_parse_support.hpp"
+#include "featherdoc_cli_text.hpp"
 
 namespace featherdoc_cli {
 
@@ -94,7 +95,7 @@ auto parse_preview_template_schema_patch_options(
             return false;
         }
         options.right_schema_path =
-            std::filesystem::path(std::string(argument));
+            path_from_cli_utf8(argument);
     }
 
     if (options.patch_path.has_value() == options.right_schema_path.has_value()) {

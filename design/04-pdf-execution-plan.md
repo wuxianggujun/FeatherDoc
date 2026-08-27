@@ -343,7 +343,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_unicode_font_roundtrip_visual" --o
 - `.bpdf-roundtrip-msvc/pdf_unicode_font_visual_regression/report/subset-contact-sheet.png`
 - `.bpdf-roundtrip-msvc/pdf_unicode_font_visual_regression/report/comparison-contact-sheet.png`
 
-下一步入口：进入 E5 前，先阅读 `cli/featherdoc_cli.cpp`、`cli/featherdoc_cli_usage.cpp`、`test/pdf_cli_export_tests.cpp`、`test/cli_tests.cpp` 和 `test/cli_usage_tests.cpp`，确认 `export-pdf` 参数、未启用 PDF 时的错误、font mapping / CJK fallback 参数和 `--summary-json` 当前做到哪一步。
+下一步入口：进入 E5 前，先阅读 `cli/featherdoc_cli_main.cpp`、`cli/featherdoc_cli_dispatch.cpp`、`cli/featherdoc_cli_usage.cpp`、`cli/featherdoc_cli_pdf_parse.cpp`、`cli/featherdoc_cli_pdf_export_commands.cpp`、`test/cli_pdf_parse_tests.cpp`、`test/pdf_cli_export_tests.cpp` 和 `test/cli_usage_tests.cpp`，确认 `export-pdf` 参数、未启用 PDF 时的错误、font mapping / CJK fallback 参数和 `--summary-json` 当前做到哪一步。
 
 ### 推荐验证命令
 
@@ -381,7 +381,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdf_regression_(cjk|document-eastasia)
 
 2026-05-07：
 
-- 已先阅读 `cli/featherdoc_cli.cpp`、`cli/featherdoc_cli_usage.cpp`、`test/pdf_cli_export_tests.cpp`、`test/cli_tests.cpp` 和 `test/cli_usage_tests.cpp`，
+- 已先阅读 `cli/featherdoc_cli_main.cpp`、`cli/featherdoc_cli_dispatch.cpp`、`cli/featherdoc_cli_usage.cpp`、`cli/featherdoc_cli_pdf_parse.cpp`、`cli/featherdoc_cli_pdf_export_commands.cpp`、`test/cli_pdf_parse_tests.cpp`、`test/pdf_cli_export_tests.cpp` 和 `test/cli_usage_tests.cpp`，
   确认当前 E5 实际进度：CLI 已具备 `export-pdf` 用户入口，`--output`、`--font-file`、`--cjk-font-file`、`--font-map`、
   `--render-headers-and-footers`、`--expand-header-footer-page-placeholders`、`--render-inline-images`、`--no-font-subset`、
   `--no-system-font-fallbacks`、`--summary-json` 和 `--json`。
@@ -695,7 +695,7 @@ ctest --test-dir .bpdf-roundtrip-msvc -R "pdfium_.*probe|pdf_import_structure" -
   table continuation disposition、blocker 和 header match kind 枚举成员。
 - 文档契约现在会要求 `docs/pdf_import.rst` 覆盖这些源定义中的公开字符串，
   其中 `PdfDocumentImportFailureKind::none` 仍作为内部状态不要求写入失败文档枚举。
-- 同一回归还检查 `cli/featherdoc_cli.cpp` 为每个 enum 成员保留对应
+- 同一回归还检查 `cli/featherdoc_cli_pdf_import_output.cpp` 为每个 enum 成员保留对应
   `return "<member>"` 映射，避免源码 enum、CLI JSON 和用户文档三方漂移。
 
 2026-05-15 继续推进（PDF import confidence 阈值文案统一）：

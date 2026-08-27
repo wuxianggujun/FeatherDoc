@@ -17,35 +17,40 @@ auto set_last_error(featherdoc::document_error_info &error_info,
                     std::optional<std::ptrdiff_t> xml_offset = std::nullopt)
     -> std::error_code;
 
-auto initialize_xml_document(pugi::xml_document &xml_document, std::string_view xml_text)
-    -> bool {
-    xml_document.reset();
-    return static_cast<bool>(
-        xml_document.load_buffer(xml_text.data(), xml_text.size()));
+auto relationships_document_allows_mutation(
+    const pugi::xml_document &relationships_document,
+    bool has_relationships_part, std::string_view relationships_entry_name,
+    featherdoc::document_error_info &last_error_info) -> bool {
+    if (featherdoc::detail::package_relationships_document_allows_mutation(
+            relationships_document, has_relationships_part)) {
+        return true;
+    }
+    set_last_error(
+        last_error_info, featherdoc::document_errc::invalid_package_structure,
+        std::string{relationships_entry_name} +
+            " does not contain a valid Relationships root in the package "
+            "relationships namespace; relationship mutations are disabled",
+        std::string{relationships_entry_name});
+    return false;
 }
 
-auto initialize_empty_relationships_document(pugi::xml_document &xml_document)
-    -> bool {
-    return initialize_xml_document(xml_document, empty_relationships_xml);
-}
-
-void ensure_attribute_value(pugi::xml_node node, const char *name, std::string_view value) {
+bool ensure_attribute_value(pugi::xml_node node, const char *name,
+                            std::string_view value) {
     if (node == pugi::xml_node{}) {
-        return;
+        return false;
     }
 
-    auto attribute = node.attribute(name);
-    if (attribute == pugi::xml_attribute{}) {
-        attribute = node.append_attribute(name);
-    }
-    attribute.set_value(std::string{value}.c_str());
+    return featherdoc::detail::checked_set_xml_attribute_value(node, name,
+                                                               value);
 }
 
 auto next_relationship_id(pugi::xml_node relationships) -> std::string {
     std::unordered_set<std::string> used_relationship_ids;
-    for (auto relationship = relationships.child("Relationship");
+    for (auto relationship =
+             featherdoc::detail::first_package_relationship(relationships);
          relationship != pugi::xml_node{};
-         relationship = relationship.next_sibling("Relationship")) {
+         relationship =
+             featherdoc::detail::next_package_relationship(relationship)) {
         const auto id = relationship.attribute("Id").value();
         if (*id != '\0') {
             used_relationship_ids.emplace(id);

@@ -92,6 +92,110 @@ TEST_CASE("set_paragraph_list creates numbering parts and preserves them across 
     fs::remove(target);
 }
 
+TEST_CASE("numbering mutations save back to a non-default relationship target") {
+    namespace fs = std::filesystem;
+
+    const fs::path target =
+        fs::current_path() / "numbering_custom_target_roundtrip.docx";
+    fs::remove(target);
+
+    const std::string content_types_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels"
+           ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/custom/numbering.xml"
+            ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>
+)";
+    const std::string document_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>numbered item</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+)";
+    const std::string document_relationships_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rNumbering"
+                Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+                Target="custom/numbering.xml"/>
+</Relationships>
+)";
+    const std::string numbering_xml =
+        R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+</w:numbering>
+)";
+
+    write_test_archive_entries(
+        target,
+        {
+            {test_content_types_xml_entry, content_types_xml},
+            {test_relationships_xml_entry, test_relationships_xml},
+            {test_document_xml_entry, document_xml},
+            {"word/_rels/document.xml.rels", document_relationships_xml},
+            {"word/custom/numbering.xml", numbering_xml},
+        });
+
+    featherdoc::Document doc(target);
+    CHECK_FALSE(doc.open());
+
+    const auto invalid_definition = featherdoc::numbering_definition{};
+    CHECK_FALSE(
+        doc.ensure_numbering_definition(invalid_definition).has_value());
+    CHECK_EQ(doc.last_error().entry_name, "word/custom/numbering.xml");
+
+    auto paragraph = doc.paragraphs();
+    REQUIRE(paragraph.has_next());
+    CHECK(doc.set_paragraph_list(paragraph, featherdoc::list_kind::bullet));
+
+    CHECK_FALSE(doc.find_numbering_definition(9999U).has_value());
+    CHECK_EQ(doc.last_error().code,
+             std::make_error_code(std::errc::invalid_argument));
+    CHECK_EQ(doc.last_error().entry_name, "word/custom/numbering.xml");
+    CHECK_NE(doc.last_error().detail.find("word/custom/numbering.xml"),
+             std::string::npos);
+    CHECK_EQ(doc.last_error().detail.find("'word/numbering.xml'"),
+             std::string::npos);
+
+    CHECK_FALSE(doc.save());
+
+    CHECK_FALSE(test_docx_entry_exists(target, "word/numbering.xml"));
+    const auto saved_numbering_xml =
+        read_test_docx_entry(target, "word/custom/numbering.xml");
+    CHECK_NE(saved_numbering_xml.find("FeatherDocBulletList"),
+             std::string::npos);
+    CHECK_NE(saved_numbering_xml.find("<w:abstractNum"), std::string::npos);
+    CHECK_NE(saved_numbering_xml.find("<w:num "), std::string::npos);
+
+    const auto saved_document_xml =
+        read_test_docx_entry(target, test_document_xml_entry);
+    CHECK_NE(saved_document_xml.find("<w:numPr>"), std::string::npos);
+
+    const auto saved_relationships =
+        read_test_docx_entry(target, "word/_rels/document.xml.rels");
+    CHECK_NE(saved_relationships.find("Target=\"custom/numbering.xml\""),
+             std::string::npos);
+    CHECK_EQ(saved_relationships.find("Target=\"numbering.xml\""),
+             std::string::npos);
+
+    featherdoc::Document reopened(target);
+    CHECK_FALSE(reopened.open());
+    auto reopened_paragraph = reopened.paragraphs();
+    REQUIRE(reopened_paragraph.has_next());
+    CHECK(reopened.clear_paragraph_list(reopened_paragraph));
+    CHECK_FALSE(reopened.save());
+    CHECK_FALSE(test_docx_entry_exists(target, "word/numbering.xml"));
+
+    fs::remove(target);
+}
+
 TEST_CASE("clear_paragraph_list removes numbering markup and invalid level is rejected") {
     namespace fs = std::filesystem;
 
@@ -124,6 +228,399 @@ TEST_CASE("clear_paragraph_list removes numbering markup and invalid level is re
     CHECK_EQ(count_substring_occurrences(saved_document_xml, "<w:pPr>"), 0);
 
     fs::remove(target);
+}
+
+TEST_CASE("numbering APIs reject paragraphs owned by another document without "
+          "changing either package") {
+    namespace fs = std::filesystem;
+
+    const auto owner_baseline =
+        fs::current_path() / "foreign_paragraph_owner_baseline.docx";
+    const auto receiver_baseline =
+        fs::current_path() / "foreign_paragraph_receiver_baseline.docx";
+    fs::remove(owner_baseline);
+    fs::remove(receiver_baseline);
+
+    {
+        featherdoc::Document owner(owner_baseline);
+        REQUIRE_FALSE(owner.create_empty());
+        auto paragraph = owner.paragraphs();
+        REQUIRE(paragraph.has_next());
+        REQUIRE(owner.set_paragraph_list(paragraph,
+                                         featherdoc::list_kind::bullet));
+        REQUIRE(paragraph.add_run("foreign owner").has_next());
+        REQUIRE_FALSE(owner.save());
+    }
+
+    std::uint32_t receiver_definition_id = 0U;
+    {
+        featherdoc::Document receiver(receiver_baseline);
+        REQUIRE_FALSE(receiver.create_empty());
+        auto definition = featherdoc::numbering_definition{};
+        definition.name = "ForeignParagraphReceiverDefinition";
+        definition.levels = {featherdoc::numbering_level_definition{
+            featherdoc::list_kind::decimal, 1U, 0U, "%1."}};
+        const auto definition_id =
+            receiver.ensure_numbering_definition(definition);
+        REQUIRE(definition_id.has_value());
+        receiver_definition_id = *definition_id;
+        REQUIRE_FALSE(receiver.save());
+    }
+
+    const auto verify_rejected =
+        [&](std::string_view suffix, const auto &mutation) {
+            CAPTURE(suffix);
+            const auto owner_path =
+                fs::current_path() /
+                ("foreign_paragraph_owner_" + std::string{suffix} +
+                 ".docx");
+            const auto receiver_path =
+                fs::current_path() /
+                ("foreign_paragraph_receiver_" + std::string{suffix} +
+                 ".docx");
+            fs::remove(owner_path);
+            fs::remove(receiver_path);
+            REQUIRE(fs::copy_file(owner_baseline, owner_path));
+            REQUIRE(fs::copy_file(receiver_baseline, receiver_path));
+
+            const auto owner_entries_before =
+                read_test_archive_entries(owner_path);
+            const auto receiver_entries_before =
+                read_test_archive_entries(receiver_path);
+
+            featherdoc::Document owner(owner_path);
+            featherdoc::Document receiver(receiver_path);
+            REQUIRE_FALSE(owner.open());
+            REQUIRE_FALSE(receiver.open());
+            auto foreign_paragraph = owner.paragraphs();
+            REQUIRE(foreign_paragraph.has_next());
+
+            CHECK_FALSE(mutation(receiver, foreign_paragraph));
+            CHECK_EQ(receiver.last_error().code,
+                     std::make_error_code(std::errc::invalid_argument));
+            CHECK(foreign_paragraph.has_next());
+
+            REQUIRE_FALSE(owner.save());
+            REQUIRE_FALSE(receiver.save());
+            CHECK(read_test_archive_entries(owner_path) ==
+                  owner_entries_before);
+            CHECK(read_test_archive_entries(receiver_path) ==
+                  receiver_entries_before);
+
+            fs::remove(owner_path);
+            fs::remove(receiver_path);
+        };
+
+    verify_rejected(
+        "set_definition",
+        [&](featherdoc::Document &receiver,
+            featherdoc::Paragraph foreign_paragraph) {
+            return receiver.set_paragraph_numbering(
+                foreign_paragraph, receiver_definition_id);
+        });
+    verify_rejected(
+        "set_list", [](featherdoc::Document &receiver,
+                       featherdoc::Paragraph foreign_paragraph) {
+            return receiver.set_paragraph_list(
+                foreign_paragraph, featherdoc::list_kind::decimal);
+        });
+    verify_rejected(
+        "restart_list", [](featherdoc::Document &receiver,
+                           featherdoc::Paragraph foreign_paragraph) {
+            return receiver.restart_paragraph_list(
+                foreign_paragraph, featherdoc::list_kind::bullet);
+        });
+    verify_rejected(
+        "clear_list", [](featherdoc::Document &receiver,
+                         featherdoc::Paragraph foreign_paragraph) {
+            return receiver.clear_paragraph_list(foreign_paragraph);
+        });
+
+    fs::remove(owner_baseline);
+    fs::remove(receiver_baseline);
+}
+
+TEST_CASE("paragraph and style numbering canonicalize duplicate numPr nodes "
+          "in schema order") {
+    namespace fs = std::filesystem;
+
+    const auto target =
+        fs::current_path() / "duplicate_numbering_properties.docx";
+    fs::remove(target);
+
+    const auto content_types_xml = std::string{R"(
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>)"};
+    const auto document_relationships_xml = std::string{R"(
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>)"};
+    const auto document_xml = std::string{R"(
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Normal"/>
+        <w:numPr><w:ilvl w:val="7"/><w:numId w:val="71"/></w:numPr>
+        <w:numPr><w:ilvl w:val="8"/><w:numId w:val="81"/></w:numPr>
+        <w:bidi/>
+      </w:pPr>
+      <w:r><w:t>clear duplicate paragraph numbering</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Normal"/>
+        <w:keepNext/>
+        <w:numPr><w:ilvl w:val="6"/><w:numId w:val="61"/></w:numPr>
+        <w:numPr><w:ilvl w:val="5"/><w:numId w:val="51"/></w:numPr>
+        <w:bidi/>
+        <w:spacing w:after="120"/>
+      </w:pPr>
+      <w:r><w:t>set canonical paragraph numbering</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>)"};
+    const auto numbering_xml = std::string{R"(
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="7">
+    <w:multiLevelType w:val="multilevel"/>
+    <w:name w:val="DuplicateOrderingDefinition"/>
+    <w:lvl w:ilvl="0">
+      <w:start w:val="1"/>
+      <w:numFmt w:val="decimal"/>
+      <w:lvlText w:val="%1."/>
+    </w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="11"><w:abstractNumId w:val="7"/></w:num>
+</w:numbering>)"};
+    const auto styles_xml = std::string{R"(
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="SetDuplicateStyle">
+    <w:name w:val="Set Duplicate Style"/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:numPr><w:ilvl w:val="4"/><w:numId w:val="41"/></w:numPr>
+      <w:numPr><w:ilvl w:val="3"/><w:numId w:val="31"/></w:numPr>
+      <w:bidi/>
+      <w:spacing w:after="80"/>
+    </w:pPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="ClearDuplicateStyle">
+    <w:name w:val="Clear Duplicate Style"/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:numPr><w:ilvl w:val="2"/><w:numId w:val="21"/></w:numPr>
+      <w:numPr><w:ilvl w:val="1"/><w:numId w:val="11"/></w:numPr>
+      <w:bidi/>
+    </w:pPr>
+  </w:style>
+</w:styles>)"};
+
+    write_test_archive_entries(
+        target,
+        {{test_content_types_xml_entry, content_types_xml},
+         {test_relationships_xml_entry, test_relationships_xml},
+         {test_document_xml_entry, document_xml},
+         {"word/_rels/document.xml.rels", document_relationships_xml},
+         {"word/numbering.xml", numbering_xml},
+         {"word/styles.xml", styles_xml}});
+
+    featherdoc::Document document(target);
+    REQUIRE_FALSE(document.open());
+
+    auto clear_paragraph = document.paragraphs();
+    REQUIRE(clear_paragraph.has_next());
+    CHECK(document.clear_paragraph_list(clear_paragraph));
+
+    auto set_paragraph = document.paragraphs();
+    REQUIRE(set_paragraph.has_next());
+    set_paragraph.next();
+    REQUIRE(set_paragraph.has_next());
+    CHECK(document.set_paragraph_numbering(set_paragraph, 7U));
+    CHECK(document.set_paragraph_style_numbering("SetDuplicateStyle", 7U));
+    CHECK(document.clear_paragraph_style_numbering("ClearDuplicateStyle"));
+    REQUIRE_FALSE(document.save());
+
+    const auto child_names = [](pugi::xml_node parent) {
+        auto names = std::vector<std::string>{};
+        for (auto child = parent.first_child(); child != pugi::xml_node{};
+             child = child.next_sibling()) {
+            names.emplace_back(child.name());
+        }
+        return names;
+    };
+
+    pugi::xml_document saved_document;
+    REQUIRE(saved_document.load_string(
+        read_test_docx_entry(target, test_document_xml_entry).c_str()));
+    auto saved_paragraph =
+        saved_document.child("w:document").child("w:body").child("w:p");
+    REQUIRE(saved_paragraph != pugi::xml_node{});
+    const auto cleared_paragraph_properties = saved_paragraph.child("w:pPr");
+    REQUIRE(cleared_paragraph_properties != pugi::xml_node{});
+    CHECK_EQ(count_named_children(cleared_paragraph_properties, "w:numPr"),
+             0U);
+    const auto expected_cleared_paragraph_order =
+        std::vector<std::string>{"w:pStyle", "w:bidi"};
+    CHECK(child_names(cleared_paragraph_properties) ==
+          expected_cleared_paragraph_order);
+
+    saved_paragraph = saved_paragraph.next_sibling("w:p");
+    REQUIRE(saved_paragraph != pugi::xml_node{});
+    const auto set_paragraph_properties = saved_paragraph.child("w:pPr");
+    REQUIRE(set_paragraph_properties != pugi::xml_node{});
+    CHECK_EQ(count_named_children(set_paragraph_properties, "w:numPr"), 1U);
+    const auto expected_set_paragraph_order = std::vector<std::string>{
+        "w:pStyle", "w:keepNext", "w:numPr", "w:bidi", "w:spacing"};
+    CHECK(child_names(set_paragraph_properties) ==
+          expected_set_paragraph_order);
+    const auto set_paragraph_num_pr =
+        set_paragraph_properties.child("w:numPr");
+    REQUIRE(set_paragraph_num_pr != pugi::xml_node{});
+    CHECK_EQ(count_named_children(set_paragraph_num_pr, "w:ilvl"), 1U);
+    CHECK_EQ(count_named_children(set_paragraph_num_pr, "w:numId"), 1U);
+    CHECK_EQ(std::string_view{
+                 set_paragraph_num_pr.child("w:ilvl").attribute("w:val").value()},
+             "0");
+    CHECK_EQ(std::string_view{
+                 set_paragraph_num_pr.child("w:numId").attribute("w:val").value()},
+             "11");
+
+    pugi::xml_document saved_styles;
+    REQUIRE(saved_styles.load_string(
+        read_test_docx_entry(target, "word/styles.xml").c_str()));
+    const auto saved_styles_root = saved_styles.child("w:styles");
+    REQUIRE(saved_styles_root != pugi::xml_node{});
+
+    const auto set_style =
+        find_style_xml_node(saved_styles_root, "SetDuplicateStyle");
+    REQUIRE(set_style != pugi::xml_node{});
+    const auto set_style_properties = set_style.child("w:pPr");
+    REQUIRE(set_style_properties != pugi::xml_node{});
+    CHECK_EQ(count_named_children(set_style_properties, "w:numPr"), 1U);
+    const auto expected_set_style_order = std::vector<std::string>{
+        "w:keepNext", "w:numPr", "w:bidi", "w:spacing"};
+    CHECK(child_names(set_style_properties) == expected_set_style_order);
+    const auto set_style_num_pr = set_style_properties.child("w:numPr");
+    REQUIRE(set_style_num_pr != pugi::xml_node{});
+    CHECK_EQ(count_named_children(set_style_num_pr, "w:ilvl"), 1U);
+    CHECK_EQ(count_named_children(set_style_num_pr, "w:numId"), 1U);
+    CHECK_EQ(std::string_view{
+                 set_style_num_pr.child("w:ilvl").attribute("w:val").value()},
+             "0");
+    CHECK_EQ(std::string_view{
+                 set_style_num_pr.child("w:numId").attribute("w:val").value()},
+             "11");
+
+    const auto cleared_style =
+        find_style_xml_node(saved_styles_root, "ClearDuplicateStyle");
+    REQUIRE(cleared_style != pugi::xml_node{});
+    const auto cleared_style_properties = cleared_style.child("w:pPr");
+    REQUIRE(cleared_style_properties != pugi::xml_node{});
+    CHECK_EQ(count_named_children(cleared_style_properties, "w:numPr"), 0U);
+    const auto expected_cleared_style_order =
+        std::vector<std::string>{"w:keepNext", "w:bidi"};
+    CHECK(child_names(cleared_style_properties) ==
+          expected_cleared_style_order);
+
+    fs::remove(target);
+}
+
+TEST_CASE("clearing absent style numbering does not attach a styles part") {
+    namespace fs = std::filesystem;
+
+    const auto verify_no_attachment =
+        [&](std::string_view suffix, std::string_view style_id,
+            bool expected_success) {
+            CAPTURE(suffix);
+            CAPTURE(style_id);
+            const auto target =
+                fs::current_path() /
+                ("clear_absent_style_numbering_" + std::string{suffix} +
+                 ".docx");
+            fs::remove(target);
+            const auto document_xml = std::string{R"(
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p><w:r><w:t>no styles part</w:t></w:r></w:p></w:body>
+</w:document>)"};
+            write_test_docx(target, document_xml);
+            const auto entries_before = read_test_archive_entries(target);
+            const auto content_types_before = read_test_docx_entry(
+                target, test_content_types_xml_entry);
+            const auto root_relationships_before = read_test_docx_entry(
+                target, test_relationships_xml_entry);
+            const auto archive_entry_names = [](const auto &entries) {
+                std::vector<std::string> names;
+                names.reserve(entries.size());
+                for (const auto &[name, content] : entries) {
+                    static_cast<void>(content);
+                    names.push_back(name);
+                }
+                std::sort(names.begin(), names.end());
+                return names;
+            };
+            const auto entry_names_before = archive_entry_names(entries_before);
+
+            featherdoc::Document document(target);
+            REQUIRE_FALSE(document.open());
+            const auto cleared =
+                document.clear_paragraph_style_numbering(style_id);
+            CHECK_EQ(cleared, expected_success);
+            if (expected_success) {
+                CHECK_FALSE(document.last_error());
+            } else {
+                CHECK_EQ(document.last_error().code,
+                         std::make_error_code(std::errc::invalid_argument));
+            }
+            REQUIRE_FALSE(document.save());
+
+            CHECK_FALSE(test_docx_entry_exists(target, "word/styles.xml"));
+            CHECK_FALSE(test_docx_entry_exists(
+                target, "word/_rels/document.xml.rels"));
+            const auto saved_content_types =
+                read_test_docx_entry(target, test_content_types_xml_entry);
+            CHECK_EQ(saved_content_types, content_types_before);
+            CHECK_EQ(saved_content_types.find("/word/styles.xml"),
+                     std::string::npos);
+            CHECK_EQ(saved_content_types.find(
+                         "wordprocessingml.styles+xml"),
+                     std::string::npos);
+            CHECK_EQ(read_test_docx_entry(target, test_relationships_xml_entry),
+                     root_relationships_before);
+
+            const auto entries_after = read_test_archive_entries(target);
+            CHECK(archive_entry_names(entries_after) == entry_names_before);
+
+            pugi::xml_document saved_document;
+            REQUIRE(saved_document.load_string(
+                read_test_docx_entry(target, test_document_xml_entry).c_str()));
+            const auto saved_body =
+                saved_document.child("w:document").child("w:body");
+            REQUIRE(saved_body != pugi::xml_node{});
+            const auto saved_paragraph = saved_body.child("w:p");
+            REQUIRE(saved_paragraph != pugi::xml_node{});
+            CHECK(saved_paragraph.next_sibling("w:p") == pugi::xml_node{});
+            CHECK(saved_paragraph.child("w:pPr") == pugi::xml_node{});
+            const auto saved_run = saved_paragraph.child("w:r");
+            REQUIRE(saved_run != pugi::xml_node{});
+            CHECK(saved_run.next_sibling("w:r") == pugi::xml_node{});
+            const auto saved_text = saved_run.child("w:t");
+            REQUIRE(saved_text != pugi::xml_node{});
+            CHECK_EQ(std::string_view{saved_text.text().get()},
+                     "no styles part");
+            CHECK(saved_text.next_sibling("w:t") == pugi::xml_node{});
+
+            fs::remove(target);
+        };
+
+    verify_no_attachment("normal_noop", "Normal", true);
+    verify_no_attachment("missing_style", "MissingStyle", false);
 }
 
 TEST_CASE("restart_paragraph_list creates a fresh numbering instance and adjacent items continue it") {

@@ -71,6 +71,12 @@ if (-not $SkipSmoke) {
             "-TaskOutputRoot"
             $taskOutputRootForChild
         )
+        if ($SmokeReviewVerdict -ne "undecided" -or -not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+            $prepareTaskArgs += @("-ReviewVerdict", $SmokeReviewVerdict)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($SmokeReviewNote)) {
+            $prepareTaskArgs += @("-ReviewNote", $SmokeReviewNote)
+        }
         if ($OpenTaskDirs) {
             $prepareTaskArgs += "-OpenTaskDir"
         }

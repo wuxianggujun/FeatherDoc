@@ -44,7 +44,7 @@ auto parse_bookmark_text_output_option(
         return option_parse_result::error;
     }
 
-    output_path = path_type(std::string(arguments[index + 1U]));
+    output_path = path_from_cli_utf8(arguments[index + 1U]);
     ++index;
     return option_parse_result::matched;
 }
@@ -73,7 +73,7 @@ auto parse_bookmark_text_binding_option(
     if (argument == "--set") {
         binding.source.text = std::string(arguments[index + 2U]);
     } else {
-        binding.source.text_file = path_type(std::string(arguments[index + 2U]));
+        binding.source.text_file = path_from_cli_utf8(arguments[index + 2U]);
     }
 
     binding_sources.push_back(std::move(binding));

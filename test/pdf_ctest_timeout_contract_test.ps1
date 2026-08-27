@@ -21,6 +21,8 @@ if ($propertyMatches.Count -eq 0) {
 }
 
 $expectedTimeouts = @{
+    pdf_document_adapter_font = "120"
+    pdf_cli_export = "180"
     pdf_cli_import = "120"
 }
 $pdfTests = @()

@@ -37,6 +37,8 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "add_explicit_confidence_metadata",
                 "add_business_template_source_metadata",
                 "add_business_template_document_type_metadata",
+                "add_business_template_corpus_role_metadata",
+                "align_business_template_corpus_metadata",
                 "review_schema_patch_confidence_calibration_evidence"
             ) } {
             Add-SchemaPatchConfidenceCalibrationGuidanceLines `
@@ -95,6 +97,7 @@ function Get-ReleaseBlockerActionGuidanceLines {
                 "register_numbering_catalog_baseline",
                 "review_numbering_catalog_check_issues",
                 "review_numbering_catalog_governance_sources",
+                "review_numbering_catalog_exemplar_conflict",
                 "review_numbering_catalog_real_corpus_alignment",
                 "review_style_numbering_audit"
             ) } {

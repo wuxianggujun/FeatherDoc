@@ -33,7 +33,7 @@ auto run_inspect_update_fields_on_open_command(
         }
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        json_output)) {
         return 1;
     }
@@ -74,7 +74,7 @@ auto run_set_update_fields_on_open_command(
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }

@@ -1,14 +1,18 @@
 bool Document::append_drawing_image_part(
     pugi::xml_document &xml_document, std::string_view xml_entry_name,
-    pugi::xml_document &relationships_document, std::string_view relationships_entry_name,
-    bool &has_relationships_part, bool &relationships_dirty, pugi::xml_node parent,
+    pugi::xml_document &relationships_document,
+    std::string_view relationships_entry_name, bool &has_relationships_part,
+    bool &relationships_dirty, pugi::xml_node parent,
     pugi::xml_node insert_before, std::string image_data, std::string extension,
     std::string content_type, std::string display_name, std::uint32_t width_px,
     std::uint32_t height_px,
     std::optional<featherdoc::floating_image_options> floating_options) {
+    extension = normalize_image_extension(extension);
+
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before appending an image");
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before appending an image");
         return false;
     }
 
@@ -28,6 +32,12 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
+    if (!relationships_document_allows_mutation(
+            relationships_document, has_relationships_part,
+            relationships_entry_name, this->last_error_info)) {
+        return false;
+    }
+
     if (const auto error = this->ensure_content_types_loaded()) {
         return false;
     }
@@ -42,16 +52,21 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
-    if (relationships_document.child("Relationships") == pugi::xml_node{} &&
-        !initialize_empty_relationships_document(relationships_document)) {
-        set_last_error(this->last_error_info,
-                       document_errc::relationships_xml_parse_failed,
-                       "failed to initialize default relationships XML",
-                       std::string{relationships_entry_name});
-        return false;
+    if (featherdoc::detail::package_relationships_root(
+            relationships_document) == pugi::xml_node{}) {
+        const auto relationships_initialization =
+            initialize_empty_relationships_document(relationships_document);
+        if (!relationships_initialization) {
+            (void)featherdoc::detail::set_fixed_xml_initialization_failure(
+                this->last_error_info, relationships_initialization,
+                document_errc::relationships_xml_parse_failed,
+                relationships_entry_name);
+            return false;
+        }
     }
 
-    auto relationships = relationships_document.child("Relationships");
+    auto relationships =
+        featherdoc::detail::package_relationships_root(relationships_document);
     if (relationships == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::relationships_xml_parse_failed,
@@ -61,12 +76,22 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
-    auto types = this->content_types.child("Types");
+    auto types = featherdoc::detail::package_content_types_root(
+        this->content_types);
     if (types == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::content_types_xml_parse_failed,
                        "[Content_Types].xml does not contain a Types root",
                        std::string{content_types_xml_entry});
+        return false;
+    }
+
+    const auto drawing_id = this->next_drawing_object_id();
+    if (!drawing_id.has_value()) {
+        set_last_error(this->last_error_info,
+                       document_errc::identifier_space_exhausted,
+                       "drawing object id has reached UINT32_MAX",
+                       std::string{xml_entry_name});
         return false;
     }
 
@@ -78,45 +103,34 @@ bool Document::append_drawing_image_part(
         office_document_relationships_namespace_uri.data());
 
     std::unordered_set<std::string> used_relationship_ids;
-    std::unordered_set<std::string> used_part_entries;
-    const auto collect_relationship_image_targets =
-        [&](const pugi::xml_document &source_relationships) {
-            auto source_root = source_relationships.child("Relationships");
-            for (auto relationship = source_root.child("Relationship");
-                 relationship != pugi::xml_node{};
-                 relationship = relationship.next_sibling("Relationship")) {
-                if (std::string_view{relationship.attribute("Type").value()} !=
-                    image_relationship_type) {
-                    continue;
-                }
+    std::set<std::string> used_part_identities;
 
-                const auto target =
-                    std::string_view{relationship.attribute("Target").value()};
-                if (!target.empty()) {
-                    used_part_entries.insert(normalize_word_part_entry(target));
-                }
-            }
-        };
-
-    for (auto relationship = relationships.child("Relationship");
+    for (auto relationship =
+             featherdoc::detail::first_package_relationship(relationships);
          relationship != pugi::xml_node{};
-         relationship = relationship.next_sibling("Relationship")) {
+         relationship =
+             featherdoc::detail::next_package_relationship(relationship)) {
         const auto id = relationship.attribute("Id").value();
         if (*id != '\0') {
             used_relationship_ids.emplace(id);
         }
     }
 
-    collect_relationship_image_targets(this->document_relationships);
+    collect_relationship_image_targets(
+        this->document_relationships, document_xml_entry, used_part_identities);
     for (const auto &part : this->header_parts) {
-        collect_relationship_image_targets(part->relationships);
+        collect_relationship_image_targets(
+            part->relationships, part->entry_name, used_part_identities);
     }
     for (const auto &part : this->footer_parts) {
-        collect_relationship_image_targets(part->relationships);
+        collect_relationship_image_targets(
+            part->relationships, part->entry_name, used_part_identities);
     }
 
     for (const auto &part : this->image_parts) {
-        used_part_entries.insert(part.entry_name);
+        if (const auto identity = package_part_name_identity(part.entry_name)) {
+            used_part_identities.insert(*identity);
+        }
     }
 
     std::string relationship_id;
@@ -131,23 +145,32 @@ bool Document::append_drawing_image_part(
     for (std::size_t next_index = 1U; entry_name.empty(); ++next_index) {
         auto candidate = std::string{"word/media/image"} +
                          std::to_string(next_index) + "." + extension;
-        if (!used_part_entries.contains(candidate)) {
+        const auto candidate_identity = package_part_name_identity(candidate);
+        if (candidate_identity.has_value() &&
+            !used_part_identities.contains(*candidate_identity) &&
+            !package_part_identity_has_derivation_conflict(
+                used_part_identities, *candidate_identity) &&
+            !this->source_package_part_name_conflicts(candidate)) {
             entry_name = std::move(candidate);
         }
     }
 
     auto default_node = pugi::xml_node{};
-    for (auto existing_default = types.child("Default");
+    for (auto existing_default =
+             featherdoc::detail::first_package_content_type_default(types);
          existing_default != pugi::xml_node{};
-         existing_default = existing_default.next_sibling("Default")) {
-        if (std::string_view{existing_default.attribute("Extension").value()} ==
-            extension) {
+         existing_default =
+             featherdoc::detail::next_package_content_type_default(
+                 existing_default)) {
+        if (image_extensions_equivalent(
+                existing_default.attribute("Extension").value(), extension)) {
             default_node = existing_default;
             break;
         }
     }
     if (default_node == pugi::xml_node{}) {
-        default_node = types.append_child("Default");
+        default_node =
+            featherdoc::detail::append_package_content_type_default(types);
     }
     if (default_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -159,7 +182,8 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(default_node, "Extension", extension);
     ensure_attribute_value(default_node, "ContentType", content_type);
 
-    auto relationship = relationships.append_child("Relationship");
+    auto relationship =
+        featherdoc::detail::append_package_relationship(relationships);
     if (relationship == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::not_enough_memory),
@@ -169,11 +193,11 @@ bool Document::append_drawing_image_part(
     }
     ensure_attribute_value(relationship, "Id", relationship_id);
     ensure_attribute_value(relationship, "Type", image_relationship_type);
-    ensure_attribute_value(relationship, "Target",
-                           make_part_relationship_target(xml_entry_name, entry_name));
+    ensure_attribute_value(
+        relationship, "Target",
+        make_part_relationship_target(xml_entry_name, entry_name));
 
-    const auto drawing_id = this->next_drawing_object_id();
-    const auto drawing_id_text = std::to_string(drawing_id);
+    const auto drawing_id_text = std::to_string(*drawing_id);
     const auto width_emu_text =
         std::to_string(featherdoc::detail::pixels_to_emu(width_px));
     const auto height_emu_text =
@@ -187,7 +211,8 @@ bool Document::append_drawing_image_part(
         insert_before == pugi::xml_node{}) {
         run = parent;
     } else {
-        auto image_paragraph = featherdoc::detail::insert_paragraph_node(parent, insert_before);
+        auto image_paragraph =
+            featherdoc::detail::insert_paragraph_node(parent, insert_before);
         if (image_paragraph == pugi::xml_node{}) {
             set_last_error(this->last_error_info,
                            std::make_error_code(std::errc::not_enough_memory),
@@ -212,33 +237,38 @@ bool Document::append_drawing_image_part(
         return false;
     }
 
-    ensure_attribute_value(drawing, "xmlns:r", office_document_relationships_namespace_uri);
-    ensure_attribute_value(drawing, "xmlns:wp", wordprocessing_drawing_namespace_uri);
+    ensure_attribute_value(drawing, "xmlns:r",
+                           office_document_relationships_namespace_uri);
+    ensure_attribute_value(drawing, "xmlns:wp",
+                           wordprocessing_drawing_namespace_uri);
     ensure_attribute_value(drawing, "xmlns:a", drawingml_main_namespace_uri);
-    ensure_attribute_value(drawing, "xmlns:pic", drawingml_picture_namespace_uri);
+    ensure_attribute_value(drawing, "xmlns:pic",
+                           drawingml_picture_namespace_uri);
     std::string wrap_distance_top_text{"0"};
     std::string wrap_distance_bottom_text{"0"};
     std::string wrap_distance_left_text{"0"};
     std::string wrap_distance_right_text{"0"};
 
     if (floating_options.has_value()) {
-        wrap_distance_top_text = std::to_string(
-            featherdoc::detail::pixels_to_emu(
+        wrap_distance_top_text =
+            std::to_string(featherdoc::detail::pixels_to_emu(
                 floating_options->wrap_distance_top_px));
-        wrap_distance_bottom_text = std::to_string(
-            featherdoc::detail::pixels_to_emu(
+        wrap_distance_bottom_text =
+            std::to_string(featherdoc::detail::pixels_to_emu(
                 floating_options->wrap_distance_bottom_px));
-        wrap_distance_left_text = std::to_string(
-            featherdoc::detail::pixels_to_emu(
+        wrap_distance_left_text =
+            std::to_string(featherdoc::detail::pixels_to_emu(
                 floating_options->wrap_distance_left_px));
-        wrap_distance_right_text = std::to_string(
-            featherdoc::detail::pixels_to_emu(
+        wrap_distance_right_text =
+            std::to_string(featherdoc::detail::pixels_to_emu(
                 floating_options->wrap_distance_right_px));
     }
     ensure_attribute_value(drawing_container, "distT", wrap_distance_top_text);
-    ensure_attribute_value(drawing_container, "distB", wrap_distance_bottom_text);
+    ensure_attribute_value(drawing_container, "distB",
+                           wrap_distance_bottom_text);
     ensure_attribute_value(drawing_container, "distL", wrap_distance_left_text);
-    ensure_attribute_value(drawing_container, "distR", wrap_distance_right_text);
+    ensure_attribute_value(drawing_container, "distR",
+                           wrap_distance_right_text);
 
     if (floating_options.has_value()) {
         ensure_attribute_value(drawing_container, "simplePos", "0");
@@ -255,24 +285,24 @@ bool Document::append_drawing_image_part(
         ensure_attribute_value(simple_position, "x", "0");
         ensure_attribute_value(simple_position, "y", "0");
 
-        auto position_horizontal = drawing_container.append_child("wp:positionH");
-        ensure_attribute_value(position_horizontal, "relativeFrom",
-                               to_xml_reference(
-                                   floating_options->horizontal_reference));
-        auto horizontal_offset = position_horizontal.append_child("wp:posOffset");
-        const auto horizontal_offset_emu =
-            std::to_string(signed_pixels_to_emu(
-                floating_options->horizontal_offset_px));
+        auto position_horizontal =
+            drawing_container.append_child("wp:positionH");
+        ensure_attribute_value(
+            position_horizontal, "relativeFrom",
+            to_xml_reference(floating_options->horizontal_reference));
+        auto horizontal_offset =
+            position_horizontal.append_child("wp:posOffset");
+        const auto horizontal_offset_emu = std::to_string(
+            signed_pixels_to_emu(floating_options->horizontal_offset_px));
         horizontal_offset.text().set(horizontal_offset_emu.c_str());
 
         auto position_vertical = drawing_container.append_child("wp:positionV");
-        ensure_attribute_value(position_vertical, "relativeFrom",
-                               to_xml_reference(
-                                   floating_options->vertical_reference));
+        ensure_attribute_value(
+            position_vertical, "relativeFrom",
+            to_xml_reference(floating_options->vertical_reference));
         auto vertical_offset = position_vertical.append_child("wp:posOffset");
-        const auto vertical_offset_emu =
-            std::to_string(signed_pixels_to_emu(
-                floating_options->vertical_offset_px));
+        const auto vertical_offset_emu = std::to_string(
+            signed_pixels_to_emu(floating_options->vertical_offset_px));
         vertical_offset.text().set(vertical_offset_emu.c_str());
     }
 
@@ -294,8 +324,10 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(doc_properties, "id", drawing_id_text);
     ensure_attribute_value(doc_properties, "name", display_name);
 
-    auto graphic_frame_properties = drawing_container.append_child("wp:cNvGraphicFramePr");
-    auto frame_locks = graphic_frame_properties.append_child("a:graphicFrameLocks");
+    auto graphic_frame_properties =
+        drawing_container.append_child("wp:cNvGraphicFramePr");
+    auto frame_locks =
+        graphic_frame_properties.append_child("a:graphicFrameLocks");
     ensure_attribute_value(frame_locks, "noChangeAspect", "1");
 
     auto graphic = drawing_container.append_child("a:graphic");
@@ -330,12 +362,12 @@ bool Document::append_drawing_image_part(
     ensure_attribute_value(geometry, "prst", "rect");
     geometry.append_child("a:avLst");
 
-    this->image_parts.push_back({std::string{xml_entry_name}, std::move(entry_name),
-                                 std::move(content_type), std::move(image_data)});
+    this->image_parts.push_back({std::string{xml_entry_name},
+                                 std::move(entry_name), std::move(content_type),
+                                 std::move(image_data)});
     has_relationships_part = true;
     relationships_dirty = true;
     this->content_types_dirty = true;
     this->last_error_info.clear();
     return true;
 }
-

@@ -107,8 +107,8 @@ Document::check_table_style_look_consistency() {
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return report;
     }
 
@@ -457,6 +457,12 @@ Document::inspect_table_cell_by_grid_column(std::size_t table_index,
 
 std::vector<featherdoc::paragraph_inspection_summary>
 Document::inspect_paragraphs() {
+    return this->inspect_paragraphs_with_options({});
+}
+
+std::vector<featherdoc::paragraph_inspection_summary>
+Document::inspect_paragraphs_with_options(
+    const featherdoc::paragraph_inspection_options &options) {
     if (!this->is_open()) {
         set_last_error(
             this->last_error_info, document_errc::document_not_open,
@@ -473,11 +479,14 @@ Document::inspect_paragraphs() {
          ++paragraph_index, paragraph_handle.next()) {
         auto summary =
             summarize_paragraph_node(paragraph_handle.current, paragraph_index);
-        if (summary.numbering.has_value() &&
+        if (options.resolve_numbering_metadata &&
+            summary.numbering.has_value() &&
             summary.numbering->num_id.has_value()) {
             if (!numbering_lookup_resolved) {
+                if (const auto error = this->ensure_numbering_loaded()) {
+                    return {};
+                }
                 numbering_lookup_ready =
-                    !this->ensure_numbering_loaded() &&
                     this->numbering.child("w:numbering") != pugi::xml_node{};
                 numbering_lookup_resolved = true;
             }
@@ -485,12 +494,13 @@ Document::inspect_paragraphs() {
             if (numbering_lookup_ready) {
                 const auto lookup =
                     this->find_numbering_instance(*summary.numbering->num_id);
-                if (lookup.has_value()) {
-                    summary.numbering->definition_id = lookup->definition_id;
-                    if (!lookup->definition_name.empty()) {
-                        summary.numbering->definition_name =
-                            lookup->definition_name;
-                    }
+                if (!lookup.has_value()) {
+                    return {};
+                }
+                summary.numbering->definition_id = lookup->definition_id;
+                if (!lookup->definition_name.empty()) {
+                    summary.numbering->definition_name =
+                        lookup->definition_name;
                 }
             }
         }
@@ -528,18 +538,20 @@ Document::inspect_paragraph(std::size_t paragraph_index) {
         summarize_paragraph_node(paragraph_handle.current, paragraph_index);
     if (summary.numbering.has_value() &&
         summary.numbering->num_id.has_value()) {
+        if (const auto error = this->ensure_numbering_loaded()) {
+            return std::nullopt;
+        }
         const auto numbering_lookup_ready =
-            !this->ensure_numbering_loaded() &&
             this->numbering.child("w:numbering") != pugi::xml_node{};
         if (numbering_lookup_ready) {
             const auto lookup =
                 this->find_numbering_instance(*summary.numbering->num_id);
-            if (lookup.has_value()) {
-                summary.numbering->definition_id = lookup->definition_id;
-                if (!lookup->definition_name.empty()) {
-                    summary.numbering->definition_name =
-                        lookup->definition_name;
-                }
+            if (!lookup.has_value()) {
+                return std::nullopt;
+            }
+            summary.numbering->definition_id = lookup->definition_id;
+            if (!lookup->definition_name.empty()) {
+                summary.numbering->definition_name = lookup->definition_name;
             }
         }
     }

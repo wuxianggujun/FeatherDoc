@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
     FeatherDoc
-    VERSION 1.12.4
+    VERSION 1.13.4
     DESCRIPTION "Modern C++ .docx library focused on explicit diagnostics, MSVC support, and clean API behavior"
     LANGUAGES C CXX
 )
@@ -20,11 +20,30 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared instead of static library" OFF)
 option(BUILD_SAMPLES "Build provided samples" OFF)
 option(BUILD_CLI "Build featherdoc_cli command line utility" ${PROJECT_IS_TOP_LEVEL})
+option(FEATHERDOC_ENABLE_SANITIZERS
+    "Instrument all targets with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(FEATHERDOC_BUILD_FUZZERS
+    "Build Clang libFuzzer targets for untrusted DOCX and JSON inputs" OFF)
 # PDF support is experimental future work and must remain opt-in.
 option(FEATHERDOC_BUILD_PDF
     "Build experimental PDF byte writer module backed by PDFio" OFF)
 option(FEATHERDOC_BUILD_PDF_IMPORT
     "Build experimental PDF parser module backed by PDFium" OFF)
+
+if(FEATHERDOC_ENABLE_SANITIZERS)
+    if(WIN32)
+        message(FATAL_ERROR
+            "FEATHERDOC_ENABLE_SANITIZERS is unsupported on Windows; use Linux/WSL")
+    elseif(MSVC OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(FATAL_ERROR
+            "FEATHERDOC_ENABLE_SANITIZERS requires GCC or Clang with GNU-style flags")
+    endif()
+    add_compile_options(
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 if(MSVC)
     # 统一按 UTF-8 解析源码，避免中文字符串字面量在样例和测试里被误解码。
@@ -32,6 +51,10 @@ if(MSVC)
         $<$<COMPILE_LANGUAGE:C>:/utf-8>
         $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
     )
+    # MSVC 19.50 can report intermittent LNK1236 errors when several
+    # incremental linkers consume a static library containing bigobj COFF
+    # members. Keep debug information, but use deterministic full links.
+    add_link_options(/INCREMENTAL:NO)
 endif()
 
 set(HEADERS
@@ -62,17 +85,22 @@ set(FEATHERDOC_MODULE_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/templates.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/text.hpp"
 )
+set(FEATHERDOC_DETAIL_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/path.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/utf8.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/detail/xml_handle.hpp"
+)
 set(PDF_COMMON_HEADERS
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_glyph_run.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_interfaces.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_layout.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_metrics.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_shaper.hpp"
 )
 set(PDF_WRITER_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_document_adapter.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_resolver.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_font_subset.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_metrics.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_text_shaper.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/featherdoc/pdf/pdf_writer.hpp"
 )
 set(PDF_IMPORT_HEADERS
@@ -96,14 +124,21 @@ set(SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/document_template_content_control_replacement.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/image_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paragraph.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/package_relationships_mce_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/run.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_cell_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_column_edit_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_grid_row_xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_properties.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/table_row.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_conversion_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/table_xml_helpers.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_namespace_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/wordprocessingml_namespace_helpers.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/xml_handle.cpp"
 )
 
 set(PUGIXML_HEADERS
@@ -128,8 +163,12 @@ set(THIRD_PARTY_SRC
 
 add_library(FeatherDoc ${SOURCES} ${THIRD_PARTY_SRC})
 add_library(FeatherDoc::FeatherDoc ALIAS FeatherDoc)
+add_library(FeatherDoc::Core ALIAS FeatherDoc)
+add_library(FeatherDoc::Word ALIAS FeatherDoc)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocRuntimeDlls.cmake")
 
+set(FEATHERDOC_ABI_VERSION
+    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 
 target_compile_features(FeatherDoc PUBLIC cxx_std_20)
 set_target_properties(FeatherDoc PROPERTIES
@@ -137,7 +176,7 @@ set_target_properties(FeatherDoc PROPERTIES
     CXX_STANDARD_REQUIRED YES
     EXPORT_NAME FeatherDoc
     VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
+    SOVERSION ${FEATHERDOC_ABI_VERSION}
 )
 
 if(WIN32)
@@ -160,6 +199,10 @@ if(WIN32)
     target_compile_definitions(FeatherDoc PRIVATE ZIP_ENABLE_SHARABLE_FILE_OPEN)
 endif()
 
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    target_compile_definitions(FeatherDoc PRIVATE ZIP_ENABLE_TEST_FAILURES)
+endif()
+
 if(MSVC)
     target_compile_options(FeatherDoc PRIVATE /W4 /permissive-)
     target_compile_definitions(FeatherDoc PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -167,176 +210,25 @@ else()
     target_compile_options(FeatherDoc PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-if(FEATHERDOC_BUILD_PDF)
-    include(cmake/FeatherDocPdfio.cmake)
-    include(cmake/FeatherDocPdfThirdParty.cmake)
-    featherdoc_add_pdfio_object_library(featherdoc_pdfio_objects)
-    featherdoc_add_freetype_target()
-    featherdoc_add_png_target(featherdoc_png)
-    featherdoc_add_harfbuzz_targets()
-
-    target_compile_definitions(featherdoc_pdfio_objects PRIVATE HAVE_LIBPNG=1)
-    target_link_libraries(featherdoc_pdfio_objects PRIVATE PNG::PNG zlibstatic)
-
-    add_library(FeatherDocPdf
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_headers.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_images.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_paragraphs.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_render.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_table_borders.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_table_layout.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_tables.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_adapter_text.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_resolver.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_font_subset.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_metrics.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_text_shaper.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_writer.cpp"
-        $<TARGET_OBJECTS:featherdoc_pdfio_objects>
-    )
-    add_library(FeatherDoc::Pdf ALIAS FeatherDocPdf)
-
-    target_compile_features(FeatherDocPdf PUBLIC cxx_std_20)
-    set_target_properties(FeatherDocPdf PROPERTIES
-        CXX_EXTENSIONS NO
-        CXX_STANDARD_REQUIRED YES
-        EXPORT_NAME Pdf
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-    )
-
-    if(WIN32)
-        set_target_properties(FeatherDocPdf PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    endif()
-
-    target_include_directories(FeatherDocPdf
-        PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-        PRIVATE
-            $<BUILD_INTERFACE:${FEATHERDOC_RESOLVED_PDFIO_SOURCE_DIR}>
-            $<TARGET_PROPERTY:Freetype::Freetype,INTERFACE_INCLUDE_DIRECTORIES>
-    )
-    target_link_libraries(FeatherDocPdf
-        PUBLIC
-            FeatherDoc::FeatherDoc
-            Freetype::Freetype
-            PNG::PNG
-            zlibstatic
-    )
-    if(FEATHERDOC_HARFBUZZ_SUBSET_AVAILABLE)
-        target_compile_definitions(FeatherDocPdf
-            PRIVATE
-                FEATHERDOC_ENABLE_PDF_FONT_SUBSET=1
-                FEATHERDOC_ENABLE_PDF_TEXT_SHAPER=1)
-        target_link_libraries(FeatherDocPdf
-            PRIVATE
-                harfbuzz::harfbuzz
-                harfbuzz::harfbuzz-subset)
-    endif()
-
-    if(MSVC)
-        target_compile_options(FeatherDocPdf PRIVATE /W4 /permissive-)
-        target_compile_definitions(FeatherDocPdf PRIVATE _CRT_SECURE_NO_WARNINGS)
-    else()
-        target_compile_options(FeatherDocPdf PRIVATE -Wall -Wextra -Wpedantic)
-    endif()
-endif()
-
-if(FEATHERDOC_BUILD_PDF_IMPORT)
-    include(cmake/FeatherDocPdfium.cmake)
-    include(cmake/FeatherDocPdfThirdParty.cmake)
-
-    if(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "auto")
-        featherdoc_try_find_pdfium_package(pdfium_package_target)
-        if(NOT pdfium_package_target STREQUAL "")
-            set(FEATHERDOC_PDFIUM_TARGET "${pdfium_package_target}")
-            set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
-        else()
-            featherdoc_has_pdfium_prebuilt_inputs(pdfium_has_prebuilt_inputs)
-            if(pdfium_has_prebuilt_inputs)
-                featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
-                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
-                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
-            elseif(NOT FEATHERDOC_PDFIUM_SOURCE_DIR STREQUAL "")
-                featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
-                set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
-                set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
-            else()
-                message(FATAL_ERROR
-                    "FEATHERDOC_PDFIUM_PROVIDER=auto could not resolve PDFium. "
-                    "Tried package discovery via find_package(PDFium), then "
-                    "prebuilt inputs via FEATHERDOC_PDFIUM_LIBRARY + "
-                    "FEATHERDOC_PDFIUM_INCLUDE_DIR, then source via "
-                    "FEATHERDOC_PDFIUM_SOURCE_DIR.")
-            endif()
-        endif()
-    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "source")
-        featherdoc_add_pdfium_source_target(featherdoc_pdfium_source)
-        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_source)
-        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "source")
-    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "package")
-        featherdoc_find_pdfium_package(FEATHERDOC_PDFIUM_TARGET)
-        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "package")
-    elseif(FEATHERDOC_PDFIUM_PROVIDER STREQUAL "prebuilt")
-        featherdoc_add_pdfium_prebuilt_target(featherdoc_pdfium_prebuilt)
-        set(FEATHERDOC_PDFIUM_TARGET featherdoc_pdfium_prebuilt)
-        set(FEATHERDOC_RESOLVED_PDFIUM_PROVIDER "prebuilt")
-    else()
-        message(FATAL_ERROR
-            "Unsupported FEATHERDOC_PDFIUM_PROVIDER: "
-            "${FEATHERDOC_PDFIUM_PROVIDER}. Use auto, source, package, or prebuilt.")
-    endif()
-    message(STATUS "Using PDFium provider: ${FEATHERDOC_RESOLVED_PDFIUM_PROVIDER}")
-
-    add_library(FeatherDocPdfImport
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdf_document_importer.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/pdf/pdfium_parser.cpp"
-    )
-    add_library(FeatherDoc::PdfImport ALIAS FeatherDocPdfImport)
-
-    target_compile_features(FeatherDocPdfImport PUBLIC cxx_std_20)
-    set_target_properties(FeatherDocPdfImport PROPERTIES
-        CXX_EXTENSIONS NO
-        CXX_STANDARD_REQUIRED YES
-        EXPORT_NAME PdfImport
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-    )
-
-    if(WIN32)
-        set_target_properties(FeatherDocPdfImport PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    endif()
-
-    target_include_directories(FeatherDocPdfImport
-        PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
-    target_link_libraries(FeatherDocPdfImport
-        PUBLIC
-            FeatherDoc::FeatherDoc
-        PRIVATE
-            ${FEATHERDOC_PDFIUM_TARGET}
-    )
-
-    if(MSVC)
-        target_compile_options(FeatherDocPdfImport PRIVATE /W4 /permissive-)
-    else()
-        target_compile_options(FeatherDocPdfImport PRIVATE -Wall -Wextra -Wpedantic)
-    endif()
-endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocPdfTargets.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocSamples.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocCli.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FeatherDocFuzz.cmake")
 
-# PDF writer builds can use bundled PDFio/libpng helper targets that are not
-# exported as part of the public package yet. Keep install exports free of the
-# experimental writer until the dependency story is package-safe.
+# Export the PDF writer only when every static dependency has a discoverable
+# package target. Bundled/fallback dependencies remain valid for build-tree
+# development but must not create a non-relocatable installed component.
 set(FEATHERDOC_INSTALLS_PDF OFF)
 set(FEATHERDOC_INSTALLS_PDF_IMPORT OFF)
+if(FEATHERDOC_BUILD_PDF AND FEATHERDOC_PDF_WRITER_PACKAGES_AVAILABLE)
+    set(FEATHERDOC_INSTALLS_PDF ON)
+elseif(FEATHERDOC_BUILD_PDF)
+    message(STATUS
+        "FeatherDoc::Pdf is buildable but will not be installed because "
+        "its package dependencies are not externally discoverable.")
+endif()
 if(FEATHERDOC_BUILD_PDF_IMPORT AND
    DEFINED FEATHERDOC_RESOLVED_PDFIUM_PROVIDER AND
    FEATHERDOC_RESOLVED_PDFIUM_PROVIDER STREQUAL "package")
@@ -402,14 +294,19 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc
 )
 
-if(FEATHERDOC_BUILD_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)
+install(
+    FILES ${FEATHERDOC_DETAIL_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/detail
+)
+
+if(FEATHERDOC_INSTALLS_PDF OR FEATHERDOC_INSTALLS_PDF_IMPORT)
     install(
         FILES ${PDF_COMMON_HEADERS}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/pdf
     )
 endif()
 
-if(FEATHERDOC_BUILD_PDF)
+if(FEATHERDOC_INSTALLS_PDF)
     install(
         FILES ${PDF_WRITER_HEADERS}
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/featherdoc/pdf

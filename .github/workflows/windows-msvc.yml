@@ -103,13 +103,43 @@ jobs:
           cmake -S . -B build-msvc-ninja -G "Ninja"
           -DCMAKE_BUILD_TYPE=Release
           -DBUILD_TESTING=ON
+          -DFEATHERDOC_BUILD_ALLOCATION_FAILURE_TESTS=OFF
+          -DFEATHERDOC_BUILD_WINDOWS_FAULT_INJECTION_TESTS=OFF
+          -DFEATHERDOC_ENABLE_SANITIZERS=OFF
+          -DFEATHERDOC_BUILD_FUZZERS=OFF
           -DBUILD_SAMPLES=ON
           -DBUILD_CLI=ON
 
       - name: Build
         shell: pwsh
         timeout-minutes: 75
-        run: cmake --build build-msvc-ninja --parallel 4 --verbose
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
+
+          $buildCommandText = "cmake --build build-msvc-ninja --parallel 4 --verbose"
+          Write-Host "Starting $buildCommandText"
+          $build = Start-Process `
+              -FilePath "cmake" `
+              -ArgumentList @("--build", "build-msvc-ninja", "--parallel", "4", "--verbose") `
+              -NoNewWindow `
+              -PassThru
+
+          try {
+              while (-not $build.HasExited) {
+                  Write-Host "Build heartbeat: $buildCommandText is still running"
+                  Start-Sleep -Seconds 60
+                  $build.Refresh()
+              }
+          } finally {
+              if (-not $build.HasExited) {
+                  Stop-Process -Id $build.Id -Force -ErrorAction SilentlyContinue
+              }
+          }
+
+          if ($build.ExitCode -ne 0) {
+              throw "Build failed with exit code $($build.ExitCode)."
+          }
 
       - name: Run tests
         shell: pwsh

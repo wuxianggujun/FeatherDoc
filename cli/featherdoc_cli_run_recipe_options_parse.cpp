@@ -1,4 +1,5 @@
 #include "featherdoc_cli_run_recipe_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 namespace featherdoc_cli {
 namespace {
@@ -29,7 +30,7 @@ auto parse_run_recipe_options(const std::vector<std::string_view> &arguments,
                 error_message = std::string(argument) + " expects a path";
                 return false;
             }
-            options.recipe_path = path_type(std::string(arguments[++index]));
+            options.recipe_path = path_from_cli_utf8(arguments[++index]);
             continue;
         }
 
@@ -43,7 +44,7 @@ auto parse_run_recipe_options(const std::vector<std::string_view> &arguments,
                 error_message = "--inputs expects a path";
                 return false;
             }
-            options.inputs_path = path_type(std::string(arguments[++index]));
+            options.inputs_path = path_from_cli_utf8(arguments[++index]);
             continue;
         }
 
@@ -57,7 +58,7 @@ auto parse_run_recipe_options(const std::vector<std::string_view> &arguments,
                 error_message = std::string(argument) + " expects a path";
                 return false;
             }
-            options.output_dir = path_type(std::string(arguments[++index]));
+            options.output_dir = path_from_cli_utf8(arguments[++index]);
             continue;
         }
 

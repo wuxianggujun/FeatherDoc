@@ -389,6 +389,7 @@ foreach ($documentVisualScript in @(
 foreach ($visualHelperScript in @(
         "scripts\build_image_contact_sheet.py",
         "scripts\compare_pdf_reference_branch_manifest.ps1",
+        "scripts\python_runtime.ps1",
         "scripts\render_pdf_pages.py",
         "scripts\summarize_table_style_quality_pixels.py"
     )) {

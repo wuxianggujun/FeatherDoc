@@ -126,7 +126,8 @@ typedef long ssize_t; /* byte count or error */
 #define ZIP_ENORITER -34    // cannot initialize reader iterator
 #define ZIP_ECHKDIR -35     // check dir error path exists but is not directory
 #define ZIP_EPASSWD -36     // wrong password or password required
-#define ZIP_NERRORS 37      /** number of error codes **/
+#define ZIP_EARCHLIMIT -37  // reader archive metadata limit exceeded
+#define ZIP_NERRORS 38      /** number of error codes **/
 
 /**
  * Looks up the error message string corresponding to an error number.
@@ -143,6 +144,32 @@ extern ZIP_EXPORT const char *zip_strerror(int errnum);
  * - forward declaration.
  */
 struct zip_t;
+
+/** Limits enforced while opening a ZIP reader, before central-directory
+ * allocation. A zero value is a real zero limit, not "unlimited". */
+struct zip_reader_limits {
+  uint64_t max_entries;
+  uint64_t max_central_directory_bytes;
+  uint64_t max_entry_name_bytes;
+  uint64_t max_total_entry_name_bytes;
+};
+
+enum zip_reader_limit_kind {
+  ZIP_READER_LIMIT_NONE = 0,
+  ZIP_READER_LIMIT_ENTRIES = 1,
+  ZIP_READER_LIMIT_CENTRAL_DIRECTORY_BYTES = 2,
+  ZIP_READER_LIMIT_ENTRY_NAME_BYTES = 3,
+  ZIP_READER_LIMIT_TOTAL_ENTRY_NAME_BYTES = 4
+};
+
+/** Details for a ZIP reader limit failure. entry_index is UINT64_MAX when the
+ * violation does not belong to one physical entry. */
+struct zip_reader_limit_violation {
+  int kind;
+  uint64_t actual;
+  uint64_t limit;
+  uint64_t entry_index;
+};
 
 /**
  * Opens zip archive with compression level using the given mode.
@@ -175,6 +202,16 @@ extern ZIP_EXPORT struct zip_t *zip_open(const char *zipname, int level,
  */
 extern ZIP_EXPORT struct zip_t *
 zip_openwitherror(const char *zipname, int level, char mode, int *errnum);
+
+/**
+ * Opens a ZIP archive while enforcing reader metadata limits before miniz
+ * allocates or reads the complete central directory. Write/append modes retain
+ * their existing behavior.
+ */
+extern ZIP_EXPORT struct zip_t *zip_openwitherror_limits(
+    const char *zipname, int level, char mode, int *errnum,
+    const struct zip_reader_limits *limits,
+    struct zip_reader_limit_violation *violation);
 
 /**
  * Opens zip archive with a password for encryption/decryption using
@@ -214,6 +251,15 @@ zip_open_with_password_and_error(const char *zipname, int level, char mode,
  * @param zip zip archive handler.
  */
 extern ZIP_EXPORT void zip_close(struct zip_t *zip);
+
+/**
+ * Closes the zip archive and reports finalization or close failures.
+ *
+ * @param zip zip archive handler.
+ *
+ * @return 0 on success, negative number (< 0) on error.
+ */
+extern ZIP_EXPORT int zip_close_ex(struct zip_t *zip);
 
 /**
  * Determines if the archive has a zip64 end of central directory headers.
@@ -301,6 +347,12 @@ extern ZIP_EXPORT int zip_entry_close(struct zip_t *zip);
  * @return the pointer to the current zip entry name, or NULL on error.
  */
 extern ZIP_EXPORT const char *zip_entry_name(struct zip_t *zip);
+
+/** Returns the current entry-name buffer length.
+ * For zip_entry_openbyindex() this is the raw physical name length and can
+ * include bytes after an embedded NUL. For zip_entry_open() it is the caller's
+ * lookup-name length. */
+extern ZIP_EXPORT size_t zip_entry_name_size(struct zip_t *zip);
 
 /**
  * Returns an index of the current zip entry.

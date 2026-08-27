@@ -184,6 +184,46 @@ function Assert-StagedWordVisualStandardReviewMetadataHandoffEvidence {
     }
 }
 
+function Assert-WordVisualStandardReviewMetadata {
+    param(
+        [object[]]$Metadata,
+        [int]$ExpectedMetadataCount
+    )
+
+    $label = "Word visual standard review metadata"
+    if ($Metadata.Count -ne $ExpectedMetadataCount) {
+        throw "$label count must be $ExpectedMetadataCount, found $($Metadata.Count)."
+    }
+
+    $expectedTaskKeys = @("smoke", "fixed_grid", "section_page_setup", "page_number_fields")
+    foreach ($taskKey in $expectedTaskKeys) {
+        $matches = @($Metadata | Where-Object {
+            (Get-OptionalPropertyValue -Object $_ -Name "task_key") -eq $taskKey
+        })
+        if ($matches.Count -ne 1) {
+            throw "$label must contain exactly one '$taskKey' entry, found $($matches.Count)."
+        }
+
+        $entry = $matches[0]
+        foreach ($fieldName in @("review_task_key", "review_method", "review_result_path", "final_review_path")) {
+            $value = Get-OptionalPropertyValue -Object $entry -Name $fieldName
+            if ([string]::IsNullOrWhiteSpace($value)) {
+                throw "$label '$taskKey' entry is missing '$fieldName'."
+            }
+        }
+
+        $reviewStatus = Get-OptionalPropertyValue -Object $entry -Name "review_status"
+        if ($reviewStatus -ne "reviewed") {
+            throw "$label '$taskKey' entry must be reviewed, found '$reviewStatus'."
+        }
+
+        $verdict = Get-OptionalPropertyValue -Object $entry -Name "verdict"
+        if ($verdict -ne "pass") {
+            throw "$label '$taskKey' entry must pass, found '$verdict'."
+        }
+    }
+}
+
 function New-ZipArchive {
     param(
         [string[]]$SourcePaths,
@@ -199,6 +239,56 @@ function New-ZipArchive {
     }
 
     Compress-Archive -LiteralPath $SourcePaths -DestinationPath $ZipPath -CompressionLevel Optimal
+}
+
+function Get-OrCreateGitHubDraftReleaseAssetsJson {
+    param(
+        [string]$RepoRoot,
+        [string]$ReleaseTag,
+        [string]$ReleaseVersion
+    )
+
+    # Windows PowerShell 5 promotes stderr from a native command to a
+    # NativeCommandError when the caller uses ErrorActionPreference=Stop.
+    # A missing release is the expected cold-start signal here, so contain
+    # that behavior around the probe and restore the caller's strict policy
+    # before taking any mutating action.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $releaseViewJson = & gh release view $ReleaseTag --json assets 2>$null
+        $releaseViewExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($releaseViewExitCode -eq 0) {
+        return $releaseViewJson
+    }
+
+    $targetCommit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($targetCommit)) {
+        throw "Could not resolve the current Git commit before creating GitHub release '$ReleaseTag'."
+    }
+
+    Write-Step "Creating missing GitHub draft release $ReleaseTag at $targetCommit"
+    # gh prints the new release URL to stdout. Capture it so the function's
+    # pipeline contains only the JSON returned by the release view below.
+    $releaseCreateOutput = & gh release create $ReleaseTag `
+        --draft `
+        --target $targetCommit `
+        --title ("FeatherDoc v{0}" -f $ReleaseVersion) `
+        --notes "Release assets are being prepared and will be published after all release gates pass."
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release create failed for missing release '$ReleaseTag'."
+    }
+
+    $releaseViewJson = & gh release view $ReleaseTag --json assets
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release view failed after creating release '$ReleaseTag'."
+    }
+
+    return $releaseViewJson
 }
 
 function Get-BundledReleaseFontFiles {

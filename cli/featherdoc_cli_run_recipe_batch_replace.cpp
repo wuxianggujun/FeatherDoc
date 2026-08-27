@@ -44,7 +44,8 @@ auto collect_run_recipe_docx_files(const path_type &source_dir,
     std::error_code error_code;
     if (!std::filesystem::exists(source_dir, error_code) ||
         !std::filesystem::is_directory(source_dir, error_code)) {
-        error_message = "source_dir is not a directory: " + source_dir.string();
+        error_message = "source_dir is not a directory: " +
+                        featherdoc::detail::path_to_utf8(source_dir);
         return false;
     }
     if (error_code) {
@@ -86,9 +87,10 @@ auto collect_run_recipe_docx_files(const path_type &source_dir,
 
 auto make_run_recipe_output_path(const path_type &output_dir,
                                  const path_type &input_path) -> path_type {
-    return output_dir /
-           (input_path.stem().string() + std::string("_replaced") +
-            input_path.extension().string());
+    const auto filename_utf8 =
+        featherdoc::detail::path_to_utf8(input_path.stem()) + "_replaced" +
+        featherdoc::detail::path_to_utf8(input_path.extension());
+    return output_dir / path_from_cli_utf8(filename_utf8);
 }
 
 auto run_recipe_document_error_message(
@@ -112,14 +114,14 @@ auto execute_run_recipe_batch_replace_document(
 
     featherdoc::Document doc(input_path);
     if (doc.open()) {
-        error_message = input_path.string() + ": " +
+        error_message = featherdoc::detail::path_to_utf8(input_path) + ": " +
                         run_recipe_document_error_message(doc.last_error());
         return false;
     }
 
     const auto matches = doc.find_text_ranges(find_text);
     if (const auto &error = doc.last_error(); error.code) {
-        error_message = input_path.string() + ": " +
+        error_message = featherdoc::detail::path_to_utf8(input_path) + ": " +
                         run_recipe_document_error_message(error);
         return false;
     }
@@ -161,7 +163,8 @@ auto execute_run_recipe_batch_replace_document(
             doc, requests, operations, resolutions, error_message,
             failed_operation_index, failed_matches_count,
             failed_raw_matches_count)) {
-        error_message = input_path.string() + ": " + error_message;
+        error_message = featherdoc::detail::path_to_utf8(input_path) + ": " +
+                        error_message;
         return false;
     }
 
@@ -169,26 +172,29 @@ auto execute_run_recipe_batch_replace_document(
         preview_review_mutation_plan_operations(doc, operations);
     for (const auto &preview : previews) {
         if (!preview.ok) {
-            error_message = input_path.string() + ": " + preview.message;
+            error_message = featherdoc::detail::path_to_utf8(input_path) +
+                            ": " + preview.message;
             return false;
         }
     }
 
     if (find_review_mutation_plan_overlap(operations, error_message)) {
-        error_message = input_path.string() + ": " + error_message;
+        error_message = featherdoc::detail::path_to_utf8(input_path) + ": " +
+                        error_message;
         return false;
     }
 
     std::size_t applied_count = 0U;
     if (!apply_review_mutation_plan_operations(doc, operations, applied_count,
                                                error_message)) {
-        error_message = input_path.string() + ": " + error_message;
+        error_message = featherdoc::detail::path_to_utf8(input_path) + ": " +
+                        error_message;
         return false;
     }
     static_cast<void>(doc.accept_all_revisions());
 
     if (doc.save_as(output_path)) {
-        error_message = output_path.string() + ": " +
+        error_message = featherdoc::detail::path_to_utf8(output_path) + ": " +
                         run_recipe_document_error_message(doc.last_error());
         return false;
     }
@@ -213,7 +219,8 @@ void write_json_run_recipe_outputs(
         stream << ",\"label\":";
         write_json_string(stream, output.label);
         stream << ",\"path\":";
-        write_json_string(stream, output.path.string());
+        write_json_string(stream,
+                          featherdoc::detail::path_to_utf8(output.path));
         stream << '}';
     }
     stream << ']';
@@ -253,6 +260,12 @@ auto execute_run_recipe_batch_replace(
         return false;
     }
 
+    path_type source_dir;
+    if (!parse_cli_path_utf8(source_dir_text, "source_dir", source_dir,
+                             error_message)) {
+        return false;
+    }
+
     std::error_code error_code;
     std::filesystem::create_directories(output_dir, error_code);
     if (error_code) {
@@ -262,8 +275,7 @@ auto execute_run_recipe_batch_replace(
     }
 
     std::vector<path_type> docx_files;
-    if (!collect_run_recipe_docx_files(path_type(source_dir_text), docx_files,
-                                       error_message)) {
+    if (!collect_run_recipe_docx_files(source_dir, docx_files, error_message)) {
         return false;
     }
 
@@ -315,7 +327,10 @@ void print_run_recipe_batch_replace_success(
               << " copied, " << result.replacements_count
               << " replacement(s)\n";
     if (!result.outputs.empty()) {
-        std::cout << "output: " << result.outputs.front().path.string() << '\n';
+        std::cout << "output: "
+                  << featherdoc::detail::path_to_utf8(
+                         result.outputs.front().path)
+                  << '\n';
     }
 }
 

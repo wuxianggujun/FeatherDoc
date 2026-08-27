@@ -293,6 +293,18 @@ $nextSteps
 "@
 $gateFinalReview | Set-Content -Path $gateFinalReviewPath -Encoding UTF8
 
+if (-not $SkipReviewTasks -and $gateSummary.review_task_summary.total_count -gt 0) {
+    Write-Step "Consolidating screenshot-backed review verdicts"
+    Invoke-ChildPowerShell -ScriptPath $syncVisualReviewVerdictScript `
+        -Arguments @(
+            "-GateSummaryJson"
+            $gateSummaryPath
+        ) `
+        -FailureMessage "Visual review verdict consolidation failed." | Out-Null
+
+    $gateSummary = Get-Content -Raw -LiteralPath $gateSummaryPath | ConvertFrom-Json
+}
+
 Write-Step "Completed release gate"
 Write-Host "Gate summary: $gateSummaryPath"
 Write-Host "Gate final review: $gateFinalReviewPath"

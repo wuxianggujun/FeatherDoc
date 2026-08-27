@@ -1,6 +1,7 @@
 #include "featherdoc_cli_style_refactor_options_parse.hpp"
 
 #include "featherdoc_cli_style_refactor_pair_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <filesystem>
 #include <utility>
@@ -46,7 +47,7 @@ auto parse_style_refactor_plan_options(
                 return false;
             }
 
-            options.output_plan_path = path_type(std::string(arguments[index + 1U]));
+            options.output_plan_path = path_from_cli_utf8(arguments[index + 1U]);
             ++index;
             continue;
         }

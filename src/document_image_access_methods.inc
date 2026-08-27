@@ -1,10 +1,11 @@
-std::vector<drawing_image_info> Document::drawing_images_in_part(
-    std::string_view entry_name) const {
+std::vector<drawing_image_info>
+Document::drawing_images_in_part(std::string_view entry_name) const {
     std::vector<drawing_image_info> images;
 
     if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before reading drawing images");
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before reading drawing images");
         return images;
     }
 
@@ -34,53 +35,80 @@ std::vector<drawing_image_info> Document::drawing_images_in_part(
         return images;
     }
 
-    const auto relationships_root = relationships_document->child("Relationships");
+    const auto relationships_root =
+        featherdoc::detail::package_relationships_root(*relationships_document);
     std::vector<drawing_image_reference_state> references;
     if (entry_name == document_xml_entry) {
-        collect_body_drawing_image_references(root, relationships_root, references);
+        collect_body_drawing_image_references(root, relationships_root,
+                                              references);
     } else {
-        collect_drawing_image_references(root, relationships_root, references);
+        collect_drawing_image_references(root, relationships_root, entry_name,
+                                         references);
     }
 
     images.reserve(references.size());
     for (const auto &reference : references) {
         auto content_type = std::string{};
-        for (auto part = this->image_parts.rbegin(); part != this->image_parts.rend(); ++part) {
-            if (part->entry_name == reference.entry_name) {
+        for (auto part = this->image_parts.rbegin();
+             part != this->image_parts.rend(); ++part) {
+            if (package_part_names_equivalent(part->entry_name,
+                                              reference.entry_name)) {
                 content_type = part->content_type;
                 break;
             }
         }
 
         if (content_type.empty()) {
-            content_type =
-                image_content_type_for_extension(image_extension_from_entry_name(
-                    reference.entry_name));
+            content_type = image_content_type_for_extension(
+                image_extension_from_entry_name(reference.entry_name));
         }
 
-        images.push_back({reference.index,
-                          reference.placement,
-                          reference.relationship_id,
-                          reference.entry_name,
-                          reference.display_name,
-                          std::move(content_type),
-                          reference.width_px,
-                          reference.height_px,
-                          reference.floating_options,
-                          reference.body_block_index,
-                          reference.paragraph_index});
+        images.push_back(
+            {reference.index, reference.placement, reference.relationship_id,
+             reference.entry_name, reference.display_name,
+             std::move(content_type), reference.width_px, reference.height_px,
+             reference.floating_options, reference.body_block_index,
+             reference.paragraph_index});
     }
 
     this->last_error_info.clear();
     return images;
 }
 
+bool Document::image_relationships_allow_mutation(std::string_view entry_name) {
+    if (!this->is_open()) {
+        set_last_error(
+            this->last_error_info, document_errc::document_not_open,
+            "call open() or create_empty() before mutating drawing images");
+        return false;
+    }
+
+    if (entry_name == document_xml_entry) {
+        return relationships_document_allows_mutation(
+            this->document_relationships, this->has_document_relationships_part,
+            document_relationships_xml_entry, this->last_error_info);
+    }
+
+    if (auto *part = this->find_related_part_state(entry_name);
+        part != nullptr) {
+        return relationships_document_allows_mutation(
+            part->relationships, part->has_relationships_part,
+            part->relationships_entry_name, this->last_error_info);
+    }
+
+    set_last_error(this->last_error_info,
+                   std::make_error_code(std::errc::invalid_argument),
+                   "template part is not attached to this document",
+                   std::string{entry_name});
+    return false;
+}
+
 std::vector<drawing_image_info> Document::drawing_images() const {
     return this->drawing_images_in_part(document_xml_entry);
 }
 
-std::vector<inline_image_info> Document::inline_images_in_part(
-    std::string_view entry_name) const {
+std::vector<inline_image_info>
+Document::inline_images_in_part(std::string_view entry_name) const {
     const auto drawing_images = this->drawing_images_in_part(entry_name);
     if (this->last_error_info) {
         return {};
@@ -93,12 +121,9 @@ std::vector<inline_image_info> Document::inline_images_in_part(
             continue;
         }
 
-        images.push_back({images.size(),
-                          drawing_image.relationship_id,
-                          drawing_image.entry_name,
-                          drawing_image.display_name,
-                          drawing_image.content_type,
-                          drawing_image.width_px,
+        images.push_back({images.size(), drawing_image.relationship_id,
+                          drawing_image.entry_name, drawing_image.display_name,
+                          drawing_image.content_type, drawing_image.width_px,
                           drawing_image.height_px,
                           drawing_image.body_block_index,
                           drawing_image.paragraph_index});
@@ -116,9 +141,16 @@ bool Document::extract_drawing_image_from_part(
     std::string_view entry_name, std::size_t image_index,
     const std::filesystem::path &output_path) const {
     if (output_path.empty()) {
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "output path must not be empty when extracting a drawing image");
+        return false;
+    }
+    if (featherdoc::detail::path_has_embedded_nul(output_path)) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "output path must not be empty when extracting a drawing image");
+                       "output path must not contain an embedded NUL byte");
         return false;
     }
 
@@ -136,81 +168,114 @@ bool Document::extract_drawing_image_from_part(
     }
 
     std::string image_data;
-    for (auto part = this->image_parts.rbegin(); part != this->image_parts.rend(); ++part) {
-        if (part->entry_name == images[image_index].entry_name) {
+    for (auto part = this->image_parts.rbegin();
+         part != this->image_parts.rend(); ++part) {
+        if (package_part_names_equivalent(part->entry_name,
+                                          images[image_index].entry_name)) {
             image_data = part->data;
             break;
         }
     }
 
     if (image_data.empty()) {
-        if (!this->has_source_archive || this->document_path.empty()) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::no_such_file_or_directory),
-                           "the requested drawing image does not have readable archive data",
-                           images[image_index].entry_name);
+        const auto &source_archive_io_path =
+            this->extension_state().source_archive_io_path;
+        if (!this->has_source_archive || source_archive_io_path.empty()) {
+            set_last_error(
+                this->last_error_info,
+                std::make_error_code(std::errc::no_such_file_or_directory),
+                "the requested drawing image does not have readable archive "
+                "data",
+                images[image_index].entry_name);
             return false;
         }
 
-        int zip_error = 0;
-        zip_t *archive = zip_openwitherror(this->document_path.string().c_str(),
-                                           ZIP_DEFAULT_COMPRESSION_LEVEL, 'r',
-                                           &zip_error);
+        const auto archive_path =
+            featherdoc::detail::path_to_utf8(source_archive_io_path);
+        const auto native_archive_path =
+            featherdoc::detail::path_to_native_utf8(source_archive_io_path);
+        const auto opened_archive =
+            featherdoc::detail::open_read_zip_archive_with_limits(
+                native_archive_path, this->opened_archive_limits);
+        zip_t *archive = opened_archive.archive;
         if (archive == nullptr) {
-            set_last_error(this->last_error_info, document_errc::source_archive_open_failed,
-                           "failed to reopen source archive '" +
-                               this->document_path.string() + "' for drawing image extraction",
-                           this->document_path.string());
+            (void)featherdoc::detail::set_reopened_source_archive_open_error(
+                this->last_error_info, archive_path, opened_archive,
+                "extracting a drawing image",
+                images[image_index].entry_name);
+            return false;
+        }
+        featherdoc::detail::read_zip_archive_guard archive_guard{archive};
+
+        featherdoc::detail::archive_entry_catalog archive_catalog;
+        if (const auto validation_error =
+                featherdoc::detail::validate_reopened_source_archive_metadata(
+                    archive, this->opened_archive_limits, this->last_error_info,
+                    this->extension_state().opened_validation_mode,
+                    this->extension_state().source_archive_snapshot,
+                    archive_path, &archive_catalog)) {
             return false;
         }
 
         const auto read_status =
-            read_zip_entry_binary(archive, images[image_index].entry_name, image_data);
-        zip_close(archive);
+            read_zip_entry_binary(archive, images[image_index].entry_name,
+                                  image_data, archive_catalog);
 
         if (read_status == zip_entry_binary_read_status::missing) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::no_such_file_or_directory),
-                           "the requested drawing image entry is missing from the source archive",
-                           images[image_index].entry_name);
+            set_last_error(
+                this->last_error_info,
+                std::make_error_code(std::errc::no_such_file_or_directory),
+                "the requested drawing image entry is missing from the source "
+                "archive",
+                images[image_index].entry_name);
             return false;
         }
         if (read_status == zip_entry_binary_read_status::read_failed) {
-            set_last_error(this->last_error_info, document_errc::source_entry_open_failed,
-                           "failed to read the requested drawing image entry from the source archive",
+            set_last_error(this->last_error_info,
+                           document_errc::source_entry_open_failed,
+                           "failed to read the requested drawing image entry "
+                           "from the source archive",
                            images[image_index].entry_name);
+            return false;
+        }
+        if (const auto close_error = featherdoc::detail::close_read_archive(
+                archive_guard, this->last_error_info,
+                "failed to close source archive after drawing image extraction",
+                images[image_index].entry_name)) {
             return false;
         }
     }
 
-    if (const auto parent_path = output_path.parent_path(); !parent_path.empty()) {
+    if (const auto parent_path = output_path.parent_path();
+        !parent_path.empty()) {
         std::error_code filesystem_error;
         std::filesystem::create_directories(parent_path, filesystem_error);
         if (filesystem_error) {
             set_last_error(this->last_error_info, filesystem_error,
                            "failed to create output directory '" +
-                               parent_path.string() +
+                               featherdoc::detail::path_to_utf8(parent_path) +
                                "' for drawing image extraction",
-                           output_path.string());
+                           featherdoc::detail::path_to_utf8(output_path));
             return false;
         }
     }
 
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to open output file for drawing image extraction",
-                       output_path.string());
+        set_last_error(
+            this->last_error_info, std::make_error_code(std::errc::io_error),
+            "failed to open output file for drawing image extraction",
+            featherdoc::detail::path_to_utf8(output_path));
         return false;
     }
 
-    stream.write(image_data.data(), static_cast<std::streamsize>(image_data.size()));
+    stream.write(image_data.data(),
+                 static_cast<std::streamsize>(image_data.size()));
     if (!stream.good()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::io_error),
                        "failed while writing extracted drawing image data",
-                       output_path.string());
+                       featherdoc::detail::path_to_utf8(output_path));
         return false;
     }
 
@@ -220,8 +285,8 @@ bool Document::extract_drawing_image_from_part(
 
 bool Document::extract_drawing_image(
     std::size_t image_index, const std::filesystem::path &output_path) const {
-    return this->extract_drawing_image_from_part(document_xml_entry, image_index,
-                                                 output_path);
+    return this->extract_drawing_image_from_part(document_xml_entry,
+                                                 image_index, output_path);
 }
 
 bool Document::extract_inline_image_from_part(
@@ -232,7 +297,8 @@ bool Document::extract_inline_image_from_part(
         return false;
     }
 
-    const auto drawing_index = drawing_index_for_inline_image(images, image_index);
+    const auto drawing_index =
+        drawing_index_for_inline_image(images, image_index);
     if (!drawing_index.has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::result_out_of_range),
@@ -241,18 +307,23 @@ bool Document::extract_inline_image_from_part(
         return false;
     }
 
-    return this->extract_drawing_image_from_part(entry_name, *drawing_index, output_path);
+    return this->extract_drawing_image_from_part(entry_name, *drawing_index,
+                                                 output_path);
 }
 
-bool Document::extract_inline_image(std::size_t image_index,
-                                    const std::filesystem::path &output_path) const {
+bool Document::extract_inline_image(
+    std::size_t image_index, const std::filesystem::path &output_path) const {
     return this->extract_inline_image_from_part(document_xml_entry, image_index,
                                                 output_path);
 }
 
-bool Document::replace_drawing_image_in_part(std::string_view entry_name,
-                                             std::size_t image_index,
-                                             const std::filesystem::path &image_path) {
+bool Document::replace_drawing_image_in_part(
+    std::string_view entry_name, std::size_t image_index,
+    const std::filesystem::path &image_path) {
+    if (!this->image_relationships_allow_mutation(entry_name)) {
+        return false;
+    }
+
     const auto images = this->drawing_images_in_part(entry_name);
     if (this->last_error_info) {
         return false;
@@ -269,11 +340,13 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
     featherdoc::detail::image_file_info image_info;
     auto error_code = featherdoc::document_errc::success;
     std::string detail;
-    if (!featherdoc::detail::load_image_file(image_path, image_info, error_code, detail)) {
+    if (!featherdoc::detail::load_image_file(image_path, image_info, error_code,
+                                             detail)) {
         set_last_error(this->last_error_info, error_code, std::move(detail),
-                       image_path.string());
+                       featherdoc::detail::path_to_utf8(image_path));
         return false;
     }
+    image_info.extension = normalize_image_extension(image_info.extension);
 
     if (const auto error = this->ensure_content_types_loaded()) {
         return false;
@@ -286,7 +359,8 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         relationships_document = &this->document_relationships;
         relationships_entry_name = document_relationships_xml_entry;
         relationships_dirty = &this->document_relationships_dirty;
-    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+    } else if (auto *part = this->find_related_part_state(entry_name);
+               part != nullptr) {
         relationships_document = &part->relationships;
         relationships_entry_name = part->relationships_entry_name;
         relationships_dirty = &part->relationships_dirty;
@@ -298,7 +372,8 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         return false;
     }
 
-    auto relationships = relationships_document->child("Relationships");
+    auto relationships =
+        featherdoc::detail::package_relationships_root(*relationships_document);
     if (relationships == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::relationships_xml_parse_failed,
@@ -308,18 +383,20 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         return false;
     }
 
-    auto relationship_node =
-        find_image_relationship_node(relationships, images[image_index].relationship_id);
+    auto relationship_node = find_image_relationship_node(
+        relationships, images[image_index].relationship_id);
 
     if (relationship_node == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "the requested drawing image relationship could not be resolved",
-                       images[image_index].relationship_id);
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "the requested drawing image relationship could not be resolved",
+            images[image_index].relationship_id);
         return false;
     }
 
-    auto types = this->content_types.child("Types");
+    auto types = featherdoc::detail::package_content_types_root(
+        this->content_types);
     if (types == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::content_types_xml_parse_failed,
@@ -328,39 +405,56 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         return false;
     }
 
-    std::unordered_set<std::string> used_part_entries;
-    collect_relationship_image_targets(this->document_relationships, used_part_entries);
+    std::set<std::string> used_part_identities;
+    collect_relationship_image_targets(
+        this->document_relationships, document_xml_entry, used_part_identities);
     for (const auto &part : this->header_parts) {
-        collect_relationship_image_targets(part->relationships, used_part_entries);
+        collect_relationship_image_targets(
+            part->relationships, part->entry_name, used_part_identities);
     }
     for (const auto &part : this->footer_parts) {
-        collect_relationship_image_targets(part->relationships, used_part_entries);
+        collect_relationship_image_targets(
+            part->relationships, part->entry_name, used_part_identities);
     }
     for (const auto &part : this->image_parts) {
-        used_part_entries.insert(part.entry_name);
+        if (const auto identity = package_part_name_identity(part.entry_name)) {
+            used_part_identities.insert(*identity);
+        }
     }
 
     std::string replacement_entry_name;
-    for (std::size_t next_index = 1U; replacement_entry_name.empty(); ++next_index) {
+    for (std::size_t next_index = 1U; replacement_entry_name.empty();
+         ++next_index) {
         auto candidate = std::string{"word/media/image"} +
-                         std::to_string(next_index) + "." + image_info.extension;
-        if (!used_part_entries.contains(candidate)) {
+                         std::to_string(next_index) + "." +
+                         image_info.extension;
+        const auto candidate_identity = package_part_name_identity(candidate);
+        if (candidate_identity.has_value() &&
+            !used_part_identities.contains(*candidate_identity) &&
+            !package_part_identity_has_derivation_conflict(
+                used_part_identities, *candidate_identity) &&
+            !this->source_package_part_name_conflicts(candidate)) {
             replacement_entry_name = std::move(candidate);
         }
     }
 
     auto default_node = pugi::xml_node{};
-    for (auto existing_default = types.child("Default");
+    for (auto existing_default =
+             featherdoc::detail::first_package_content_type_default(types);
          existing_default != pugi::xml_node{};
-         existing_default = existing_default.next_sibling("Default")) {
-        if (std::string_view{existing_default.attribute("Extension").value()} ==
-            image_info.extension) {
+         existing_default =
+             featherdoc::detail::next_package_content_type_default(
+                 existing_default)) {
+        if (image_extensions_equivalent(
+                existing_default.attribute("Extension").value(),
+                image_info.extension)) {
             default_node = existing_default;
             break;
         }
     }
     if (default_node == pugi::xml_node{}) {
-        default_node = types.append_child("Default");
+        default_node =
+            featherdoc::detail::append_package_content_type_default(types);
     }
     if (default_node == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
@@ -370,35 +464,39 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         return false;
     }
     ensure_attribute_value(default_node, "Extension", image_info.extension);
-    ensure_attribute_value(default_node, "ContentType", image_info.content_type);
+    ensure_attribute_value(default_node, "ContentType",
+                           image_info.content_type);
 
     const auto previous_entry_name = images[image_index].entry_name;
-    ensure_attribute_value(relationship_node, "Target",
-                           make_part_relationship_target(entry_name,
-                                                         replacement_entry_name));
+    ensure_attribute_value(
+        relationship_node, "Target",
+        make_part_relationship_target(entry_name, replacement_entry_name));
 
-    this->image_parts.push_back({std::string{entry_name},
-                                 std::move(replacement_entry_name),
-                                 std::move(image_info.content_type),
-                                 std::move(image_info.data)});
-    this->removed_archive_entries.erase(this->image_parts.back().entry_name);
+    this->image_parts.push_back(
+        {std::string{entry_name}, std::move(replacement_entry_name),
+         std::move(image_info.content_type), std::move(image_info.data)});
+    erase_equivalent_image_entries(this->removed_archive_entries,
+                                   this->image_parts.back().entry_name);
     *relationships_dirty = true;
     this->content_types_dirty = true;
 
     const auto has_image_relationship_reference =
         [&](std::string_view target_entry_name) {
-            if (relationships_reference_image_entry(this->document_relationships,
-                                                    target_entry_name)) {
+            if (relationships_reference_image_entry(
+                    this->document_relationships, document_xml_entry,
+                    target_entry_name)) {
                 return true;
             }
             for (const auto &part : this->header_parts) {
                 if (relationships_reference_image_entry(part->relationships,
+                                                        part->entry_name,
                                                         target_entry_name)) {
                     return true;
                 }
             }
             for (const auto &part : this->footer_parts) {
                 if (relationships_reference_image_entry(part->relationships,
+                                                        part->entry_name,
                                                         target_entry_name)) {
                     return true;
                 }
@@ -411,14 +509,16 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
         this->image_parts.erase(
             std::remove_if(this->image_parts.begin(), this->image_parts.end(),
                            [&](const image_part_state &part) {
-                               return part.entry_name == previous_entry_name;
+                               return package_part_names_equivalent(
+                                   part.entry_name, previous_entry_name);
                            }),
             this->image_parts.end());
         if (this->has_source_archive) {
             this->removed_archive_entries.insert(previous_entry_name);
         }
     } else {
-        this->removed_archive_entries.erase(previous_entry_name);
+        erase_equivalent_image_entries(this->removed_archive_entries,
+                                       previous_entry_name);
     }
 
     this->last_error_info.clear();
@@ -427,9 +527,7 @@ bool Document::replace_drawing_image_in_part(std::string_view entry_name,
 
 bool Document::remove_drawing_image_in_part(std::string_view entry_name,
                                             std::size_t image_index) {
-    if (!this->is_open()) {
-        set_last_error(this->last_error_info, document_errc::document_not_open,
-                       "call open() or create_empty() before removing drawing images");
+    if (!this->image_relationships_allow_mutation(entry_name)) {
         return false;
     }
 
@@ -440,7 +538,8 @@ bool Document::remove_drawing_image_in_part(std::string_view entry_name,
         root = this->document.child("w:document").child("w:body");
         relationships_document = &this->document_relationships;
         relationships_dirty = &this->document_relationships_dirty;
-    } else if (auto *part = this->find_related_part_state(entry_name); part != nullptr) {
+    } else if (auto *part = this->find_related_part_state(entry_name);
+               part != nullptr) {
         root = part->xml.document_element();
         relationships_document = &part->relationships;
         relationships_dirty = &part->relationships_dirty;
@@ -462,10 +561,13 @@ bool Document::remove_drawing_image_in_part(std::string_view entry_name,
     }
 
     auto relationships_root =
-        relationships_document != nullptr ? relationships_document->child("Relationships")
-                                          : pugi::xml_node{};
+        relationships_document != nullptr
+            ? featherdoc::detail::package_relationships_root(
+                  *relationships_document)
+            : pugi::xml_node{};
     std::vector<drawing_image_reference_state> references;
-    collect_drawing_image_references(root, relationships_root, references);
+    collect_drawing_image_references(root, relationships_root, entry_name,
+                                     references);
     if (image_index >= references.size()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::result_out_of_range),
@@ -476,33 +578,34 @@ bool Document::remove_drawing_image_in_part(std::string_view entry_name,
 
     const auto &reference = references[image_index];
     if (reference.drawing_container == pugi::xml_node{}) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::invalid_argument),
-                       "the requested drawing image could not be resolved to an XML node",
-                       std::to_string(image_index));
+        set_last_error(
+            this->last_error_info,
+            std::make_error_code(std::errc::invalid_argument),
+            "the requested drawing image could not be resolved to an XML node",
+            std::to_string(image_index));
         return false;
     }
 
-    const auto has_shared_relationship =
-        std::any_of(references.begin(), references.end(),
-                    [&](const drawing_image_reference_state &candidate) {
-                        return candidate.index != reference.index &&
-                               candidate.relationship_id == reference.relationship_id;
-                    });
+    const auto has_shared_relationship = std::any_of(
+        references.begin(), references.end(),
+        [&](const drawing_image_reference_state &candidate) {
+            return candidate.index != reference.index &&
+                   candidate.relationship_id == reference.relationship_id;
+        });
 
     auto drawing_parent = reference.drawing_container.parent();
     if (drawing_parent == pugi::xml_node{} ||
         !drawing_parent.remove_child(reference.drawing_container)) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to remove the requested drawing image from its parent node",
-                       std::string{entry_name});
+        set_last_error(
+            this->last_error_info, std::make_error_code(std::errc::io_error),
+            "failed to remove the requested drawing image from its parent node",
+            std::string{entry_name});
         return false;
     }
 
     if (!has_shared_relationship) {
-        const auto relationship_node =
-            find_image_relationship_node(relationships_root, reference.relationship_id);
+        const auto relationship_node = find_image_relationship_node(
+            relationships_root, reference.relationship_id);
         if (relationship_node != pugi::xml_node{}) {
             relationships_root.remove_child(relationship_node);
             if (relationships_dirty != nullptr) {
@@ -513,18 +616,21 @@ bool Document::remove_drawing_image_in_part(std::string_view entry_name,
 
     const auto has_image_relationship_reference =
         [&](std::string_view target_entry_name) {
-            if (relationships_reference_image_entry(this->document_relationships,
-                                                    target_entry_name)) {
+            if (relationships_reference_image_entry(
+                    this->document_relationships, document_xml_entry,
+                    target_entry_name)) {
                 return true;
             }
             for (const auto &part : this->header_parts) {
                 if (relationships_reference_image_entry(part->relationships,
+                                                        part->entry_name,
                                                         target_entry_name)) {
                     return true;
                 }
             }
             for (const auto &part : this->footer_parts) {
                 if (relationships_reference_image_entry(part->relationships,
+                                                        part->entry_name,
                                                         target_entry_name)) {
                     return true;
                 }
@@ -537,14 +643,16 @@ bool Document::remove_drawing_image_in_part(std::string_view entry_name,
         this->image_parts.erase(
             std::remove_if(this->image_parts.begin(), this->image_parts.end(),
                            [&](const image_part_state &part) {
-                               return part.entry_name == reference.entry_name;
+                               return package_part_names_equivalent(
+                                   part.entry_name, reference.entry_name);
                            }),
             this->image_parts.end());
         if (this->has_source_archive) {
             this->removed_archive_entries.insert(reference.entry_name);
         }
     } else {
-        this->removed_archive_entries.erase(reference.entry_name);
+        erase_equivalent_image_entries(this->removed_archive_entries,
+                                       reference.entry_name);
     }
 
     this->last_error_info.clear();
@@ -561,15 +669,20 @@ bool Document::remove_drawing_image(std::size_t image_index) {
     return this->remove_drawing_image_in_part(document_xml_entry, image_index);
 }
 
-bool Document::replace_inline_image_in_part(std::string_view entry_name,
-                                            std::size_t image_index,
-                                            const std::filesystem::path &image_path) {
+bool Document::replace_inline_image_in_part(
+    std::string_view entry_name, std::size_t image_index,
+    const std::filesystem::path &image_path) {
+    if (!this->image_relationships_allow_mutation(entry_name)) {
+        return false;
+    }
+
     const auto images = this->drawing_images_in_part(entry_name);
     if (this->last_error_info) {
         return false;
     }
 
-    const auto drawing_index = drawing_index_for_inline_image(images, image_index);
+    const auto drawing_index =
+        drawing_index_for_inline_image(images, image_index);
     if (!drawing_index.has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::result_out_of_range),
@@ -578,17 +691,23 @@ bool Document::replace_inline_image_in_part(std::string_view entry_name,
         return false;
     }
 
-    return this->replace_drawing_image_in_part(entry_name, *drawing_index, image_path);
+    return this->replace_drawing_image_in_part(entry_name, *drawing_index,
+                                               image_path);
 }
 
 bool Document::remove_inline_image_in_part(std::string_view entry_name,
                                            std::size_t image_index) {
+    if (!this->image_relationships_allow_mutation(entry_name)) {
+        return false;
+    }
+
     const auto images = this->drawing_images_in_part(entry_name);
     if (this->last_error_info) {
         return false;
     }
 
-    const auto drawing_index = drawing_index_for_inline_image(images, image_index);
+    const auto drawing_index =
+        drawing_index_for_inline_image(images, image_index);
     if (!drawing_index.has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::result_out_of_range),
@@ -609,4 +728,3 @@ bool Document::replace_inline_image(std::size_t image_index,
 bool Document::remove_inline_image(std::size_t image_index) {
     return this->remove_inline_image_in_part(document_xml_entry, image_index);
 }
-

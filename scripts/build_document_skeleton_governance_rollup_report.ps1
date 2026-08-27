@@ -246,6 +246,7 @@ function New-ReportMarkdown {
     $lines.Add("- source_failure_count: ``$($Summary.source_failure_count)``") | Out-Null
     $lines.Add("- Style-numbering issues: ``$($Summary.total_style_numbering_issue_count)``") | Out-Null
     $lines.Add("- Style-merge suggestions: ``$($Summary.total_style_merge_suggestion_count)``") | Out-Null
+    $lines.Add("- Style-merge manual review reasons: ``$($Summary.total_style_merge_manual_review_reason_count)``") | Out-Null
     $lines.Add("- Release blockers: ``$($Summary.release_blocker_count)``") | Out-Null
     $lines.Add("- Action items: ``$($Summary.action_item_count)``") | Out-Null
     $lines.Add("") | Out-Null
@@ -256,12 +257,13 @@ function New-ReportMarkdown {
         $lines.Add("- none") | Out-Null
     } else {
         foreach ($document in @($Summary.document_entries)) {
-            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` definitions=``{5}`` instances=``{6}`` source=``{7}``" -f
+            $lines.Add(("- ``{0}``: status=``{1}`` issues=``{2}`` suggestions=``{3}`` style_merge_suggestions=``{4}`` style_merge_manual_review_reasons=``{5}`` definitions=``{6}`` instances=``{7}`` source=``{8}``" -f
                 $document.document_name,
                 $document.status,
                 $document.style_numbering_issue_count,
                 $document.style_numbering_suggestion_count,
                 $document.style_merge_suggestion_count,
+                $document.style_merge_manual_review_reason_count,
                 $document.numbering_definition_count,
                 $document.numbering_instance_count,
                 $document.source_report_display)) | Out-Null
@@ -348,6 +350,16 @@ function New-ReportMarkdown {
             if (-not [string]::IsNullOrWhiteSpace([string]$item.origin_source_report_display)) {
                 $lines.Add("  - origin_source_report_display: ``$($item.origin_source_report_display)``") | Out-Null
             }
+            if ([int]$item.manual_review_reason_count -gt 0) {
+                $lines.Add("  - manual_review_reason_count: ``$($item.manual_review_reason_count)``") | Out-Null
+                foreach ($reason in @($item.manual_review_reasons)) {
+                    $sourceStyleId = Get-JsonString -Object $reason -Name "source_style_id"
+                    $targetStyleId = Get-JsonString -Object $reason -Name "target_style_id"
+                    $recommendedAction = Get-JsonString -Object $reason -Name "recommended_action"
+                    $reasonCode = Get-JsonString -Object $reason -Name "reason_code"
+                    $lines.Add("  - manual_review_reason: source=``$sourceStyleId`` target=``$targetStyleId`` reason_code=``$reasonCode`` recommended_action=``$recommendedAction``") | Out-Null
+                }
+            }
         }
     }
     $lines.Add("") | Out-Null
@@ -429,6 +441,7 @@ $totalStyleUsageCount = 0
 $totalNumberedStyleCount = 0
 $totalCommandFailureCount = 0
 $totalStyleMergeSuggestionCount = 0
+$totalStyleMergeManualReviewReasonCount = 0
 
 foreach ($path in @($inputPaths)) {
     $sourceIndex++
@@ -440,6 +453,7 @@ foreach ($path in @($inputPaths)) {
     $inputDocxDisplay = ""
     $styleIssueCount = 0
     $styleMergeSuggestionCount = 0
+    $styleMergeManualReviewReasonCount = 0
     $releaseBlockerCount = 0
 
     try {
@@ -475,6 +489,8 @@ foreach ($path in @($inputPaths)) {
             $styleIssueCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_issue_count"
             $styleSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_numbering_suggestion_count"
             $styleMergeSuggestionCount = Get-JsonInt -Object $summaryObject -Name "style_merge_suggestion_count"
+            $styleMergeManualReviewRequired = Get-JsonBool -Object $summaryObject -Name "style_merge_manual_review_required"
+            $styleMergeManualReviewReasonCount = Get-JsonInt -Object $summaryObject -Name "style_merge_manual_review_reason_count"
             $numberedStyleCount = Get-JsonInt -Object $summaryObject -Name "numbered_style_count"
             $styleUsageTotal = Get-JsonInt -Object $styleUsage -Name "usage_total"
             $commandFailureCount = Get-JsonInt -Object $summaryObject -Name "command_failure_count"
@@ -517,6 +533,8 @@ foreach ($path in @($inputPaths)) {
                 style_numbering_issue_count = $styleIssueCount
                 style_numbering_suggestion_count = $styleSuggestionCount
                 style_merge_suggestion_count = $styleMergeSuggestionCount
+                style_merge_manual_review_required = $styleMergeManualReviewRequired
+                style_merge_manual_review_reason_count = $styleMergeManualReviewReasonCount
                 numbered_style_count = $numberedStyleCount
                 numbering_definition_count = $definitionCount
                 numbering_instance_count = $instanceCount
@@ -612,6 +630,7 @@ foreach ($path in @($inputPaths)) {
                     }
                 }
                 $command = Get-JsonString -Object $item -Name "command"
+                $manualReviewReasons = @(Get-JsonArray -Object $item -Name "manual_review_reasons")
                 $actionItems.Add([ordered]@{
                     composite_id = ("document{0}.action{1}.{2}" -f $documents.Count, $actionIndex, $id)
                     id = $id
@@ -633,6 +652,9 @@ foreach ($path in @($inputPaths)) {
                     severity = Get-JsonString -Object $item -Name "severity"
                     release_blocking = Get-JsonBool -Object $item -Name "release_blocking" -DefaultValue $true
                     optional = Get-JsonBool -Object $item -Name "optional"
+                    manual_review_required = Get-JsonBool -Object $item -Name "manual_review_required"
+                    manual_review_reason_count = Get-JsonInt -Object $item -Name "manual_review_reason_count" -DefaultValue $manualReviewReasons.Count
+                    manual_review_reasons = @($manualReviewReasons)
                 }) | Out-Null
             }
 
@@ -644,6 +666,7 @@ foreach ($path in @($inputPaths)) {
             $totalNumberedStyleCount += $numberedStyleCount
             $totalCommandFailureCount += $commandFailureCount
             $totalStyleMergeSuggestionCount += $styleMergeSuggestionCount
+            $totalStyleMergeManualReviewReasonCount += $styleMergeManualReviewReasonCount
         }
     } catch {
         $sourceStatus = "failed"
@@ -673,6 +696,7 @@ foreach ($path in @($inputPaths)) {
         input_docx_display = $inputDocxDisplay
         style_numbering_issue_count = $styleIssueCount
         style_merge_suggestion_count = $styleMergeSuggestionCount
+        style_merge_manual_review_reason_count = $styleMergeManualReviewReasonCount
         release_blocker_count = $releaseBlockerCount
         error = $errorMessage
     }) | Out-Null
@@ -687,7 +711,7 @@ $status = if ($sourceFailureCount -gt 0) {
     "failed"
 } elseif ($sourceReportFailureCount -gt 0 -or $totalCommandFailureCount -gt 0) {
     "failed"
-} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $totalStyleMergeSuggestionCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
+} elseif ($warnings.Count -gt 0 -or $totalStyleNumberingIssueCount -gt 0 -or $totalStyleMergeSuggestionCount -gt 0 -or $totalStyleMergeManualReviewReasonCount -gt 0 -or $blockers.Count -gt 0 -or $needsReviewCount -gt 0) {
     "needs_review"
 } else {
     "clean"
@@ -713,6 +737,7 @@ $summary = [ordered]@{
     total_style_numbering_issue_count = $totalStyleNumberingIssueCount
     total_style_numbering_suggestion_count = $totalStyleNumberingSuggestionCount
     total_style_merge_suggestion_count = $totalStyleMergeSuggestionCount
+    total_style_merge_manual_review_reason_count = $totalStyleMergeManualReviewReasonCount
     total_numbered_style_count = $totalNumberedStyleCount
     total_numbering_definition_count = $totalNumberingDefinitionCount
     total_numbering_instance_count = $totalNumberingInstanceCount

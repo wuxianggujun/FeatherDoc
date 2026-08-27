@@ -86,7 +86,8 @@ void write_json_table_position_table_fingerprints(
         if (index > 0U) {
             stream << ',';
         }
-        write_json_table_position_table_fingerprint(stream, fingerprints[index]);
+        write_json_table_position_table_fingerprint(stream,
+                                                    fingerprints[index]);
     }
     stream << ']';
 }
@@ -109,7 +110,7 @@ void write_json_table_position_preset_plan_item(
     write_json_string(stream, item.recommended_command);
     if (item.resolved_output_path.has_value()) {
         stream << ",\"resolved_output_path\":";
-        write_json_string(stream, item.resolved_output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*item.resolved_output_path));
     }
     if (item.resolved_recommended_command.has_value()) {
         stream << ",\"resolved_recommended_command\":";
@@ -123,17 +124,15 @@ void write_json_table_position_preset_plan_item(
 void write_json_table_position(std::ostream &stream,
                                const featherdoc::table_position &position) {
     stream << "{\"horizontal_reference\":";
-    write_json_string(
-        stream,
-        table_position_horizontal_reference_name(position.horizontal_reference));
+    write_json_string(stream, table_position_horizontal_reference_name(
+                                  position.horizontal_reference));
     stream << ",\"horizontal_offset_twips\":"
            << position.horizontal_offset_twips << ",\"horizontal_spec\":";
-    write_json_optional_table_position_horizontal_spec(stream,
-                                                       position.horizontal_spec);
+    write_json_optional_table_position_horizontal_spec(
+        stream, position.horizontal_spec);
     stream << ",\"vertical_reference\":";
-    write_json_string(stream,
-                      table_position_vertical_reference_name(
-                          position.vertical_reference));
+    write_json_string(stream, table_position_vertical_reference_name(
+                                  position.vertical_reference));
     stream << ",\"vertical_offset_twips\":" << position.vertical_offset_twips
            << ",\"vertical_spec\":";
     write_json_optional_table_position_vertical_spec(stream,
@@ -173,11 +172,13 @@ void write_table_position_text(
                   position->horizontal_reference)
            << ':' << position->horizontal_offset_twips;
     if (position->horizontal_spec.has_value()) {
-        stream << ':' << table_position_horizontal_spec_name(
-                              *position->horizontal_spec);
+        stream << ':'
+               << table_position_horizontal_spec_name(
+                      *position->horizontal_spec);
     }
     stream << ','
-           << table_position_vertical_reference_name(position->vertical_reference)
+           << table_position_vertical_reference_name(
+                  position->vertical_reference)
            << ':' << position->vertical_offset_twips;
     if (position->vertical_spec.has_value()) {
         stream << ':'
@@ -208,7 +209,7 @@ void write_json_table_position_preset_plan(
            << ",\"ok\":" << json_bool(plan.items.empty());
     if (options.input_path.has_value()) {
         stream << ",\"input_path\":";
-        write_json_string(stream, options.input_path->string());
+        write_json_string(stream, path_to_cli_utf8(*options.input_path));
     }
     stream << ",\"preset\":";
     write_json_string(stream, table_position_preset_name(plan.preset));
@@ -217,11 +218,11 @@ void write_json_table_position_preset_plan(
            << ",\"fail_on_change\":" << json_bool(options.fail_on_change);
     if (options.output_path.has_value()) {
         stream << ",\"output_path\":";
-        write_json_string(stream, options.output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*options.output_path));
     }
     if (options.output_plan_path.has_value()) {
         stream << ",\"output_plan_path\":";
-        write_json_string(stream, options.output_plan_path->string());
+        write_json_string(stream, path_to_cli_utf8(*options.output_plan_path));
     }
     stream << ",\"table_count\":" << plan.table_count
            << ",\"positioned_count\":" << plan.positioned_count
@@ -241,7 +242,7 @@ void write_json_table_position_preset_plan(
     write_json_optional_string(stream, plan.recommended_batch_command);
     stream << ",\"resolved_output_path\":";
     if (plan.resolved_output_path.has_value()) {
-        write_json_string(stream, plan.resolved_output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*plan.resolved_output_path));
     } else {
         stream << "null";
     }
@@ -270,7 +271,8 @@ void write_text_table_position_preset_plan(
     std::cout << "table_position_preset_plan: "
               << (plan.items.empty() ? "clean" : "changes") << '\n';
     if (options.input_path.has_value()) {
-        std::cout << "input_path: " << options.input_path->string() << '\n';
+        std::cout << "input_path: " << path_to_cli_utf8(*options.input_path)
+                  << '\n';
     }
     std::cout << "preset: " << table_position_preset_name(plan.preset) << '\n'
               << "replace_positioned: "
@@ -284,7 +286,8 @@ void write_text_table_position_preset_plan(
               << '\n'
               << "already_matching_table_indices: ";
     write_text_size_array(std::cout, plan.already_matching_table_indices);
-    std::cout << '\n' << "set_count: " << plan.set_count << '\n'
+    std::cout << '\n'
+              << "set_count: " << plan.set_count << '\n'
               << "replace_count: " << plan.replace_count << '\n'
               << "review_count: " << plan.review_count << '\n'
               << "review_table_indices: ";
@@ -302,7 +305,7 @@ void write_text_table_position_preset_plan(
     }
     std::cout << "\nresolved_output_path: ";
     if (plan.resolved_output_path.has_value()) {
-        std::cout << plan.resolved_output_path->string();
+        std::cout << path_to_cli_utf8(*plan.resolved_output_path);
     } else {
         std::cout << "none";
     }
@@ -314,11 +317,12 @@ void write_text_table_position_preset_plan(
     }
     std::cout << '\n' << "plan_item_count: " << plan.items.size() << '\n';
     if (options.output_path.has_value()) {
-        std::cout << "output_path: " << options.output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*options.output_path)
+                  << '\n';
     }
     if (options.output_plan_path.has_value()) {
-        std::cout << "output_plan_path: " << options.output_plan_path->string()
-                  << '\n';
+        std::cout << "output_plan_path: "
+                  << path_to_cli_utf8(*options.output_plan_path) << '\n';
     }
     for (std::size_t index = 0; index < plan.items.size(); ++index) {
         const auto &item = plan.items[index];
@@ -335,7 +339,7 @@ void write_text_table_position_preset_plan(
                   << "\"";
         if (item.resolved_output_path.has_value()) {
             std::cout << " resolved_output_path=\""
-                      << item.resolved_output_path->string() << "\"";
+                      << path_to_cli_utf8(*item.resolved_output_path) << "\"";
         }
         if (item.resolved_recommended_command.has_value()) {
             std::cout << " resolved_recommended_command=\""
@@ -353,14 +357,14 @@ auto write_table_position_preset_plan_file(
     std::ofstream stream(output_path, std::ios::binary | std::ios::trunc);
     if (!stream.good()) {
         error_message = "failed to open table position plan output path: " +
-                        output_path.string();
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 
     write_json_table_position_preset_plan(stream, plan, options);
     if (!stream.good()) {
         error_message = "failed to write table position plan output path: " +
-                        output_path.string();
+                        featherdoc::detail::path_to_utf8(output_path);
         return false;
     }
 

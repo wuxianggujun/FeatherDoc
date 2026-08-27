@@ -7,6 +7,8 @@
 #include "featherdoc_cli_pdf_import_output.hpp"
 #include "featherdoc_cli_pdf_parse.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
 #include <featherdoc/pdf/pdf_document_importer.hpp>
 #endif
@@ -44,7 +46,7 @@ auto run_import_pdf_command(std::string_view command,
             *options.min_table_continuation_confidence;
     }
 
-    const auto input_path = path_type(std::string(arguments[1]));
+    const auto input_path = featherdoc::detail::path_from_utf8(arguments[1]);
     const auto import_result = featherdoc::pdf::import_pdf_text_document(
         input_path, doc, import_options);
     if (!import_result) {
@@ -63,9 +65,12 @@ auto run_import_pdf_command(std::string_view command,
             command, doc, options.output_path,
             [&input_path, &options, &import_result](std::ostream &stream) {
                 stream << ",\"input\":";
-                write_json_string(stream, input_path.string());
+                write_json_string(
+                    stream, featherdoc::detail::path_to_utf8(input_path));
                 stream << ",\"output\":";
-                write_json_string(stream, options.output_path->string());
+                write_json_string(
+                    stream,
+                    featherdoc::detail::path_to_utf8(*options.output_path));
                 stream << ",\"paragraphs_imported\":"
                        << import_result.paragraphs_imported;
                 stream << ",\"tables_imported\":"
@@ -83,8 +88,10 @@ auto run_import_pdf_command(std::string_view command,
                 }
             });
     } else {
-        std::cout << "imported " << input_path.string() << " -> "
-                  << options.output_path->string() << " ("
+        std::cout << "imported "
+                  << featherdoc::detail::path_to_utf8(input_path) << " -> "
+                  << featherdoc::detail::path_to_utf8(*options.output_path)
+                  << " ("
                   << import_result.paragraphs_imported << " paragraphs, "
                   << import_result.tables_imported << " tables)\n";
     }

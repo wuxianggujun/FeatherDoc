@@ -37,7 +37,9 @@
 - 公式、字段、批注、修订等正式文档对象
 - 面向真实项目模板的接入、迁移和质量门禁体验
 
-其中前三项最应该优先推进。
+其中前三项代表历史上的主要能力缺口。当前 DOCX 主线已完成收口，
+后续只在真实业务需求重新立项并给出验证证据时推进；默认进入 Word-only maintenance mode，
+PDF 保持实验性 opt-in。
 
 
 P0：近期最值得补的能力
@@ -195,12 +197,49 @@ document skeleton rollup 的 blocker / action item 明细，便于发布面板�
 真实语料对齐结果会作为 ``numbering_catalog_governance.real_corpus_confidence`` /
 ``real_corpus_confidence`` 指标进入发布安全材料，用来区分 catalog 覆盖率、baseline
 覆盖率、匹配文档数和 penalty summary，而不是只展示骨架治理项数量。
-后续对既有文档里的复杂 numbering catalog，仍可继续强化冲突审计和 catalog
-patch 衔接。
+治理报告同时会输出 per-document ``real_corpus_alignment`` 明细；当文档键只存在于
+exemplar catalog 或只存在于 baseline manifest 时，会分别落到
+``missing_baseline`` / ``missing_exemplar``，并生成
+``numbering_catalog_governance.missing_baseline`` /
+``numbering_catalog_governance.missing_exemplar`` action item，指向原始
+``source_schema``、``source_report_display``、``source_json_display`` 与可复跑的
+``open_command``。
+同一 ``document_key`` 出现多个不同 ``exemplar_catalog_path`` 时，治理报告现在会
+输出 ``exemplar_conflict_count`` / ``exemplar_conflicts``，生成
+``numbering_catalog_governance.exemplar_catalog_conflict`` blocker 和
+``review_numbering_catalog_exemplar_conflict`` action，并在 ``open_command`` 中给出
+``diff-numbering-catalog`` 对比入口；这避免来源冲突被单纯的 document-key 对齐误判为
+干净匹配。
+
+本轮已经把这条冲突路径落地为结构化审阅计划，而不是尝试自动猜测权威 catalog。报告
+顶层固定输出 ``catalog_patch_plan_count`` / ``catalog_patch_plans``；每个冲突通过
+``catalog_patch_plan_id`` / ``catalog_patch_plan`` 关联一个
+``featherdoc.numbering_catalog_governance_patch_plan.v1`` 计划。计划的状态固定为
+``awaiting_authoritative_catalog``，并明确 ``safe_to_apply=false``、
+``automatic_patch_available=false``、``patch_apply_supported=false``、
+``manual_review_required=true`` 和
+``requires_authoritative_catalog_selection=true``。候选源通过
+``candidate_catalog_count``、``candidate_catalog_paths`` 和
+``candidate_catalog_displays`` 暴露，``reviewer_inputs``、``patch_counts`` 以及
+``unsupported_automatic_changes`` 也会保留在计划中。
+
+计划的 ``supported_patch_operations`` 只允许 ``upsert_levels``、
+``upsert_overrides`` 和 ``remove_overrides`` 三类 patch operation；
+``definition_topology_changes`` 与 ``instance_topology_changes``
+不由 catalog patch CLI 自动处理，必须转为人工复核。计划会给出有序
+``required_steps``，以及 ``diff_commands`` / ``review_command``、
+``patch_command_template``、``lint_command_template`` 和
+``verification_command_template``，形成“选权威源 -> 对比 -> 编写 reviewed patch ->
+apply -> lint -> ``--fail-on-diff`` 验证”的可追踪链路。该计划及其
+``catalog_patch_plan_id`` / ``catalog_patch_plan`` 会由 document skeleton rollup、
+release blocker rollup 和 release governance handoff 原样透传。
+
+下一步仍需要 reviewer 选择唯一的 authoritative catalog，并人工编写只包含受支持
+操作的 reviewed patch；完成 lint 与验证后，才能把计划从待审阅状态推进到后续治理流程。
 
 后续建议集中在：
 
-- 强化 exemplar 文档自动提取 numbering catalog 后的冲突审计报告
+- 由 reviewer 选择权威 exemplar catalog，编写并验证 reviewed patch；结构化冲突审阅计划本轮已落地
 - 把 ``repair-style-numbering`` 的安全修复建议进一步转成可复用 catalog patch
 - 对企业模板里的重复、孤儿、跨样式绑定冲突做更细的置信度分级
 - 继续打磨骨架治理 rollup 在 release blocker rollup 和发布面板里的消费体验
@@ -598,7 +637,8 @@ P2：可以后置的能力
 
 优先做：
 
-- exemplar 文档到 numbering catalog JSON 的冲突审计和 catalog patch 衔接
+- exemplar 文档到 numbering catalog JSON 的冲突审计及结构化 patch plan 已落地；下一步由 reviewer
+  选择 authoritative catalog、编写 reviewed patch，并按计划完成 lint / ``--fail-on-diff`` 验证
 - 多份骨架治理 summary 的 rollup 报告已经落地，发布面板已可从 final rollup、
   pipeline stage 和 release governance handoff 直接消费
   ``featherdoc.document_skeleton_governance_rollup_report.v1`` 明细

@@ -2,6 +2,7 @@
 
 #include "doctest.h"
 
+#include <featherdoc/detail/path.hpp>
 #include <featherdoc/pdf/pdf_document_adapter.hpp>
 #include <featherdoc/pdf/pdf_text_metrics.hpp>
 #include <featherdoc/pdf/pdf_text_shaper.hpp>
@@ -25,6 +26,10 @@ namespace {
 
 auto utf8_from_u8(std::u8string_view text) -> std::string {
     return {reinterpret_cast<const char *>(text.data()), text.size()};
+}
+
+auto path_from_u8(std::u8string_view text) -> std::filesystem::path {
+    return featherdoc::detail::path_from_utf8(utf8_from_u8(text));
 }
 
 [[nodiscard]] std::string tiny_png_data() {

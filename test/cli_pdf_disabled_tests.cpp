@@ -4,7 +4,7 @@
 namespace {
 
 #if !defined(FEATHERDOC_CLI_ENABLE_PDF)
-TEST_CASE("cli export-pdf reports disabled pdf support") {
+TEST_CASE("cli does not expose export-pdf when pdf support is disabled") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
         working_directory / "cli_export_pdf_disabled_source.docx";
@@ -22,17 +22,12 @@ TEST_CASE("cli export-pdf reports disabled pdf support") {
     CHECK_EQ(run_cli({"export-pdf", source.string(), "--output",
                       pdf_output.string(), "--json"},
                      output),
-             1);
+             2);
 
-    const auto json = read_text_file(output);
-    CHECK_NE(json.find("\"command\":\"export-pdf\""), std::string::npos);
-    CHECK_NE(json.find("\"ok\":false"), std::string::npos);
-    CHECK_NE(json.find("\"stage\":\"export\""), std::string::npos);
-    CHECK_NE(json.find("\"message\":\"Operation not supported\""),
+    const auto error_text = read_text_file(output);
+    CHECK_NE(error_text.find("unknown command: export-pdf"),
              std::string::npos);
-    CHECK_NE(json.find(
-                 "PDF export requires configuring with -DFEATHERDOC_BUILD_PDF=ON"),
-             std::string::npos);
+    CHECK_EQ(error_text.find("FEATHERDOC_BUILD_PDF"), std::string::npos);
 
     remove_if_exists(source);
     remove_if_exists(output);

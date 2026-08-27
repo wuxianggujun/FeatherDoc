@@ -145,6 +145,41 @@ function Add-ReleaseGovernanceMetricDetailLines {
     }
 }
 
+function Add-ReleaseGovernanceManualReviewReasonMarkdownLines {
+    param(
+        [System.Collections.Generic.List[string]]$Lines,
+        [AllowNull()]$Item
+    )
+
+    foreach ($countField in @(
+            "style_merge_suggestion_count",
+            "style_merge_suggestion_pending_count",
+            "style_merge_manual_review_reason_count",
+            "manual_review_reason_count"
+        )) {
+        $countValue = Get-ReleaseBlockerPropertyObject -Object $Item -Name $countField
+        if ($null -ne $countValue -and -not [string]::IsNullOrWhiteSpace([string]$countValue)) {
+            [void]$Lines.Add("  - ${countField}: $countValue")
+        }
+    }
+
+    foreach ($reason in @(Get-ReleaseBlockerArrayProperty -Object $Item -Name "manual_review_reasons")) {
+        $sourceStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "source_style_id"
+        $targetStyleId = Get-ReleaseBlockerPropertyValue -Object $reason -Name "target_style_id"
+        $reasonCode = Get-ReleaseBlockerPropertyValue -Object $reason -Name "reason_code"
+        $recommendedAction = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_action"
+        $confidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "confidence"
+        $recommendedMinConfidence = Get-ReleaseBlockerPropertyValue -Object $reason -Name "recommended_min_confidence"
+        [void]$Lines.Add(("  - manual_review_reason: source={0} target={1} reason_code={2} recommended_action={3} confidence={4} recommended_min_confidence={5}" -f
+                $sourceStyleId,
+                $targetStyleId,
+                $reasonCode,
+                $recommendedAction,
+                $confidence,
+                $recommendedMinConfidence))
+    }
+}
+
 function Add-ReleaseGovernanceRollupMarkdownSection {
     param(
         [System.Collections.Generic.List[string]]$Lines,
@@ -232,6 +267,7 @@ function Add-ReleaseGovernanceRollupMarkdownSection {
             if (-not [string]::IsNullOrWhiteSpace($message)) {
                 [void]$Lines.Add("  - message: $message")
             }
+            Add-ReleaseGovernanceManualReviewReasonMarkdownLines -Lines $Lines -Item $warning
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $warning -RepoRoot $RepoRoot
         }
     }
@@ -414,6 +450,7 @@ function Add-ReleaseGovernanceHandoffMarkdownSection {
             if (-not [string]::IsNullOrWhiteSpace($message)) {
                 [void]$Lines.Add("  - message: $message")
             }
+            Add-ReleaseGovernanceManualReviewReasonMarkdownLines -Lines $Lines -Item $warning
             Add-ReleaseGovernanceRollupSourceLines -Lines $Lines -Item $warning -RepoRoot $RepoRoot
         }
     }

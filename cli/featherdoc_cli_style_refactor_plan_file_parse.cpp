@@ -1,6 +1,7 @@
 #include "featherdoc_cli_style_refactor_plan_parse.hpp"
 
 #include "featherdoc_cli_json_parse.hpp"
+#include "featherdoc_cli_input.hpp"
 #include "featherdoc_cli_style_refactor_plan_operations_parse.hpp"
 
 #include <filesystem>
@@ -17,16 +18,8 @@ using path_type = std::filesystem::path;
 auto read_style_refactor_plan_content(const path_type &plan_path,
                                       std::string &content,
                                       std::string &error_message) -> bool {
-    std::ifstream stream(plan_path, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read style refactor plan file: " +
-                        plan_path.string();
-        return false;
-    }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
-    return true;
+    return read_bounded_utf8_file(plan_path, "style refactor plan file",
+                                  content, error_message);
 }
 
 } // namespace

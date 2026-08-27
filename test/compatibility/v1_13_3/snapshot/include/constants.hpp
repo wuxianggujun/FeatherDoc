@@ -1,0 +1,272 @@
+#ifndef FEATHERDOC_CONSTANTS_HPP
+#define FEATHERDOC_CONSTANTS_HPP
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <system_error>
+
+namespace featherdoc {
+enum class formatting_flag : std::uint32_t {
+    none = 0U,
+    bold = 1U << 0U,
+    italic = 1U << 1U,
+    underline = 1U << 2U,
+    strikethrough = 1U << 3U,
+    superscript = 1U << 4U,
+    subscript = 1U << 5U,
+    smallcaps = 1U << 6U,
+    shadow = 1U << 7U,
+};
+
+[[nodiscard]] constexpr auto to_underlying(formatting_flag value) noexcept
+    -> std::uint32_t {
+    return static_cast<std::uint32_t>(value);
+}
+
+[[nodiscard]] constexpr auto operator|(formatting_flag lhs,
+                                       formatting_flag rhs) noexcept
+    -> formatting_flag {
+    return static_cast<formatting_flag>(to_underlying(lhs) |
+                                        to_underlying(rhs));
+}
+
+[[nodiscard]] constexpr auto operator&(formatting_flag lhs,
+                                       formatting_flag rhs) noexcept
+    -> formatting_flag {
+    return static_cast<formatting_flag>(to_underlying(lhs) &
+                                        to_underlying(rhs));
+}
+
+constexpr auto operator|=(formatting_flag &lhs, formatting_flag rhs) noexcept
+    -> formatting_flag & {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+[[nodiscard]] constexpr auto has_flag(formatting_flag value,
+                                      formatting_flag flag) noexcept -> bool {
+    return to_underlying(value & flag) != 0U;
+}
+
+enum class section_reference_kind : std::uint8_t {
+    default_reference = 0U,
+    first_page,
+    even_page,
+};
+
+enum class list_kind : std::uint8_t {
+    bullet = 0U,
+    decimal,
+};
+
+enum class table_layout_mode : std::uint8_t {
+    autofit = 0U,
+    fixed,
+};
+
+enum class table_alignment : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+};
+
+enum class table_position_horizontal_reference : std::uint8_t {
+    margin = 0U,
+    page,
+    column,
+};
+
+enum class table_position_vertical_reference : std::uint8_t {
+    margin = 0U,
+    page,
+    paragraph,
+};
+
+enum class table_position_horizontal_spec : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+    inside,
+    outside,
+};
+
+enum class table_position_vertical_spec : std::uint8_t {
+    top = 0U,
+    center,
+    bottom,
+    inside,
+    outside,
+};
+
+enum class table_overlap : std::uint8_t {
+    allow = 0U,
+    never,
+};
+
+enum class paragraph_alignment : std::uint8_t {
+    left = 0U,
+    center,
+    right,
+    justified,
+    distribute,
+};
+
+enum class paragraph_line_spacing_rule : std::uint8_t {
+    automatic = 0U,
+    at_least,
+    exact,
+};
+
+enum class row_height_rule : std::uint8_t {
+    automatic = 0U,
+    at_least,
+    exact,
+};
+
+enum class border_style : std::uint8_t {
+    none = 0U,
+    single,
+    double_line,
+    dashed,
+    dotted,
+    thick,
+};
+
+enum class cell_border_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+};
+
+enum class cell_margin_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+};
+
+enum class cell_vertical_alignment : std::uint8_t {
+    top = 0U,
+    center,
+    bottom,
+    both,
+};
+
+enum class cell_vertical_merge : std::uint8_t {
+    none = 0U,
+    restart,
+    continue_merge,
+};
+
+enum class cell_text_direction : std::uint8_t {
+    left_to_right_top_to_bottom = 0U,
+    top_to_bottom_right_to_left,
+    bottom_to_top_left_to_right,
+    left_to_right_top_to_bottom_rotated,
+    top_to_bottom_right_to_left_rotated,
+    top_to_bottom_left_to_right_rotated,
+};
+
+enum class table_border_edge : std::uint8_t {
+    top = 0U,
+    left,
+    bottom,
+    right,
+    inside_horizontal,
+    inside_vertical,
+};
+
+struct table_style_look {
+    bool first_row{true};
+    bool last_row{false};
+    bool first_column{true};
+    bool last_column{false};
+    bool banded_rows{true};
+    bool banded_columns{false};
+};
+
+struct border_definition {
+    featherdoc::border_style style{featherdoc::border_style::single};
+    std::uint32_t size_eighth_points{4U};
+    std::string_view color{"auto"};
+    std::uint32_t space_points{0U};
+};
+
+[[nodiscard]] constexpr auto to_xml_reference_type(
+    section_reference_kind kind) noexcept -> std::string_view {
+    switch (kind) {
+    case section_reference_kind::default_reference:
+        return "default";
+    case section_reference_kind::first_page:
+        return "first";
+    case section_reference_kind::even_page:
+        return "even";
+    }
+
+    return "default";
+}
+
+enum class document_errc {
+    success = 0,
+    empty_path,
+    document_not_open,
+    archive_open_failed,
+    relationships_xml_read_failed,
+    relationships_xml_parse_failed,
+    related_part_open_failed,
+    related_part_read_failed,
+    related_part_parse_failed,
+    document_xml_open_failed,
+    document_xml_read_failed,
+    encrypted_document_unsupported,
+    document_xml_parse_failed,
+    content_types_xml_read_failed,
+    content_types_xml_parse_failed,
+    numbering_xml_read_failed,
+    numbering_xml_parse_failed,
+    styles_xml_read_failed,
+    styles_xml_parse_failed,
+    image_file_read_failed,
+    image_format_unsupported,
+    image_size_read_failed,
+    settings_xml_read_failed,
+    settings_xml_parse_failed,
+    output_archive_open_failed,
+    output_document_xml_open_failed,
+    output_document_xml_write_failed,
+    source_archive_open_failed,
+    source_archive_entries_failed,
+    source_entry_open_failed,
+    source_entry_name_failed,
+    output_entry_open_failed,
+    output_entry_write_failed,
+    source_entry_close_failed,
+    invalid_package_structure,
+    archive_limit_exceeded,
+    output_archive_finalize_failed,
+    output_replace_failed,
+    identifier_space_exhausted,
+    package_repair_not_possible,
+    package_repair_validation_failed,
+    output_file_sync_failed,
+    output_directory_sync_failed_after_replace,
+};
+
+class document_error_category final : public std::error_category {
+  public:
+    [[nodiscard]] const char *name() const noexcept override;
+    [[nodiscard]] std::string message(int condition) const override;
+};
+
+[[nodiscard]] auto document_category() noexcept -> const std::error_category &;
+[[nodiscard]] auto make_error_code(document_errc error) noexcept
+    -> std::error_code;
+} // namespace featherdoc
+
+namespace std {
+template <> struct is_error_code_enum<featherdoc::document_errc> : true_type {};
+} // namespace std
+
+#endif

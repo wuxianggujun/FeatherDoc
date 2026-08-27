@@ -47,6 +47,38 @@ function New-ReportMarkdown {
         }
     }
 
+    function Add-SchemaCorpusMetadataMarkdownLines {
+        param(
+            [System.Collections.Generic.List[string]]$Lines,
+            [object]$Item
+        )
+
+        foreach ($fieldName in @(
+                "business_document_type",
+                "source_business_document_type",
+                "corpus_role",
+                "source_corpus_role",
+                "business_document_type_mismatch",
+                "corpus_role_mismatch",
+                "mismatched_corpus_metadata_count",
+                "mismatched_business_document_type_count",
+                "mismatched_corpus_role_count",
+                "candidate_name",
+                "schema_update_candidate"
+            )) {
+            $fieldValue = Get-JsonProperty -Object $Item -Name $fieldName
+            if ($null -eq $fieldValue) { continue }
+            $fieldDisplay = if ($fieldValue -is [System.Collections.IEnumerable] -and $fieldValue -isnot [string]) {
+                @($fieldValue | ForEach-Object { [string]$_ }) -join ", "
+            } else {
+                [string]$fieldValue
+            }
+            if (-not [string]::IsNullOrWhiteSpace($fieldDisplay)) {
+                $Lines.Add("  - ${fieldName}: ``$fieldDisplay``") | Out-Null
+            }
+        }
+    }
+
     function Format-OnboardingSchemaApprovalStatusSummary {
         param(
             [object[]]$Values,
@@ -319,6 +351,12 @@ function New-ReportMarkdown {
                 $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_render_status: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_render_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_fresh_rendered_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_expected_visual_render_count: ``$($evidence.pdf_visual_gate_attempt_expected_visual_render_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_missing_pdf_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_missing_pdf_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_pdf_total_bytes)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_png_page_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_png_page_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_missing_png_page_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_missing_png_page_count)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_png_total_bytes: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_png_total_bytes)``") | Out-Null
+                $lines.Add("    - pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count: ``$($evidence.pdf_visual_gate_attempt_visual_baseline_unreadable_png_dimension_count)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_status: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_status)``") | Out-Null
                 $lines.Add("    - pdf_visual_gate_attempt_aggregate_contact_sheet_display: ``$($evidence.pdf_visual_gate_attempt_aggregate_contact_sheet_display)``") | Out-Null
             }
@@ -531,7 +569,9 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($blocker.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $blocker
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $blocker
             Add-TraceabilityMarkdownLines -Lines $lines -Item $blocker
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $blocker
             $lines.Add("  - source_report_display: ``$($blocker.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($blocker.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$blocker.readiness_status)) {
@@ -572,7 +612,9 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_status)) {
@@ -613,7 +655,9 @@ function New-ReportMarkdown {
                 $lines.Add("  - command_template: ``$($item.command_template)``") | Out-Null
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $item
+            Add-CatalogPatchPlanMarkdownLines -Lines $lines -Item $item
             Add-TraceabilityMarkdownLines -Lines $lines -Item $item
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $item
             $lines.Add("  - source_report_display: ``$($item.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($item.source_json_display)``") | Out-Null
             if (-not [string]::IsNullOrWhiteSpace([string]$item.readiness_status)) {
@@ -658,6 +702,7 @@ function New-ReportMarkdown {
             }
             Add-RepairActionClassMarkdownLines -Lines $lines -Item $warning
             Add-TraceabilityMarkdownLines -Lines $lines -Item $warning
+            Add-SchemaCorpusMetadataMarkdownLines -Lines $lines -Item $warning
             $lines.Add("  - source_report_display: ``$($warning.source_report_display)``") | Out-Null
             $lines.Add("  - source_json_display: ``$($warning.source_json_display)``") | Out-Null
         }

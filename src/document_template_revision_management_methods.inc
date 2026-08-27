@@ -215,6 +215,191 @@ std::vector<featherdoc::revision_summary> Document::list_revisions() const {
     return summaries;
 }
 
+namespace {
+
+struct revision_story_view {
+    pugi::xml_document *document{};
+    pugi::xml_node root{};
+    std::string_view entry_name{};
+};
+
+struct revision_story_work {
+    revision_story_view live;
+    pugi::xml_document work;
+};
+
+auto revision_story_node_count(pugi::xml_node root) noexcept -> std::size_t {
+    std::size_t count = 0U;
+    for (auto current = root.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(root, current)) {
+        if (revision_kind_from_node_name(current.name()) !=
+            featherdoc::revision_kind::unknown) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+auto revision_story_node_at(pugi::xml_node root, std::size_t revision_index)
+    noexcept -> pugi::xml_node {
+    std::size_t current_index = 0U;
+    for (auto current = root.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(root, current)) {
+        if (revision_kind_from_node_name(current.name()) ==
+            featherdoc::revision_kind::unknown) {
+            continue;
+        }
+        if (current_index == revision_index) {
+            return current;
+        }
+        ++current_index;
+    }
+    return {};
+}
+
+auto first_revision_story_node(pugi::xml_node root) noexcept -> pugi::xml_node {
+    return revision_story_node_at(root, 0U);
+}
+
+bool select_revision_story(revision_story_view candidate,
+                           std::size_t &remaining_index,
+                           revision_story_view &selected,
+                           std::size_t &local_index) noexcept {
+    const auto candidate_count = revision_story_node_count(candidate.root);
+    if (remaining_index >= candidate_count) {
+        remaining_index -= candidate_count;
+        return false;
+    }
+    selected = candidate;
+    local_index = remaining_index;
+    return true;
+}
+
+auto corresponding_revision_story_root(pugi::xml_document &document,
+                                       pugi::xml_node live_root) noexcept
+    -> pugi::xml_node {
+    return std::string_view{live_root.name()} == "w:body"
+               ? document.child("w:document").child("w:body")
+               : document.child(live_root.name());
+}
+
+template <typename Mutation>
+bool mutate_single_revision_story(
+    revision_story_view story, std::size_t local_revision_index,
+    featherdoc::detail::xml_handle_lifetime &lifetime,
+    featherdoc::document_error_info &error_info, Mutation &&mutation) {
+    pugi::xml_document work;
+    if (featherdoc::detail::checked_clone_xml_document(*story.document, work) !=
+        featherdoc::detail::xml_document_clone_status::success) {
+        (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+            error_info, story.entry_name);
+        return false;
+    }
+
+    try {
+        const auto work_root =
+            corresponding_revision_story_root(work, story.root);
+        const auto revision =
+            revision_story_node_at(work_root, local_revision_index);
+        if (work_root == pugi::xml_node{} ||
+            revision == pugi::xml_node{} || !mutation(revision)) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(error_info,
+                                                              story.entry_name);
+            return false;
+        }
+
+        static_assert(noexcept(std::declval<pugi::xml_document &>() =
+                               std::declval<pugi::xml_document &&>()));
+        lifetime.retire_subtree(story.root);
+        *story.document = std::move(work);
+        return true;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            error_info,
+            "revision story mutation ran out of memory before it could be published",
+            story.entry_name);
+        return false;
+    }
+}
+
+void append_revision_story_work(std::vector<revision_story_work> &stories,
+                                revision_story_view story) {
+    if (revision_story_node_count(story.root) != 0U) {
+        stories.push_back(revision_story_work{story, {}});
+    }
+}
+
+auto mutate_all_revision_stories(
+    std::vector<revision_story_work> &stories, bool accept,
+    featherdoc::detail::xml_handle_lifetime &lifetime,
+    featherdoc::document_error_info &error_info)
+    -> std::optional<std::size_t> {
+    if (stories.empty()) {
+        return std::size_t{0U};
+    }
+
+    auto current_entry = std::string_view{document_xml_entry};
+    std::size_t mutation_count = 0U;
+    try {
+        for (auto &story : stories) {
+            current_entry = story.live.entry_name;
+            if (featherdoc::detail::checked_clone_xml_document(
+                    *story.live.document, story.work) !=
+                featherdoc::detail::xml_document_clone_status::success) {
+                (void)featherdoc::detail::
+                    set_xml_document_clone_allocation_failure(
+                        error_info, story.live.entry_name);
+                return std::nullopt;
+            }
+        }
+
+        for (auto &story : stories) {
+            current_entry = story.live.entry_name;
+            const auto work_root = corresponding_revision_story_root(
+                story.work, story.live.root);
+            if (work_root == pugi::xml_node{}) {
+                (void)featherdoc::detail::
+                    set_xml_document_mutation_allocation_failure(
+                        error_info, story.live.entry_name);
+                return std::nullopt;
+            }
+            while (const auto revision =
+                       first_revision_story_node(work_root)) {
+                if (!apply_revision_decision(revision, accept)) {
+                    (void)featherdoc::detail::
+                        set_xml_document_mutation_allocation_failure(
+                            error_info, story.live.entry_name);
+                    return std::nullopt;
+                }
+                ++mutation_count;
+            }
+        }
+
+        std::vector<pugi::xml_node> retired_roots;
+        retired_roots.reserve(stories.size());
+        for (const auto &story : stories) {
+            retired_roots.push_back(story.live.root);
+        }
+        lifetime.retire_subtrees(retired_roots);
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            error_info,
+            "revision batch mutation ran out of memory before it could be published",
+            current_entry);
+        return std::nullopt;
+    }
+
+    static_assert(noexcept(std::declval<pugi::xml_document &>() =
+                           std::declval<pugi::xml_document &&>()));
+    for (auto &story : stories) {
+        *story.live.document = std::move(story.work);
+    }
+    return mutation_count;
+}
+
+} // namespace
+
 bool Document::set_revision_metadata(
     std::size_t revision_index,
     const featherdoc::revision_metadata_update &metadata) {
@@ -243,19 +428,29 @@ bool Document::set_revision_metadata(
         return false;
     }
 
-    std::vector<pugi::xml_node> revision_nodes;
-    collect_revision_nodes_in_order(this->document, revision_nodes);
+    auto remaining_index = revision_index;
+    auto local_revision_index = std::size_t{0U};
+    auto story = revision_story_view{};
+    auto found = select_revision_story(
+        {&this->document,
+         this->document.child("w:document").child("w:body"),
+         document_xml_entry},
+        remaining_index, story, local_revision_index);
     for (auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:hdr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
     for (auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:ftr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
-    if (revision_index >= revision_nodes.size()) {
+    if (!found) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "revision index is out of range",
@@ -263,18 +458,32 @@ bool Document::set_revision_metadata(
         return false;
     }
 
-    auto revision = revision_nodes[revision_index];
-    if (metadata.author.has_value()) {
-        ensure_attribute_value(revision, "w:author", *metadata.author);
-    } else if (metadata.clear_author) {
-        revision.remove_attribute("w:author");
-    }
-    if (metadata.date.has_value()) {
-        ensure_attribute_value(revision, "w:date", *metadata.date);
-    } else if (metadata.clear_date) {
-        revision.remove_attribute("w:date");
+    const auto mutated = mutate_single_revision_story(
+        story, local_revision_index, *this->xml_handle_lifetime,
+        this->last_error_info, [&](pugi::xml_node revision) {
+            if (metadata.author.has_value()) {
+                if (!ensure_attribute_value(revision, "w:author",
+                                            *metadata.author)) {
+                    return false;
+                }
+            } else if (metadata.clear_author) {
+                revision.remove_attribute("w:author");
+            }
+            if (metadata.date.has_value()) {
+                if (!ensure_attribute_value(revision, "w:date",
+                                            *metadata.date)) {
+                    return false;
+                }
+            } else if (metadata.clear_date) {
+                revision.remove_attribute("w:date");
+            }
+            return true;
+        });
+    if (!mutated) {
+        return false;
     }
 
+    this->rebind_internal_xml_handles();
     this->last_error_info.clear();
     return true;
 }
@@ -287,32 +496,43 @@ bool Document::accept_revision(std::size_t revision_index) {
         return false;
     }
 
-    std::vector<pugi::xml_node> revision_nodes;
-    collect_revision_nodes_in_order(this->document, revision_nodes);
+    auto remaining_index = revision_index;
+    auto local_revision_index = std::size_t{0U};
+    auto story = revision_story_view{};
+    auto found = select_revision_story(
+        {&this->document,
+         this->document.child("w:document").child("w:body"),
+         document_xml_entry},
+        remaining_index, story, local_revision_index);
     for (auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:hdr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
     for (auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:ftr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
-    if (revision_index >= revision_nodes.size()) {
+    if (!found) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "revision index is out of range",
                        std::string{document_xml_entry});
         return false;
     }
-    if (!apply_revision_decision(revision_nodes[revision_index], true)) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to accept revision",
-                       std::string{document_xml_entry});
+    if (!mutate_single_revision_story(
+            story, local_revision_index, *this->xml_handle_lifetime,
+            this->last_error_info, [](pugi::xml_node revision) {
+                return apply_revision_decision(revision, true);
+            })) {
         return false;
     }
+    this->rebind_internal_xml_handles();
     this->last_error_info.clear();
     return true;
 }
@@ -325,32 +545,43 @@ bool Document::reject_revision(std::size_t revision_index) {
         return false;
     }
 
-    std::vector<pugi::xml_node> revision_nodes;
-    collect_revision_nodes_in_order(this->document, revision_nodes);
+    auto remaining_index = revision_index;
+    auto local_revision_index = std::size_t{0U};
+    auto story = revision_story_view{};
+    auto found = select_revision_story(
+        {&this->document,
+         this->document.child("w:document").child("w:body"),
+         document_xml_entry},
+        remaining_index, story, local_revision_index);
     for (auto &part : this->header_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:hdr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
     for (auto &part : this->footer_parts) {
-        if (part != nullptr) {
-            collect_revision_nodes_in_order(part->xml, revision_nodes);
+        if (!found && part != nullptr) {
+            found = select_revision_story(
+                {&part->xml, part->xml.child("w:ftr"), part->entry_name},
+                remaining_index, story, local_revision_index);
         }
     }
-    if (revision_index >= revision_nodes.size()) {
+    if (!found) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "revision index is out of range",
                        std::string{document_xml_entry});
         return false;
     }
-    if (!apply_revision_decision(revision_nodes[revision_index], false)) {
-        set_last_error(this->last_error_info,
-                       std::make_error_code(std::errc::io_error),
-                       "failed to reject revision",
-                       std::string{document_xml_entry});
+    if (!mutate_single_revision_story(
+            story, local_revision_index, *this->xml_handle_lifetime,
+            this->last_error_info, [](pugi::xml_node revision) {
+                return apply_revision_decision(revision, false);
+            })) {
         return false;
     }
+    this->rebind_internal_xml_handles();
     this->last_error_info.clear();
     return true;
 }
@@ -363,35 +594,50 @@ std::size_t Document::accept_all_revisions() {
         return 0U;
     }
 
-    std::size_t accepted = 0U;
-    for (;;) {
-        std::vector<pugi::xml_node> revision_nodes;
-        collect_revision_nodes_in_order(this->document, revision_nodes);
+    std::vector<revision_story_work> stories;
+    auto current_entry = std::string_view{document_xml_entry};
+    try {
+        stories.reserve(1U + this->header_parts.size() +
+                        this->footer_parts.size());
+        append_revision_story_work(
+            stories,
+            {&this->document,
+             this->document.child("w:document").child("w:body"),
+             document_xml_entry});
         for (auto &part : this->header_parts) {
             if (part != nullptr) {
-                collect_revision_nodes_in_order(part->xml, revision_nodes);
+                current_entry = part->entry_name;
+                append_revision_story_work(
+                    stories,
+                    {&part->xml, part->xml.child("w:hdr"), part->entry_name});
             }
         }
         for (auto &part : this->footer_parts) {
             if (part != nullptr) {
-                collect_revision_nodes_in_order(part->xml, revision_nodes);
+                current_entry = part->entry_name;
+                append_revision_story_work(
+                    stories,
+                    {&part->xml, part->xml.child("w:ftr"), part->entry_name});
             }
         }
-        if (revision_nodes.empty()) {
-            break;
-        }
-        if (!apply_revision_decision(revision_nodes.front(), true)) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::io_error),
-                           "failed to accept revision",
-                           std::string{document_xml_entry});
-            return accepted;
-        }
-        ++accepted;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "revision batch planning ran out of memory", current_entry);
+        return 0U;
+    }
+
+    const auto accepted = mutate_all_revision_stories(
+        stories, true, *this->xml_handle_lifetime, this->last_error_info);
+    if (!accepted.has_value()) {
+        return 0U;
+    }
+    if (!stories.empty()) {
+        this->rebind_internal_xml_handles();
     }
 
     this->last_error_info.clear();
-    return accepted;
+    return *accepted;
 }
 
 std::size_t Document::reject_all_revisions() {
@@ -402,33 +648,48 @@ std::size_t Document::reject_all_revisions() {
         return 0U;
     }
 
-    std::size_t rejected = 0U;
-    for (;;) {
-        std::vector<pugi::xml_node> revision_nodes;
-        collect_revision_nodes_in_order(this->document, revision_nodes);
+    std::vector<revision_story_work> stories;
+    auto current_entry = std::string_view{document_xml_entry};
+    try {
+        stories.reserve(1U + this->header_parts.size() +
+                        this->footer_parts.size());
+        append_revision_story_work(
+            stories,
+            {&this->document,
+             this->document.child("w:document").child("w:body"),
+             document_xml_entry});
         for (auto &part : this->header_parts) {
             if (part != nullptr) {
-                collect_revision_nodes_in_order(part->xml, revision_nodes);
+                current_entry = part->entry_name;
+                append_revision_story_work(
+                    stories,
+                    {&part->xml, part->xml.child("w:hdr"), part->entry_name});
             }
         }
         for (auto &part : this->footer_parts) {
             if (part != nullptr) {
-                collect_revision_nodes_in_order(part->xml, revision_nodes);
+                current_entry = part->entry_name;
+                append_revision_story_work(
+                    stories,
+                    {&part->xml, part->xml.child("w:ftr"), part->entry_name});
             }
         }
-        if (revision_nodes.empty()) {
-            break;
-        }
-        if (!apply_revision_decision(revision_nodes.front(), false)) {
-            set_last_error(this->last_error_info,
-                           std::make_error_code(std::errc::io_error),
-                           "failed to reject revision",
-                           std::string{document_xml_entry});
-            return rejected;
-        }
-        ++rejected;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            this->last_error_info,
+            "revision batch planning ran out of memory", current_entry);
+        return 0U;
+    }
+
+    const auto rejected = mutate_all_revision_stories(
+        stories, false, *this->xml_handle_lifetime, this->last_error_info);
+    if (!rejected.has_value()) {
+        return 0U;
+    }
+    if (!stories.empty()) {
+        this->rebind_internal_xml_handles();
     }
 
     this->last_error_info.clear();
-    return rejected;
+    return *rejected;
 }

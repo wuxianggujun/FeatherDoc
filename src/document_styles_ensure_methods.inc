@@ -13,7 +13,7 @@ bool Document::ensure_paragraph_style(
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when defining paragraph styles",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -21,30 +21,30 @@ bool Document::ensure_paragraph_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph style name must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
     if (!validate_optional_style_value(
-            this->last_error_info, definition.based_on,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.based_on,
             "paragraph style basedOn must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.next_style,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.next_style,
             "paragraph style next style must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_font_family,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_font_family,
             "paragraph style run font family must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_east_asia_font_family,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_east_asia_font_family,
             "paragraph style eastAsia font family must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_language,
             "paragraph style run language must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_east_asia_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_east_asia_language,
             "paragraph style eastAsia language must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_bidi_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_bidi_language,
             "paragraph style bidi language must not be empty")) {
         return false;
     }
@@ -54,7 +54,7 @@ bool Document::ensure_paragraph_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph style outline level must be between 0 and 8",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (definition.run_text_color.has_value() &&
@@ -62,16 +62,19 @@ bool Document::ensure_paragraph_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "paragraph style run text color must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (definition.run_font_size_points.has_value() &&
-        *definition.run_font_size_points <= 0.0) {
+        !detail::font_size_points_to_half_points(
+             *definition.run_font_size_points)
+             .has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "paragraph style run font size points must be greater "
-                       "than zero",
-                       std::string{styles_xml_entry});
+                       "paragraph style run font size points must be finite and "
+                       "representable as a positive unsigned half-point value "
+                       "(maximum 2147483647.5)",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -83,8 +86,8 @@ bool Document::ensure_paragraph_style(
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -99,7 +102,7 @@ bool Document::ensure_paragraph_style(
                            "style id '" + std::string{style_id} +
                                "' already exists with type '" +
                                std::string{existing_type} + "'",
-                           std::string{styles_xml_entry});
+                           this->extension_state().singleton_part_entries.styles);
             return false;
         }
 
@@ -120,7 +123,7 @@ bool Document::ensure_paragraph_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create paragraph style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -134,7 +137,7 @@ bool Document::ensure_paragraph_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to update paragraph style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -250,7 +253,7 @@ bool Document::ensure_character_style(
             this->last_error_info,
             std::make_error_code(std::errc::invalid_argument),
             "style id must not be empty when defining character styles",
-            std::string{styles_xml_entry});
+            this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -258,27 +261,27 @@ bool Document::ensure_character_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "character style name must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
     if (!validate_optional_style_value(
-            this->last_error_info, definition.based_on,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.based_on,
             "character style basedOn must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_font_family,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_font_family,
             "character style run font family must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_east_asia_font_family,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_east_asia_font_family,
             "character style eastAsia font family must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_language,
             "character style run language must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_east_asia_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_east_asia_language,
             "character style eastAsia language must not be empty") ||
         !validate_optional_style_value(
-            this->last_error_info, definition.run_bidi_language,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.run_bidi_language,
             "character style bidi language must not be empty")) {
         return false;
     }
@@ -287,16 +290,19 @@ bool Document::ensure_character_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "character style run text color must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (definition.run_font_size_points.has_value() &&
-        *definition.run_font_size_points <= 0.0) {
+        !detail::font_size_points_to_half_points(
+             *definition.run_font_size_points)
+             .has_value()) {
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
-                       "character style run font size points must be greater "
-                       "than zero",
-                       std::string{styles_xml_entry});
+                       "character style run font size points must be finite and "
+                       "representable as a positive unsigned half-point value "
+                       "(maximum 2147483647.5)",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
     if (definition.run_superscript.value_or(false) &&
@@ -305,7 +311,7 @@ bool Document::ensure_character_style(
                        std::make_error_code(std::errc::invalid_argument),
                        "character style run superscript and subscript cannot "
                        "both be true",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -317,8 +323,8 @@ bool Document::ensure_character_style(
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -333,7 +339,7 @@ bool Document::ensure_character_style(
                            "style id '" + std::string{style_id} +
                                "' already exists with type '" +
                                std::string{existing_type} + "'",
-                           std::string{styles_xml_entry});
+                           this->extension_state().singleton_part_entries.styles);
             return false;
         }
 
@@ -354,7 +360,7 @@ bool Document::ensure_character_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create character style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -366,7 +372,7 @@ bool Document::ensure_character_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to update character style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -491,7 +497,7 @@ bool Document::ensure_table_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "style id must not be empty when defining table styles",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -499,17 +505,19 @@ bool Document::ensure_table_style(
         set_last_error(this->last_error_info,
                        std::make_error_code(std::errc::invalid_argument),
                        "table style name must not be empty",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
     if (!validate_optional_style_value(
-            this->last_error_info, definition.based_on,
+            this->last_error_info, this->extension_state().singleton_part_entries.styles, definition.based_on,
             "table style basedOn must not be empty")) {
         return false;
     }
 
-    if (!detail::validate_table_style_regions(this->last_error_info, definition)) {
+    if (!detail::validate_table_style_regions(
+            this->last_error_info, this->extension_state().singleton_part_entries.styles,
+            definition)) {
         return false;
     }
 
@@ -521,8 +529,8 @@ bool Document::ensure_table_style(
     if (styles_root == pugi::xml_node{}) {
         set_last_error(this->last_error_info,
                        document_errc::styles_xml_parse_failed,
-                       "word/styles.xml does not contain a w:styles root",
-                       std::string{styles_xml_entry});
+                       "'" + this->extension_state().singleton_part_entries.styles + "' does not contain a w:styles root",
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -536,7 +544,7 @@ bool Document::ensure_table_style(
                            "style id '" + std::string{style_id} +
                                "' already exists with type '" +
                                std::string{existing_type} + "'",
-                           std::string{styles_xml_entry});
+                           this->extension_state().singleton_part_entries.styles);
             return false;
         }
     }
@@ -547,7 +555,7 @@ bool Document::ensure_table_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to create table style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -559,7 +567,7 @@ bool Document::ensure_table_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to update table style '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 
@@ -568,7 +576,7 @@ bool Document::ensure_table_style(
                        std::make_error_code(std::errc::not_enough_memory),
                        "failed to update table style properties for '" +
                            std::string{style_id} + "'",
-                       std::string{styles_xml_entry});
+                       this->extension_state().singleton_part_entries.styles);
         return false;
     }
 

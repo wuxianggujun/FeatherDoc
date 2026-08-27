@@ -130,6 +130,18 @@ append 类方法返回 ``std::size_t`` 时表示创建数量；返回 ``bool`` �
 脚注、批注和修订
 ----------------
 
+review note 和 tracked change ID 使用非负有符号 64 位范围。分配器会按适用范围
+扫描正文、页眉、页脚、脚注、尾注和批注等全部相关 story；一次需要多个 ID 的操作
+会在修改 XML 前完整预留，空间耗尽返回
+``document_errc::identifier_space_exhausted``。
+
+编辑已有脚注、尾注或批注时，会在创建 relationship、Content Types 项或 review
+部件前验证可选部件、目标索引、所需段落元数据和 ID 容量。所有将被修改的 XML、
+relationship、Content Types、review sidecar 和 dirty 状态都会先完整准备，再一次发布。
+因此缺失/越界目标、ID 耗尽、pugixml 分配失败或 ``std::bad_alloc`` 都不会留下部分
+修改；分配失败会通过 ``last_error()`` 报告 ``std::errc::not_enough_memory``，原 DOM、
+包元数据和已有句柄保持不变。
+
 .. list-table::
    :header-rows: 1
    :widths: 36 18 46

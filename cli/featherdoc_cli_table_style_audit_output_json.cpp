@@ -1,6 +1,7 @@
 #include "featherdoc_cli_table_style_audit_output_json.hpp"
 
 #include "featherdoc_cli_json.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <optional>
@@ -111,11 +112,12 @@ void write_json_table_style_region_audit_report(
     const featherdoc::table_style_region_audit_report &report,
     const std::optional<std::string> &style_id, bool fail_on_issue) {
     stream << "{\"command\":\"audit-table-style-regions\",\"ok\":"
-           << json_bool(report.ok()) << ",\"table_style_count\":"
-           << report.table_style_count << ",\"region_count\":"
-           << report.region_count << ",\"issue_count\":"
-           << report.issue_count() << ",\"fail_on_issue\":"
-           << json_bool(fail_on_issue) << ",\"style_id\":";
+           << json_bool(report.ok())
+           << ",\"table_style_count\":" << report.table_style_count
+           << ",\"region_count\":" << report.region_count
+           << ",\"issue_count\":" << report.issue_count()
+           << ",\"fail_on_issue\":" << json_bool(fail_on_issue)
+           << ",\"style_id\":";
     if (style_id.has_value()) {
         write_json_string(stream, *style_id);
     } else {
@@ -126,8 +128,7 @@ void write_json_table_style_region_audit_report(
         if (index != 0U) {
             stream << ',';
         }
-        write_json_table_style_region_audit_issue(stream,
-                                                  report.issues[index]);
+        write_json_table_style_region_audit_issue(stream, report.issues[index]);
     }
     stream << "]}";
 }
@@ -137,10 +138,11 @@ void write_json_table_style_inheritance_audit_report(
     const featherdoc::table_style_inheritance_audit_report &report,
     const std::optional<std::string> &style_id, bool fail_on_issue) {
     stream << "{\"command\":\"audit-table-style-inheritance\",\"ok\":"
-           << json_bool(report.ok()) << ",\"table_style_count\":"
-           << report.table_style_count << ",\"issue_count\":"
-           << report.issue_count() << ",\"fail_on_issue\":"
-           << json_bool(fail_on_issue) << ",\"style_id\":";
+           << json_bool(report.ok())
+           << ",\"table_style_count\":" << report.table_style_count
+           << ",\"issue_count\":" << report.issue_count()
+           << ",\"fail_on_issue\":" << json_bool(fail_on_issue)
+           << ",\"style_id\":";
     if (style_id.has_value()) {
         write_json_string(stream, *style_id);
     } else {
@@ -163,8 +165,9 @@ void write_json_table_style_look_report(
     bool fail_on_issue) {
     const auto issue_count = report.issue_count();
     stream << "{\"command\":\"check-table-style-look\",\"ok\":"
-           << json_bool(report.ok()) << ",\"table_count\":"
-           << report.table_count << ",\"issue_count\":" << issue_count
+           << json_bool(report.ok())
+           << ",\"table_count\":" << report.table_count
+           << ",\"issue_count\":" << issue_count
            << ",\"fail_on_issue\":" << json_bool(fail_on_issue)
            << ",\"issues\":";
     write_json_table_style_look_issue_array(stream, report);
@@ -176,14 +179,14 @@ void write_json_table_style_quality_audit_report(
     const featherdoc::table_style_quality_audit_report &report,
     bool fail_on_issue) {
     stream << "{\"command\":\"audit-table-style-quality\",\"ok\":"
-           << json_bool(report.ok()) << ",\"issue_count\":"
-           << report.issue_count() << ",\"region_issue_count\":"
-           << report.region_audit.issue_count()
+           << json_bool(report.ok())
+           << ",\"issue_count\":" << report.issue_count()
+           << ",\"region_issue_count\":" << report.region_audit.issue_count()
            << ",\"inheritance_issue_count\":"
            << report.inheritance_audit.issue_count()
-           << ",\"style_look_issue_count\":"
-           << report.style_look.issue_count() << ",\"fail_on_issue\":"
-           << json_bool(fail_on_issue) << ",\"region_audit\":";
+           << ",\"style_look_issue_count\":" << report.style_look.issue_count()
+           << ",\"fail_on_issue\":" << json_bool(fail_on_issue)
+           << ",\"region_audit\":";
     write_json_table_style_region_audit_report(stream, report.region_audit,
                                                std::nullopt, fail_on_issue);
     stream << ",\"inheritance_audit\":";
@@ -196,16 +199,15 @@ void write_json_table_style_quality_audit_report(
 }
 
 void write_json_table_style_quality_fix_plan(
-    std::ostream &stream,
-    const featherdoc::table_style_quality_fix_plan &plan,
+    std::ostream &stream, const featherdoc::table_style_quality_fix_plan &plan,
     bool fail_on_issue) {
     stream << "{\"command\":\"plan-table-style-quality-fixes\",\"ok\":"
-           << json_bool(plan.ok()) << ",\"issue_count\":"
-           << plan.issue_count() << ",\"plan_item_count\":"
-           << plan.items.size() << ",\"automatic_fix_count\":"
-           << plan.automatic_fix_count() << ",\"manual_fix_count\":"
-           << plan.manual_fix_count() << ",\"fail_on_issue\":"
-           << json_bool(fail_on_issue) << ",\"items\":[";
+           << json_bool(plan.ok()) << ",\"issue_count\":" << plan.issue_count()
+           << ",\"plan_item_count\":" << plan.items.size()
+           << ",\"automatic_fix_count\":" << plan.automatic_fix_count()
+           << ",\"manual_fix_count\":" << plan.manual_fix_count()
+           << ",\"fail_on_issue\":" << json_bool(fail_on_issue)
+           << ",\"items\":[";
     for (std::size_t index = 0U; index < plan.items.size(); ++index) {
         if (index != 0U) {
             stream << ',';
@@ -219,8 +221,7 @@ void write_json_table_style_quality_fix_plan(
 }
 
 void write_json_apply_table_style_quality_fixes_result(
-    std::ostream &stream,
-    const table_style_quality_apply_cli_result &result) {
+    std::ostream &stream, const table_style_quality_apply_cli_result &result) {
     stream << "{\"command\":\"apply-table-style-quality-fixes\","
            << "\"mode\":\"look_only\",\"ok\":" << json_bool(result.after.ok())
            << ",\"before_issue_count\":" << result.before.issue_count()
@@ -231,12 +232,11 @@ void write_json_apply_table_style_quality_fixes_result(
            << result.after.automatic_fix_count()
            << ",\"before_manual_fix_count\":"
            << result.before.manual_fix_count()
-           << ",\"after_manual_fix_count\":"
-           << result.after.manual_fix_count()
+           << ",\"after_manual_fix_count\":" << result.after.manual_fix_count()
            << ",\"changed_table_count\":" << result.changed_table_count
            << ",\"output\":";
     if (result.output_path.has_value()) {
-        write_json_string(stream, result.output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*result.output_path));
     } else {
         stream << "null";
     }
@@ -267,7 +267,7 @@ void write_json_repair_table_style_look_result(
            << ",\"changed_table_count\":" << result.changed_table_count
            << ",\"output\":";
     if (result.output_path.has_value()) {
-        write_json_string(stream, result.output_path->string());
+        write_json_string(stream, path_to_cli_utf8(*result.output_path));
     } else {
         stream << "null";
     }

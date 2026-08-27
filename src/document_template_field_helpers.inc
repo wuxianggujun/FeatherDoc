@@ -326,23 +326,23 @@ auto field_attribute_is_on(pugi::xml_node field, const char *attribute_name)
 
 void collect_replaceable_field_nodes_in_order(pugi::xml_node node,
                                               std::vector<pugi::xml_node> &fields) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto name = std::string_view{child.name()};
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        const auto name = std::string_view{current.name()};
+        auto descend_into_children = true;
         if (name == "w:fldSimple") {
-            fields.push_back(child);
-            continue;
-        }
-        if (name == "w:r") {
-            const auto field_char = child.child("w:fldChar");
+            fields.push_back(current);
+            descend_into_children = false;
+        } else if (name == "w:r") {
+            const auto field_char = current.child("w:fldChar");
             if (field_char != pugi::xml_node{} &&
                 std::string_view{field_char.attribute("w:fldCharType").value()} ==
                     "begin") {
                 fields.push_back({});
             }
-            continue;
+            descend_into_children = false;
         }
-        collect_replaceable_field_nodes_in_order(child, fields);
+        current = featherdoc::detail::next_xml_node_preorder(
+            node, current, descend_into_children);
     }
 }
 
@@ -387,16 +387,15 @@ void append_complex_field_run_text(
 void collect_field_summaries_in_order(
     pugi::xml_node node, std::vector<featherdoc::field_summary> &summaries,
     std::vector<active_complex_field_summary> &stack) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto name = std::string_view{child.name()};
+    for (auto current = node.first_child(); current != pugi::xml_node{};) {
+        const auto name = std::string_view{current.name()};
+        auto descend_into_children = true;
         if (name == "w:fldSimple") {
-            summaries.push_back(summarize_field(child, summaries.size(), stack.size()));
-            continue;
-        }
-
-        if (name == "w:r") {
-            const auto field_char = child.child("w:fldChar");
+            summaries.push_back(
+                summarize_field(current, summaries.size(), stack.size()));
+            descend_into_children = false;
+        } else if (name == "w:r") {
+            const auto field_char = current.child("w:fldChar");
             if (field_char != pugi::xml_node{}) {
                 const auto field_char_type =
                     std::string_view{field_char.attribute("w:fldCharType").value()};
@@ -420,14 +419,13 @@ void collect_field_summaries_in_order(
                         stack.pop_back();
                     }
                 }
-                continue;
+            } else {
+                append_complex_field_run_text(current, summaries, stack);
             }
-
-            append_complex_field_run_text(child, summaries, stack);
-            continue;
+            descend_into_children = false;
         }
-
-        collect_field_summaries_in_order(child, summaries, stack);
+        current = featherdoc::detail::next_xml_node_preorder(
+            node, current, descend_into_children);
     }
 }
 

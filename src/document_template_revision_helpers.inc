@@ -21,55 +21,136 @@ auto revision_kind_from_node_name(std::string_view node_name)
     return featherdoc::revision_kind::unknown;
 }
 
+bool node_uses_review_revision_identifier(std::string_view node_name) {
+    // The public revision_kind model intentionally exposes only revisions that
+    // FeatherDoc can currently inspect and accept/reject. ID allocation has a
+    // wider responsibility: every tracked-change annotation in the package
+    // shares the WordprocessingML revision-ID space, including revisions that
+    // are preserved but not yet surfaced by that model.
+    constexpr auto tracked_change_node_names = std::array{
+        std::string_view{"w:ins"},
+        std::string_view{"w:del"},
+        std::string_view{"w:moveFrom"},
+        std::string_view{"w:moveTo"},
+        std::string_view{"w:moveFromRangeStart"},
+        std::string_view{"w:moveFromRangeEnd"},
+        std::string_view{"w:moveToRangeStart"},
+        std::string_view{"w:moveToRangeEnd"},
+        std::string_view{"w:customXmlInsRangeStart"},
+        std::string_view{"w:customXmlInsRangeEnd"},
+        std::string_view{"w:customXmlDelRangeStart"},
+        std::string_view{"w:customXmlDelRangeEnd"},
+        std::string_view{"w:customXmlMoveFromRangeStart"},
+        std::string_view{"w:customXmlMoveFromRangeEnd"},
+        std::string_view{"w:customXmlMoveToRangeStart"},
+        std::string_view{"w:customXmlMoveToRangeEnd"},
+        std::string_view{"w:pPrChange"},
+        std::string_view{"w:rPrChange"},
+        std::string_view{"w:sectPrChange"},
+        std::string_view{"w:tblPrChange"},
+        std::string_view{"w:tblGridChange"},
+        std::string_view{"w:trPrChange"},
+        std::string_view{"w:tcPrChange"},
+        std::string_view{"w:numberingChange"},
+        std::string_view{"w:cellIns"},
+        std::string_view{"w:cellDel"},
+        std::string_view{"w:cellMerge"},
+        std::string_view{"w14:conflictIns"},
+        std::string_view{"w14:conflictDel"},
+        std::string_view{"w14:customXmlConflictInsRangeStart"},
+        std::string_view{"w14:customXmlConflictInsRangeEnd"},
+        std::string_view{"w14:customXmlConflictDelRangeStart"},
+        std::string_view{"w14:customXmlConflictDelRangeEnd"},
+    };
+    return std::find(tracked_change_node_names.begin(),
+                     tracked_change_node_names.end(),
+                     node_name) != tracked_change_node_names.end();
+}
+
 void collect_revisions_from_node(
     pugi::xml_node node, std::string_view entry_name,
     std::vector<featherdoc::revision_summary> &summaries) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        const auto kind = revision_kind_from_node_name(child.name());
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        const auto kind = revision_kind_from_node_name(current.name());
         if (kind != featherdoc::revision_kind::unknown) {
             featherdoc::revision_summary summary;
             summary.index = summaries.size();
             summary.kind = kind;
-            summary.id = child.attribute("w:id").value();
-            summary.author = xml_child_attribute_string(child, "w:author");
-            summary.date = xml_child_attribute_string(child, "w:date");
+            summary.id = current.attribute("w:id").value();
+            summary.author = xml_child_attribute_string(current, "w:author");
+            summary.date = xml_child_attribute_string(current, "w:date");
             summary.part_entry_name = std::string{entry_name};
-            summary.text = featherdoc::detail::collect_plain_text_from_xml(child);
+            summary.text =
+                featherdoc::detail::collect_plain_text_from_xml(current);
             summaries.push_back(std::move(summary));
         }
-        collect_revisions_from_node(child, entry_name, summaries);
     }
 }
 
 void collect_revision_nodes_in_order(pugi::xml_node node,
                                      std::vector<pugi::xml_node> &nodes) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (revision_kind_from_node_name(child.name()) !=
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (revision_kind_from_node_name(current.name()) !=
             featherdoc::revision_kind::unknown) {
-            nodes.push_back(child);
+            nodes.push_back(current);
         }
-        collect_revision_nodes_in_order(child, nodes);
     }
 }
 
-void collect_revision_ids(pugi::xml_node node, long &next_id) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (revision_kind_from_node_name(child.name()) !=
-            featherdoc::revision_kind::unknown) {
-            const auto id_text = std::string_view{child.attribute("w:id").value()};
+using review_identifier = std::int64_t;
+
+class review_identifier_allocator {
+  public:
+    explicit review_identifier_allocator(review_identifier minimum_id)
+        : next_id_(minimum_id) {}
+
+    void observe(std::string_view value_text) {
+        const auto value =
+            featherdoc::detail::parse_integer_strict<review_identifier>(
+                value_text);
+        if (!value.has_value() || *value < next_id_) {
+            return;
+        }
+        if (*value == std::numeric_limits<review_identifier>::max()) {
+            exhausted_ = true;
+            return;
+        }
+        next_id_ = *value + 1;
+    }
+
+    [[nodiscard]] auto reserve(std::size_t count) const
+        -> std::optional<review_identifier> {
+        if (count == 0U || exhausted_) {
+            return std::nullopt;
+        }
+
+        const auto required_increment = count - 1U;
+        const auto available_increment = static_cast<std::uint64_t>(
+            std::numeric_limits<review_identifier>::max() - next_id_);
+        if (required_increment > available_increment) {
+            return std::nullopt;
+        }
+        return next_id_;
+    }
+
+  private:
+    review_identifier next_id_;
+    bool exhausted_{false};
+};
+
+void collect_revision_ids(pugi::xml_node node,
+                          review_identifier_allocator &allocator) {
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (node_uses_review_revision_identifier(current.name())) {
+            const auto id_text =
+                std::string_view{current.attribute("w:id").value()};
             if (!id_text.empty()) {
-                char *end = nullptr;
-                const auto id_storage = std::string{id_text};
-                const auto id = std::strtol(id_storage.c_str(), &end, 10);
-                if (end != nullptr && *end == '\0' && id >= next_id) {
-                    next_id = id + 1;
-                }
+                allocator.observe(id_text);
             }
         }
-        collect_revision_ids(child, next_id);
     }
 }
 
@@ -81,22 +162,22 @@ bool revision_text_needs_space_preserve(std::string_view text) {
 
 bool append_revision_text_node(pugi::xml_node run, const char *text_node_name,
                                std::string_view text) {
-    auto text_node = run.append_child(text_node_name);
+    auto text_node =
+        featherdoc::detail::checked_append_xml_element(run, text_node_name);
     if (text_node == pugi::xml_node{}) {
         return false;
     }
     if (revision_text_needs_space_preserve(text)) {
-        auto xml_space = text_node.append_attribute("xml:space");
-        if (xml_space == pugi::xml_attribute{}) {
+        if (!featherdoc::detail::checked_append_xml_attribute(
+                text_node, "xml:space", "preserve")) {
             return false;
         }
-        xml_space.set_value("preserve");
     }
-    const auto text_storage = std::string{text};
-    return text_node.text().set(text_storage.c_str());
+    return text_node.text().set(text.data(), text.size());
 }
 
-bool set_revision_run_text_content(pugi::xml_node run, const char *text_node_name,
+bool set_revision_run_text_content(pugi::xml_node run,
+                                   const char *text_node_name,
                                    std::string_view text) {
     if (run == pugi::xml_node{}) {
         return false;
@@ -116,14 +197,17 @@ bool set_revision_run_text_content(pugi::xml_node run, const char *text_node_nam
         }
 
         if (offset > segment_start &&
-            !append_revision_text_node(run, text_node_name,
-                                       text.substr(segment_start, offset - segment_start))) {
+            !append_revision_text_node(
+                run, text_node_name,
+                text.substr(segment_start, offset - segment_start))) {
             return false;
         }
-        if (run.append_child("w:br") == pugi::xml_node{}) {
+        if (featherdoc::detail::checked_append_xml_element(run, "w:br") ==
+            pugi::xml_node{}) {
             return false;
         }
-        if (current == '\r' && offset + 1U < text.size() && text[offset + 1U] == '\n') {
+        if (current == '\r' && offset + 1U < text.size() &&
+            text[offset + 1U] == '\n') {
             ++offset;
         }
         ++offset;
@@ -137,20 +221,35 @@ bool set_revision_run_text_content(pugi::xml_node run, const char *text_node_nam
     return true;
 }
 
-bool set_revision_identity_metadata(pugi::xml_node revision, long revision_id,
-                                    std::string_view author,
-                                    std::string_view date) {
+bool set_revision_identity_metadata_text(pugi::xml_node revision,
+                                         std::string_view revision_id,
+                                         std::string_view author,
+                                         std::string_view date) {
     if (revision == pugi::xml_node{}) {
         return false;
     }
-    ensure_attribute_value(revision, "w:id", std::to_string(revision_id));
+    if (!ensure_attribute_value(revision, "w:id", revision_id)) {
+        return false;
+    }
     if (!author.empty()) {
-        ensure_attribute_value(revision, "w:author", author);
+        if (!ensure_attribute_value(revision, "w:author", author)) {
+            return false;
+        }
     }
     if (!date.empty()) {
-        ensure_attribute_value(revision, "w:date", date);
+        if (!ensure_attribute_value(revision, "w:date", date)) {
+            return false;
+        }
     }
     return true;
+}
+
+bool set_revision_identity_metadata(pugi::xml_node revision,
+                                    review_identifier revision_id,
+                                    std::string_view author,
+                                    std::string_view date) {
+    return set_revision_identity_metadata_text(
+        revision, std::to_string(revision_id), author, date);
 }
 
 pugi::xml_node paragraph_run_by_index(pugi::xml_node paragraph,
@@ -167,19 +266,85 @@ pugi::xml_node paragraph_run_by_index(pugi::xml_node paragraph,
     return run;
 }
 
-bool append_copied_run_properties(pugi::xml_node target_run, pugi::xml_node source_run) {
+pugi::xml_node
+revision_document_paragraph_by_index(pugi::xml_document &document,
+                                     std::size_t paragraph_index) noexcept {
+    auto paragraph = document.child("w:document").child("w:body").child("w:p");
+    for (std::size_t current_index = 0U;
+         current_index < paragraph_index && paragraph != pugi::xml_node{};
+         ++current_index) {
+        paragraph = featherdoc::detail::next_named_sibling(paragraph, "w:p");
+    }
+    return paragraph;
+}
+
+template <typename Mutation>
+bool mutate_revision_body_document_transaction(
+    pugi::xml_document &document,
+    featherdoc::detail::xml_handle_lifetime &lifetime,
+    featherdoc::document_error_info &error_info,
+    std::string_view allocation_message, Mutation &&mutation) {
+    try {
+        pugi::xml_document work_document;
+        if (featherdoc::detail::checked_clone_xml_document(document,
+                                                           work_document) !=
+            featherdoc::detail::xml_document_clone_status::success) {
+            (void)featherdoc::detail::set_xml_document_clone_allocation_failure(
+                error_info, document_xml_entry);
+            return false;
+        }
+
+        const auto work_body =
+            work_document.child("w:document").child("w:body");
+        if (work_body == pugi::xml_node{} ||
+            !std::forward<Mutation>(mutation)(work_document)) {
+            (void)featherdoc::detail::
+                set_xml_document_mutation_allocation_failure(
+                    error_info, document_xml_entry);
+            return false;
+        }
+
+        const auto live_body = document.child("w:document").child("w:body");
+        if (live_body == pugi::xml_node{}) {
+            set_last_error(
+                error_info,
+                featherdoc::document_errc::invalid_package_structure,
+                "document body disappeared before revision publication",
+                std::string{document_xml_entry});
+            return false;
+        }
+
+        static_assert(noexcept(std::declval<pugi::xml_document &>() =
+                                   std::declval<pugi::xml_document &&>()));
+        lifetime.retire_subtree(live_body);
+        document = std::move(work_document);
+        return true;
+    } catch (...) {
+        (void)featherdoc::detail::set_xml_document_allocation_failure(
+            error_info, allocation_message, document_xml_entry);
+        return false;
+    }
+}
+
+bool append_copied_run_properties(pugi::xml_node target_run,
+                                  pugi::xml_node source_run) {
     if (target_run == pugi::xml_node{}) {
         return false;
     }
     const auto source_properties = source_run.child("w:rPr");
     return source_properties == pugi::xml_node{} ||
-           target_run.append_copy(source_properties) != pugi::xml_node{};
+           featherdoc::detail::checked_append_copy_xml_node(source_properties,
+                                                            target_run) ==
+               featherdoc::detail::xml_document_clone_status::success;
 }
 
-pugi::xml_node append_revision_run(pugi::xml_node revision, pugi::xml_node source_run,
-                                   const char *text_node_name, std::string_view text) {
-    auto run = revision.append_child("w:r");
-    if (run == pugi::xml_node{} || !append_copied_run_properties(run, source_run) ||
+pugi::xml_node append_revision_run(pugi::xml_node revision,
+                                   pugi::xml_node source_run,
+                                   const char *text_node_name,
+                                   std::string_view text) {
+    auto run = featherdoc::detail::checked_append_xml_element(revision, "w:r");
+    if (run == pugi::xml_node{} ||
+        !append_copied_run_properties(run, source_run) ||
         !set_revision_run_text_content(run, text_node_name, text)) {
         return {};
     }
@@ -253,38 +418,80 @@ std::size_t paragraph_revision_text_length(
     return last.start_offset + last.length;
 }
 
-pugi::xml_node split_revision_text_run(
-    pugi::xml_node paragraph, const paragraph_revision_run_span &span,
-    std::size_t text_offset) {
+auto collect_revision_document_paragraphs(pugi::xml_document &document)
+    -> std::vector<pugi::xml_node> {
+    std::vector<pugi::xml_node> paragraphs;
+    const auto body = document.child("w:document").child("w:body");
+    for (auto child = body.first_child(); child != pugi::xml_node{};
+         child = child.next_sibling()) {
+        if (std::string_view{child.name()} == "w:p") {
+            paragraphs.push_back(child);
+        }
+    }
+    return paragraphs;
+}
+
+auto checked_insert_revision_element(pugi::xml_node paragraph, const char *name,
+                                     pugi::xml_node insert_before)
+    -> pugi::xml_node {
+    return insert_before == pugi::xml_node{}
+               ? featherdoc::detail::checked_append_xml_element(paragraph, name)
+               : featherdoc::detail::checked_insert_xml_element_before(
+                     paragraph, name, insert_before);
+}
+
+auto checked_insert_split_revision_run(pugi::xml_node paragraph,
+                                       pugi::xml_node insert_before,
+                                       pugi::xml_node source_run,
+                                       std::string_view text)
+    -> pugi::xml_node {
+    auto run = featherdoc::detail::checked_insert_xml_element_before(
+        paragraph, "w:r", insert_before);
+    if (run == pugi::xml_node{} ||
+        !append_copied_run_properties(run, source_run) ||
+        !set_revision_run_text_content(run, "w:t", text)) {
+        if (run != pugi::xml_node{}) {
+            paragraph.remove_child(run);
+        }
+        return {};
+    }
+    return run;
+}
+
+bool checked_split_revision_text_run(pugi::xml_node paragraph,
+                                     const paragraph_revision_run_span &span,
+                                     std::size_t text_offset) {
     if (text_offset <= span.start_offset ||
         text_offset >= span.start_offset + span.length) {
-        return span.run;
+        return true;
     }
     if (!revision_range_run_content_supported(span.run)) {
-        return {};
+        return false;
     }
 
     const auto local_offset = text_offset - span.start_offset;
-    auto suffix_run = paragraph.insert_copy_after(span.run, span.run);
-    if (suffix_run == pugi::xml_node{}) {
-        return {};
+    const auto span_text = std::string_view{span.text};
+    const auto prefix = checked_insert_split_revision_run(
+        paragraph, span.run, span.run, span_text.substr(0U, local_offset));
+    if (prefix == pugi::xml_node{}) {
+        return false;
     }
-
-    if (!featherdoc::detail::set_plain_text_run_content(
-            suffix_run, std::string_view{span.text}.substr(local_offset))) {
-        paragraph.remove_child(suffix_run);
-        return {};
+    const auto suffix = checked_insert_split_revision_run(
+        paragraph, span.run, span.run, span_text.substr(local_offset));
+    if (suffix == pugi::xml_node{}) {
+        paragraph.remove_child(prefix);
+        return false;
     }
-    if (!featherdoc::detail::set_plain_text_run_content(
-            span.run, std::string_view{span.text}.substr(0U, local_offset))) {
-        paragraph.remove_child(suffix_run);
-        return {};
+    if (!paragraph.remove_child(span.run)) {
+        paragraph.remove_child(prefix);
+        paragraph.remove_child(suffix);
+        return false;
     }
-    return suffix_run;
+    return true;
 }
 
-bool split_paragraph_revision_text_at(pugi::xml_node paragraph,
-                                      std::size_t text_offset) {
+bool checked_split_paragraph_revision_text_at(pugi::xml_node paragraph,
+                                              std::size_t text_offset) {
     const auto spans = collect_paragraph_revision_run_spans(paragraph);
     const auto total_length = paragraph_revision_text_length(spans);
     if (text_offset == 0U || text_offset == total_length) {
@@ -297,8 +504,21 @@ bool split_paragraph_revision_text_at(pugi::xml_node paragraph,
     for (const auto &span : spans) {
         if (text_offset > span.start_offset &&
             text_offset < span.start_offset + span.length) {
-            return split_revision_text_run(paragraph, span, text_offset) !=
-                   pugi::xml_node{};
+            return checked_split_revision_text_run(paragraph, span,
+                                                   text_offset);
+        }
+    }
+    return true;
+}
+
+bool checked_split_paragraph_revision_range_segments(
+    const std::vector<paragraph_revision_range_segment> &segments) {
+    for (const auto &segment : segments) {
+        if (!checked_split_paragraph_revision_text_at(
+                segment.paragraph, segment.text_offset + segment.text_length) ||
+            !checked_split_paragraph_revision_text_at(segment.paragraph,
+                                                      segment.text_offset)) {
+            return false;
         }
     }
     return true;
@@ -355,8 +575,8 @@ bool append_revision_runs_from_spans(
     const char *text_node_name) {
     for (const auto &span : spans) {
         if (!revision_range_run_content_supported(span.run) ||
-            append_revision_run(revision, span.run, text_node_name, span.text) ==
-                pugi::xml_node{}) {
+            append_revision_run(revision, span.run, text_node_name,
+                                span.text) == pugi::xml_node{}) {
             return false;
         }
     }
@@ -364,9 +584,37 @@ bool append_revision_runs_from_spans(
 }
 
 bool selected_paragraph_revision_spans_supported(
-    const std::vector<std::vector<paragraph_revision_run_span>> &selected_segments) {
+    const std::vector<std::vector<paragraph_revision_run_span>>
+        &selected_segments) {
     for (const auto &selected : selected_segments) {
         for (const auto &span : selected) {
+            if (!revision_range_run_content_supported(span.run)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool paragraph_revision_range_segments_supported(
+    const std::vector<paragraph_revision_range_segment> &segments) {
+    for (const auto &segment : segments) {
+        if (segment.text_length >
+            std::numeric_limits<std::size_t>::max() - segment.text_offset) {
+            return false;
+        }
+        const auto segment_end = segment.text_offset + segment.text_length;
+        for (const auto &span :
+             collect_paragraph_revision_run_spans(segment.paragraph)) {
+            if (span.length >
+                std::numeric_limits<std::size_t>::max() - span.start_offset) {
+                return false;
+            }
+            const auto span_end = span.start_offset + span.length;
+            if (span_end <= segment.text_offset ||
+                span.start_offset >= segment_end) {
+                continue;
+            }
             if (!revision_range_run_content_supported(span.run)) {
                 return false;
             }
@@ -417,14 +665,16 @@ bool build_paragraph_revision_range_plan(
          paragraph_index <= end_paragraph_index; ++paragraph_index) {
         const auto spans =
             collect_paragraph_revision_run_spans(paragraphs[paragraph_index]);
-        const auto paragraph_text_length = paragraph_revision_text_length(spans);
+        const auto paragraph_text_length =
+            paragraph_revision_text_length(spans);
         const auto segment_start =
             paragraph_index == start_paragraph_index ? start_text_offset : 0U;
-        const auto segment_end =
-            paragraph_index == end_paragraph_index ? end_text_offset
-                                                   : paragraph_text_length;
+        const auto segment_end = paragraph_index == end_paragraph_index
+                                     ? end_text_offset
+                                     : paragraph_text_length;
         if (segment_start > paragraph_text_length ||
-            segment_end > paragraph_text_length || segment_end < segment_start) {
+            segment_end > paragraph_text_length ||
+            segment_end < segment_start) {
             error_message = "text range is out of range";
             return false;
         }
@@ -448,19 +698,6 @@ bool build_paragraph_revision_range_plan(
     return true;
 }
 
-bool split_paragraph_revision_range_segments(
-    const std::vector<paragraph_revision_range_segment> &segments) {
-    for (const auto &segment : segments) {
-        if (!split_paragraph_revision_text_at(
-                segment.paragraph, segment.text_offset + segment.text_length) ||
-            !split_paragraph_revision_text_at(segment.paragraph,
-                                              segment.text_offset)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 auto collect_selected_paragraph_revision_spans(
     const std::vector<paragraph_revision_range_segment> &segments)
     -> std::vector<std::vector<paragraph_revision_run_span>> {
@@ -480,7 +717,8 @@ auto collect_selected_paragraph_revision_spans(
 auto preview_paragraph_revision_range_segments(
     std::size_t start_paragraph_index, std::size_t start_text_offset,
     std::size_t end_paragraph_index, std::size_t end_text_offset,
-    const paragraph_revision_range_plan &plan) -> featherdoc::text_range_preview {
+    const paragraph_revision_range_plan &plan)
+    -> featherdoc::text_range_preview {
     featherdoc::text_range_preview preview;
     preview.start_paragraph_index = start_paragraph_index;
     preview.start_text_offset = start_text_offset;
@@ -506,12 +744,12 @@ auto preview_paragraph_revision_range_segments(
                 preview.plain_text_runs_supported = false;
             }
 
-            const auto selected_start = std::max(span_start, segment.text_offset);
+            const auto selected_start =
+                std::max(span_start, segment.text_offset);
             const auto selected_end = std::min(span_end, segment_end);
             const auto local_start = selected_start - span_start;
-            preview_segment.text.append(
-                std::string_view{span.text}.substr(local_start,
-                                                   selected_end - selected_start));
+            preview_segment.text.append(std::string_view{span.text}.substr(
+                local_start, selected_end - selected_start));
         }
 
         preview.text += preview_segment.text;
@@ -523,18 +761,15 @@ auto preview_paragraph_revision_range_segments(
 
 auto revision_expected_text_mismatch_detail(
     std::string_view expected_text,
-    const featherdoc::text_range_preview &preview)
-    -> std::string {
+    const featherdoc::text_range_preview &preview) -> std::string {
     std::ostringstream detail;
     detail << "expected text did not match selected text"
-           << " (expected: " << expected_text
-           << ", actual: " << preview.text
+           << " (expected: " << expected_text << ", actual: " << preview.text
            << ", start_paragraph_index: " << preview.start_paragraph_index
            << ", start_text_offset: " << preview.start_text_offset
            << ", end_paragraph_index: " << preview.end_paragraph_index
            << ", end_text_offset: " << preview.end_text_offset
-           << ", text_length: " << preview.text_length
-           << ", segments: [";
+           << ", text_length: " << preview.text_length << ", segments: [";
     for (std::size_t index = 0U; index < preview.segments.size(); ++index) {
         if (index != 0U) {
             detail << "; ";
@@ -561,16 +796,17 @@ auto validate_revision_expected_text(
         return true;
     }
 
-    set_last_error(last_error_info, std::make_error_code(std::errc::invalid_argument),
-                   revision_expected_text_mismatch_detail(*options.expected_text,
-                                                          preview),
-                   std::string{document_xml_entry});
+    set_last_error(
+        last_error_info, std::make_error_code(std::errc::invalid_argument),
+        revision_expected_text_mismatch_detail(*options.expected_text, preview),
+        std::string{document_xml_entry});
     return false;
 }
 
 bool insert_comment_markers_for_selected_spans(
     const std::vector<paragraph_revision_range_segment> &segments,
-    const std::vector<std::vector<paragraph_revision_run_span>> &selected_segments,
+    const std::vector<std::vector<paragraph_revision_run_span>>
+        &selected_segments,
     std::string_view comment_id) {
     if (segments.empty() || selected_segments.empty() ||
         selected_segments.front().empty() || selected_segments.back().empty()) {
@@ -585,9 +821,10 @@ bool insert_comment_markers_for_selected_spans(
         first_paragraph.insert_child_before("w:commentRangeStart", first_run);
     auto range_end =
         last_paragraph.insert_child_after("w:commentRangeEnd", last_run);
-    auto reference_run = range_end == pugi::xml_node{}
-                             ? pugi::xml_node{}
-                             : last_paragraph.insert_child_after("w:r", range_end);
+    auto reference_run =
+        range_end == pugi::xml_node{}
+            ? pugi::xml_node{}
+            : last_paragraph.insert_child_after("w:r", range_end);
     auto reference = reference_run == pugi::xml_node{}
                          ? pugi::xml_node{}
                          : reference_run.append_child("w:commentReference");
@@ -601,14 +838,16 @@ bool insert_comment_markers_for_selected_spans(
     return true;
 }
 
-void convert_deleted_text_to_text(pugi::xml_node node) {
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        if (std::string_view{child.name()} == "w:delText") {
-            child.set_name("w:t");
+bool convert_deleted_text_to_text(pugi::xml_node node) {
+    for (auto current = node.first_child(); current != pugi::xml_node{};
+         current = featherdoc::detail::next_xml_node_preorder(node, current)) {
+        if (std::string_view{current.name()} == "w:delText") {
+            if (!current.set_name("w:t")) {
+                return false;
+            }
         }
-        convert_deleted_text_to_text(child);
     }
+    return true;
 }
 
 bool unwrap_revision_node(pugi::xml_node revision, bool convert_deleted_text) {
@@ -616,14 +855,12 @@ bool unwrap_revision_node(pugi::xml_node revision, bool convert_deleted_text) {
     if (parent == pugi::xml_node{}) {
         return false;
     }
-    for (auto child = revision.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        auto copy = parent.insert_copy_before(child, revision);
-        if (copy == pugi::xml_node{}) {
+    while (const auto child = revision.first_child()) {
+        if (convert_deleted_text && !convert_deleted_text_to_text(child)) {
             return false;
         }
-        if (convert_deleted_text) {
-            convert_deleted_text_to_text(copy);
+        if (parent.insert_move_before(child, revision) == pugi::xml_node{}) {
+            return false;
         }
     }
     return parent.remove_child(revision);

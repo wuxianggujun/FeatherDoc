@@ -95,6 +95,9 @@ foreach ($marker in @(
         "style-merge-suggestions.json",
         "style_numbering_issue_count",
         "style_merge_suggestion_count",
+        "style_merge_manual_review_reason_count",
+        "manual_review_reasons",
+        "manual_review_before_apply",
         "source_schema",
         "source_report_display",
         "source_json_display",
@@ -151,6 +154,7 @@ foreach ($marker in @(
         "featherdoc.document_skeleton_governance_rollup_report.v1",
         "document_skeleton.style_merge_suggestions_pending",
         "style_merge_suggestion_count",
+        "style_merge_manual_review_reason_count",
         "source_schema",
         "source_report_display",
         "source_json_display",
@@ -171,10 +175,14 @@ foreach ($assertion in @(
                 "document_skeleton_governance.md",
                 "exemplar.numbering-catalog.json",
                 "style-merge-suggestions.json",
+                "StyleMergeReviewJson",
                 "export-numbering-catalog",
                 "audit-style-numbering",
                 "inspect-styles",
                 "suggest-style-merges",
+                "style_merge_review_json_path",
+                "style_merge_manual_review_reason_count",
+                "manual_review_reasons",
                 "document_skeleton.style_numbering_issues",
                 "review_style_numbering_audit",
                 "preview_style_numbering_repair",
@@ -193,6 +201,9 @@ foreach ($assertion in @(
                 "catalog_exemplars",
                 "total_style_numbering_issue_count",
                 "total_style_merge_suggestion_count",
+                "total_style_merge_manual_review_reason_count",
+                "style_merge_manual_review_reason_count",
+                "manual_review_reasons",
                 "release_blockers",
                 "action_items",
                 "warnings",
@@ -253,6 +264,8 @@ foreach ($assertion in @(
                 "exemplar.numbering-catalog.json",
                 "style-merge-suggestions.json",
                 "style_merge_suggestion_count",
+                "style_merge_manual_review_reason_count",
+                "manual_review_before_apply",
                 "repair-style-numbering",
                 "suggest-style-merges"
             )
@@ -267,7 +280,10 @@ foreach ($assertion in @(
                 "source_json_display",
                 "origin_source_report_display",
                 "open_command",
-                "style_merge_suggestions"
+                "style_merge_suggestions",
+                "style_merge_manual_review_reason_count",
+                "manual_review_reasons",
+                "manual_review_before_apply"
             )
         },
         [ordered]@{

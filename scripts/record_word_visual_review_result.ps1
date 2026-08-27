@@ -63,6 +63,82 @@ function Get-OptionalArray {
     return @($value)
 }
 
+function Initialize-ImagePixelProbe {
+    if ($null -ne ([System.Management.Automation.PSTypeName]'FeatherDocImagePixelProbe').Type) {
+        return
+    }
+
+    Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+public sealed class FeatherDocImagePixelProbeResult
+{
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public long ExaminedPixels { get; set; }
+    public long NonWhitePixels { get; set; }
+}
+
+public static class FeatherDocImagePixelProbe
+{
+    public static FeatherDocImagePixelProbeResult Probe(string path, byte whiteThreshold)
+    {
+        using (Image source = Image.FromFile(path))
+        using (Bitmap bitmap = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.Clear(Color.White);
+                graphics.DrawImageUnscaled(source, 0, 0);
+            }
+
+            Rectangle bounds = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+            BitmapData data = bitmap.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            long examinedPixels = 0;
+            long nonWhitePixels = 0;
+            try
+            {
+                int rowBytes = Math.Abs(data.Stride);
+                byte[] row = new byte[rowBytes];
+                for (int y = 0; y < bitmap.Height; ++y)
+                {
+                    IntPtr rowStart = IntPtr.Add(data.Scan0, y * data.Stride);
+                    Marshal.Copy(rowStart, row, 0, rowBytes);
+                    for (int x = 0; x < bitmap.Width; ++x)
+                    {
+                        int pixelOffset = x * 4;
+                        byte blue = row[pixelOffset];
+                        byte green = row[pixelOffset + 1];
+                        byte red = row[pixelOffset + 2];
+                        ++examinedPixels;
+                        if (red < whiteThreshold || green < whiteThreshold || blue < whiteThreshold)
+                        {
+                            ++nonWhitePixels;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(data);
+            }
+
+            return new FeatherDocImagePixelProbeResult
+            {
+                Width = bitmap.Width,
+                Height = bitmap.Height,
+                ExaminedPixels = examinedPixels,
+                NonWhitePixels = nonWhitePixels
+            };
+        }
+    }
+}
+'@
+}
+
 function Test-ImageNonEmpty {
     param([string]$Path)
 
@@ -74,37 +150,16 @@ function Test-ImageNonEmpty {
         throw "Visual evidence image is empty: $Path"
     }
 
-    Add-Type -AssemblyName System.Drawing
-    $image = [System.Drawing.Image]::FromFile($Path)
-    $bitmap = $null
-    try {
-        $bitmap = [System.Drawing.Bitmap]::new($Path)
-        $sampled = 0
-        $nonWhite = 0
-        $stepX = [Math]::Max(1, [int]($bitmap.Width / 64))
-        $stepY = [Math]::Max(1, [int]($bitmap.Height / 64))
-        for ($y = 0; $y -lt $bitmap.Height; $y += $stepY) {
-            for ($x = 0; $x -lt $bitmap.Width; $x += $stepX) {
-                $color = $bitmap.GetPixel($x, $y)
-                $sampled++
-                if ($color.R -lt 245 -or $color.G -lt 245 -or $color.B -lt 245) {
-                    $nonWhite++
-                }
-            }
-        }
-
-        return [ordered]@{
-            path = $Path
-            bytes = $file.Length
-            width = $image.Width
-            height = $image.Height
-            sampled_pixels = $sampled
-            sampled_non_white = $nonWhite
-            non_empty_visual = ($nonWhite -gt 0)
-        }
-    } finally {
-        if ($bitmap) { $bitmap.Dispose() }
-        if ($image) { $image.Dispose() }
+    Initialize-ImagePixelProbe
+    $probe = [FeatherDocImagePixelProbe]::Probe($Path, 245)
+    return [ordered]@{
+        path = $Path
+        bytes = $file.Length
+        width = $probe.Width
+        height = $probe.Height
+        sampled_pixels = $probe.ExaminedPixels
+        sampled_non_white = $probe.NonWhitePixels
+        non_empty_visual = ($probe.NonWhitePixels -gt 0)
     }
 }
 
@@ -116,6 +171,112 @@ function Set-JsonProperty {
         Add-Member -InputObject $Object -MemberType NoteProperty -Name $Name -Value $Value
     } else {
         $property.Value = $Value
+    }
+}
+
+function Resolve-ReviewEvidence {
+    param(
+        [Parameter(Mandatory = $true)]$Review,
+        [Parameter(Mandatory = $true)][string]$ReviewPath
+    )
+
+    $evidence = Get-OptionalProperty -Object $Review -Name "evidence"
+    $contactSheet = Resolve-PathForRepo `
+        -RepoRoot $repoRoot `
+        -Path (Get-OptionalString -Object $evidence -Name "contact_sheet")
+    $pageImages = @(
+        Get-OptionalArray -Object $evidence -Name "page_images" |
+            ForEach-Object { Resolve-PathForRepo -RepoRoot $repoRoot -Path ([string]$_) }
+    )
+
+    # Older prepared tasks did not include the evidence object in their seed
+    # review_result.json. Recover only missing fields from the sibling manifest,
+    # which records exact copied paths for each supported task source kind.
+    $needsContactSheet = [string]::IsNullOrWhiteSpace($contactSheet)
+    $needsPageImages = $pageImages.Count -eq 0
+    if ($needsContactSheet -or $needsPageImages) {
+        $taskDir = Split-Path -Parent (Split-Path -Parent $ReviewPath)
+        $manifestPath = Join-Path $taskDir "task_manifest.json"
+        if (Test-Path -LiteralPath $manifestPath) {
+            $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
+            $artifactNames = @(
+                "document_visual_artifacts",
+                "fixed_grid_bundle",
+                "section_page_setup_bundle",
+                "page_number_fields_bundle",
+                "visual_regression_bundle"
+            )
+            $contactPropertyNames = @(
+                "copied_contact_sheet_path",
+                "copied_aggregate_contact_sheet"
+            )
+            $pageDirectoryPropertyNames = @(
+                "copied_pages_dir",
+                "copied_aggregate_first_pages_dir",
+                "copied_aggregate_contact_sheets_dir",
+                "copied_aggregate_evidence_dir"
+            )
+
+            foreach ($artifactName in $artifactNames) {
+                $artifact = Get-OptionalProperty -Object $manifest -Name $artifactName
+                if ($null -eq $artifact) { continue }
+
+                if ($needsContactSheet) {
+                    foreach ($propertyName in $contactPropertyNames) {
+                        $candidate = Resolve-PathForRepo `
+                            -RepoRoot $repoRoot `
+                            -Path (Get-OptionalString -Object $artifact -Name $propertyName)
+                        if (-not [string]::IsNullOrWhiteSpace($candidate) -and
+                            (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                            $contactSheet = $candidate
+                            $needsContactSheet = $false
+                            break
+                        }
+                    }
+                }
+
+                if ($needsPageImages) {
+                    foreach ($propertyName in $pageDirectoryPropertyNames) {
+                        $pageDirectory = Resolve-PathForRepo `
+                            -RepoRoot $repoRoot `
+                            -Path (Get-OptionalString -Object $artifact -Name $propertyName)
+                        if ([string]::IsNullOrWhiteSpace($pageDirectory) -or
+                            -not (Test-Path -LiteralPath $pageDirectory -PathType Container)) {
+                            continue
+                        }
+
+                        $pageImages = @(
+                            Get-ChildItem -LiteralPath $pageDirectory -Recurse -Filter "*.png" -File |
+                                Sort-Object FullName |
+                                ForEach-Object {
+                                    if ([string]::Compare($_.FullName, $contactSheet, [System.StringComparison]::OrdinalIgnoreCase) -ne 0) {
+                                        $_.FullName
+                                    }
+                                }
+                        )
+                        if ($pageImages.Count -gt 0) {
+                            $needsPageImages = $false
+                            break
+                        }
+                    }
+                }
+
+                if (-not $needsContactSheet -and -not $needsPageImages) {
+                    break
+                }
+            }
+        }
+    }
+
+    if ($needsContactSheet) {
+        throw "Visual evidence contact sheet is missing from review_result.json and task_manifest.json: $ReviewPath"
+    }
+
+    return [ordered]@{
+        summary_json = Get-OptionalString -Object $evidence -Name "summary_json"
+        checklist = Get-OptionalString -Object $evidence -Name "checklist"
+        contact_sheet = $contactSheet
+        page_images = @($pageImages)
     }
 }
 
@@ -132,12 +293,9 @@ foreach ($reviewPathInput in @($ReviewResultJson)) {
     }
 
     $review = Get-Content -Raw -Encoding UTF8 -LiteralPath $reviewPath | ConvertFrom-Json
-    $evidence = Get-OptionalProperty -Object $review -Name "evidence"
-    $contactSheet = Resolve-PathForRepo -RepoRoot $repoRoot -Path (Get-OptionalString -Object $evidence -Name "contact_sheet")
-    $pageImages = @(
-        Get-OptionalArray -Object $evidence -Name "page_images" |
-            ForEach-Object { Resolve-PathForRepo -RepoRoot $repoRoot -Path ([string]$_) }
-    )
+    $resolvedEvidence = Resolve-ReviewEvidence -Review $review -ReviewPath $reviewPath
+    $contactSheet = $resolvedEvidence.contact_sheet
+    $pageImages = @($resolvedEvidence.page_images)
 
     $contactSheetCheck = Test-ImageNonEmpty -Path $contactSheet
     $pageImageChecks = @(
@@ -163,6 +321,7 @@ foreach ($reviewPathInput in @($ReviewResultJson)) {
             contact_sheet = $contactSheetCheck
             page_images = @($pageImageChecks)
         })
+    Set-JsonProperty -Object $review -Name "evidence" -Value $resolvedEvidence
 
     ($review | ConvertTo-Json -Depth 32) | Set-Content -LiteralPath $reviewPath -Encoding UTF8
 

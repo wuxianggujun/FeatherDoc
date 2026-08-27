@@ -2,6 +2,8 @@
 
 #include "featherdoc_cli_json.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #if defined(FEATHERDOC_CLI_ENABLE_PDF_IMPORT)
 #include <cstddef>
 #include <iostream>
@@ -171,9 +173,11 @@ void print_pdf_import_failure(
         std::cerr << ",\"message\":";
         write_json_string(std::cerr, result.error_message);
         std::cerr << ",\"input\":";
-        write_json_string(std::cerr, input_path.string());
+        write_json_string(std::cerr,
+                          featherdoc::detail::path_to_utf8(input_path));
         std::cerr << ",\"output\":";
-        write_json_string(std::cerr, output_path.string());
+        write_json_string(std::cerr,
+                          featherdoc::detail::path_to_utf8(output_path));
         std::cerr << "}\n";
         return;
     }

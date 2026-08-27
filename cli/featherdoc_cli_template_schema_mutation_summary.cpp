@@ -16,7 +16,7 @@ void print_repaired_template_schema_summary(
         std::cout << "{\"command\":\"repair-template-schema\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"input_target_count\":" << summary.input_target_count
                   << ",\"input_slot_count\":" << summary.input_slot_count
@@ -30,14 +30,13 @@ void print_repaired_template_schema_summary(
                   << summary.deduplicated_slot_count
                   << ",\"stripped_entry_name_count\":"
                   << summary.stripped_entry_name_count
-                  << ",\"replaced_slot_count\":"
-                  << summary.replaced_slot_count
+                  << ",\"replaced_slot_count\":" << summary.replaced_slot_count
                   << ",\"changed\":" << json_bool(summary.changed) << "}\n";
         return;
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "input_target_count: " << summary.input_target_count << '\n'
               << "input_slot_count: " << summary.input_slot_count << '\n'
@@ -47,8 +46,8 @@ void print_repaired_template_schema_summary(
               << summary.merged_duplicate_target_count << '\n'
               << "deduplicated_target_count: "
               << summary.deduplicated_target_count << '\n'
-              << "deduplicated_slot_count: "
-              << summary.deduplicated_slot_count << '\n'
+              << "deduplicated_slot_count: " << summary.deduplicated_slot_count
+              << '\n'
               << "stripped_entry_name_count: "
               << summary.stripped_entry_name_count << '\n'
               << "replaced_slot_count: " << summary.replaced_slot_count << '\n'
@@ -63,24 +62,26 @@ void print_merged_template_schema_summary(
         std::cout << "{\"command\":\"merge-template-schema\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"input_count\":" << summary.input_count
                   << ",\"target_count\":" << result.targets.size()
                   << ",\"slot_count\":" << result.slot_count()
-                  << ",\"updated_target_count\":" << summary.updated_target_count
+                  << ",\"updated_target_count\":"
+                  << summary.updated_target_count
                   << ",\"replaced_slot_count\":" << summary.replaced_slot_count
                   << "}\n";
         return;
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "input_count: " << summary.input_count << '\n'
               << "target_count: " << result.targets.size() << '\n'
               << "slot_count: " << result.slot_count() << '\n'
-              << "updated_target_count: " << summary.updated_target_count << '\n'
+              << "updated_target_count: " << summary.updated_target_count
+              << '\n'
               << "replaced_slot_count: " << summary.replaced_slot_count << '\n';
 }
 
@@ -92,7 +93,7 @@ void print_patched_template_schema_summary(
         std::cout << "{\"command\":\"patch-template-schema\",\"ok\":true";
         if (output_path.has_value()) {
             std::cout << ",\"output_path\":";
-            write_json_string(std::cout, output_path->string());
+            write_json_string(std::cout, path_to_cli_utf8(*output_path));
         }
         std::cout << ",\"target_count\":" << result.targets.size()
                   << ",\"slot_count\":" << result.slot_count()
@@ -101,7 +102,8 @@ void print_patched_template_schema_summary(
                   << ",\"remove_slot_count\":" << summary.remove_slot_count
                   << ",\"rename_slot_count\":" << summary.rename_slot_count
                   << ",\"update_slot_count\":" << summary.update_slot_count
-                  << ",\"updated_target_count\":" << summary.updated_target_count
+                  << ",\"updated_target_count\":"
+                  << summary.updated_target_count
                   << ",\"replaced_slot_count\":" << summary.replaced_slot_count
                   << ",\"applied_remove_target_count\":"
                   << summary.applied_remove_target_count
@@ -117,7 +119,7 @@ void print_patched_template_schema_summary(
     }
 
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     }
     std::cout << "target_count: " << result.targets.size() << '\n'
               << "slot_count: " << result.slot_count() << '\n'
@@ -126,7 +128,8 @@ void print_patched_template_schema_summary(
               << "remove_slot_count: " << summary.remove_slot_count << '\n'
               << "rename_slot_count: " << summary.rename_slot_count << '\n'
               << "update_slot_count: " << summary.update_slot_count << '\n'
-              << "updated_target_count: " << summary.updated_target_count << '\n'
+              << "updated_target_count: " << summary.updated_target_count
+              << '\n'
               << "replaced_slot_count: " << summary.replaced_slot_count << '\n'
               << "applied_remove_target_count: "
               << summary.applied_remove_target_count << '\n'

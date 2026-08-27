@@ -12,6 +12,86 @@
 
 namespace featherdoc {
 
+enum class package_validation_mode : std::uint8_t {
+    strict = 0U,
+    tolerant,
+};
+
+struct archive_limits {
+    std::size_t max_entries{10'000U};
+    std::uint64_t max_xml_part_bytes{64U * 1024U * 1024U};
+    std::uint64_t max_binary_part_bytes{256U * 1024U * 1024U};
+    std::uint64_t max_total_uncompressed_bytes{512U * 1024U * 1024U};
+    std::uint32_t max_compression_ratio{200U};
+};
+
+struct document_open_options {
+    package_validation_mode validation{package_validation_mode::strict};
+    archive_limits limits{};
+};
+
+enum class package_diagnostic_severity : std::uint8_t {
+    warning = 0U,
+    error,
+};
+
+enum class package_diagnostic_code : std::uint8_t {
+    missing_document_body = 0U,
+    invalid_document_root,
+    missing_root_relationships,
+    malformed_root_relationships,
+    invalid_root_relationships_root,
+    missing_main_document_relationship,
+    invalid_main_document_relationship,
+    ambiguous_main_document_relationship,
+    missing_content_types,
+    malformed_content_types,
+    invalid_content_types_root,
+    missing_main_document_content_type,
+    invalid_main_document_content_type,
+    ambiguous_main_document_content_type,
+    duplicate_content_type_override,
+    invalid_content_type_part_name,
+    duplicate_content_type_default,
+    invalid_content_type_extension,
+    invalid_content_type_media_type,
+    invalid_relationships_part,
+    invalid_document_relationship,
+    duplicate_singleton_relationship,
+    dangling_relationship,
+};
+
+struct package_diagnostic {
+    package_diagnostic_code code{
+        package_diagnostic_code::invalid_document_root};
+    package_diagnostic_severity severity{package_diagnostic_severity::error};
+    std::string entry_name;
+    std::string detail;
+    bool repairable{false};
+};
+
+struct document_repair_options {
+    bool repair_document_body{true};
+    bool repair_root_relationships{true};
+    bool repair_content_types{true};
+};
+
+struct package_repair_action {
+    package_diagnostic_code diagnostic_code{
+        package_diagnostic_code::invalid_document_root};
+    std::string entry_name;
+    std::string detail;
+};
+
+struct package_repair_report {
+    std::vector<package_diagnostic> diagnostics_before;
+    std::vector<package_repair_action> actions;
+
+    [[nodiscard]] bool changed() const noexcept {
+        return !this->actions.empty();
+    }
+};
+
 struct document_error_info {
     std::error_code code{};
     std::string detail;
@@ -287,6 +367,10 @@ struct paragraph_inspection_summary {
     std::string text;
 };
 
+struct paragraph_inspection_options {
+    bool resolve_numbering_metadata{true};
+};
+
 enum class body_block_kind : std::uint8_t {
     paragraph = 0U,
     table,
@@ -471,6 +555,20 @@ struct section_part_inspection_summary {
     std::optional<std::size_t> resolved_default_section_index;
     std::optional<std::size_t> resolved_first_section_index;
     std::optional<std::size_t> resolved_even_section_index;
+};
+
+struct related_part_reference_inspection_summary {
+    std::size_t section_index{0};
+    featherdoc::section_reference_kind reference_kind{
+        featherdoc::section_reference_kind::default_reference};
+};
+
+struct related_part_inspection_summary {
+    std::size_t index{0};
+    std::string relationship_id;
+    std::string entry_name;
+    std::vector<featherdoc::related_part_reference_inspection_summary>
+        references;
 };
 
 struct section_inspection_summary {

@@ -79,11 +79,11 @@ TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
                       "\"instances\":[]}]}\n");
 
     CHECK_EQ(run_cli({"check-numbering-catalog",
-                      source.string(),
+                      cli_path_text(source),
                       "--catalog-file",
-                      baseline_catalog.string(),
+                      cli_path_text(baseline_catalog),
                       "--output",
-                      generated_catalog.string(),
+                      cli_path_text(generated_catalog),
                       "--json"},
                      match_output),
              0);
@@ -93,10 +93,10 @@ TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
     CHECK_NE(match_json.find("\"matches\":true"), std::string::npos);
     CHECK_NE(match_json.find("\"clean\":true"), std::string::npos);
     CHECK_NE(match_json.find("\"catalog_file\":" +
-                             json_quote(baseline_catalog.string())),
+                             json_quote_path(baseline_catalog)),
              std::string::npos);
     CHECK_NE(match_json.find("\"generated_output_path\":" +
-                             json_quote(generated_catalog.string())),
+                             json_quote_path(generated_catalog)),
              std::string::npos);
     CHECK_NE(match_json.find("\"baseline_issue_count\":0"),
              std::string::npos);
@@ -108,9 +108,9 @@ TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
              std::string::npos);
 
     CHECK_EQ(run_cli({"check-numbering-catalog",
-                      source.string(),
+                      cli_path_text(source),
                       "--catalog-file",
-                      drift_catalog.string(),
+                      cli_path_text(drift_catalog),
                       "--json"},
                      drift_output),
              1);
@@ -123,9 +123,9 @@ TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
              std::string::npos);
 
     CHECK_EQ(run_cli({"check-numbering-catalog",
-                      source.string(),
+                      cli_path_text(source),
                       "--catalog-file",
-                      dirty_catalog.string(),
+                      cli_path_text(dirty_catalog),
                       "--json"},
                      dirty_output),
              1);
@@ -139,7 +139,7 @@ TEST_CASE("cli check-numbering-catalog gates docx catalog against baseline") {
     CHECK_NE(dirty_json.find("\"issue\":\"empty_levels\""),
              std::string::npos);
 
-    CHECK_EQ(run_cli({"check-numbering-catalog", source.string(), "--json"},
+    CHECK_EQ(run_cli({"check-numbering-catalog", cli_path_text(source), "--json"},
                      parse_output),
              2);
     CHECK_EQ(read_text_file(parse_output),

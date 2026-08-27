@@ -1,9 +1,10 @@
-#include "cli_test_support.hpp"
 #include "cli_style_test_support.hpp"
+#include "cli_test_support.hpp"
 
 #include <algorithm>
 
-TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes") {
+TEST_CASE(
+    "cli repair-style-numbering imports catalog repairs before style fixes") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
         working_directory / "cli_repair_style_numbering_catalog_source.docx";
@@ -30,8 +31,10 @@ TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes
         catalog,
         "{\"definition_count\":1,\"instance_count\":0,\"definitions\":["
         "{\"name\":\"CatalogOutline\",\"levels\":["
-        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1.\"},"
-        "{\"level\":1,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1.%2.\"}"
+        "{\"level\":0,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1."
+        "\"},"
+        "{\"level\":1,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"%1.%"
+        "2.\"}"
         "],\"instances\":[]}]}");
 
     CHECK_EQ(run_cli({"repair-style-numbering", source.string(), "--json"},
@@ -45,30 +48,22 @@ TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes
                  "<patch-with-upsert_levels.json>"),
              std::string::npos);
 
-    CHECK_EQ(run_cli({"repair-style-numbering",
-                      source.string(),
-                      "--catalog-file",
-                      catalog.string(),
-                      "--json"},
+    CHECK_EQ(run_cli({"repair-style-numbering", source.string(),
+                      "--catalog-file", catalog.string(), "--json"},
                      plan_output),
              2);
-    CHECK_NE(read_text_file(plan_output).find("--catalog-file requires --apply"),
-             std::string::npos);
+    CHECK_NE(
+        read_text_file(plan_output).find("--catalog-file requires --apply"),
+        std::string::npos);
 
-    CHECK_EQ(run_cli({"repair-style-numbering",
-                      source.string(),
-                      "--catalog-file",
-                      catalog.string(),
-                      "--apply",
-                      "--output",
-                      repaired.string(),
-                      "--json"},
+    CHECK_EQ(run_cli({"repair-style-numbering", source.string(),
+                      "--catalog-file", catalog.string(), "--apply", "--output",
+                      repaired.string(), "--json"},
                      apply_output),
              0);
     const auto apply_json = read_text_file(apply_output);
-    CHECK_NE(apply_json.find("\"before_issue_count\":1"),
-             std::string::npos);
-    CHECK_NE(apply_json.find("\"catalog_file\":" + json_quote(catalog.string())),
+    CHECK_NE(apply_json.find("\"before_issue_count\":1"), std::string::npos);
+    CHECK_NE(apply_json.find("\"catalog_file\":" + json_quote_path(catalog)),
              std::string::npos);
     CHECK_NE(apply_json.find("\"catalog_import\":{"), std::string::npos);
     CHECK_NE(apply_json.find("\"input_definition_count\":1"),
@@ -82,9 +77,7 @@ TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes
     CHECK_NE(apply_json.find("\"after_clean\":true"), std::string::npos);
     CHECK_NE(apply_json.find("\"after_issue_count\":0"), std::string::npos);
 
-    CHECK_EQ(run_cli({"audit-style-numbering",
-                      repaired.string(),
-                      "--json",
+    CHECK_EQ(run_cli({"audit-style-numbering", repaired.string(), "--json",
                       "--fail-on-issue"},
                      audit_output),
              0);
@@ -100,8 +93,8 @@ TEST_CASE("cli repair-style-numbering imports catalog repairs before style fixes
     remove_if_exists(audit_output);
 }
 
-
-TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles to one shared instance") {
+TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles "
+          "to one shared instance") {
     const fs::path working_directory = fs::current_path();
     const fs::path source =
         working_directory / "cli_style_linked_numbering_source.docx";
@@ -128,37 +121,29 @@ TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles to 
         subheading_style.name = "Legal Subheading";
         subheading_style.based_on = std::string{"Heading2"};
         subheading_style.paragraph_bidi = false;
-        REQUIRE(document.ensure_paragraph_style("LegalSubheading", subheading_style));
+        REQUIRE(document.ensure_paragraph_style("LegalSubheading",
+                                                subheading_style));
 
         REQUIRE_FALSE(document.save());
     }
 
-    CHECK_EQ(run_cli({"ensure-style-linked-numbering",
-                      source.string(),
-                      "--definition-name",
-                      "LegalOutlineShared",
-                      "--numbering-level",
-                      "0:decimal:7:(%1)",
-                      "--numbering-level",
-                      "1:decimal:1:(%1.%2)",
-                      "--style-link",
-                      "LegalHeading:0",
-                      "--style-link",
-                      "LegalSubheading:1",
-                      "--output",
-                      updated.string(),
-                      "--json"},
-                     output),
-             0);
+    CHECK_EQ(
+        run_cli({"ensure-style-linked-numbering", source.string(),
+                 "--definition-name", "LegalOutlineShared", "--numbering-level",
+                 "0:decimal:7:(%1)", "--numbering-level", "1:decimal:1:(%1.%2)",
+                 "--style-link", "LegalHeading:0", "--style-link",
+                 "LegalSubheading:1", "--output", updated.string(), "--json"},
+                output),
+        0);
 
     featherdoc::Document updated_document(updated);
     REQUIRE_FALSE(updated_document.open());
     const auto definitions = updated_document.list_numbering_definitions();
     REQUIRE_FALSE(updated_document.last_error());
-    const auto definition = std::find_if(definitions.begin(), definitions.end(),
-                                         [](const auto &summary) {
-                                             return summary.name == "LegalOutlineShared";
-                                         });
+    const auto definition = std::find_if(
+        definitions.begin(), definitions.end(), [](const auto &summary) {
+            return summary.name == "LegalOutlineShared";
+        });
     REQUIRE(definition != definitions.end());
     REQUIRE_EQ(definition->instance_ids.size(), 1U);
     const auto definition_id = std::to_string(definition->definition_id);
@@ -170,21 +155,26 @@ TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles to 
             "\"in_place\":false,\"sections\":1,\"headers\":0,\"footers\":0,"
             "\"definition_id\":"} +
             definition_id +
-            ",\"definition_name\":\"LegalOutlineShared\",\"definition_levels\":["
-            "{\"level\":0,\"kind\":\"decimal\",\"start\":7,\"text_pattern\":\"(%1)\"},"
-            "{\"level\":1,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"(%1.%2)\"}],"
+            ",\"definition_name\":\"LegalOutlineShared\",\"definition_levels\":"
+            "["
+            "{\"level\":0,\"kind\":\"decimal\",\"start\":7,\"text_pattern\":\"("
+            "%1)\"},"
+            "{\"level\":1,\"kind\":\"decimal\",\"start\":1,\"text_pattern\":\"("
+            "%1.%2)\"}],"
             "\"style_links\":[{\"style_id\":\"LegalHeading\",\"level\":0},"
             "{\"style_id\":\"LegalSubheading\",\"level\":1}]}\n");
 
     const auto heading_style = updated_document.find_style("LegalHeading");
-    const auto subheading_style = updated_document.find_style("LegalSubheading");
+    const auto subheading_style =
+        updated_document.find_style("LegalSubheading");
     REQUIRE(heading_style.has_value());
     REQUIRE(subheading_style.has_value());
     REQUIRE(heading_style->numbering.has_value());
     REQUIRE(subheading_style->numbering.has_value());
     REQUIRE(heading_style->numbering->num_id.has_value());
     REQUIRE(subheading_style->numbering->num_id.has_value());
-    CHECK_EQ(*heading_style->numbering->num_id, *subheading_style->numbering->num_id);
+    CHECK_EQ(*heading_style->numbering->num_id,
+             *subheading_style->numbering->num_id);
     REQUIRE(heading_style->numbering->level.has_value());
     REQUIRE(subheading_style->numbering->level.has_value());
     CHECK_EQ(*heading_style->numbering->level, 0U);
@@ -195,15 +185,23 @@ TEST_CASE("cli ensure-style-linked-numbering links multiple paragraph styles to 
     REQUIRE(styles_document.load_string(styles_xml.c_str()));
     const auto styles_root = styles_document.child("w:styles");
     REQUIRE(styles_root != pugi::xml_node{});
-    const auto heading_style_xml = find_style_xml_node(styles_root, "LegalHeading");
-    const auto subheading_style_xml = find_style_xml_node(styles_root, "LegalSubheading");
+    const auto heading_style_xml =
+        find_style_xml_node(styles_root, "LegalHeading");
+    const auto subheading_style_xml =
+        find_style_xml_node(styles_root, "LegalSubheading");
     REQUIRE(heading_style_xml != pugi::xml_node{});
     REQUIRE(subheading_style_xml != pugi::xml_node{});
-    CHECK_EQ(std::string_view{
-                 heading_style_xml.child("w:pPr").child("w:numPr").child("w:ilvl").attribute("w:val").value()},
+    CHECK_EQ(std::string_view{heading_style_xml.child("w:pPr")
+                                  .child("w:numPr")
+                                  .child("w:ilvl")
+                                  .attribute("w:val")
+                                  .value()},
              "0");
-    CHECK_EQ(std::string_view{
-                 subheading_style_xml.child("w:pPr").child("w:numPr").child("w:ilvl").attribute("w:val").value()},
+    CHECK_EQ(std::string_view{subheading_style_xml.child("w:pPr")
+                                  .child("w:numPr")
+                                  .child("w:ilvl")
+                                  .attribute("w:val")
+                                  .value()},
              "1");
 
     remove_if_exists(source);

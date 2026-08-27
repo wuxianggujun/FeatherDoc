@@ -104,51 +104,52 @@ void collect_style_usage(
         return;
     }
 
-    const auto node_name = std::string_view{node.name()};
-    if (node_name == "w:p") {
-        const auto node_ordinal = increment_style_usage_node_ordinal(
-            node_ordinals, featherdoc::style_usage_hit_kind::paragraph);
-        if (node_style_reference_matches(node, "w:pPr", "w:pStyle", style_id)) {
-            ++usage.paragraph_count;
-            ++part_ordinal;
-            if (hits != nullptr) {
-                append_style_usage_hit(
-                    *hits, part_kind,
-                    featherdoc::style_usage_hit_kind::paragraph, entry_name,
-                    part_ordinal, node_ordinal, section_index);
+    for (auto current = node; current != pugi::xml_node{};
+         current =
+             featherdoc::detail::next_xml_node_preorder(node, current)) {
+        const auto node_name = std::string_view{current.name()};
+        if (node_name == "w:p") {
+            const auto node_ordinal = increment_style_usage_node_ordinal(
+                node_ordinals, featherdoc::style_usage_hit_kind::paragraph);
+            if (node_style_reference_matches(current, "w:pPr", "w:pStyle",
+                                             style_id)) {
+                ++usage.paragraph_count;
+                ++part_ordinal;
+                if (hits != nullptr) {
+                    append_style_usage_hit(
+                        *hits, part_kind,
+                        featherdoc::style_usage_hit_kind::paragraph, entry_name,
+                        part_ordinal, node_ordinal, section_index);
+                }
+            }
+        } else if (node_name == "w:r") {
+            const auto node_ordinal = increment_style_usage_node_ordinal(
+                node_ordinals, featherdoc::style_usage_hit_kind::run);
+            if (node_style_reference_matches(current, "w:rPr", "w:rStyle",
+                                             style_id)) {
+                ++usage.run_count;
+                ++part_ordinal;
+                if (hits != nullptr) {
+                    append_style_usage_hit(
+                        *hits, part_kind, featherdoc::style_usage_hit_kind::run,
+                        entry_name, part_ordinal, node_ordinal, section_index);
+                }
+            }
+        } else if (node_name == "w:tbl") {
+            const auto node_ordinal = increment_style_usage_node_ordinal(
+                node_ordinals, featherdoc::style_usage_hit_kind::table);
+            if (node_style_reference_matches(current, "w:tblPr", "w:tblStyle",
+                                             style_id)) {
+                ++usage.table_count;
+                ++part_ordinal;
+                if (hits != nullptr) {
+                    append_style_usage_hit(
+                        *hits, part_kind,
+                        featherdoc::style_usage_hit_kind::table, entry_name,
+                        part_ordinal, node_ordinal, section_index);
+                }
             }
         }
-    } else if (node_name == "w:r") {
-        const auto node_ordinal = increment_style_usage_node_ordinal(
-            node_ordinals, featherdoc::style_usage_hit_kind::run);
-        if (node_style_reference_matches(node, "w:rPr", "w:rStyle", style_id)) {
-            ++usage.run_count;
-            ++part_ordinal;
-            if (hits != nullptr) {
-                append_style_usage_hit(
-                    *hits, part_kind, featherdoc::style_usage_hit_kind::run,
-                    entry_name, part_ordinal, node_ordinal, section_index);
-            }
-        }
-    } else if (node_name == "w:tbl") {
-        const auto node_ordinal = increment_style_usage_node_ordinal(
-            node_ordinals, featherdoc::style_usage_hit_kind::table);
-        if (node_style_reference_matches(node, "w:tblPr", "w:tblStyle",
-                                         style_id)) {
-            ++usage.table_count;
-            ++part_ordinal;
-            if (hits != nullptr) {
-                append_style_usage_hit(
-                    *hits, part_kind, featherdoc::style_usage_hit_kind::table,
-                    entry_name, part_ordinal, node_ordinal, section_index);
-            }
-        }
-    }
-
-    for (auto child = node.first_child(); child != pugi::xml_node{};
-         child = child.next_sibling()) {
-        collect_style_usage(child, style_id, usage, part_kind, entry_name, hits,
-                            part_ordinal, node_ordinals, section_index);
     }
 }
 

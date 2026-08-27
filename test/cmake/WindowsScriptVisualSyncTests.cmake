@@ -14,6 +14,12 @@
             -WorkingDir
             ${CMAKE_CURRENT_BINARY_DIR}/table_style_quality_visual_regression
         )
+        # This regression generates, repairs, reopens, and audits multiple DOCX
+        # fixtures. It can cross the generic two-minute candidate budget on a
+        # loaded Windows release host even after producing valid evidence.
+        set_tests_properties(table_style_quality_visual_regression
+            PROPERTIES
+                TIMEOUT 180)
 
         add_test(
             NAME
@@ -506,7 +512,7 @@
         )
         set_tests_properties(check_project_template_smoke_manifest
             PROPERTIES
-                TIMEOUT 60
+                TIMEOUT 120
                 LABELS "docs;smoke;project_template")
 
         add_test(

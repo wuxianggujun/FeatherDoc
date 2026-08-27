@@ -79,6 +79,13 @@ and ``BMP`` files. ``SVG``, ``WebP``, and ``TIFF`` keep FeatherDoc-specific
 dimension readers because they are outside the supported ``stb_image`` decode
 set used by this project.
 
+The format-specific readers reject non-finite or unrepresentable SVG sizes and
+view boxes. WebP chunk ranges and TIFF IFD/value offsets use checked arithmetic,
+so malformed 32-bit offsets cannot wrap back into the input buffer. Floating
+crop conversion also uses checked rounding at the ``std::uint32_t`` boundary.
+These failures return ``image_size_read_failed`` before image XML or media parts
+are added.
+
 Explicit ``width_px`` and ``height_px`` values bypass source-size inference for
 layout size, but the image file still has to be readable and recognized so the
 package media part and content type can be written correctly.
@@ -87,6 +94,41 @@ The package content type and media part extension are selected from the source
 file extension. Keep the extension aligned with the actual image bytes; for
 example, do not store JPEG bytes in a ``.png`` file when the generated DOCX
 should advertise ``image/png``.
+
+External image inputs must resolve to regular files and are limited to 256 MiB.
+A symlink to a regular file remains supported; directories, FIFOs, sockets,
+devices, and symlinks to non-regular targets are rejected before opening the
+input. Unsupported extensions are rejected after the type check but before the
+file-size query, allocation, open, or content read. Extension matching remains
+ASCII case-insensitive.
+
+FeatherDoc performs the path preflight through a non-throwing ``error_code``
+API. It then opens one native handle, revalidates the opened object type, queries
+its size, and reads from that same object. POSIX uses ``O_NONBLOCK`` before
+``fstat``, so replacing the checked path with an ordinary FIFO cannot make the
+open wait for a writer; Windows uses ``CreateFileW`` and revalidates with
+``GetFileType``. This is not a general latency guarantee for arbitrary device
+drivers, FUSE implementations, or network filesystems. Reading stays bounded to
+64 KiB chunks and probes one byte beyond the limit, covering a file that grows
+after the metadata check. Native read failures retain the numeric OS error and
+category in detail without exposing content. If the path preflight or POSIX
+``fstat`` reports ``EOVERFLOW``, the actual size cannot be represented by the
+current process; FeatherDoc reports ``image_input_limit_exceeded`` with
+``actual_bytes=unrepresentable`` instead of treating it as an ordinary status
+failure. Status, non-regular input, size-query, open, read, unsupported-format,
+and limit failures otherwise report
+``image_file_status_failed``,
+``image_file_not_regular``, ``image_file_size_read_failed``,
+``image_file_open_failed``, ``image_file_read_failed``,
+``image_format_unsupported``, and ``image_input_limit_exceeded`` respectively.
+A limit rejection occurs before any drawing XML, relationship, Content Types
+entry, or media part is added; its detail reports ``actual_bytes`` and
+``limit_bytes`` without including image content.
+
+When extraction must reopen the original DOCX, FeatherDoc revalidates the
+complete current source archive before reading media bytes. Replacing the source
+after ``open()`` therefore cannot bypass binary-entry, total-size, compression,
+or physical-name limits.
 
 Typed Signature Guide
 ---------------------

@@ -143,6 +143,9 @@ if ((Split-Path -Leaf ([string]$Path[0])) -ne "release_assets_manifest.json") {
 if (-not (Test-Path -LiteralPath ([string]$Path[0]))) {
     throw "Post-publish audit target was not found: $($Path[0])"
 }
+if ($env:FEATHERDOC_PUBLISH_RELEASE_AUDIT_FAIL -eq "1") {
+    throw "Injected pre-publish manifest audit failure."
+}
 '@
 
 $bodyPath = Join-Path $reportDir "release_body.zh-CN.md"
@@ -173,14 +176,15 @@ try {
 $entries = @(Get-Content -LiteralPath $callLogPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
     $_ | ConvertFrom-Json
 })
-if ($entries.Count -ne 2) {
-    throw "Expected exactly 2 wrapper calls, found $($entries.Count)."
+if ($entries.Count -ne 3) {
+    throw "Expected exactly 3 wrapper calls, found $($entries.Count)."
 }
 
 $packageEntry = $entries[0]
-$syncEntry = $entries[1]
-if ($packageEntry.step -ne "package" -or $syncEntry.step -ne "sync") {
-    throw "publish_github_release.ps1 did not invoke package -> sync in the expected order."
+$draftSyncEntry = $entries[1]
+$publishSyncEntry = $entries[2]
+if ($packageEntry.step -ne "package" -or $draftSyncEntry.step -ne "sync" -or $publishSyncEntry.step -ne "sync") {
+    throw "publish_github_release.ps1 did not invoke package -> draft sync -> publish sync in the expected order."
 }
 
 if ($packageEntry.summary_json -ne $summaryPath) {
@@ -198,17 +202,20 @@ if (-not [bool]$packageEntry.keep_staging) {
 if ([bool]$packageEntry.allow_incomplete) {
     throw "Package step unexpectedly received -AllowIncomplete for a full visual release summary."
 }
-if ($syncEntry.release_tag -ne "v1.6.4") {
-    throw "Sync step did not derive the expected release tag."
+if ($draftSyncEntry.release_tag -ne "v1.6.4" -or $publishSyncEntry.release_tag -ne "v1.6.4") {
+    throw "Sync steps did not derive the expected release tag."
 }
-if ([bool]$syncEntry.allow_ci_artifact_publish) {
-    throw "Sync step unexpectedly received -AllowCiArtifactPublish for a full visual release summary."
+if ([bool]$draftSyncEntry.allow_ci_artifact_publish -or [bool]$publishSyncEntry.allow_ci_artifact_publish) {
+    throw "Sync steps unexpectedly received -AllowCiArtifactPublish for a full visual release summary."
 }
-if (-not [bool]$syncEntry.publish) {
-    throw "Sync step did not receive -Publish."
+if ([bool]$draftSyncEntry.publish) {
+    throw "Draft sync step unexpectedly received -Publish before the manifest audit."
 }
-if ($syncEntry.title -ne $releaseTitle) {
-    throw "Sync step did not receive the explicit release title."
+if (-not [bool]$publishSyncEntry.publish) {
+    throw "Final sync step did not receive -Publish."
+}
+if ($draftSyncEntry.title -ne $releaseTitle -or $publishSyncEntry.title -ne $releaseTitle) {
+    throw "Sync steps did not receive the explicit release title."
 }
 
 $ciOnlySummary = [ordered]@{
@@ -281,18 +288,21 @@ try {
 $ciEntries = @(Get-Content -LiteralPath $callLogPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
     $_ | ConvertFrom-Json
 })
-if ($ciEntries.Count -ne 2) {
-    throw "Expected exactly 2 CI artifact wrapper calls, found $($ciEntries.Count)."
+if ($ciEntries.Count -ne 3) {
+    throw "Expected exactly 3 CI artifact wrapper calls, found $($ciEntries.Count)."
 }
 
 if (-not [bool]$ciEntries[0].allow_incomplete) {
     throw "CI artifact package step did not receive -AllowIncomplete."
 }
-if (-not [bool]$ciEntries[1].allow_ci_artifact_publish) {
-    throw "CI artifact sync step did not receive -AllowCiArtifactPublish."
+if (-not [bool]$ciEntries[1].allow_ci_artifact_publish -or -not [bool]$ciEntries[2].allow_ci_artifact_publish) {
+    throw "CI artifact sync steps did not receive -AllowCiArtifactPublish."
 }
-if (-not [bool]$ciEntries[1].publish) {
-    throw "CI artifact sync step did not receive -Publish."
+if ([bool]$ciEntries[1].publish) {
+    throw "CI artifact draft sync published before the manifest audit."
+}
+if (-not [bool]$ciEntries[2].publish) {
+    throw "CI artifact final sync step did not receive -Publish."
 }
 
 $manifestOutputRoot = Join-Path $resolvedWorkingDir "release-assets-with-manifest"
@@ -349,6 +359,42 @@ function global:gh {
     } | ConvertTo-Json -Depth 8
 }
 
+$prePublishAuditFailureOutputRoot = Join-Path $resolvedWorkingDir "release-assets-pre-publish-audit-failure"
+Set-Content -LiteralPath $callLogPath -Encoding UTF8 -Value ""
+$env:FEATHERDOC_PUBLISH_RELEASE_AUDIT_FAIL = "1"
+$prePublishAuditFailedAsExpected = $false
+try {
+    $publishScript = Join-Path $resolvedRepoRoot "scripts\publish_github_release.ps1"
+    & $publishScript `
+        -SummaryJson $summaryPath `
+        -OutputRoot $prePublishAuditFailureOutputRoot `
+        -Publish `
+        -AllowCiArtifactPublish `
+        -PackageScriptPath $fakePackagePath `
+        -SyncNotesScriptPath $fakeSyncPath `
+        -ReleaseMaterialAuditScriptPath $fakeAuditPath
+} catch {
+    $prePublishAuditFailedAsExpected = $_.Exception.Message -like "*Injected pre-publish manifest audit failure*"
+} finally {
+    Remove-Item Env:FEATHERDOC_PUBLISH_RELEASE_AUDIT_FAIL -ErrorAction SilentlyContinue
+}
+
+if (-not $prePublishAuditFailedAsExpected) {
+    throw "publish_github_release.ps1 did not propagate the injected pre-publish manifest audit failure."
+}
+
+$prePublishFailureEntries = @(Get-Content -LiteralPath $callLogPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+    $_ | ConvertFrom-Json
+})
+$prePublishFailureStepOrder = @($prePublishFailureEntries | ForEach-Object { [string]$_.step }) -join ","
+if ($prePublishFailureStepOrder -ne "package,sync,audit") {
+    throw "Pre-publish audit failure should stop package -> draft sync -> audit, got '$prePublishFailureStepOrder'."
+}
+if ([bool]$prePublishFailureEntries[1].publish) {
+    throw "Release was published before the injected manifest audit failure."
+}
+
+Set-Content -LiteralPath $callLogPath -Encoding UTF8 -Value ""
 try {
     $publishScript = Join-Path $resolvedRepoRoot "scripts\publish_github_release.ps1"
     & $publishScript `

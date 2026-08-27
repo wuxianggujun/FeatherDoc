@@ -1,16 +1,8 @@
 auto read_table_position_plan_content(const path_type &plan_path,
                                       std::string &content,
                                       std::string &error_message) -> bool {
-    std::ifstream stream(plan_path, std::ios::binary);
-    if (!stream.good()) {
-        error_message = "failed to read table position plan file: " +
-                        plan_path.string();
-        return false;
-    }
-
-    content.assign(std::istreambuf_iterator<char>(stream),
-                   std::istreambuf_iterator<char>());
-    return true;
+    return read_bounded_utf8_file(plan_path, "table position plan file",
+                                  content, error_message);
 }
 
 auto read_table_position_plan_file(
@@ -93,7 +85,13 @@ auto read_table_position_plan_file(
                                                "'input_path' must not be empty",
                                                error_message);
             }
-            plan.input_path = path_type(std::move(input_path_text));
+            std::string path_error;
+            if (!parse_cli_path_utf8(input_path_text, "'input_path'",
+                                     plan.input_path, path_error)) {
+                return report_json_input_error("table position plan file",
+                                               index, path_error,
+                                               error_message);
+            }
         } else if (member_name == "preset") {
             if (saw_preset) {
                 error_message = "JSON table position plan root member 'preset' "

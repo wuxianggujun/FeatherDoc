@@ -1,5 +1,7 @@
 #include <featherdoc/pdf/pdf_parser.hpp>
 
+#include <featherdoc/detail/path.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <algorithm>
@@ -42,13 +44,15 @@ PdfParseResult PdfiumParser::parse(const std::filesystem::path &input_path,
     PdfParseResult result;
 
     if (!std::filesystem::exists(input_path)) {
-        result.error_message = "PDF input does not exist: " + input_path.string();
+        result.error_message = "PDF input does not exist: " +
+                               featherdoc::detail::path_to_utf8(input_path);
         return result;
     }
 
     ensure_pdfium_initialized();
 
-    const auto input_string = input_path.string();
+    // PDFium explicitly requires file paths to be UTF-8 encoded.
+    const auto input_string = featherdoc::detail::path_to_utf8(input_path);
     PdfiumDocumentPtr document(FPDF_LoadDocument(input_string.c_str(), nullptr));
     if (!document) {
         result.error_message =

@@ -25,6 +25,7 @@
 
 #include "doctest.h"
 #include <featherdoc.hpp>
+#include <featherdoc/detail/path.hpp>
 #include <zip.h>
 
 namespace {
@@ -127,6 +128,14 @@ auto json_quote(std::string_view value) -> std::string {
     return quoted;
 }
 
+auto cli_path_text(const fs::path &path) -> std::string {
+    return featherdoc::detail::path_to_utf8(path);
+}
+
+auto json_quote_path(const fs::path &path) -> std::string {
+    return json_quote(cli_path_text(path));
+}
+
 auto json_escape_text(std::string_view text) -> std::string {
     std::string escaped;
     escaped.reserve(text.size());
@@ -153,6 +162,10 @@ auto json_escape_text(std::string_view text) -> std::string {
         }
     }
     return escaped;
+}
+
+auto json_escape_path(const fs::path &path) -> std::string {
+    return json_escape_text(cli_path_text(path));
 }
 
 auto normalize_system_status(int status) -> int {

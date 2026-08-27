@@ -56,6 +56,35 @@ function Get-JsonInt {
     return $DefaultValue
 }
 
+function Get-NullableJsonInt {
+    param($Object, [string[]]$Names)
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) {
+            continue
+        }
+        $text = [string]$value
+        if ($text -notmatch "^-?\d+$") {
+            return $null
+        }
+        return [int]$text
+    }
+    return $null
+}
+
+function Get-JsonString {
+    param($Object, [string[]]$Names, [string]$DefaultValue = "")
+
+    foreach ($name in @($Names)) {
+        $value = Get-JsonProperty -Object $Object -Name $name
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            return [string]$value
+        }
+    }
+    return $DefaultValue
+}
+
 function Get-JsonArray {
     param($Object, [string]$Name)
 
@@ -73,6 +102,56 @@ function Resolve-ReviewPath {
 
     if ([string]::IsNullOrWhiteSpace($InputPath)) { return "" }
     return Resolve-TemplateSchemaPath -RepoRoot $RepoRoot -InputPath $InputPath -AllowMissing:$AllowMissing
+}
+
+function New-ManualReviewReasons {
+    param([object[]]$Operations, $ConfidenceSummary)
+
+    $recommendedMinConfidence = Get-NullableJsonInt `
+        -Object $ConfidenceSummary `
+        -Names @("recommended_min_confidence")
+    $reasons = New-Object System.Collections.Generic.List[object]
+    if ($null -eq $recommendedMinConfidence) {
+        return @()
+    }
+
+    $index = 0
+    foreach ($operation in @($Operations)) {
+        $index += 1
+        $suggestion = Get-JsonProperty -Object $operation -Name "suggestion"
+        $confidence = Get-NullableJsonInt -Object $suggestion -Names @("confidence")
+        if ($null -eq $confidence) {
+            $confidence = Get-NullableJsonInt -Object $operation -Names @("confidence")
+        }
+        if ($null -eq $confidence -or $confidence -ge $recommendedMinConfidence) {
+            continue
+        }
+
+        $sourceStyleId = Get-JsonString -Object $operation -Names @("source_style_id", "source_style")
+        $targetStyleId = Get-JsonString -Object $operation -Names @("target_style_id", "target_style")
+        $reasonCode = Get-JsonString -Object $suggestion -Names @("reason_code")
+        if ([string]::IsNullOrWhiteSpace($reasonCode)) {
+            $reasonCode = Get-JsonString -Object $operation -Names @("reason_code")
+        }
+        $reason = Get-JsonString -Object $suggestion -Names @("reason")
+        if ([string]::IsNullOrWhiteSpace($reason)) {
+            $reason = "Suggestion confidence is below the recommended minimum confidence."
+        }
+
+        $reasons.Add([ordered]@{
+            index = $index
+            action = Get-JsonString -Object $operation -Names @("action")
+            source_style_id = $sourceStyleId
+            target_style_id = $targetStyleId
+            confidence = $confidence
+            recommended_min_confidence = $recommendedMinConfidence
+            reason_code = $reasonCode
+            review_reason = $reason
+            recommended_action = "manual_review_before_apply"
+        }) | Out-Null
+    }
+
+    return @($reasons.ToArray())
 }
 
 $repoRoot = Resolve-TemplateSchemaRepoRoot -ScriptRoot $PSScriptRoot
@@ -116,6 +195,7 @@ $reviewedAtValue = if ([string]::IsNullOrWhiteSpace($ReviewedAt)) {
 } else {
     $ReviewedAt
 }
+$manualReviewReasons = @(New-ManualReviewReasons -Operations $operations -ConfidenceSummary $confidenceSummary)
 
 $summary = [ordered]@{
     schema = "featherdoc.style_merge_suggestion_review.v1"
@@ -132,6 +212,9 @@ $summary = [ordered]@{
     rollback_plan_path = $resolvedRollbackPlanFile
     rollback_plan_exists = if ([string]::IsNullOrWhiteSpace($resolvedRollbackPlanFile)) { $false } else { Test-Path -LiteralPath $resolvedRollbackPlanFile }
     suggestion_confidence_summary = $confidenceSummary
+    manual_review_required = (@($manualReviewReasons).Count -gt 0)
+    manual_review_reason_count = @($manualReviewReasons).Count
+    manual_review_reasons = @($manualReviewReasons)
 }
 
 $outputDirectory = [System.IO.Path]::GetDirectoryName($resolvedOutputJson)

@@ -3,6 +3,8 @@
 
 #include "featherdoc_cli_run_recipe_parse.hpp"
 
+#include <featherdoc/detail/path.hpp>
+
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -64,6 +66,25 @@ TEST_CASE("cli run recipe parse accepts input and output aliases") {
     REQUIRE(options.output_dir.has_value());
     CHECK(options.output_dir->filename().string() == "out");
     CHECK_FALSE(options.json_output);
+}
+
+TEST_CASE("cli run recipe parse preserves UTF-8 path options") {
+    featherdoc_cli::run_recipe_options options;
+    std::string error;
+
+    CHECK(featherdoc_cli::parse_run_recipe_options(
+        {"run-recipe", "--recipe", "配方-日本語.json", "--inputs",
+         "输入-🙂.json", "--output", "输出 目录"},
+        options, error));
+
+    REQUIRE(options.recipe_path.has_value());
+    CHECK_EQ(featherdoc::detail::path_to_utf8(*options.recipe_path),
+             "配方-日本語.json");
+    REQUIRE(options.inputs_path.has_value());
+    CHECK_EQ(featherdoc::detail::path_to_utf8(*options.inputs_path),
+             "输入-🙂.json");
+    REQUIRE(options.output_dir.has_value());
+    CHECK_EQ(featherdoc::detail::path_to_utf8(*options.output_dir), "输出 目录");
 }
 
 TEST_CASE("cli run recipe parse validates errors") {

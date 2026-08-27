@@ -5,7 +5,7 @@
         std::string data;
     };
 
-    [[nodiscard]] std::uint32_t next_drawing_object_id() const;
+    [[nodiscard]] std::optional<std::uint32_t> next_drawing_object_id() const;
     [[nodiscard]] bool
     append_inline_image_part(std::string image_data, std::string extension,
                              std::string content_type, std::string display_name,
@@ -55,6 +55,8 @@
         std::uint32_t height_px, featherdoc::floating_image_options options);
     [[nodiscard]] std::vector<drawing_image_info>
     drawing_images_in_part(std::string_view entry_name) const;
+    [[nodiscard]] bool
+    image_relationships_allow_mutation(std::string_view entry_name);
     [[nodiscard]] bool extract_drawing_image_from_part(
         std::string_view entry_name, std::size_t image_index,
         const std::filesystem::path &output_path) const;

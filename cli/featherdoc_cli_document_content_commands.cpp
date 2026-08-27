@@ -5,6 +5,7 @@
 #include "featherdoc_cli_errors.hpp"
 #include "featherdoc_cli_json.hpp"
 #include "featherdoc_cli_parse.hpp"
+#include "featherdoc_cli_text.hpp"
 
 #include <cstddef>
 #include <iostream>
@@ -33,16 +34,15 @@ void write_json_hyperlink_summary(
 void write_json_omml_summary(std::ostream &stream,
                              const featherdoc::omml_summary &formula) {
     stream << "{\"index\":" << formula.index
-           << ",\"display\":" << json_bool(formula.display)
-           << ",\"text\":";
+           << ",\"display\":" << json_bool(formula.display) << ",\"text\":";
     write_json_string(stream, formula.text);
     stream << ",\"xml\":";
     write_json_string(stream, formula.xml);
     stream << '}';
 }
 
-void print_hyperlink_summary(
-    std::ostream &stream, const featherdoc::hyperlink_summary &hyperlink) {
+void print_hyperlink_summary(std::ostream &stream,
+                             const featherdoc::hyperlink_summary &hyperlink) {
     stream << "index=" << hyperlink.index << " text=";
     write_json_string(stream, hyperlink.text);
     stream << " relationship_id="
@@ -63,8 +63,7 @@ void inspect_hyperlinks(
     const std::vector<featherdoc::hyperlink_summary> &hyperlinks,
     bool json_output) {
     if (json_output) {
-        std::cout << "{\"count\":" << hyperlinks.size()
-                  << ",\"hyperlinks\":[";
+        std::cout << "{\"count\":" << hyperlinks.size() << ",\"hyperlinks\":[";
         for (std::size_t index = 0; index < hyperlinks.size(); ++index) {
             if (index != 0U) {
                 std::cout << ',';
@@ -86,8 +85,7 @@ void inspect_hyperlinks(
 void inspect_omml(const std::vector<featherdoc::omml_summary> &formulas,
                   bool json_output) {
     if (json_output) {
-        std::cout << "{\"count\":" << formulas.size()
-                  << ",\"formulas\":[";
+        std::cout << "{\"count\":" << formulas.size() << ",\"formulas\":[";
         for (std::size_t index = 0; index < formulas.size(); ++index) {
             if (index != 0U) {
                 std::cout << ',';
@@ -111,7 +109,7 @@ void print_simple_document_mutation_result(
     std::size_t affected) {
     std::cout << "command: " << command << '\n';
     if (output_path.has_value()) {
-        std::cout << "output_path: " << output_path->string() << '\n';
+        std::cout << "output_path: " << path_to_cli_utf8(*output_path) << '\n';
     } else {
         std::cout << "output_path: in_place\n";
     }
@@ -133,12 +131,13 @@ auto run_inspect_hyperlinks_command(
     }
     if (arguments.size() > 3U ||
         (arguments.size() == 3U && arguments[2] != "--json")) {
-        print_parse_error(command, "unknown option: " + std::string(arguments[2]),
+        print_parse_error(command,
+                          "unknown option: " + std::string(arguments[2]),
                           json_output);
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        json_output)) {
         return 1;
     }
@@ -153,9 +152,9 @@ auto run_inspect_hyperlinks_command(
     return 0;
 }
 
-auto run_inspect_omml_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
+auto run_inspect_omml_command(std::string_view command,
+                              const std::vector<std::string_view> &arguments,
+                              featherdoc::Document &doc) -> int {
     const auto json_output = has_json_flag(arguments);
     if (arguments.size() < 2U) {
         print_parse_error(command, "inspect-omml expects an input path",
@@ -164,12 +163,13 @@ auto run_inspect_omml_command(
     }
     if (arguments.size() > 3U ||
         (arguments.size() == 3U && arguments[2] != "--json")) {
-        print_parse_error(command, "unknown option: " + std::string(arguments[2]),
+        print_parse_error(command,
+                          "unknown option: " + std::string(arguments[2]),
                           json_output);
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        json_output)) {
         return 1;
     }
@@ -192,32 +192,32 @@ auto run_hyperlink_mutation_command(
     const bool remove = command == "remove-hyperlink";
     const std::size_t min_argument_count = append ? 2U : 3U;
     if (arguments.size() < min_argument_count) {
-        print_parse_error(command,
-                          append ? "append-hyperlink expects an input path"
-                                 : std::string(command) +
-                                       " expects an input path and hyperlink index",
-                          json_output);
+        print_parse_error(
+            command,
+            append ? "append-hyperlink expects an input path"
+                   : std::string(command) +
+                         " expects an input path and hyperlink index",
+            json_output);
         return 2;
     }
 
     std::size_t hyperlink_index = 0U;
     if (!append && !parse_index(arguments[2], hyperlink_index)) {
-        print_parse_error(command,
-                          "invalid hyperlink index: " +
-                              std::string(arguments[2]),
-                          json_output);
+        print_parse_error(
+            command, "invalid hyperlink index: " + std::string(arguments[2]),
+            json_output);
         return 2;
     }
 
     hyperlink_mutation_options options;
     std::string error_message;
-    if (!parse_hyperlink_mutation_options(
-            arguments, append ? 2U : 3U, options, !remove, error_message)) {
+    if (!parse_hyperlink_mutation_options(arguments, append ? 2U : 3U, options,
+                                          !remove, error_message)) {
         print_parse_error(command, error_message, json_output);
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -228,10 +228,10 @@ auto run_hyperlink_mutation_command(
     } else if (remove) {
         affected = doc.remove_hyperlink(hyperlink_index) ? 1U : 0U;
     } else {
-        affected = doc.replace_hyperlink(hyperlink_index, options.text,
-                                         options.target)
-                       ? 1U
-                       : 0U;
+        affected =
+            doc.replace_hyperlink(hyperlink_index, options.text, options.target)
+                ? 1U
+                : 0U;
     }
     if (affected == 0U) {
         report_document_error(command, "mutate", doc.last_error(),
@@ -239,16 +239,17 @@ auto run_hyperlink_mutation_command(
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
     if (options.json_output) {
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [affected](std::ostream &stream) {
-                write_json_affected_result(stream, affected);
-            });
+        write_json_mutation_result(command, doc, options.output_path,
+                                   [affected](std::ostream &stream) {
+                                       write_json_affected_result(stream,
+                                                                  affected);
+                                   });
     } else {
         print_simple_document_mutation_result(command, options.output_path,
                                               affected);
@@ -256,18 +257,19 @@ auto run_hyperlink_mutation_command(
     return 0;
 }
 
-auto run_omml_mutation_command(
-    std::string_view command, const std::vector<std::string_view> &arguments,
-    featherdoc::Document &doc) -> int {
+auto run_omml_mutation_command(std::string_view command,
+                               const std::vector<std::string_view> &arguments,
+                               featherdoc::Document &doc) -> int {
     const auto json_output = has_json_flag(arguments);
     const bool append = command == "append-omml";
     const bool remove = command == "remove-omml";
     const std::size_t min_argument_count = append ? 2U : 3U;
     if (arguments.size() < min_argument_count) {
         print_parse_error(command,
-                          append ? "append-omml expects an input path"
-                                 : std::string(command) +
-                                       " expects an input path and formula index",
+                          append
+                              ? "append-omml expects an input path"
+                              : std::string(command) +
+                                    " expects an input path and formula index",
                           json_output);
         return 2;
     }
@@ -275,21 +277,20 @@ auto run_omml_mutation_command(
     std::size_t formula_index = 0U;
     if (!append && !parse_index(arguments[2], formula_index)) {
         print_parse_error(command,
-                          "invalid formula index: " +
-                              std::string(arguments[2]),
+                          "invalid formula index: " + std::string(arguments[2]),
                           json_output);
         return 2;
     }
 
     omml_mutation_options options;
     std::string error_message;
-    if (!parse_omml_mutation_options(arguments, append ? 2U : 3U,
-                                     options, !remove, error_message)) {
+    if (!parse_omml_mutation_options(arguments, append ? 2U : 3U, options,
+                                     !remove, error_message)) {
         print_parse_error(command, error_message, json_output);
         return 2;
     }
 
-    if (!open_document(path_type(std::string(arguments[1])), doc, command,
+    if (!open_document(path_from_cli_utf8(arguments[1]), doc, command,
                        options.json_output)) {
         return 1;
     }
@@ -308,16 +309,17 @@ auto run_omml_mutation_command(
         return 1;
     }
 
-    if (!save_document(doc, options.output_path, command, options.json_output)) {
+    if (!save_document(doc, options.output_path, command,
+                       options.json_output)) {
         return 1;
     }
 
     if (options.json_output) {
-        write_json_mutation_result(
-            command, doc, options.output_path,
-            [affected](std::ostream &stream) {
-                write_json_affected_result(stream, affected);
-            });
+        write_json_mutation_result(command, doc, options.output_path,
+                                   [affected](std::ostream &stream) {
+                                       write_json_affected_result(stream,
+                                                                  affected);
+                                   });
     } else {
         print_simple_document_mutation_result(command, options.output_path,
                                               affected);

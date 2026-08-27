@@ -1,7 +1,7 @@
 param(
     [string]$RepoRoot,
     [string]$WorkingDir,
-    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "malformed", "fail_on_blocker", "missing_inputs")]
+    [ValidateSet("all", "aggregate", "clean", "alignment_gap", "exemplar_conflict", "malformed", "fail_on_blocker", "missing_inputs")]
     [string]$Scenario = "all"
 )
 
@@ -232,6 +232,32 @@ function New-SkeletonRollup {
     }
 }
 
+function New-ExemplarConflictSkeletonRollup {
+    $rollup = New-SkeletonRollup -Clean:$true
+    $rollup["catalog_exemplars"] = @(
+        @($rollup.catalog_exemplars)
+        [ordered]@{
+            document_name = "invoice.docx"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            exemplar_catalog_path = "output/document-skeleton-governance/invoice/exemplar.alternate.numbering-catalog.json"
+            exemplar_catalog_display = ".\output\document-skeleton-governance\invoice\exemplar.alternate.numbering-catalog.json"
+            definition_count = 3
+            instance_count = 4
+        },
+        [ordered]@{
+            document_name = "invoice.docx"
+            input_docx = "samples/invoice.docx"
+            input_docx_display = ".\samples\invoice.docx"
+            exemplar_catalog_path = ".\OUTPUT\DOCUMENT-SKELETON-GOVERNANCE\INVOICE\EXEMPLAR.NUMBERING-CATALOG.JSON"
+            exemplar_catalog_display = ".\OUTPUT\DOCUMENT-SKELETON-GOVERNANCE\INVOICE\EXEMPLAR.NUMBERING-CATALOG.JSON"
+            definition_count = 2
+            instance_count = 3
+        }
+    )
+    return $rollup
+}
+
 function New-ManifestSummary {
     param([bool]$Clean)
 
@@ -412,6 +438,19 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Summary should expose numbering baseline coverage."
     Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 2 `
         -Message "Summary should expose matched real-corpus document count."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 2 `
+        -Message "Summary should expose per-document real-corpus alignment rows."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_gap_count) -Expected 0 `
+        -Message "Fully matched real-corpus evidence should not expose alignment gaps."
+    Assert-ContainsText -Text (($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status)" }) -join "`n") `
+        -ExpectedText "contract:matched" `
+        -Message "Summary should mark the contract catalog/baseline pair as matched."
+    Assert-ContainsText -Text (($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status)" }) -join "`n") `
+        -ExpectedText "invoice:matched" `
+        -Message "Summary should mark the invoice catalog/baseline pair as matched."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "matched:2" `
+        -Message "Summary should group real-corpus alignment rows by status."
     Assert-ContainsText -Text (($summary.real_corpus_confidence.penalty_summary | ForEach-Object { "$($_.factor):$($_.penalty)" }) -join "`n") `
         -ExpectedText "style_numbering_issues:15" `
         -Message "Summary should expose style-numbering confidence penalties."
@@ -483,6 +522,10 @@ if (Test-Scenario -Name "aggregate") {
         -Message "Markdown should include baseline manifest section."
     Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Confidence" `
         -Message "Markdown should include real corpus confidence section."
+    Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Alignment" `
+        -Message "Markdown should include per-document real corpus alignment section."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`matched`' `
+        -Message "Markdown should include matched alignment rows."
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
     Assert-ContainsText -Text $markdown -ExpectedText "Catalog document keys" `
@@ -565,6 +608,14 @@ if (Test-Scenario -Name "clean") {
         -Message "Clean covered real corpus evidence should produce high confidence."
     Assert-Equal -Actual ([int]$summary.real_corpus_confidence.matched_document_count) -Expected 1 `
         -Message "Clean evidence should align the single catalog exemplar with its baseline."
+    Assert-HasProperty -Object $summary -Name "catalog_patch_plan_count" `
+        -Message "Clean evidence should expose catalog patch plan count."
+    Assert-Equal -Actual ([int]$summary.catalog_patch_plan_count) -Expected 0 `
+        -Message "Clean evidence should not create catalog patch plans."
+    Assert-HasProperty -Object $summary -Name "catalog_patch_plans" `
+        -Message "Clean evidence should expose the catalog patch plan collection."
+    Assert-Equal -Actual (@($summary.catalog_patch_plans).Count) -Expected 0 `
+        -Message "Clean evidence should expose an empty catalog patch plan collection."
     Assert-Equal -Actual ([int]$summary.release_blocker_count) -Expected 0 `
         -Message "Clean evidence should not expose blockers."
     Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 0 `
@@ -615,6 +666,23 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Baseline coverage should fall when one baseline does not match a real-corpus document."
     Assert-Equal -Actual ([int]$summary.real_corpus_confidence.coverage_score) -Expected 50 `
         -Message "Coverage score should use document identity alignment, not only entry counts."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 3 `
+        -Message "Alignment gap summary should expose every matched and unmatched document key."
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_gap_count) -Expected 2 `
+        -Message "Alignment gap summary should count both missing sides."
+    $alignmentStatusText = ($summary.real_corpus_alignment | ForEach-Object { "$($_.document_key):$($_.status):$($_.source_schema)" }) -join "`n"
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "contract:missing_baseline:featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Alignment rows should route missing baseline evidence back to the skeleton rollup source."
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "obsolete:missing_exemplar:featherdoc.numbering_catalog_manifest_summary.v1" `
+        -Message "Alignment rows should route missing exemplar evidence back to the manifest source."
+    Assert-ContainsText -Text $alignmentStatusText -ExpectedText "invoice:matched:featherdoc.numbering_catalog_governance_report.v1" `
+        -Message "Alignment rows should preserve matched entries as governance-summary evidence."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "missing_baseline:1" `
+        -Message "Alignment status summary should count missing baseline rows."
+    Assert-ContainsText -Text (($summary.real_corpus_confidence.alignment_status_summary | ForEach-Object { "$($_.status):$($_.count)" }) -join "`n") `
+        -ExpectedText "missing_exemplar:1" `
+        -Message "Alignment status summary should count missing exemplar rows."
     Assert-ContainsText -Text (($summary.release_blockers | ForEach-Object { [string]$_.id }) -join "`n") `
         -ExpectedText "numbering_catalog_governance.real_corpus_alignment_gap" `
         -Message "Alignment gaps should create a release blocker."
@@ -658,9 +726,49 @@ if (Test-Scenario -Name "alignment_gap") {
         -ExpectedText "invoice" `
         -Message "Alignment blocker should expose the matched document key."
 
+    Assert-Equal -Actual ([int]$summary.action_item_count) -Expected 3 `
+        -Message "Alignment gaps should add two release-blocking action items alongside the skeleton action."
+    $missingBaselineAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.missing_baseline" })[0]
+    Assert-True -Condition ($null -ne $missingBaselineAction) `
+        -Message "Missing baseline alignment row should create a release action."
+    Assert-Equal -Actual ([string]$missingBaselineAction.scope) -Expected "contract" `
+        -Message "Missing baseline action should be scoped to the unmatched catalog document key."
+    Assert-Equal -Actual ([string]$missingBaselineAction.source_schema) `
+        -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Missing baseline action should point to the skeleton rollup evidence."
+    Assert-ContainsText -Text ([string]$missingBaselineAction.open_command) `
+        -ExpectedText "check_numbering_catalog_baseline.ps1" `
+        -Message "Missing baseline action should provide a baseline review command."
+    Assert-ContainsText -Text ([string]$missingBaselineAction.open_command) `
+        -ExpectedText "samples/contract.docx" `
+        -Message "Missing baseline action should target the unmatched catalog document."
+
+    $missingExemplarAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.missing_exemplar" })[0]
+    Assert-True -Condition ($null -ne $missingExemplarAction) `
+        -Message "Missing exemplar alignment row should create a release action."
+    Assert-Equal -Actual ([string]$missingExemplarAction.scope) -Expected "obsolete" `
+        -Message "Missing exemplar action should be scoped to the unmatched baseline document key."
+    Assert-Equal -Actual ([string]$missingExemplarAction.source_schema) `
+        -Expected "featherdoc.numbering_catalog_manifest_summary.v1" `
+        -Message "Missing exemplar action should point to the manifest evidence."
+    Assert-ContainsText -Text ([string]$missingExemplarAction.open_command) `
+        -ExpectedText "build_document_skeleton_governance_report.ps1" `
+        -Message "Missing exemplar action should provide a skeleton governance rebuild command."
+    Assert-ContainsText -Text ([string]$missingExemplarAction.open_command) `
+        -ExpectedText "samples/obsolete.docx" `
+        -Message "Missing exemplar action should target the unmatched baseline document."
+
     $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
     Assert-ContainsText -Text $markdown -ExpectedText "Matched documents" `
         -Message "Markdown should include real corpus alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText "Real Corpus Alignment" `
+        -Message "Markdown should include per-document alignment details."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`missing_baseline`' `
+        -Message "Markdown should expose missing baseline alignment rows."
+    Assert-ContainsText -Text $markdown -ExpectedText 'status=`missing_exemplar`' `
+        -Message "Markdown should expose missing exemplar alignment rows."
     Assert-ContainsText -Text $markdown -ExpectedText "Unmatched catalog keys" `
         -Message "Markdown should include unmatched catalog key details."
     Assert-ContainsText -Text $markdown -ExpectedText "Unmatched baseline keys" `
@@ -671,6 +779,308 @@ if (Test-Scenario -Name "alignment_gap") {
         -Message "Markdown should include the unmatched baseline document key."
     Assert-ContainsText -Text $markdown -ExpectedText "real_corpus_alignment_gap" `
         -Message "Markdown should include alignment gap blocker."
+    Assert-ContainsText -Text $markdown -ExpectedText "check_numbering_catalog_baseline.ps1" `
+        -Message "Markdown should include the missing-baseline review command."
+    Assert-ContainsText -Text $markdown -ExpectedText "build_document_skeleton_governance_report.ps1" `
+        -Message "Markdown should include the missing-exemplar rebuild command."
+}
+
+if (Test-Scenario -Name "exemplar_conflict") {
+    $evidenceRoot = Join-Path $resolvedWorkingDir "exemplar-conflict-evidence"
+    $skeletonPath = Join-Path $evidenceRoot "skeleton\summary.json"
+    $manifestPath = Join-Path $evidenceRoot "manifest\summary.json"
+    Write-JsonFile -Path $skeletonPath -Value (New-ExemplarConflictSkeletonRollup)
+    Write-JsonFile -Path $manifestPath -Value (New-ManifestSummary -Clean:$true)
+
+    $outputDir = Join-Path $resolvedWorkingDir "exemplar-conflict-report"
+    $result = Invoke-GovernanceScript -Arguments @(
+        "-InputJson", "$skeletonPath,$manifestPath",
+        "-OutputDir", $outputDir
+    )
+    Assert-Equal -Actual $result.ExitCode -Expected 0 `
+        -Message "Exemplar conflict report should pass without fail switches. Output: $($result.Text)"
+
+    $summaryPath = Join-Path $outputDir "summary.json"
+    $markdownPath = Join-Path $outputDir "numbering_catalog_governance.md"
+    $summary = Get-Content -Raw -Encoding UTF8 -LiteralPath $summaryPath | ConvertFrom-Json
+
+    Assert-Equal -Actual ([string]$summary.status) -Expected "needs_review" `
+        -Message "Conflicting exemplar catalog paths should require review."
+    Assert-Equal -Actual ([bool]$summary.release_ready) -Expected $false `
+        -Message "Conflicting exemplar catalog paths should block release readiness."
+    Assert-Equal -Actual ([int]$summary.exemplar_conflict_count) -Expected 1 `
+        -Message "Summary should count one exemplar catalog conflict."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.exemplar_conflict_count) -Expected 1 `
+        -Message "Real-corpus confidence details should expose exemplar conflict count."
+    Assert-Equal -Actual (@($summary.exemplar_conflicts).Count) -Expected 1 `
+        -Message "Summary should expose one exemplar catalog conflict record."
+
+    $conflict = @($summary.exemplar_conflicts)[0]
+    Assert-Equal -Actual ([string]$conflict.document_key) -Expected "invoice" `
+        -Message "Conflict should preserve the canonical document key."
+    Assert-Equal -Actual ([string]$conflict.status) -Expected "exemplar_catalog_conflict" `
+        -Message "Conflict should expose a stable status."
+    Assert-Equal -Actual ([string]$conflict.catalog_patch_plan_id) `
+        -Expected "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan" `
+        -Message "Conflict should expose the structured catalog patch plan ID."
+    Assert-True -Condition ($null -ne $conflict.catalog_patch_plan) `
+        -Message "Conflict should expose its structured catalog patch plan."
+    Assert-Equal -Actual ([int]$conflict.exemplar_catalog_path_count) -Expected 2 `
+        -Message "Conflict should count distinct exemplar catalog paths."
+    Assert-Equal -Actual ([int]$summary.catalog_exemplar_count) -Expected 3 `
+        -Message "Summary should preserve all exemplar rows even when paths normalize to the same value."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_document_count) -Expected 1 `
+        -Message "Confidence coverage should count unique exemplar document keys."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.catalog_coverage_percent) -Expected 100 `
+        -Message "Duplicate exemplar rows should not reduce catalog document coverage."
+    Assert-Equal -Actual ([int]$summary.real_corpus_confidence.unmatched_catalog_document_count) -Expected 0 `
+        -Message "Duplicate exemplar rows should not create unmatched catalog documents."
+    Assert-ContainsText -Text ((@($conflict.exemplar_catalog_paths) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.numbering-catalog.json" `
+        -Message "Conflict should preserve the original exemplar catalog path."
+    Assert-ContainsText -Text ((@($conflict.exemplar_catalog_paths) | ForEach-Object { [string]$_ }) -join "`n") `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.alternate.numbering-catalog.json" `
+        -Message "Conflict should preserve the alternate exemplar catalog path."
+    Assert-Equal -Actual ([string]$conflict.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Conflict should expose the reviewer action."
+    Assert-ContainsText -Text ([string]$conflict.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Conflict should provide a catalog diff command."
+    Assert-ContainsText -Text ([string]$conflict.open_command) -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Conflict diff command should include the alternate catalog."
+    Assert-Equal -Actual ([string]$conflict.source_schema) `
+        -Expected "featherdoc.document_skeleton_governance_rollup_report.v1" `
+        -Message "Conflict should route back to the skeleton rollup source."
+    Assert-ContainsText -Text ([string]$conflict.source_json_display) -ExpectedText "skeleton\summary.json" `
+        -Message "Conflict should expose its source JSON display path."
+
+    Assert-HasProperty -Object $summary -Name "catalog_patch_plan_count" `
+        -Message "Conflict summary should expose catalog patch plan count."
+    Assert-Equal -Actual ([int]$summary.catalog_patch_plan_count) -Expected 1 `
+        -Message "Conflict summary should count one catalog patch plan."
+    Assert-HasProperty -Object $summary -Name "catalog_patch_plans" `
+        -Message "Conflict summary should expose catalog patch plans."
+    Assert-Equal -Actual (@($summary.catalog_patch_plans).Count) -Expected 1 `
+        -Message "Conflict summary should expose one catalog patch plan."
+
+    $catalogPatchPlan = @($summary.catalog_patch_plans)[0]
+    Assert-Equal -Actual ([string]$catalogPatchPlan.schema) `
+        -Expected "featherdoc.numbering_catalog_governance_patch_plan.v1" `
+        -Message "Catalog patch plan should expose its governance schema."
+    Assert-Equal -Actual ([string]$catalogPatchPlan.id) `
+        -Expected "numbering_catalog_governance.exemplar_catalog_conflict_patch_plan" `
+        -Message "Catalog patch plan should expose a stable ID."
+    Assert-Equal -Actual ([string]$catalogPatchPlan.document_key) -Expected "invoice" `
+        -Message "Catalog patch plan should preserve the conflict document key."
+    Assert-Equal -Actual ([string]$catalogPatchPlan.status) -Expected "awaiting_authoritative_catalog" `
+        -Message "Catalog patch plan should await authoritative catalog selection."
+    Assert-Equal -Actual ([bool]$catalogPatchPlan.safe_to_apply) -Expected $false `
+        -Message "Catalog patch plan should not be marked safe to apply automatically."
+    Assert-Equal -Actual ([bool]$catalogPatchPlan.automatic_patch_available) -Expected $false `
+        -Message "Catalog patch plan should not claim automatic patch availability."
+    Assert-Equal -Actual ([bool]$catalogPatchPlan.patch_apply_supported) -Expected $false `
+        -Message "Catalog patch plan should not claim automatic patch application support."
+    Assert-Equal -Actual ([bool]$catalogPatchPlan.manual_review_required) -Expected $true `
+        -Message "Catalog patch plan should require manual review."
+    Assert-Equal -Actual ([bool]$catalogPatchPlan.requires_authoritative_catalog_selection) -Expected $true `
+        -Message "Catalog patch plan should require an authoritative catalog choice."
+    Assert-HasProperty -Object $catalogPatchPlan -Name "reviewer_inputs" `
+        -Message "Catalog patch plan should expose required reviewer inputs."
+    Assert-HasProperty -Object $catalogPatchPlan -Name "patch_counts" `
+        -Message "Catalog patch plan should expose supported patch operation counts."
+    Assert-Equal -Actual ([int]$catalogPatchPlan.unsupported_change_count) -Expected 2 `
+        -Message "Catalog patch plan should count unsupported topology categories."
+    Assert-Equal -Actual ([int]$catalogPatchPlan.candidate_catalog_count) -Expected 2 `
+        -Message "Catalog patch plan should count both candidate catalogs."
+    $candidatePathText = (@($catalogPatchPlan.candidate_catalog_paths) |
+        ForEach-Object { [string]$_ }) -join "`n"
+    Assert-ContainsText -Text $candidatePathText `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.numbering-catalog.json" `
+        -Message "Catalog patch plan should preserve the primary candidate path."
+    Assert-ContainsText -Text $candidatePathText `
+        -ExpectedText "output/document-skeleton-governance/invoice/exemplar.alternate.numbering-catalog.json" `
+        -Message "Catalog patch plan should preserve the alternate candidate path."
+    $candidateDisplayText = (@($catalogPatchPlan.candidate_catalog_displays) |
+        ForEach-Object { [string]$_ }) -join "`n"
+    Assert-ContainsText -Text $candidateDisplayText `
+        -ExpectedText "exemplar.numbering-catalog.json" `
+        -Message "Catalog patch plan should expose candidate display paths."
+    Assert-ContainsText -Text $candidateDisplayText `
+        -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Catalog patch plan should expose the alternate display path."
+
+    $supportedPatchOperations = (@($catalogPatchPlan.supported_patch_operations) |
+        ForEach-Object { [string]$_ }) -join "`n"
+    foreach ($operation in @("upsert_levels", "upsert_overrides", "remove_overrides")) {
+        Assert-ContainsText -Text $supportedPatchOperations -ExpectedText $operation `
+            -Message "Catalog patch plan should list supported operation '$operation'."
+    }
+    Assert-Equal -Actual (@($catalogPatchPlan.supported_patch_operations).Count) -Expected 3 `
+        -Message "Catalog patch plan should expose exactly the supported patch operations."
+
+    $unsupportedAutomaticChangeItems = @($catalogPatchPlan.unsupported_automatic_changes)
+    $unsupportedAutomaticChanges = ($unsupportedAutomaticChangeItems |
+        ForEach-Object { [string]$_.change_kind }) -join "`n"
+    foreach ($change in @("definition_topology_changes", "instance_topology_changes")) {
+        Assert-ContainsText -Text $unsupportedAutomaticChanges -ExpectedText $change `
+            -Message "Catalog patch plan should identify unsupported automatic change '$change'."
+    }
+    Assert-Equal -Actual $unsupportedAutomaticChangeItems.Count -Expected 2 `
+        -Message "Catalog patch plan should expose both unsupported topology change categories."
+
+    $diffCommands = @($catalogPatchPlan.diff_commands | ForEach-Object { [string]$_ })
+    Assert-True -Condition ($diffCommands.Count -ge 1) `
+        -Message "Catalog patch plan should provide at least one candidate diff command."
+    $diffCommandText = $diffCommands -join "`n"
+    Assert-ContainsText -Text $diffCommandText -ExpectedText "diff-numbering-catalog" `
+        -Message "Catalog patch plan should provide diff-numbering-catalog commands."
+    Assert-ContainsText -Text $diffCommandText -ExpectedText "exemplar.numbering-catalog.json" `
+        -Message "Catalog patch plan diff commands should include the primary candidate."
+    Assert-ContainsText -Text $diffCommandText -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Catalog patch plan diff commands should include the alternate candidate."
+    Assert-ContainsText -Text ([string]$catalogPatchPlan.patch_command_template) `
+        -ExpectedText "patch-numbering-catalog" `
+        -Message "Catalog patch plan should provide a patch command template."
+    Assert-ContainsText -Text ([string]$catalogPatchPlan.lint_command_template) `
+        -ExpectedText "lint-numbering-catalog" `
+        -Message "Catalog patch plan should provide a lint command template."
+    Assert-ContainsText -Text ([string]$catalogPatchPlan.verification_command_template) `
+        -ExpectedText "diff-numbering-catalog" `
+        -Message "Catalog patch plan should provide a verification diff command template."
+    Assert-ContainsText -Text ([string]$catalogPatchPlan.verification_command_template) `
+        -ExpectedText "--fail-on-diff" `
+        -Message "Catalog patch plan verification should fail when catalog drift remains."
+
+    $requiredSteps = @($catalogPatchPlan.required_steps)
+    Assert-Equal -Actual $requiredSteps.Count -Expected 6 `
+        -Message "Catalog patch plan should expose an ordered multi-step review procedure."
+    $requiredStepText = ($requiredSteps | ForEach-Object {
+            $commandTemplate = if ($_.PSObject.Properties.Name -contains "command_template") {
+                [string]$_.command_template
+            } else {
+                ""
+            }
+            $commands = if ($_.PSObject.Properties.Name -contains "commands") {
+                (@($_.commands) | ForEach-Object { [string]$_ }) -join " "
+            } else {
+                ""
+            }
+            @(
+                [string]$_.sequence,
+                [string]$_.action,
+                [string]$_.description,
+                $commandTemplate,
+                $commands
+            ) -join ":"
+        }) -join "`n"
+    foreach ($stepMarker in @(
+            "authoritative",
+            "diff-numbering-catalog",
+            "patch-numbering-catalog",
+            "lint-numbering-catalog",
+            "--fail-on-diff")) {
+        Assert-ContainsText -Text $requiredStepText -ExpectedText $stepMarker `
+            -Message "Catalog patch plan required steps should include '$stepMarker'."
+    }
+    $requiredStepActions = ($requiredSteps | ForEach-Object {
+            "$([int]$_.sequence):$([string]$_.action)"
+        }) -join "`n"
+    Assert-Equal -Actual $requiredStepActions -Expected (@(
+            "1:select_authoritative_catalog"
+            "2:review_candidate_diffs"
+            "3:author_reviewed_patch"
+            "4:apply_reviewed_patch"
+            "5:lint_patched_catalog"
+            "6:verify_patched_catalog"
+        ) -join "`n") `
+        -Message "Catalog patch plan required steps should preserve the review and verification order."
+
+    Assert-Equal -Actual ([string]$conflict.catalog_patch_plan.id) `
+        -Expected ([string]$catalogPatchPlan.id) `
+        -Message "Conflict should embed the same catalog patch plan ID as the summary plan."
+
+    Assert-Equal -Actual ([int]$summary.real_corpus_alignment_count) -Expected 1 `
+        -Message "Conflict evidence should preserve the existing alignment row count."
+    $alignment = @($summary.real_corpus_alignment)[0]
+    Assert-Equal -Actual ([string]$alignment.status) -Expected "matched" `
+        -Message "Conflict detection should not change existing catalog/baseline alignment semantics."
+    Assert-Equal -Actual ([bool]$alignment.exemplar_conflict) -Expected $true `
+        -Message "Alignment row should expose the exemplar conflict flag."
+    Assert-Equal -Actual ([int]$alignment.exemplar_conflict_count) -Expected 2 `
+        -Message "Alignment row should expose the number of conflicting paths."
+
+    $conflictBlocker = @($summary.release_blockers |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.exemplar_catalog_conflict" })[0]
+    Assert-True -Condition ($null -ne $conflictBlocker) `
+        -Message "Exemplar conflict should create a release blocker."
+    Assert-Equal -Actual ([string]$conflictBlocker.scope) -Expected "invoice" `
+        -Message "Exemplar conflict blocker should be scoped to the document key."
+    Assert-Equal -Actual ([string]$conflictBlocker.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Exemplar conflict blocker should expose the reviewer action."
+    Assert-Equal -Actual ([int]$conflictBlocker.exemplar_catalog_path_count) -Expected 2 `
+        -Message "Exemplar conflict blocker should preserve the conflicting path count."
+    Assert-ContainsText -Text ([string]$conflictBlocker.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Exemplar conflict blocker should preserve the catalog diff command."
+    Assert-Equal -Actual ([string]$conflictBlocker.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlan.id) `
+        -Message "Exemplar conflict blocker should preserve the catalog patch plan ID."
+    Assert-True -Condition ($null -ne $conflictBlocker.catalog_patch_plan) `
+        -Message "Exemplar conflict blocker should preserve the catalog patch plan object."
+    Assert-Equal -Actual ([string]$conflictBlocker.catalog_patch_plan.schema) `
+        -Expected ([string]$catalogPatchPlan.schema) `
+        -Message "Exemplar conflict blocker should preserve the patch plan schema."
+
+    $conflictAction = @($summary.action_items |
+        Where-Object { [string]$_.id -eq "numbering_catalog_governance.exemplar_catalog_conflict" })[0]
+    Assert-True -Condition ($null -ne $conflictAction) `
+        -Message "Exemplar conflict should create a release action item."
+    Assert-Equal -Actual ([string]$conflictAction.scope) -Expected "invoice" `
+        -Message "Exemplar conflict action should be scoped to the document key."
+    Assert-Equal -Actual ([string]$conflictAction.action) -Expected "review_numbering_catalog_exemplar_conflict" `
+        -Message "Exemplar conflict action should expose the reviewer action."
+    Assert-Equal -Actual ([bool]$conflictAction.release_blocking) -Expected $true `
+        -Message "Exemplar conflict action should remain release-blocking."
+    Assert-ContainsText -Text ([string]$conflictAction.open_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Exemplar conflict action should provide a catalog diff command."
+    Assert-Equal -Actual ([string]$conflictAction.catalog_patch_plan_id) `
+        -Expected ([string]$catalogPatchPlan.id) `
+        -Message "Exemplar conflict action should preserve the catalog patch plan ID."
+    Assert-True -Condition ($null -ne $conflictAction.catalog_patch_plan) `
+        -Message "Exemplar conflict action should preserve the catalog patch plan object."
+    Assert-Equal -Actual ([string]$conflictAction.catalog_patch_plan.schema) `
+        -Expected ([string]$catalogPatchPlan.schema) `
+        -Message "Exemplar conflict action should preserve the patch plan schema."
+    Assert-ContainsText -Text ([string]$conflictAction.review_command) -ExpectedText "diff-numbering-catalog" `
+        -Message "Exemplar conflict action review_command should provide candidate diff review."
+    Assert-ContainsText -Text ([string]$conflictAction.audit_command) -ExpectedText "--fail-on-diff" `
+        -Message "Exemplar conflict action audit_command should provide fail-on-diff verification."
+
+    Assert-GovernanceTraceMetadata -Items @($summary.release_blockers) -CollectionName "release_blockers"
+    Assert-GovernanceTraceMetadata -Items @($summary.action_items) -CollectionName "action_items" `
+        -ExpectOpenCommandProperty $true
+
+    $markdown = Get-Content -Raw -Encoding UTF8 -LiteralPath $markdownPath
+    Assert-ContainsText -Text $markdown -ExpectedText "Exemplar Catalog Conflicts" `
+        -Message "Markdown should include the exemplar conflict section."
+    Assert-ContainsText -Text $markdown -ExpectedText "exemplar_catalog_conflict" `
+        -Message "Markdown should expose the exemplar conflict status and blocker ID."
+    Assert-ContainsText -Text $markdown -ExpectedText "review_numbering_catalog_exemplar_conflict" `
+        -Message "Markdown should expose the exemplar conflict action."
+    Assert-ContainsText -Text $markdown -ExpectedText "exemplar.alternate.numbering-catalog.json" `
+        -Message "Markdown should expose the alternate exemplar path."
+    Assert-ContainsText -Text $markdown -ExpectedText "diff-numbering-catalog" `
+        -Message "Markdown should expose the catalog diff command."
+    Assert-ContainsText -Text $markdown -ExpectedText "Catalog Patch Plans" `
+        -Message "Markdown should include the catalog patch plan section."
+    Assert-ContainsText -Text $markdown -ExpectedText "featherdoc.numbering_catalog_governance_patch_plan.v1" `
+        -Message "Markdown should expose the catalog patch plan schema."
+    Assert-ContainsText -Text $markdown -ExpectedText "awaiting_authoritative_catalog" `
+        -Message "Markdown should expose the awaiting-authority patch plan status."
+    Assert-ContainsText -Text $markdown -ExpectedText "patch-numbering-catalog" `
+        -Message "Markdown should expose the patch command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "lint-numbering-catalog" `
+        -Message "Markdown should expose the lint command template."
+    Assert-ContainsText -Text $markdown -ExpectedText "--fail-on-diff" `
+        -Message "Markdown should expose the verification command template."
 }
 
 if (Test-Scenario -Name "malformed") {

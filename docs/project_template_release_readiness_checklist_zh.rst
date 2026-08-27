@@ -74,6 +74,8 @@ approval、content-control 和 release governance 报告之间手工拼结论。
      ``planned_business_template_registration_actions``，并在 JSON / text 报告中保留
      planned 语料的 ``registration_blocker``、``next_action`` 与 ``smoke_contract``，
      让 reviewer 能区分已注册业务模板与只做计划跟踪的语料类型；
+     对 ``status = registered`` 的业务模板，``smoke_contract`` 可以是其
+     ``source_entry`` 已启用检查的子集，但不得声明 source entry 未覆盖的检查；
      ``check_project_template_smoke_manifest.ps1 -Json`` 也必须把 planned 语料的
      ``planned_business_template_registration_actions`` 直接写进 manifest check
      报告，至少保留 ``id``、``document_type``、``registration_blocker``、
